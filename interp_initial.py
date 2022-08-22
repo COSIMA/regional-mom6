@@ -16,7 +16,7 @@ dg = xr.open_dataset("/g/data/x77/ahg157/inputs/mom6/eac-01/hgrid_01.nc")[["x", 
 
 di = xr.open_dataset("/g/data/x77/ahg157/inputs/mom6/eac-01/forcing/init_vel_bgrid.nc")
 
-dg = dg.rename({"x": "lon", "y": "lat"})
+dg = dg.rename({"x": "lon", "y": "lat"}).set_coords(["lon", "lat"])
 di = di.rename({"xu_ocean": "lon", "yu_ocean": "lat"})
 
 dg_u = dg.isel(nxp=slice(None, None, 2), nyp=slice(1, None, 2))
