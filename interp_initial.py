@@ -35,7 +35,7 @@ u_on_c.name = "u"
 
 v_on_c = regridder_v(di.v)
 v_on_c = v_on_c.rename({"lon": "xh", "lat": "yq", "nxp": "nx"})
-u_on_c.name = "v"
+v_on_c.name = "v"
 
 do = xr.merge((u_on_c, v_on_c))
 do.st_ocean.attrs["axis"] = "Z"
