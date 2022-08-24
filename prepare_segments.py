@@ -7,9 +7,43 @@ import xarray as xr
 
 from dask.diagnostics import ProgressBar
 
-base = os.getenv("PBS_JOBFS")
+"""
+Configurable variables:
 
+base:
+  This is the base directory for temporarily holding the subset of the
+  forcing data in zarr format. We default to the local compute node
+  scratch disk, ``PBS_JOBFS``. For more experimental setups, or if you
+  don't want to run the entire pipeline in one go, this could point
+  to, e.g. ``/scratch``.
+
+t:
+  This is the selection of output directories whose data fully
+  overlaps the desired forcing period. This makes the assumption that
+  you're using the *01deg_jra55v13_ryf9091* experiment to force your
+  model. If this isn't the case, you'll have to load in your data
+  differently, e.g. using the COSIMA Cookbook.
+
+run_year:
+  This is the actual year of output data we want to use for our
+  forcing. It will be selected from the output files that were
+  concatenated together according to the ``t`` parameter.
+
+lon_min, lon_max, lat_min, lat_max:
+  These define a slightly larger (maybe 0.5 to 1 degree) box than your
+  desired regional domain, so that we only have data for our region of
+  interest, but there is a small buffer just in case an interpolation
+  somewhere needs it.
+"""
+
+base = os.getenv("PBS_JOBFS")
 t = range(1077, 1082)
+run_year = 2170
+lon_min, lon_max = -217, -183
+lat_min, lat_max = -49, -5
+
+# Everything that follows shouldn't need further configuration, if you're using the
+# same experiment
 
 surface_tracer_vars = ["temp", "salt"]
 line_tracer_vars = ["eta_t"]
@@ -22,10 +56,13 @@ chunks = {
 }
 
 def time_rotate(d):
-    left = d.sel(time=slice("2171-01-01", None))
+    before_start_time = f"{run_year}-12-31"
+    after_end_time = f"{run_year+1}-01-01"
+
+    left = d.sel(time=slice(after_end_time, None))
     left["time"] = pd.date_range("1991-01-01 12:00:00", periods=120)
 
-    right = d.sel(time=slice(None, "2170-12-31"))
+    right = d.sel(time=slice(None, before_start_time))
     right["time"] = pd.date_range("1991-05-01 12:00:00", periods=245)
 
     return xr.concat([left, right], "time")
@@ -61,15 +98,15 @@ d_velocity = xr.merge([d for s, d in in_datasets.values() if s == "U"])
 
 # time slicing
 
-d_tracer = time_rotate(d_tracer.sel(time=slice("2170-05-01", "2171-04-30")))
-d_velocity = time_rotate(d_velocity.sel(time=slice("2170-05-01", "2171-04-30")))
+d_tracer = time_rotate(d_tracer.sel(time=slice(f"{run_year}-05-01", f"{run_year+1}-04-30")))
+d_velocity = time_rotate(d_velocity.sel(time=slice(f"{run_year}-05-01", f"{run_year+1}-04-30")))
 
 # reduce selection around target latitude
 # and remove spatial chunks (required for xesmf)
-d_tracer = d_tracer.sel(yt_ocean=slice(-49, -5), xt_ocean=slice(-217, -183)).chunk(
+d_tracer = d_tracer.sel(yt_ocean=slice(lat_min, lat_max), xt_ocean=slice(lon_min, lon_max)).chunk(
     {"yt_ocean": None, "xt_ocean": None}
 )
-d_velocity = d_velocity.sel(yu_ocean=slice(-49, -5), xu_ocean=slice(-217, -183)).chunk(
+d_velocity = d_velocity.sel(yu_ocean=slice(lat_min, lat_max), xu_ocean=slice(lon_min, lon_max)).chunk(
     {"yu_ocean": None, "xu_ocean": None}
 )
 
