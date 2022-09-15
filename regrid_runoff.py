@@ -2,10 +2,32 @@ from pykdtree.kdtree import KDTree
 import numpy as np
 import xarray as xr
 
+"""
+Configurable variables:
+
+ocean_mask_path:
+  This points to the path to your ``ocean_mask.nc``, which is created
+  from ``ocean_hgrid.nc`` and your topography using the
+  ``make_solo_mosaic`` tool.
+
+hgrid_path:
+  This points to the ocean_hgrid.nc file for your regional domain.
+
+runoff_path:
+  This points to the runoff forcing file.
+
+"""
+
+ocean_mask_path = "ocean_mask.nc"
+hgrid_path = "hgrid_01.nc"
+runoff_path = "runoff_box.nc"
+
+# Everything that follows shouldn't need further configuration
+
 # ocean mask and supergrid (reduced to tracer points) for the target grid
-dm = xr.open_dataset("ocean_mask.nc").rename({"nx": "longitude", "ny": "latitude"})
+dm = xr.open_dataset(ocean_mask_path).rename({"nx": "longitude", "ny": "latitude"})
 dg = (
-    xr.open_dataset("hgrid_01.nc")
+    xr.open_dataset(hgrid_path)
     .isel(nxp=slice(1, None, 2), nyp=slice(1, None, 2))
     .rename({"nyp": "latitude", "nxp": "longitude"})
 )
@@ -37,7 +59,7 @@ cst_areas = area.data.flatten()[np.flatnonzero(cst)]
 kd = KDTree(cst_coords)
 
 # open the runoff section and construct its corner points
-dr = xr.open_dataset("runoff_box.nc")
+dr = xr.open_dataset(runoff_path)
 res = 0.25
 lons = np.arange(dr.longitude[0] - res/2, dr.longitude[-1] + res, res)
 lats = np.arange(dr.latitude[0] - res/2,  dr.latitude[-1] + res, res)

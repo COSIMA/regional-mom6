@@ -17,6 +17,29 @@ import xesmf as xe
 from dask.distributed import Client, worker_client
 from dask.diagnostics import ProgressBar
 
+"""
+Configurable variables:
+
+base:
+  This is the base directory that holds the data from the
+  *prepare_segments* script. The value of this variable should match
+  between these two scripts.
+
+hgrid_path:
+  This points to the ocean_hgrid.nc file for your regional domain.
+
+weights_exist:
+  If you have run this script before, and have the regridding weights
+  saved, you can save a bit of time by skipping their
+  regeneration. Otherwise, leave this as false.
+"""
+
+base = os.getenv("PBS_JOBFS")
+hgrid_path = "/g/data/x77/ahg157/inputs/mom6/eac-01/hgrid_01.nc"
+weights_exist = False
+
+# Everything that follows shouldn't need further configuration
+
 surface_tracer_vars = ["temp", "salt"]
 line_tracer_vars = ["eta_t"]
 surface_velocity_vars = ["u", "v"]
@@ -25,10 +48,10 @@ surface_vars = surface_tracer_vars + surface_velocity_vars
 def input_datasets():
     # open target grid dataset
     # we interpolate onto the hgrid
-    dg = xr.open_dataset("/g/data/x77/ahg157/inputs/mom6/eac-01/hgrid_01.nc")
+    dg = xr.open_dataset(hgrid_path)
 
-    d_tracer = xr.open_zarr(f"{os.getenv('PBS_JOBFS')}/tracer.zarr")
-    d_velocity = xr.open_zarr(f"{os.getenv('PBS_JOBFS')}/velocity.zarr")
+    d_tracer = xr.open_zarr(f"{base}/tracer.zarr")
+    d_velocity = xr.open_zarr(f"{base}/velocity.zarr")
 
     return dg, d_tracer, d_velocity
 
@@ -59,16 +82,16 @@ def interp_segment(segment):
         dg_out,
         "bilinear",
         locstream_out=True,
-        reuse_weights=True,
-        filename=f"../weights/bilinear_tracer_weights_{seg}.nc",
+        reuse_weights=weights_exist,
+        filename=f"bilinear_tracer_weights_{seg}.nc",
     )
     regridder_velocity = xe.Regridder(
         d_velocity.rename(xu_ocean="lon", yu_ocean="lat"),
         dg_out,
         "bilinear",
         locstream_out=True,
-        reuse_weights=True,
-        filename=f"../weights/bilinear_velocity_weights_{seg}.nc",
+        reuse_weights=weights_exist,
+        filename=f"bilinear_velocity_weights_{seg}.nc",
     )
 
     # now we can apply it to input DataArrays:
