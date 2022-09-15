@@ -22,6 +22,9 @@ data to the generation of the boundary forcing segments
 themselves. We'll start with an overall description of the pipeline
 and the steps involved.
 
+UPDATE 16/09
+There's now a jupyter notebook that steps through this pipeline linearly. This contains some additional documentation too.
+
 ### Create model grid
 Once the target domain has been decided, a MOM6-compatible grid needs
 to be generated. For the easiest interoperability with the forcing, we
