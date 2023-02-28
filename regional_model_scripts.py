@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import xesmf as xe
-
+import subprocess
 from dask.distributed import Client, worker_client
 from dask.diagnostics import ProgressBar
 
@@ -477,3 +477,34 @@ def regrid_runoff(ocean_mask_path,hgrid_path,runoff_path,output_path,xextent,yex
         runoff[i, ind_y[cst_point], ind_x[cst_point]] = dat_cst / cst_areas[cst_point]
 
     runoff.to_netcdf(output_path, unlimited_dims="time")
+
+
+## Chris's function for generating hgrid from scratch
+
+def Create_Base_Grid(grid_dx,grid_dy,output_directory,FRE_tools_dir='/g/data/ul08/FRE_tools/bin/bin'):
+    
+    west_longitude_limit = 0
+    east_longitude_limit = 360
+
+    south_latitude_limit = -90
+    north_latitude_limit = 90
+    
+    
+    n_lon = int( (east_longitude_limit-west_longitude_limit)/grid_dx )
+    n_lat = int( (north_latitude_limit-south_latitude_limit)/grid_dy ) 
+    
+    grid_type = 'regular_lonlat_grid'
+
+    input_args = " --grid_type " +  grid_type 
+    input_args = input_args + " --nxbnd 2 --nybnd 2" #
+    input_args = input_args + f' --xbnd {west_longitude_limit},{east_longitude_limit}' #.format(yes_votes, percentage) 
+    input_args = input_args + f' --ybnd {south_latitude_limit},{north_latitude_limit}'
+    input_args = input_args + f' --nlon {n_lon}, --nlat {n_lat}'
+    input_args = input_args + " center c_cell"
+
+    try:
+        print("MAKE HGRID",subprocess.run([fre_tools_directory + '/make_hgrid'] + input_args.split(" "),cwd = output_directory),sep = "\n")
+        return 0
+    except:
+        print('Make_hgrid failed')
+        return -9
