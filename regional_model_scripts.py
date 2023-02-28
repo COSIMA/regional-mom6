@@ -481,7 +481,7 @@ def regrid_runoff(ocean_mask_path,hgrid_path,runoff_path,output_path,xextent,yex
 
 ## Chris's function for generating hgrid from scratch
 
-def Create_Base_Grid(grid_dx,grid_dy,output_directory,FRE_tools_dir='/g/data/ul08/FRE_tools/bin/bin'):
+def Create_Base_Grid(output_directory,grid_dx=1/50,grid_dy=1/50,FRE_tools_dir='/g/data/ul08/FRE_tools/bin/bin'):
     
     west_longitude_limit = 0
     east_longitude_limit = 360
@@ -503,7 +503,7 @@ def Create_Base_Grid(grid_dx,grid_dy,output_directory,FRE_tools_dir='/g/data/ul0
     input_args = input_args + " center c_cell"
 
     try:
-        print("MAKE HGRID",subprocess.run([fre_tools_directory + '/make_hgrid'] + input_args.split(" "),cwd = output_directory),sep = "\n")
+        print("MAKE HGRID",subprocess.run([FRE_tools_dir + '/make_hgrid'] + input_args.split(" "),cwd = output_directory),sep = "\n")
         return 0
     except:
         print('Make_hgrid failed')
