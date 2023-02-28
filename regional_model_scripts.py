@@ -225,7 +225,7 @@ def interp_segment(segment,path,weights_exist = False,base = os.getenv("PBS_JOBF
             "lat": (["location"], dg_segment.y.squeeze().data),
             "lon": (["location"], dg_segment.x.squeeze().data),
         }
-    )
+    ).set_coords(["lat","lon"])
 
     # segment suffix
     seg = f"segment_{i+1:03}"
@@ -255,6 +255,11 @@ def interp_segment(segment,path,weights_exist = False,base = os.getenv("PBS_JOBF
 
     # now we can apply it to input DataArrays:
     segment_out = xr.merge([regridder_tracer(d_tracer), regridder_velocity(d_velocity)])
+
+    print("before fixing up metadata")
+    print(segment_out)
+
+
     del segment_out["lon"]
     del segment_out["lat"]
     segment_out["temp"] -= 273.15
@@ -286,12 +291,13 @@ def interp_segment(segment,path,weights_exist = False,base = os.getenv("PBS_JOBF
     segment_out[f"lon_{seg}"] = ([f"ny_{seg}", f"nx_{seg}"], dg_segment.x.data)
     segment_out[f"lat_{seg}"] = ([f"ny_{seg}", f"nx_{seg}"], dg_segment.y.data)
 
+
     # reset st_ocean so it's not an index coordinate
-    segment_out = segment_out.reset_index("st_ocean").reset_coords("st_ocean_")
-    depth = segment_out["st_ocean_"]
+    # segment_out = segment_out.reset_index("st_ocean").reset_coords("st_ocean_")
+    depth = segment_out["st_ocean"]
     depth.name = "depth"
     depth["st_ocean"] = np.arange(depth["st_ocean"].size)
-    del segment_out["st_ocean_"]
+    del segment_out["st_ocean"]
 
     # some fiddling to do dz in the same way as brushcutter, while making xarray happy
     dz = depth.diff("st_ocean")
