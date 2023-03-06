@@ -1,0 +1,27 @@
+#!/bin/bash
+#PBS -P v45
+#PBS -q normal
+#PBS -M john.reilly@utas.edu.au
+#PBS -m abe
+#PBS -l ncpus=16
+#PBS -l mem=64GB
+#PBS -l jobfs=50GB
+#PBS -l walltime=2:00:00
+#PBS -l wd
+#PBS -l storage=gdata/hh5+scratch/v45+gdata/v45+gdata/ul08
+
+module unload conda
+module use /g/data/hh5/public/modules
+module load conda/analysis3-unstable
+
+# Load module, always specify version number
+module load openmpi/4.1.4
+module load netcdf
+
+# Must include #PBS -l storgate=scratch/ab12+gdata/yz98 if the job 
+# needs access to '/scratch/ab12/' and '/g/data/yz98/'. 
+
+# Run application
+mpiexec -np $PBS_NCPUS /g/data/v45/jr5971/FRE-NCtools/build3_up_MAXXGRID/tools/make_topog/make_topog_parallel --mosaic ocean_mosaic.nc --topog_type realistic --topog_file gebco_eac.nc --topog_field elevation --scale_factor -1 --output topog.nc
+
+
