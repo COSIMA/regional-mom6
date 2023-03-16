@@ -123,86 +123,86 @@ if __name__ == '__main__':
     
     #######################################################################################
 #     # run prepare segments and save in temporary memory
-#     print('running prepare segments')
-#     # prepare_segments(xextent, yextent)
-#     surface_tracer_vars = ["temp", "salt"]
-#     line_tracer_vars = ["eta_t"]
-#     surface_velocity_vars = ["u", "v"]
-#     surface_vars = surface_tracer_vars + surface_velocity_vars
+    print('running prepare segments')
+    # prepare_segments(xextent, yextent)
+    surface_tracer_vars = ["temp", "salt"]
+    line_tracer_vars = ["eta_t"]
+    surface_velocity_vars = ["u", "v"]
+    surface_vars = surface_tracer_vars + surface_velocity_vars
 
-#     chunks = {
-#         "T": {"time": 1, "st_ocean": 7, "yt_ocean": 300, "xt_ocean": None},
-#         "U": {"time": 1, "st_ocean": 7, "yu_ocean": 300, "xu_ocean": None},
-#     }
+    chunks = {
+        "T": {"time": 1, "st_ocean": 7, "yt_ocean": 300, "xt_ocean": None},
+        "U": {"time": 1, "st_ocean": 7, "yu_ocean": 300, "xu_ocean": None},
+    }
     
-#     t = range(1077, 1082)
+    t = range(1077, 1082)
 
-#     in_datasets = {}
-#     for var, staggering in list(zip(surface_tracer_vars, cycle("T"))) + list(
-#         zip(surface_velocity_vars, cycle("U"))
-#     ):
-#         d = xr.open_mfdataset(
-#             [
-#                 f"/g/data/ik11/outputs/access-om2-01/01deg_jra55v13_ryf9091/output{i}/ocean/ocean_daily_3d_{var}.nc"
-#                 for i in t
-#             ],
-#             chunks=chunks[staggering],
-#             combine="by_coords",
-#             parallel=False,
-#         )[var]
-#         in_datasets[var] = staggering, d
+    in_datasets = {}
+    for var, staggering in list(zip(surface_tracer_vars, cycle("T"))) + list(
+        zip(surface_velocity_vars, cycle("U"))
+    ):
+        d = xr.open_mfdataset(
+            [
+                f"/g/data/ik11/outputs/access-om2-01/01deg_jra55v13_ryf9091/output{i}/ocean/ocean_daily_3d_{var}.nc"
+                for i in t
+            ],
+            chunks=chunks[staggering],
+            combine="by_coords",
+            parallel=False,
+        )[var]
+        in_datasets[var] = staggering, d
 
-#     # line datasets, assume they all come from ocean_daily
-#     d_2d = xr.open_mfdataset(
-#         [
-#             f"/g/data/ik11/outputs/access-om2-01/01deg_jra55v13_ryf9091/output{i}/ocean/ocean_daily.nc"
-#             for i in t
-#         ],
-#         chunks={"time": 1, "yt_ocean": 300, "xt_ocean": None},
-#         combine="by_coords",
-#         parallel=False,
-#     )[line_tracer_vars]
+    # line datasets, assume they all come from ocean_daily
+    d_2d = xr.open_mfdataset(
+        [
+            f"/g/data/ik11/outputs/access-om2-01/01deg_jra55v13_ryf9091/output{i}/ocean/ocean_daily.nc"
+            for i in t
+        ],
+        chunks={"time": 1, "yt_ocean": 300, "xt_ocean": None},
+        combine="by_coords",
+        parallel=False,
+    )[line_tracer_vars]
 
-#     d_tracer = xr.merge([d for s, d in in_datasets.values() if s == "T"] + [d_2d])
-#     d_velocity = xr.merge([d for s, d in in_datasets.values() if s == "U"])
+    d_tracer = xr.merge([d for s, d in in_datasets.values() if s == "T"] + [d_2d])
+    d_velocity = xr.merge([d for s, d in in_datasets.values() if s == "U"])
 
-#     # time slicing
+    # time slicing
     
     run_year = 2170
 
-#     d_tracer = time_rotate(d_tracer.sel(time=slice(f"{run_year}-05-01", f"{run_year+1}-04-30")))
-#     d_velocity = time_rotate(d_velocity.sel(time=slice(f"{run_year}-05-01", f"{run_year+1}-04-30")))
+    d_tracer = time_rotate(d_tracer.sel(time=slice(f"{run_year}-05-01", f"{run_year+1}-04-30")))
+    d_velocity = time_rotate(d_velocity.sel(time=slice(f"{run_year}-05-01", f"{run_year+1}-04-30")))
 
-#     # reduce selection around target latitude
-#     # and remove spatial chunks (required for xesmf)
-#     d_tracer = d_tracer.sel(yt_ocean=slice(yextent[0] - 1, yextent[1] + 1), xt_ocean=slice(xextent[0] - 1,xextent[1] + 1)).chunk(
-#         {"yt_ocean": None, "xt_ocean": None}
-#     )
-#     d_velocity = d_velocity.sel(yu_ocean=slice(yextent[0] - 1, yextent[1] + 1), xu_ocean=slice(xextent[0] - 1,xextent[1] + 1)).chunk(
-#         {"yu_ocean": None, "xu_ocean": None}
-#     )
+    # reduce selection around target latitude
+    # and remove spatial chunks (required for xesmf)
+    d_tracer = d_tracer.sel(yt_ocean=slice(yextent[0] - 1, yextent[1] + 1), xt_ocean=slice(xextent[0] - 1,xextent[1] + 1)).chunk(
+        {"yt_ocean": None, "xt_ocean": None}
+    )
+    d_velocity = d_velocity.sel(yu_ocean=slice(yextent[0] - 1, yextent[1] + 1), xu_ocean=slice(xextent[0] - 1,xextent[1] + 1)).chunk(
+        {"yu_ocean": None, "xu_ocean": None}
+    )
     
-#     #######################################
-#     uni_chunks_T = {'time':-1, 'st_ocean':15, 'yt_ocean':45, 'xt_ocean':70}
-#     uni_chunks_U = {'time':-1, 'st_ocean':15, 'yu_ocean':45, 'xu_ocean':70}
-#     d_tracer = d_tracer.chunk(uni_chunks_T)
-#     d_velocity = d_velocity.chunk(uni_chunks_U)
-#     #######################################
-#     print('saving tracer datasets to scratch')
-#     with ProgressBar():
-#         d_tracer.to_zarr(
-#             f"{path}/tracer.zarr",
-#             encoding={"time": {"dtype": "double", "units": "days since 1900-01-01 12:00:00", "calendar": "noleap"}},
-#             mode = "w"
-#         )
-#     print('saving velocity datasets to scratch')
-#     with ProgressBar():
-#         d_velocity.to_zarr(
-#             f"{path}/velocity.zarr",
-#             encoding={"time": {"dtype": "double", "units": "days since 1900-01-01 12:00:00", "calendar": "noleap"}},
-#             mode = "w"
-#         )
-#     print('finished prepare_segments')
+    #######################################
+    uni_chunks_T = {'time':-1, 'st_ocean':15, 'yt_ocean':45, 'xt_ocean':70}
+    uni_chunks_U = {'time':-1, 'st_ocean':15, 'yu_ocean':45, 'xu_ocean':70}
+    d_tracer = d_tracer.chunk(uni_chunks_T)
+    d_velocity = d_velocity.chunk(uni_chunks_U)
+    #######################################
+    print('saving tracer datasets to scratch')
+    with ProgressBar():
+        d_tracer.to_zarr(
+            f"{path}/tracer.zarr",
+            encoding={"time": {"dtype": "double", "units": "days since 1900-01-01 12:00:00", "calendar": "noleap"}},
+            mode = "w"
+        )
+    print('saving velocity datasets to scratch')
+    with ProgressBar():
+        d_velocity.to_zarr(
+            f"{path}/velocity.zarr",
+            encoding={"time": {"dtype": "double", "units": "days since 1900-01-01 12:00:00", "calendar": "noleap"}},
+            mode = "w"
+        )
+    print('finished prepare_segments')
 
 
     #for seg in enumerate([{"nyp": [0]}]): #, {"nyp": [-1]}, {"nxp": [0]}, {"nxp": [-1]}]):
