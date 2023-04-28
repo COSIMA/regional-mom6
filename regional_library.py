@@ -1,0 +1,717 @@
+import numpy as np
+from itertools import cycle
+import os
+import dask.array as da
+import dask.bag as db
+import numpy as np
+import xarray as xr
+import xesmf as xe
+import subprocess
+from scipy.ndimage import binary_fill_holes
+import netCDF4
+from dask.distributed import Client, worker_client
+from dask.diagnostics import ProgressBar
+
+def dz(npoints,ratio,target_depth,min_dz = 0.0001,tolerence = 1):
+    """
+    Recursive function takes the target depth, the ratio between largest and smallest layer thicknesses, and generates a hyperbolic tangent thickness profile for the experiment.
+    Iterates to find the mininum depth value which gives the target depth within some tolerence
+
+            Parameters:
+                npoints (int):           Number of vertical points
+                ratio (float):           Ratio of largest to smallest layer thickness. Negative values mean higher resolution is at bottom
+                target_depth (float):    Maximum depth of a layer
+                min_dz (float):          Starting point for iteration
+                tolerence (float):       How close to target depth you want to get
+
+            Returns:
+                numpy array of layer thicknesses
+
+    """
+    profile = min_dz + 0.5 *  (np.abs(ratio) * min_dz - min_dz) * (1 + np.tanh(2 * np.pi * (np.arange(npoints) - npoints // 2) / npoints))
+    tot = np.sum(profile)
+    if np.abs(tot - target_depth) < tolerence:
+        if ratio > 0:
+            return profile
+
+        return profile[::-1]
+
+    err_ratio = target_depth / tot
+
+    return dz(npoints,ratio,target_depth,min_dz * err_ratio)
+
+class experiment:
+    """
+    Knows everything about your regional experiment! Methods in this class will generate the various input files you need to generate a MOM6 experiment forced with Open Boundary Conditions. It's written agnostic to your choice of boundary forcing,topography and surface forcing - you need to tell it what your variables are all called via mapping dictionaries where keys are mom6 variable / coordinate names, and entries are what they're called in your dataset. 
+    """
+
+    def __init__(self, xextent,yextent,resolution,vlayers,dz_ratio,depth,mom_run_dir,mom_input_dir,toolpath):
+        try:
+            os.mkdir(mom_run_dir)
+        except:
+            pass
+
+        try:
+            os.mkdir(mom_input_dir)
+        except:
+            pass
+        self.xextent = xextent
+        self.yextent = yextent
+        self.res = resolution
+        self.vlayers = vlayers
+        self.dz_ratio = dz_ratio
+        self.depth = depth
+        self.mom_run_dir = mom_run_dir
+        self.mom_input_dir = mom_input_dir
+        self.toolpath = toolpath
+        self.hgrid = self._make_hgrid()
+        self.vgrid = self._make_vgrid()
+        # if "temp" not in os.listdir(inputdir):
+        #     os.mkdir(inputdir + "temp")
+
+
+        if "weights" not in os.listdir(self.mom_input_dir):
+            os.mkdir(mom_input_dir + "weights")
+        if "forcing" not in os.listdir(self.mom_input_dir):
+            os.mkdir(self.mom_input_dir + "forcing")
+
+        # create a simlink from input directory to run directory and vv
+        subprocess.run(f"ln -s {self.mom_input_dir} {self.mom_run_dir}/inputdir",shell=True)
+        subprocess.run(f"ln -s {self.mom_run_dir} {self.mom_input_dir}/rundir",shell=True)
+        
+        return 
+    
+    def _make_hgrid(self):
+        """
+        Generates a mom6 hgrid ready to go. Makes a basic grid first, then uses FRE tools to create a full hgrid with all the metadata.
+        """
+        ## Total number of qpoints in x
+        qpoints_x = int((self.xextent[1] - self.xextent[0])/self.res) + 1
+        qpoints_y = int((self.yextent[1] - self.yextent[0])/self.res) + 1
+        if qpoints_x == 0 or qpoints_y == 0:
+            raise ValueError("Please ensure domain extents match chosen resolution")
+        Xq = np.linspace(self.xextent[0],self.xextent[1],qpoints_x)
+        Yq = np.linspace(self.yextent[0],self.yextent[1],qpoints_y)
+
+        Xt = np.linspace(
+            self.xextent[0] + self.res/2,
+            self.xextent[1] - self.res/2,
+            qpoints_x - 1
+            )
+
+        Yt = np.Xt = np.linspace(
+            self.yextent[0] + self.res/2,
+            self.yextent[1] - self.res/2,
+            qpoints_y - 1
+            )
+
+        # broadcast to meshgrid
+        Xt, Yt = np.meshgrid(Xt, Yt)
+        Xq, Yq = np.meshgrid(Xq, Yq)
+
+        # create output dataset
+        ds = xr.Dataset({
+            "grid_lon": (['grid_yc', 'grid_xc'], Xq),
+            'grid_lat': (['grid_yc', 'grid_xc'], Yq),
+            'grid_lont': (['grid_yt', 'grid_xt'], Xt),
+            'grid_latt': (['grid_yt', 'grid_xt'], Yt),
+        })
+        ds.to_netcdf(self.mom_input_dir + "/grid.nc")
+
+        ## Generate the hgrid with fretools. Need to generalise later to not rely on random scripts!
+        args = "--grid_type from_file --my_grid_file grid.nc".split(" ")
+        print("FRE TOOLS: Make hgrid \n\n",subprocess.run([self.toolpath + "make_hgrid/make_hgrid"] + args, cwd=self.mom_input_dir))
+        subprocess.run(["mv","horizontal_grid.nc","hgrid.nc"],cwd=self.mom_input_dir)
+
+        ## Make Solo Mosaic
+        args = "--num_tiles 1 --dir . --mosaic_name ocean_mosaic --tile_file hgrid.nc".split(" ")
+        print("FRE TOOLS: Make solo mosaic\n\n",subprocess.run([self.toolpath + "make_solo_mosaic/make_solo_mosaic"] + args, cwd=self.mom_input_dir), sep="\n")
+        return xr.open_dataset(self.mom_input_dir + "/hgrid.nc")
+    
+    def _make_vgrid(self):
+        """
+        Generates a vertical grid based on the number of layers and vertical ratio specified at the class level.
+        """
+        thickness = dz(self.vlayers,self.dz_ratio,self.depth)
+        vcoord = xr.Dataset(
+            {"zi":("zi",np.cumsum(thickness)),
+             "zl":("zl",(np.cumsum(thickness) + 0.5 * thickness)[0:-1])} ## THIS MIGHT BE WRONG REVISIT
+        )
+        vcoord["zi"].attrs = {"units":"metres"}
+        vcoord.to_netcdf(self.mom_input_dir + "/vcoord.nc")
+
+        return vcoord
+
+
+    def ocean_forcing(self,path,varnames,boundaries = None,gridtype = "A",vcoord_type = "height"):
+        """
+        Reads in the forcing files that force the ocean at boundaries (if specified) and for initial condition
+
+        Parameters:
+            path (str)                   path to directory where the forcing files are stored. Files should be named north_segment_unprocessed for each boundary and ic_segment_unprocessed for the ic
+            varnames (dict)              dictionary that maps the mom6 variable / coordinate names to what they're called in this dataset. See documentation for expected format.
+            boundaries (list of str)     List of the cardinal directions of included boundaries in anticlockwise order
+            gridtype (str)               input is A,B or C type grid. Gets converted to mom6's C grid
+            vcoord_type (str)            the type of vertical coordinate used in the forcing files. Either 'height' or 'thickness'.
+        """
+
+        ## Do initial condition
+
+        ## pull out the initial velocity on MOM5's Bgrid
+
+        ic_raw = xr.open_dataset(path + "/ic_segment_unprocessed")
+
+        if varnames["time"] in ic_raw.coords:
+            ic_raw = ic_raw.isel({varnames["time"] : 0})
+
+        ## Separate out tracers from two velocity fields of IC
+        try:
+            ic_raw_tracers = ic_raw[[varnames["tracers"][i] for i in varnames["tracers"]]]
+        except:
+            print("Error in reading in initial condition tracers. Terminating")
+            raise ValueError
+        try:
+            ic_raw_u = ic_raw[varnames["u"]]
+            ic_raw_v = ic_raw[varnames["v"]]
+        except:
+            print("Error in reading in initial condition velocities. Terminating")
+            raise ValueError
+        try:
+            ic_raw_eta = ic_raw[varnames["eta"]]
+        except:
+            print("Error in reading in initial condition tracers. Terminating")
+            raise ValueError
+        
+
+        ## Rename all coordinates to cgrid convention
+        if gridtype == "A":
+            ic_raw_tracers = ic_raw_tracers.rename({varnames["x"]:"lon",varnames["y"]:"lat"})
+            ic_raw_u = ic_raw_u.rename({varnames["x"]:"lon",varnames["y"]:"lat"})
+            ic_raw_v = ic_raw_v.rename({varnames["x"]:"lon",varnames["y"]:"lat"})
+            ic_raw_eta = ic_raw_eta.rename({varnames["x"]:"lon",varnames["y"]:"lat"})
+        if gridtype == "B":
+            ic_raw_tracers = ic_raw_tracers.rename({varnames["xh"]:"lon",varnames["yh"]:"lat"})
+            ic_raw_eta = ic_raw_eta.rename({varnames["xh"]:"lon",varnames["yh"]:"lat"})
+            ic_raw_u = ic_raw_u.rename({varnames["xq"]:"lon",varnames["yq"]:"lat"})
+            ic_raw_v = ic_raw_v.rename({varnames["xq"]:"lon",varnames["yq"]:"lat"})
+
+        if gridtype == "C":
+            ic_raw_tracers = ic_raw_tracers.rename({varnames["xh"]:"lon",varnames["yh"]:"lat"})
+            ic_raw_eta = ic_raw_eta.rename({varnames["xh"]:"lon",varnames["yh"]:"lat"})
+            ic_raw_u = ic_raw_u.rename({varnames["xq"]:"lon",varnames["yh"]:"lat"})
+            ic_raw_v = ic_raw_v.rename({varnames["xh"]:"lon",varnames["yq"]:"lat"})
+
+
+        ## Construct the xq,yh and xh yq grids
+        ugrid = self.hgrid[["x","y"]].isel(nxp=slice(None, None, 2), nyp=slice(1, None, 2)).rename({"x": "lon", "y": "lat"}).set_coords(["lat","lon"])
+        vgrid = self.hgrid[["x","y"]].isel(nxp=slice(1, None, 2), nyp=slice(None, None, 2)).rename({"x": "lon", "y": "lat"}).set_coords(["lat","lon"])
+
+        ## Construct the cell centre grid for tracers (xh,yh). 
+        tgrid = xr.Dataset(
+            {"lon":(["lon"],self.hgrid.x.isel(nxp=slice(1, None, 2), nyp=1).values),
+            "lat":(["lat"],self.hgrid.y.isel(nxp=1, nyp=slice(1, None, 2)).values)
+                    }
+        )
+
+
+        ### Drop NaNs to be re-added later
+        # NaNs are from the land mask. When we interpolate onto a new grid, need to put in the new land mask. If NaNs left in, land mask stays the same
+
+        ic_raw_tracers = ic_raw_tracers.interpolate_na("lon",method = "nearest").ffill("lon").bfill("lon")
+        ic_raw_eta = ic_raw_eta.interpolate_na("lon",method = "nearest").ffill("lon").bfill("lon")
+        ic_raw_u = ic_raw_u.interpolate_na("lon",method = "nearest").ffill("lon").bfill("lon")
+        ic_raw_v = ic_raw_v.interpolate_na("lon",method = "nearest").ffill("lon").bfill("lon")
+
+        ## Make our three horizontal regrideers 
+        regridder_u = xe.Regridder(
+            ic_raw_u, ugrid, "bilinear",
+        )
+        regridder_v = xe.Regridder(
+            ic_raw_v, vgrid, "bilinear",
+        )
+
+        regridder_t = xe.Regridder(
+            ic_raw_tracers, tgrid, "bilinear",
+        )
+
+
+        ## Regrid all fields horizontally.
+
+        vel_out = xr.merge(
+            [
+            regridder_u(ic_raw_u).rename({"lon": "xq", "lat": "yh", "nyp": "ny",varnames["zl"]:"zl"}).rename("u"),
+            regridder_v(ic_raw_v).rename({"lon": "xh", "lat": "yq", "nxp": "nx",varnames["zl"]:"zl"}).rename("v")
+            ]
+        )
+        tracers_out = xr.merge(
+            [regridder_t(ic_raw_tracers[varnames["tracers"][i]]).rename(i) for i in varnames["tracers"]]
+            ).rename({"lon": "xh", "lat": "yh",varnames["zl"]:"zl"})
+        
+        eta_out = regridder_t(ic_raw_eta).rename({"lon": "xh", "lat": "yh"}).rename("eta")
+
+        ## Return attributes to arrays
+
+        vel_out.u.attrs = ic_raw_u.attrs 
+        vel_out.v.attrs = ic_raw_v.attrs 
+        vel_out.xq.attrs = ic_raw_u.lon.attrs
+        vel_out.yq.attrs = ic_raw_v.lat.attrs
+        vel_out.yh.attrs = ic_raw_u.lat.attrs
+        vel_out.yh.attrs = ic_raw_v.lon.attrs
+        vel_out.zl.attrs = ic_raw_u[varnames["zl"]].attrs
+ 
+        tracers_out.xh.attrs = ic_raw_tracers.lon.attrs
+        tracers_out.yh.attrs = ic_raw_tracers.lat.attrs
+        tracers_out.zl.attrs = ic_raw_tracers[varnames["zl"]].attrs
+        for i in varnames["tracers"]:
+            tracers_out[i].attrs = ic_raw_tracers[varnames["tracers"][i]].attrs
+
+        eta_out.xh.attrs = ic_raw_tracers.lon.attrs
+        eta_out.yh.attrs = ic_raw_tracers.lat.attrs
+        eta_out.attrs = ic_raw_eta.attrs 
+
+
+        if np.min(tracers_out["temp"].isel({"zl":0})) > 100:
+            tracers_out["temp"] -= 273.15
+
+        ## Regrid the fields vertically
+
+        ### NEED TO FIX THE HANDLING OF THICKNESS INPUT. will result in smaller number of vertical layers
+
+        if vcoord_type == "thickness":
+            tracers_out["zl"] = tracers_out["zl"].diff("zl")
+            dz = tracers_out[self.z].diff(self.z)
+            dz.name = "dz"
+            dz = xr.concat([dz,dz[-1]],dim = self.z)
+
+
+        tracers_out = tracers_out.interp({'zl':self.vgrid.zl.values})
+        vel_out = vel_out.interp({'zl':self.vgrid.zl.values})
+
+
+        vel_out.fillna(0).to_netcdf(
+            self.mom_input_dir + "forcing/init_vel.nc",
+            mode = "w",
+            encoding={
+                "u": {"_FillValue": netCDF4.default_fillvals["f4"]},
+                "v": {"_FillValue": netCDF4.default_fillvals["f4"]}        
+            },
+        )
+
+
+        tracers_out.to_netcdf(
+            self.mom_input_dir + "forcing/init_tracers.nc",
+            mode = "w",
+            encoding = {'xh': {'_FillValue': None},
+                        'yh': {'_FillValue': None},
+                        "zl": {"_FillValue": None},
+                        'temp': {'_FillValue': -1e20,'missing_value': -1e20},
+                        'salt': {'_FillValue': -1e20,'missing_value': -1e20}
+                        },
+        )
+        eta_out.to_netcdf(
+            self.mom_input_dir + "forcing/init_eta.nc",
+            mode = "w",
+            encoding = {'xh': {'_FillValue': None},
+                        'yh': {'_FillValue': None},
+                        'eta':{'_FillValue':None}
+                        },
+        )
+
+
+        if boundaries == None:
+            return
+        
+        ## Generate a rectangular OBC domain. This is the default configuration. For fancier domains, need to use the segment class manually
+        for i,o in enumerate(boundaries):
+            seg = segment(
+                self.hgrid,
+                f"{path}/{o.lower()}_segment_unprocessed",
+                f"{self.mom_input_dir}",
+                varnames,
+                f"segment_00{i}.nc",
+                o.lower(),
+                gridtype,
+                vcoord_type
+            )
+
+            seg.brushcut()
+
+    def bathymetry(self,bathy_path,varnames,fill_diag_channels = False):
+        """
+        Cuts out and interpolates chosen bathymetry. Output saved to the input folder for your experiment. 
+        Parameters:
+            bathy_path (str)            Path to chosen bathymetry file. Should be a netcdf that contains your region of interest
+            varnames (dict)             Dictionary mapping the coordinate and variable names of interest. Eg: {'xh':'lon','yh':'lat','elevation':'depth'}
+            fill_diag_channels (bool)   Whether or not to fill in diagonal channels. This removes more narrow inlets, but can also connect extra islands to land. 
+        """
+
+        bathy = xr.open_dataset(bathy_path)[varnames["elevation"]].sel({
+            varnames["xh"]:slice(self.xextent[0],self.xextent[1]),
+            varnames["yh"]:slice(self.yextent[0],self.yextent[1])
+        }
+        ).astype("float")
+        print(self.yextent)
+
+        bathy.attrs['missing_value'] = -1e20
+        print(bathy)
+        bathy.to_netcdf(f"{self.mom_input_dir}bathy_original.nc", engine='netcdf4')
+
+        ## Now pass bathymetry through the FRE tools
+
+
+
+        ## Make Topog
+        args = f"--mosaic ocean_mosaic.nc --topog_type realistic --topog_file bathy_original.nc --topog_field {varnames['elevation']} --scale_factor -1 --output topog.nc".split(" ")
+        print(
+            "FRE TOOLS: make topog parallel\n\n",
+            subprocess.run(["/g/data/v45/jr5971/FRE-NCtools/build3_up_MAXXGRID/tools/make_topog/make_topog_parallel"] + args,cwd = self.mom_input_dir)
+        )
+
+        ## reopen topography to modify
+        topog = xr.open_dataset(self.mom_input_dir + "topog.nc", engine='netcdf4')
+
+        ## Remove inland lakes
+        
+        mask = topog.copy(deep = True).depth.where(topog.depth == 0 , 1)
+        changed = True ## keeps track of whether solution has converged or not
+
+        forward = True ## only useful for iterating through diagonal channel removal
+
+        while changed == True:
+
+            ## First fill in all lakes 
+            mask[:,:] = binary_fill_holes(mask.data)
+            invert = np.abs(mask - 1)
+
+            ## Now fill in all one-cell-wide channels
+            newmask = xr.where(invert * (mask.shift(nx = 1) + mask.shift(nx = -1)) == 2,1,0)
+            newmask += xr.where(invert * (mask.shift(ny = 1) + mask.shift(ny = -1)) == 2,1,0)
+
+            if fill_diag_channels == True:
+                ## Diagonal channels 
+                if forward == True:
+                    ## horizontal channels
+                    newmask += xr.where((invert * invert.shift(nx = 1)) * (mask.shift({"nx":1,"ny":1}) + mask.shift({"ny":-1})) == 2,1,0) ## up right & below
+                    newmask += xr.where((invert * invert.shift(nx = 1)) * (mask.shift({"nx":1,"ny":-1}) + mask.shift({"ny":1})) == 2,1,0) ## down right & above
+                    ## Vertical channels
+                    newmask += xr.where((invert * invert.shift(ny = 1)) * (mask.shift({"nx":1,"ny":1}) + mask.shift({"nx":-1})) == 2,1,0) ## up right & left
+                    newmask += xr.where((invert * invert.shift(ny = 1)) * (mask.shift({"nx":-1,"ny":1}) + mask.shift({"nx":1})) == 2,1,0) ## up left & right
+
+                if forward == False:
+                    ## Horizontal channels
+                    newmask += xr.where((invert * invert.shift(nx = -1)) * (mask.shift({"nx":-1,"ny":1}) + mask.shift({"ny":-1})) == 2,1,0) ## up left & below
+                    newmask += xr.where((invert * invert.shift(nx = -1)) * (mask.shift({"nx":-1,"ny":-1}) + mask.shift({"ny":1})) == 2,1,0) ## down left & above
+                    ## Vertical channels
+                    newmask += xr.where((invert * invert.shift(ny = -1)) * (mask.shift({"nx":1,"ny":-1}) + mask.shift({"nx":-1})) == 2,1,0) ## down right & left
+                    newmask += xr.where((invert * invert.shift(ny = -1)) * (mask.shift({"nx":-1,"ny":-1}) + mask.shift({"nx":1})) == 2,1,0) ## down left & right
+
+                forward = False
+
+              
+            newmask = xr.where(newmask > 0 , 1,0)
+            changed = np.max(newmask) == 1
+            mask += newmask
+
+
+        topog *= mask
+
+        topog.to_netcdf(self.mom_input_dir + "/topog_deseas.nc")
+
+        return 
+
+
+class segment:
+    """
+    Class to turn raw boundary segment data into MOM6 boundary segments. 
+    """
+    def __init__(self, hgrid,infile, outfolder,varnames,seg_name,orientation, gridtype="A",vcoord_type = "height"):
+        """
+        hgrid:        xarray        the horizontal grid used for domain
+        infolder:     string        path to the raw, unprocessed boundary segment
+        outfolder:    string        path to folder where the model inputs will be stored
+        varnames:     dictionary    Mapping between the variable / dimension names and standard naming convension of this pipeline. eg {"xq":"longitude,"yh":"latitude","salt":"salinity...}. Key "tracers" points to nested dictionary of tracers to include in boundary
+        orientation:  string        Cardinal direction (lowercase) of the boundary segment
+        gridtype:     string        A,B or C type grid
+        seg_name:     string        Name of the segment. Something like 'segment_001'
+        vcoord_type:  string        Vertical coordinate is either interfacial 'height' or layer 'thickness'. Handles appropriately
+        """
+
+        ## Store coordinate names
+        if gridtype == "A":
+            self.x = varnames["x"]
+            self.y = varnames["y"]
+            
+        elif gridtype in ("B","C"):
+            self.xq = varnames["xq"]
+            self.xh = varnames["xh"]
+            self.yq = varnames["yq"]
+            self.yh = varnames["yh"]
+
+        ## Store velocity names 
+        self.u = varnames["u"]
+        self.v = varnames["v"]
+        self.z = varnames["zl"]
+        self.eta = varnames["eta"]
+        self.time = varnames["time"]
+
+        ## Store tracer names
+        self.tracers = varnames["tracers"]
+
+
+
+        ## Store other data
+        self.infile = infile
+        self.outfolder = outfolder
+        self.orientation = orientation.lower() ## might not be needed? NSEW
+        self.grid = gridtype
+        self.hgrid = hgrid
+        self.seg_name = seg_name
+        self.vcoord_type = vcoord_type
+
+    def brushcut(self):
+        ### Implement brushcutter scheme on single segment ### 
+        # print(self.infile + f"/{self.orientation}_segment_unprocessed")
+        rawseg = xr.open_dataset(self.infile)
+
+        ## Depending on the orientation of the segment, cut out the right bit of the hgrid 
+        ## and define which coordinate is along or into the segment
+        if self.orientation == "north":
+            hgrid_seg = self.hgrid.isel(nyp = [-1])
+            perpendicular = "ny"
+            parallel = "nx"
+
+        if self.orientation == "south":
+            hgrid_seg = self.hgrid.isel(nyp = [0])
+            perpendicular = "ny"
+            parallel = "nx"
+    
+
+        if self.orientation == "east":
+            hgrid_seg = self.hgrid.isel(nxp = [-1])
+            perpendicular = "nx"
+            parallel = "ny"
+
+        if self.orientation == "west":
+            hgrid_seg = self.hgrid.isel(nxp = [0])
+            perpendicular = "nx"
+            parallel = "ny"
+
+        ## Need to keep track of which axis the 'main' coordinate corresponds to for later on when re-adding the 'secondary' axis
+        if perpendicular == "ny":
+            axis1 = 3
+            axis2 = 2
+        else:
+            axis1 = 2
+            axis2 = 3
+
+        
+
+        ## Grid for interpolating our fields
+        interp_grid = xr.Dataset(
+            {
+                "lat": ([f"{parallel}_{self.seg_name}"], hgrid_seg.y.squeeze().data),
+                "lon": ([f"{parallel}_{self.seg_name}"], hgrid_seg.x.squeeze().data),
+            }
+        ).set_coords(["lat","lon"])
+
+
+        if self.grid == "A":
+            ## In this case velocities and tracers all on same points
+            regridder = xe.Regridder(
+                rawseg[self.u].rename({self.x:"lon", self.y:"lat"}),
+                interp_grid,
+                "bilinear",
+                locstream_out=True,
+                reuse_weights=False,
+                filename=self.outfolder + f"weights/bilinear_velocity_weights_{self.orientation}.nc",
+            )
+            segment_out = xr.merge([
+                regridder(rawseg[
+                [self.u,self.v,self.eta] + [self.tracers[i] for i in self.tracers]
+                ])])
+            
+
+        if self.grid =="B":
+            ## All tracers on one grid, all velocities on another
+            regridder_velocity = xe.Regridder(
+                rawseg[self.tracers["salt"]].rename({self.xq:"lon", self.yq:"lat"}),
+                interp_grid,
+                "bilinear",
+                locstream_out=True,
+                reuse_weights=False,
+                filename= self.outfolder,
+            )
+
+            regridder_tracer = xe.Regridder(
+                rawseg[self.tracers["salt"]].rename({self.xh:"lon", self.yh:"lat"}),
+                interp_grid,
+                "bilinear",
+                locstream_out=True,
+                reuse_weights=False,
+                filename=self.outfolder + f"weights/bilinear_velocity_weights_{self.orientation}.nc",
+            )
+
+
+            segment_out = xr.merge([
+                regridder_velocity(rawseg[[self.u,self.v]]), 
+                regridder_tracer(rawseg[[self.eta] + [self.tracers[i] for i in self.tracers]]), 
+                 ])
+            
+        if self.grid =="C":
+            ## All tracers on one grid, all velocities on another
+            regridder_uvelocity = xe.Regridder(
+                rawseg[self.u].rename({self.xq:"lon", self.yh:"lat"}),
+                interp_grid,
+                "bilinear",
+                locstream_out=True,
+                reuse_weights=False,
+                filename= self.outfolder,
+            )
+
+            regridder_vvelocity = xe.Regridder(
+                rawseg[self.v].rename({self.xh:"lon", self.yq:"lat"}),
+                interp_grid,
+                "bilinear",
+                locstream_out=True,
+                reuse_weights=False,
+                filename= self.outfolder,
+            )
+
+            regridder_tracer = xe.Regridder(
+                rawseg[self.tracers["salt"]].rename({self.xh:"lon", self.yh:"lat"}),
+                interp_grid,
+                "bilinear",
+                locstream_out=True,
+                reuse_weights=False,
+                filename=self.outfolder + f"weights/bilinear_velocity_weights_{self.orientation}.nc",
+            )
+
+
+            segment_out = xr.merge([
+                regridder_vvelocity(rawseg[[self.v]]), 
+                regridder_uvelocity(rawseg[[self.u]]), 
+                regridder_tracer(rawseg[[self.eta] + [self.tracers[i] for i in self.tracers]]), 
+                 ])
+
+        ## segment out now contains our interpolated boundary.
+        ## Now, we need to fix up all the metadata and save
+        
+        del segment_out["lon"]
+        del segment_out["lat"]
+        ## Convert temperatures to celsius # use pint
+        if np.min(segment_out[self.tracers["temp"]].isel({self.time:0,self.z:0})) > 100:
+            segment_out[self.temp] -= 273.15
+
+        # fill in NaNs
+        segment_out = (
+            segment_out
+            .ffill(self.z)
+            .interpolate_na(f"{parallel}_{self.seg_name}")
+            .ffill(f"{parallel}_{self.seg_name}")
+            .bfill(f"{parallel}_{self.seg_name}")
+        )
+
+
+        ##### FIX UP COORDINATE METADATA #####
+
+
+        # Dictionary we built for encoding the netcdf at end
+        encoding_dict = {
+            "time": {
+                "dtype": "double",
+                "units": "days since 1900-01-01 12:00:00",
+                "calendar": "noleap",
+            },
+            f"nx_{self.seg_name}": {
+                "dtype": "int32",
+            },
+            f"ny_{self.seg_name}": {
+                "dtype": "int32",
+            },
+        }
+
+
+        ### Generate our dz variable. This needs to be in layer thicknesses
+        if self.vcoord_type == "height":
+            dz = segment_out[self.z].diff(self.z)
+            dz.name = "dz"
+            dz = xr.concat([dz,dz[-1]],dim = self.z)
+
+        else:
+            dz = segment_out[self.z]
+            dz.name = "dz"
+        del segment_out[self.z]
+
+
+        # Here, keep in mind that 'var' keeps track of the mom6 variable names we want, and self.tracers[var] will return the name of the variable from the original data
+        for var in self.tracers: ## Replace with more generic list of tracer variables that might be included?
+            v = f"{var}_{self.seg_name}"
+            ## Rename each variable in dataset
+            segment_out = segment_out.rename({self.tracers[var]: v})
+
+            ## Rename vertical coordinate for this variable
+            segment_out[f"{var}_{self.seg_name}"] = segment_out[f"{var}_{self.seg_name}"].rename({self.z: f"nz_{self.seg_name}_{var}"})
+
+            ## Replace the old depth coordinates with incremental integers 
+            segment_out[f"nz_{self.seg_name}_{var}"] = np.arange(segment_out[f"nz_{self.seg_name}_{var}"].size)
+
+            ## Re-add the secondary dimension (even though it represents one value..)
+            segment_out[v] = segment_out[v].expand_dims(
+                f"{perpendicular}_{self.seg_name}",axis = axis2
+            )
+
+
+            print(segment_out[v].shape)
+            ## Add the layer thicknesses
+            segment_out[f"dz_{v}"] = (
+                ["time", f"nz_{v}", f"ny_{self.seg_name}", f"nx_{self.seg_name}"],
+                da.broadcast_to(
+                    dz.data[None, :, None, None],
+                    segment_out[v].shape,
+                    chunks=(1, None, None, None),
+                ),
+            )
+
+
+            encoding_dict[v] = {
+                "_FillValue": netCDF4.default_fillvals["f8"],
+                "zlib": True,
+                # "chunksizes": tuple(s),
+            }
+            encoding_dict[f"dz_{v}"] = {
+                "_FillValue": netCDF4.default_fillvals["f8"],
+                "zlib": True,
+                # "chunksizes": tuple(s),
+            }
+
+            ## appears to be another variable just with integers??
+            encoding_dict[f"nz_{self.seg_name}_{var}"] = {
+                "dtype": "int32"
+            }
+
+        ## Treat eta separately since it has no vertical coordinate. Do the same things as for the surface variables above
+        segment_out = segment_out.rename({self.eta: f"eta_{self.seg_name}"})
+        encoding_dict[ f"eta_{self.seg_name}"] = {
+            "_FillValue": netCDF4.default_fillvals["f8"],
+        }
+        segment_out[f"eta_{self.seg_name}"] = segment_out[f"eta_{self.seg_name}"].expand_dims(
+            f"{perpendicular}_{self.seg_name}",axis = axis2 - 1
+        )
+
+        # Overwrite the actual lat/lon values in the dimensions, replace with incrementing integers
+        segment_out[f"{parallel}_{self.seg_name}"] = np.arange(segment_out[f"{parallel}_{self.seg_name}"].size)
+        segment_out[f"{perpendicular}_{self.seg_name}"] = [0]
+
+        # Store actual lat/lon values here as variables rather than coordinates
+        segment_out[f"lon_{self.seg_name}"] = ([f"ny_{self.seg_name}", f"nx_{self.seg_name}"], hgrid_seg.x.data)
+        segment_out[f"lat_{self.seg_name}"] = ([f"ny_{self.seg_name}", f"nx_{self.seg_name}"], hgrid_seg.y.data)
+
+
+        with ProgressBar():
+            segment_out["time"] = segment_out["time"].assign_attrs({"modulo":" "}) ## Add modulo attribute for MOM6 to treat as repeat forcing
+            segment_out.load().to_netcdf(
+                self.outfolder + f"forcing/forcing_obc_{self.seg_name}.nc", encoding=encoding_dict, unlimited_dims="time"
+                )
+
+        return segment_out , encoding_dict
+    
