@@ -36,13 +36,13 @@ SAVE_INITIAL_CONDS = True
 RESTART_CHECKSUMS_REQUIRED = False
 
 ! === module MOM_domains ===
-NIGLOBAL = 80
-NJGLOBAL = 129
+NIGLOBAL = 210
+NJGLOBAL = 271
 
 LAYOUT = 10,10
 IO_LAYOUT = 1,1
 
-MASKTABLE = "mask_table.18.10x10"
+MASKTABLE = "mask_table.2.10x10"
 
 ! === module MOM_verticalGrid ===
 NK = 75
@@ -55,7 +55,7 @@ SURFACE_HEIGHT_IC_FILE = "forcing/init_eta.nc"
 SURFACE_HEIGHT_IC_VAR = "eta_t"
 
 VELOCITY_CONFIG = "file"
-VELOCITY_FILE = "forcing/init_vel_cgrid.nc"
+VELOCITY_FILE = "forcing/init_vel.nc"
 
 ! === module MOM_grid_init ===
 GRID_CONFIG = "mosaic"
@@ -80,22 +80,22 @@ BRUSHCUTTER_MODE = True ! read data on supergrid
 ! segment 1: southern boundary
 OBC_SEGMENT_001 = "J=0,I=0:N,FLATHER,ORLANSKI,NUDGED"
 OBC_SEGMENT_001_VELOCITY_NUDGING_TIMESCALES = .3, 360.0 ! inflow and outflow timescales
-OBC_SEGMENT_001_DATA = "U=file:forcing/forcing_obc_segment_001.nc(u),V=file:forcing/forcing_obc_segment_001.nc(v),SSH=file:forcing/forcing_obc_segment_001.nc(eta_t),TEMP=file:forcing/forcing_obc_segment_001.nc(temp),SALT=file:forcing/forcing_obc_segment_001.nc(salt)"
+OBC_SEGMENT_001_DATA = "U=file:forcing/forcing_obc_segment_001.nc(u),V=file:forcing/forcing_obc_segment_001.nc(v),SSH=file:forcing/forcing_obc_segment_001.nc(eta),TEMP=file:forcing/forcing_obc_segment_001.nc(temp),SALT=file:forcing/forcing_obc_segment_001.nc(salt)"
 
 ! segment 2: northern boundary
 OBC_SEGMENT_002 = "J=N,I=N:0,FLATHER,ORLANSKI,NUDGED"
 OBC_SEGMENT_002_VELOCITY_NUDGING_TIMESCALES = .3, 360.0 ! inflow and outflow timescales
-OBC_SEGMENT_002_DATA = "U=file:forcing/forcing_obc_segment_002.nc(u),V=file:forcing/forcing_obc_segment_002.nc(v),SSH=file:forcing/forcing_obc_segment_002.nc(eta_t),TEMP=file:forcing/forcing_obc_segment_002.nc(temp),SALT=file:forcing/forcing_obc_segment_002.nc(salt)"
+OBC_SEGMENT_002_DATA = "U=file:forcing/forcing_obc_segment_002.nc(u),V=file:forcing/forcing_obc_segment_002.nc(v),SSH=file:forcing/forcing_obc_segment_002.nc(eta),TEMP=file:forcing/forcing_obc_segment_002.nc(temp),SALT=file:forcing/forcing_obc_segment_002.nc(salt)"
 
 ! segment 3: western boundary
 OBC_SEGMENT_003 = "I=0,J=N:0,FLATHER,ORLANSKI,NUDGED"
 OBC_SEGMENT_003_VELOCITY_NUDGING_TIMESCALES = .3, 360.0 ! inflow and outflow timescales
-OBC_SEGMENT_003_DATA = "U=file:forcing/forcing_obc_segment_003.nc(u),V=file:forcing/forcing_obc_segment_003.nc(v),SSH=file:forcing/forcing_obc_segment_003.nc(eta_t),TEMP=file:forcing/forcing_obc_segment_003.nc(temp),SALT=file:forcing/forcing_obc_segment_003.nc(salt)"
+OBC_SEGMENT_003_DATA = "U=file:forcing/forcing_obc_segment_003.nc(u),V=file:forcing/forcing_obc_segment_003.nc(v),SSH=file:forcing/forcing_obc_segment_003.nc(eta),TEMP=file:forcing/forcing_obc_segment_003.nc(temp),SALT=file:forcing/forcing_obc_segment_003.nc(salt)"
 
 ! segment 4: eastern boundary
 OBC_SEGMENT_004 = "I=N,J=0:N,FLATHER,ORLANSKI,NUDGED"
 OBC_SEGMENT_004_VELOCITY_NUDGING_TIMESCALES = .3, 360.0 ! inflow and outflow timescales
-OBC_SEGMENT_004_DATA = "U=file:forcing/forcing_obc_segment_004.nc(u),V=file:forcing/forcing_obc_segment_004.nc(v),SSH=file:forcing/forcing_obc_segment_004.nc(eta_t),TEMP=file:forcing/forcing_obc_segment_004.nc(temp),SALT=file:forcing/forcing_obc_segment_004.nc(salt)"
+OBC_SEGMENT_004_DATA = "U=file:forcing/forcing_obc_segment_004.nc(u),V=file:forcing/forcing_obc_segment_004.nc(v),SSH=file:forcing/forcing_obc_segment_004.nc(eta),TEMP=file:forcing/forcing_obc_segment_004.nc(temp),SALT=file:forcing/forcing_obc_segment_004.nc(salt)"
 
 OBC_TRACER_RESERVOIR_LENGTH_SCALE_OUT = 30000
 OBC_TRACER_RESERVOIR_LENGTH_SCALE_IN = 3000
@@ -114,7 +114,7 @@ BOUNDARY_EXTRAPOLATION = True
 
 ! read target densities from file, set minimum interface depth
 ! from profile: minimum dz=2, 4000m total thickness, profile is dz^4.5
-ALE_COORDINATE_CONFIG = "FILE:vcoord.nc,interfaces=st_edges_ocean"
+ALE_COORDINATE_CONFIG = "FILE:vcoord.nc,interfaces=zi"
 
 REMAPPING_SCHEME = "PPM_H4"
 
@@ -127,7 +127,7 @@ TEMP_SALT_INIT_VERTICAL_REMAP_ONLY = True
 
 ! === module MOM_initialize_layers_from_Z ===
 ! read "temp" and "salt" from a z-space file
-TEMP_SALT_Z_INIT_FILE = "forcing/init_cond.nc"
+TEMP_SALT_Z_INIT_FILE = "forcing/init_tracers.nc"
 Z_INIT_FILE_PTEMP_VAR = "temp"
 ! remap straight to the model coordinate
 Z_INIT_ALE_REMAPPING = True
@@ -280,7 +280,7 @@ REPORT_UNUSED_PARAMS = True
 
 NUM_DIAG_COORDS = 1
 DIAG_COORDS = "z Z ZSTAR"
-DIAG_COORD_DEF_Z = "FILE:vcoord.nc,interfaces=st_edges_ocean"
+DIAG_COORD_DEF_Z = "FILE:vcoord.nc,interfaces=zi"
 ! drho (arg 5) is a bit magic and has a big impact on
 ! the tail of the coord...
 

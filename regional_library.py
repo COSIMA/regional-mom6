@@ -132,12 +132,12 @@ class experiment:
         """
         Generates a vertical grid based on the number of layers and vertical ratio specified at the class level.
         """
-        thickness = dz(self.vlayers,self.dz_ratio,self.depth)
+        thickness = dz(self.vlayers + 1,self.dz_ratio,self.depth)
         vcoord = xr.Dataset(
             {"zi":("zi",np.cumsum(thickness)),
              "zl":("zl",(np.cumsum(thickness) + 0.5 * thickness)[0:-1])} ## THIS MIGHT BE WRONG REVISIT
         )
-        vcoord["zi"].attrs = {"units":"metres"}
+        vcoord["zi"].attrs = {"units":"meters"}
         vcoord.to_netcdf(self.mom_input_dir + "/vcoord.nc")
 
         return vcoord
@@ -247,7 +247,7 @@ class experiment:
             [regridder_t(ic_raw_tracers[varnames["tracers"][i]]).rename(i) for i in varnames["tracers"]]
             ).rename({"lon": "xh", "lat": "yh",varnames["zl"]:"zl"})
         
-        eta_out = regridder_t(ic_raw_eta).rename({"lon": "xh", "lat": "yh"}).rename("eta")
+        eta_out = regridder_t(ic_raw_eta).rename({"lon": "xh", "lat": "yh"}).rename("eta_t") ## eta_t is the name set in MOM_input by default
 
         ## Return attributes to arrays
 
@@ -313,7 +313,7 @@ class experiment:
             mode = "w",
             encoding = {'xh': {'_FillValue': None},
                         'yh': {'_FillValue': None},
-                        'eta':{'_FillValue':None}
+                        'eta_t':{'_FillValue':None}
                         },
         )
 
@@ -328,7 +328,7 @@ class experiment:
                 f"{path}/{o.lower()}_segment_unprocessed",
                 f"{self.mom_input_dir}",
                 varnames,
-                f"segment_00{i}.nc",
+                f"segment_00{i+1}",
                 o.lower(),
                 gridtype,
                 vcoord_type
@@ -353,69 +353,83 @@ class experiment:
         print(self.yextent)
 
         bathy.attrs['missing_value'] = -1e20
-        print(bathy)
         bathy.to_netcdf(f"{self.mom_input_dir}bathy_original.nc", engine='netcdf4')
 
         ## Now pass bathymetry through the FRE tools
 
 
-
         ## Make Topog
-        args = f"--mosaic ocean_mosaic.nc --topog_type realistic --topog_file bathy_original.nc --topog_field {varnames['elevation']} --scale_factor -1 --output topog.nc".split(" ")
+        args = f"--mosaic ocean_mosaic.nc --topog_type realistic --topog_file bathy_original.nc --topog_field {varnames['elevation']} --scale_factor -1 --output topog_raw.nc".split(" ")
         print(
             "FRE TOOLS: make topog parallel\n\n",
             subprocess.run(["/g/data/v45/jr5971/FRE-NCtools/build3_up_MAXXGRID/tools/make_topog/make_topog_parallel"] + args,cwd = self.mom_input_dir)
         )
 
+
+
+
         ## reopen topography to modify
-        topog = xr.open_dataset(self.mom_input_dir + "topog.nc", engine='netcdf4')
+        topog = xr.open_dataset(self.mom_input_dir + "topog_raw.nc", engine='netcdf4')
 
         ## Remove inland lakes
         
-        mask = topog.copy(deep = True).depth.where(topog.depth == 0 , 1)
+        ocean_mask = topog.copy(deep = True).depth.where(topog.depth == 0 , 1)
+        land_mask = np.abs(ocean_mask - 1)
         changed = True ## keeps track of whether solution has converged or not
 
         forward = True ## only useful for iterating through diagonal channel removal
 
         while changed == True:
 
-            ## First fill in all lakes 
-            mask[:,:] = binary_fill_holes(mask.data)
-            invert = np.abs(mask - 1)
+            ## First fill in all lakes. This uses a scipy function where it fills holes made of 0's within a field of 1's 
+            land_mask[:,:] = binary_fill_holes(land_mask.data)
+            ## Get the ocean mask instead of land- easier to remove channels this way
+            ocean_mask = np.abs(land_mask - 1)
 
             ## Now fill in all one-cell-wide channels
-            newmask = xr.where(invert * (mask.shift(nx = 1) + mask.shift(nx = -1)) == 2,1,0)
-            newmask += xr.where(invert * (mask.shift(ny = 1) + mask.shift(ny = -1)) == 2,1,0)
+            newmask = xr.where(ocean_mask * (land_mask.shift(nx = 1) + land_mask.shift(nx = -1)) == 2,1,0)
+            newmask += xr.where(ocean_mask * (land_mask.shift(ny = 1) + land_mask.shift(ny = -1)) == 2,1,0)
 
             if fill_diag_channels == True:
                 ## Diagonal channels 
                 if forward == True:
                     ## horizontal channels
-                    newmask += xr.where((invert * invert.shift(nx = 1)) * (mask.shift({"nx":1,"ny":1}) + mask.shift({"ny":-1})) == 2,1,0) ## up right & below
-                    newmask += xr.where((invert * invert.shift(nx = 1)) * (mask.shift({"nx":1,"ny":-1}) + mask.shift({"ny":1})) == 2,1,0) ## down right & above
+                    newmask += xr.where((ocean_mask * ocean_mask.shift(nx = 1)) * (land_mask.shift({"nx":1,"ny":1}) + land_mask.shift({"ny":-1})) == 2,1,0) ## up right & below
+                    newmask += xr.where((ocean_mask * ocean_mask.shift(nx = 1)) * (land_mask.shift({"nx":1,"ny":-1}) + land_mask.shift({"ny":1})) == 2,1,0) ## down right & above
                     ## Vertical channels
-                    newmask += xr.where((invert * invert.shift(ny = 1)) * (mask.shift({"nx":1,"ny":1}) + mask.shift({"nx":-1})) == 2,1,0) ## up right & left
-                    newmask += xr.where((invert * invert.shift(ny = 1)) * (mask.shift({"nx":-1,"ny":1}) + mask.shift({"nx":1})) == 2,1,0) ## up left & right
+                    newmask += xr.where((ocean_mask * ocean_mask.shift(ny = 1)) * (land_mask.shift({"nx":1,"ny":1}) + land_mask.shift({"nx":-1})) == 2,1,0) ## up right & left
+                    newmask += xr.where((ocean_mask * ocean_mask.shift(ny = 1)) * (land_mask.shift({"nx":-1,"ny":1}) + land_mask.shift({"nx":1})) == 2,1,0) ## up left & right
 
                 if forward == False:
                     ## Horizontal channels
-                    newmask += xr.where((invert * invert.shift(nx = -1)) * (mask.shift({"nx":-1,"ny":1}) + mask.shift({"ny":-1})) == 2,1,0) ## up left & below
-                    newmask += xr.where((invert * invert.shift(nx = -1)) * (mask.shift({"nx":-1,"ny":-1}) + mask.shift({"ny":1})) == 2,1,0) ## down left & above
+                    newmask += xr.where((ocean_mask * ocean_mask.shift(nx = -1)) * (land_mask.shift({"nx":-1,"ny":1}) + land_mask.shift({"ny":-1})) == 2,1,0) ## up left & below
+                    newmask += xr.where((ocean_mask * ocean_mask.shift(nx = -1)) * (land_mask.shift({"nx":-1,"ny":-1}) + land_mask.shift({"ny":1})) == 2,1,0) ## down left & above
                     ## Vertical channels
-                    newmask += xr.where((invert * invert.shift(ny = -1)) * (mask.shift({"nx":1,"ny":-1}) + mask.shift({"nx":-1})) == 2,1,0) ## down right & left
-                    newmask += xr.where((invert * invert.shift(ny = -1)) * (mask.shift({"nx":-1,"ny":-1}) + mask.shift({"nx":1})) == 2,1,0) ## down left & right
+                    newmask += xr.where((ocean_mask * ocean_mask.shift(ny = -1)) * (land_mask.shift({"nx":1,"ny":-1}) + land_mask.shift({"nx":-1})) == 2,1,0) ## down right & left
+                    newmask += xr.where((ocean_mask * ocean_mask.shift(ny = -1)) * (land_mask.shift({"nx":-1,"ny":-1}) + land_mask.shift({"nx":1})) == 2,1,0) ## down left & right
 
                 forward = False
 
               
             newmask = xr.where(newmask > 0 , 1,0)
             changed = np.max(newmask) == 1
-            mask += newmask
+            land_mask += newmask
+
+        # land_mask.to_netcdf(self.mom_input_dir + "land_mask.nc")
+        ocean_mask = np.abs(land_mask - 1)
+        # ocean_mask.to_netcdf(self.mom_input_dir + "ocean_mask.nc")
+
+        # ocean_mask = ocean_mask.where(ocean_mask == 1,-1e30)
+
+        topog["depth"] *= ocean_mask
 
 
-        topog *= mask
+        topog["depth"] = topog["depth"].where(topog["depth"] != 0, np.nan)
 
-        topog.to_netcdf(self.mom_input_dir + "/topog_deseas.nc")
+        topog.expand_dims({'ntiles':1}).to_netcdf(self.mom_input_dir + "topog_deseas.nc",mode = "w",encoding={"depth":{'_FillValue': None}} )
+
+        subprocess.run("mv topog_deseas.nc topog.nc",shell=True,cwd=self.mom_input_dir)
+        
 
         return 
 
@@ -642,12 +656,18 @@ class segment:
             dz.name = "dz"
         del segment_out[self.z]
 
+        print("depth coordinate just deleted: " ,self.z)
+
 
         # Here, keep in mind that 'var' keeps track of the mom6 variable names we want, and self.tracers[var] will return the name of the variable from the original data
-        for var in self.tracers: ## Replace with more generic list of tracer variables that might be included?
+        
+        allfields = {**self.tracers,"u":self.u,"v":self.v} ## Combine all fields into one flattened dictionary to iterate over as we fix metadata
+
+
+        for var in allfields: ## Replace with more generic list of tracer variables that might be included?
             v = f"{var}_{self.seg_name}"
             ## Rename each variable in dataset
-            segment_out = segment_out.rename({self.tracers[var]: v})
+            segment_out = segment_out.rename({allfields[var]: v})
 
             ## Rename vertical coordinate for this variable
             segment_out[f"{var}_{self.seg_name}"] = segment_out[f"{var}_{self.seg_name}"].rename({self.z: f"nz_{self.seg_name}_{var}"})
@@ -661,14 +681,13 @@ class segment:
             )
 
 
-            print(segment_out[v].shape)
             ## Add the layer thicknesses
             segment_out[f"dz_{v}"] = (
                 ["time", f"nz_{v}", f"ny_{self.seg_name}", f"nx_{self.seg_name}"],
                 da.broadcast_to(
                     dz.data[None, :, None, None],
                     segment_out[v].shape,
-                    chunks=(1, None, None, None),
+                    chunks=(1, None, None, None), ## Chunk in each time, and every 5 vertical layers
                 ),
             )
 
@@ -705,6 +724,8 @@ class segment:
         # Store actual lat/lon values here as variables rather than coordinates
         segment_out[f"lon_{self.seg_name}"] = ([f"ny_{self.seg_name}", f"nx_{self.seg_name}"], hgrid_seg.x.data)
         segment_out[f"lat_{self.seg_name}"] = ([f"ny_{self.seg_name}", f"nx_{self.seg_name}"], hgrid_seg.y.data)
+
+        # del segment_out["depth"]
 
 
         with ProgressBar():
