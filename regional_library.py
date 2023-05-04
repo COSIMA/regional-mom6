@@ -11,6 +11,63 @@ from scipy.ndimage import binary_fill_holes
 import netCDF4
 from dask.distributed import Client, worker_client
 from dask.diagnostics import ProgressBar
+import datetime as dt
+
+# Ashley, written March 2023
+def motu_requests(xextent, yextent, daterange, outfolder, usr, pwd,segs,url = "https://my.cmems-du.eu/motu-web/Motu", serviceid = "GLOBAL_MULTIYEAR_PHY_001_030-TDS",productid = "cmems_mod_glo_phy_my_0.083_P1D-m",buffer = 0.3):
+    """
+    Generates motu data request for each specified boundary, as well as for the initial condition. By default pulls the GLORYS reanalysis dataset.
+    
+    Arguments:
+        xextent,yextent     list containing extreme values of lon/lat coordinates for rectangular domain
+        daterange           start and end dates of boundary forcing window. Format %Y-%m-%d %H:%M:%S
+        usr,pwd             username and password for your cmems account
+        segs                list of the cardinal directions for your boundary forcing. Must be a list even if there's only one
+        outfolder           folder to dump the downloaded files
+        url etc             strings that point to the dataset you want to use for your forcing files
+
+    Returns:
+        A string containing newline delimited motu requests ready to run
+
+    """
+    if type(segs) == str:
+        return f"\nprintf 'processing {segs} segment' \npython -m motuclient --motu {url} --service-id {serviceid} --product-id {productid} --longitude-min {xextent[0]} --longitude-max {xextent[1]} --latitude-min {yextent[0]} --latitude-max {yextent[1]} --date-min {daterange[0]} --date-max {daterange[1]} --depth-min 0.49 --depth-max 6000 --variable so --variable thetao --variable vo --variable zos --variable uo --out-dir {outfolder} --out-name {segs}_unprocessed --user '{usr}' --pwd '{pwd}' & \n"
+    
+    ## Buffer pads out our boundaries a small amount to allow for interpolation
+    xextent,yextent = np.array(xextent) , np.array(yextent)
+    script = "#!/bin/bash\n\n"
+    for seg in segs:
+        if seg == "east":
+                script += motu_requests(
+                        [xextent[1] - buffer,xextent[1] + buffer],
+                        yextent, daterange, outfolder, usr, pwd, seg,url=url,serviceid=serviceid,productid=productid
+                )
+        if seg == "west":
+                script += motu_requests(
+                        [xextent[0] - buffer,xextent[0] + buffer],
+                        yextent, daterange, outfolder, usr, pwd, seg,url=url,serviceid=serviceid,productid=productid
+                )
+        if seg == "north":
+                script += motu_requests(
+                        xextent,
+                        [yextent[1] - buffer,yextent[1] + buffer], 
+                        daterange, outfolder, usr, pwd, seg,url=url,serviceid=serviceid,productid=productid
+                )
+
+        if seg == "south":
+                script += motu_requests(
+                        xextent,
+                        [yextent[0] - buffer,yextent[0] + buffer], 
+                        daterange, outfolder, usr, pwd, seg,url=url,serviceid=serviceid,productid=productid
+                    ) 
+    ## Now handle the initial condition
+    script += motu_requests(
+            xextent + np.array([-1 * buffer,buffer]),
+            yextent + np.array([-1 * buffer,buffer]), 
+            [daterange[0], dt.datetime.strptime(daterange[0],"%Y-%m-%d %H:%M:%S") + dt.timedelta(hours=1)], ## For initial condition just take one day
+            outfolder, usr, pwd, "ic",url=url,serviceid=serviceid,productid=productid
+    )
+    return script
 
 def dz(npoints,ratio,target_depth,min_dz = 0.0001,tolerence = 1):
     """
@@ -325,10 +382,10 @@ class experiment:
         for i,o in enumerate(boundaries):
             seg = segment(
                 self.hgrid,
-                f"{path}/{o.lower()}_segment_unprocessed",
+                f"{path}/{o.lower()}_unprocessed",
                 f"{self.mom_input_dir}",
                 varnames,
-                f"segment_00{i+1}",
+                f"segment_{:03d}".format(i+1),
                 o.lower(),
                 gridtype,
                 vcoord_type
@@ -336,7 +393,7 @@ class experiment:
 
             seg.brushcut()
 
-    def bathymetry(self,bathy_path,varnames,fill_diag_channels = False):
+    def bathymetry(self,bathy_path,varnames,fill_channels = False):
         """
         Cuts out and interpolates chosen bathymetry. Output saved to the input folder for your experiment. 
         Parameters:
@@ -350,7 +407,6 @@ class experiment:
             varnames["yh"]:slice(self.yextent[0],self.yextent[1])
         }
         ).astype("float")
-        print(self.yextent)
 
         bathy.attrs['missing_value'] = -1e20
         bathy.to_netcdf(f"{self.mom_input_dir}bathy_original.nc", engine='netcdf4')
@@ -389,7 +445,11 @@ class experiment:
             newmask = xr.where(ocean_mask * (land_mask.shift(nx = 1) + land_mask.shift(nx = -1)) == 2,1,0)
             newmask += xr.where(ocean_mask * (land_mask.shift(ny = 1) + land_mask.shift(ny = -1)) == 2,1,0)
 
-            if fill_diag_channels == True:
+            if fill_channels == True:
+
+                ## fill in all one-cell-wide horizontal channels
+                newmask = xr.where(ocean_mask * (land_mask.shift(nx = 1) + land_mask.shift(nx = -1)) == 2,1,0)
+                newmask += xr.where(ocean_mask * (land_mask.shift(ny = 1) + land_mask.shift(ny = -1)) == 2,1,0)
                 ## Diagonal channels 
                 if forward == True:
                     ## horizontal channels
