@@ -148,7 +148,7 @@ class experiment:
         Reads in the forcing files that force the ocean at boundaries (if specified) and for initial condition
 
         Parameters:
-            path (str)                   path to directory where the forcing files are stored. Files should be named north_segment_unprocessed for each boundary and ic_segment_unprocessed for the ic
+            path (str)                   path to directory where the forcing files are stored. Files should be named north_segment_unprocessed for each boundary and ic_unprocessed for the ic
             varnames (dict)              dictionary that maps the mom6 variable / coordinate names to what they're called in this dataset. See documentation for expected format.
             boundaries (list of str)     List of the cardinal directions of included boundaries in anticlockwise order
             gridtype (str)               input is A,B or C type grid. Gets converted to mom6's C grid
@@ -159,7 +159,7 @@ class experiment:
 
         ## pull out the initial velocity on MOM5's Bgrid
 
-        ic_raw = xr.open_dataset(path + "/ic_segment_unprocessed")
+        ic_raw = xr.open_dataset(path + "/ic_unprocessed")
 
         if varnames["time"] in ic_raw.coords:
             ic_raw = ic_raw.isel({varnames["time"] : 0})
@@ -367,7 +367,6 @@ class experiment:
 
 
 
-
         ## reopen topography to modify
         topog = xr.open_dataset(self.mom_input_dir + "topog_raw.nc", engine='netcdf4')
 
@@ -431,7 +430,40 @@ class experiment:
         subprocess.run("mv topog_deseas.nc topog.nc",shell=True,cwd=self.mom_input_dir)
         
 
+        ## Now run the remaining FRE tools to construct masks based on our topography
+
+        args = "--num_tiles 1 --dir . --mosaic_name ocean_mosaic --tile_file hgrid.nc".split(" ")
+        print("MAKE SOLO MOSAIC",subprocess.run(
+            self.toolpath + "make_solo_mosaic/make_solo_mosaic --num_tiles 1 --dir . --mosaic_name ocean_mosaic --tile_file hgrid.nc",
+             shell=True,
+             cwd = self.mom_input_dir),sep = "\n\n")
+
+
+
+        print("QUICK MOSAIC" , subprocess.run(
+            self.toolpath + "make_quick_mosaic/make_quick_mosaic --input_mosaic ocean_mosaic.nc --mosaic_name grid_spec --ocean_topog topog.nc",
+            shell=True
+            ,cwd = self.mom_input_dir),sep = "\n\n")
+
+        self.processor_mask((10,10))
         return 
+
+    def processor_mask(self,layout):
+            """
+            Just a wrapper for FRE Tools check_mask. User provides processor layout tuple of processing units.
+            """
+
+            if "topog.nc" not in os.listdir(self.mom_input_dir):
+                print("No topography file! Need to run make_bathymetry first")
+                return
+            os.remove("mask_table*") ## Removes old mask table so as not to clog up inputdir
+            print("CHECK MASK" , subprocess.run(
+                self.toolpath + f"check_mask/check_mask --grid_file ocean_mosaic.nc --ocean_topog topog.nc --layout {layout[0]},{layout[1]} --halo 4",
+                shell=True,
+                cwd = self.mom_input_dir))
+            return
+    
+    
 
 
 class segment:
