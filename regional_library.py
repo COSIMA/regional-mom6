@@ -385,7 +385,7 @@ class experiment:
                 f"{path}/{o.lower()}_unprocessed",
                 f"{self.mom_input_dir}",
                 varnames,
-                f"segment_{:03d}".format(i+1),
+                "segment_{:03d}".format(i+1),
                 o.lower(),
                 gridtype,
                 vcoord_type
@@ -393,16 +393,30 @@ class experiment:
 
             seg.brushcut()
 
-    def bathymetry(self,bathy_path,varnames,fill_channels = False):
+    def bathymetry(self,bathy_path,varnames,fill_channels = False,minimum_layers = 3):
         """
         Cuts out and interpolates chosen bathymetry. Output saved to the input folder for your experiment. 
         Parameters:
             bathy_path (str)            Path to chosen bathymetry file. Should be a netcdf that contains your region of interest
             varnames (dict)             Dictionary mapping the coordinate and variable names of interest. Eg: {'xh':'lon','yh':'lat','elevation':'depth'}
-            fill_diag_channels (bool)   Whether or not to fill in diagonal channels. This removes more narrow inlets, but can also connect extra islands to land. 
+            fill_channels (bool)   Whether or not to fill in diagonal channels. This removes more narrow inlets, but can also connect extra islands to land. 
+            minimum layers (bool)   The minimum depth allowed as an integer number of layers. 3 layers means that anything shallower than the 3rd layer is deemed land
         """
 
-        bathy = xr.open_dataset(bathy_path)[varnames["elevation"]].sel({
+
+        bathy = xr.open_dataset(bathy_path)[varnames["elevation"]]
+
+
+        ## Determine whether we need to adjust bathymetry longitude to match model grid. 
+        # 
+        # eg if bathy is 0->360 but self.hgrid is -180->180, longitude slice becomes 
+        ## 
+
+        # if bathy[varnames["xh"]].values[0] < 0:
+
+
+
+        bathy = bathy.sel({
             varnames["xh"]:slice(self.xextent[0],self.xextent[1]),
             varnames["yh"]:slice(self.yextent[0],self.yextent[1])
         }
@@ -428,11 +442,14 @@ class experiment:
 
         ## Remove inland lakes
         
-        ocean_mask = topog.copy(deep = True).depth.where(topog.depth == 0 , 1)
+        min_depth = self.vcoord.zi[minimum_layers]
+
+
+        ocean_mask = topog.copy(deep = True).depth.where(topog.depth <= min_depth , 1)
         land_mask = np.abs(ocean_mask - 1)
         changed = True ## keeps track of whether solution has converged or not
 
-        forward = True ## only useful for iterating through diagonal channel removal
+        forward = True ## only useful for iterating through diagonal channel removal. Means iteration goes SW -> NE
 
         while changed == True:
 
@@ -459,6 +476,8 @@ class experiment:
                     newmask += xr.where((ocean_mask * ocean_mask.shift(ny = 1)) * (land_mask.shift({"nx":1,"ny":1}) + land_mask.shift({"nx":-1})) == 2,1,0) ## up right & left
                     newmask += xr.where((ocean_mask * ocean_mask.shift(ny = 1)) * (land_mask.shift({"nx":-1,"ny":1}) + land_mask.shift({"nx":1})) == 2,1,0) ## up left & right
 
+                    forward = False
+
                 if forward == False:
                     ## Horizontal channels
                     newmask += xr.where((ocean_mask * ocean_mask.shift(nx = -1)) * (land_mask.shift({"nx":-1,"ny":1}) + land_mask.shift({"ny":-1})) == 2,1,0) ## up left & below
@@ -467,7 +486,7 @@ class experiment:
                     newmask += xr.where((ocean_mask * ocean_mask.shift(ny = -1)) * (land_mask.shift({"nx":1,"ny":-1}) + land_mask.shift({"nx":-1})) == 2,1,0) ## down right & left
                     newmask += xr.where((ocean_mask * ocean_mask.shift(ny = -1)) * (land_mask.shift({"nx":-1,"ny":-1}) + land_mask.shift({"nx":1})) == 2,1,0) ## down left & right
 
-                forward = False
+                    forward = True
 
               
             newmask = xr.where(newmask > 0 , 1,0)
@@ -747,8 +766,6 @@ class segment:
             dz = segment_out[self.z]
             dz.name = "dz"
         del segment_out[self.z]
-
-        print("depth coordinate just deleted: " ,self.z)
 
 
         # Here, keep in mind that 'var' keeps track of the mom6 variable names we want, and self.tracers[var] will return the name of the variable from the original data
