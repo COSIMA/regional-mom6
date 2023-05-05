@@ -13,6 +13,74 @@ from dask.distributed import Client, worker_client
 from dask.diagnostics import ProgressBar
 import datetime as dt
 
+
+def nicer_slicer(data,xextent,x,buffer = 2):
+    """
+    Slices longitudes, handling periodicity and 'seams' where the data wraps around (commonly either at -180 -> 180 or -270 -> 90)
+
+    Parameters:
+        data (xarray dataset)          The global data you want to slice in longitude
+        xextent (tuple)                The target longitudes you want to slice to. This must be either start negative and progress to positive, or be entirely positive
+        x (str)                        The name of the longitude dimension in your xarray
+
+
+    The algorithm works in three steps:
+
+    Determine whether we need to add or subtract 360 to get the middle of the xextent to lie within data's lonitude range (hereby oldx)
+
+    Shift the dataset so that its midpoint matches the midpoint of xextent (up to a muptiple of 360). Now, the modified oldx doesn't increase monotonically W to E since the 'seam' has moved.
+
+    Fix oldx to make it monatonically increasing again. This uses the information we have about the way the dataset was shifted/rolled
+
+    Slice the data index-wise. We know that |xextent| / 360 multiplied by the number of discrete longitude points will give the total width of our slice, and we've already set the midpoint to be the middle of the
+    target domain. Here we add a buffer region on either side if we need it for interpolation.
+
+    Finally re-add the right multiple of 360 so the whole domain matches the target.
+
+    """
+    
+
+    mp_target = np.mean(xextent) ## Midpoint of target domain
+
+
+    ## Find a corresponding value for the intended domain midpint in our data. Assuming here that data has equally spaced longitude values spanning 360deg
+    for i in range(-1,2,1):
+        if (data.x[0] <= mp_target + 360 * i <= data.x[-1]):
+
+            _mp_target = mp_target + 360 * i ## Shifted version of target midpoint. eg, could be -90 vs 270. i keeps track of what multiple of 360 we need to shift entire grid by to match midpoint
+
+            mp_data = data[x][data[x].shape[0]//2].values ## Midpoint of the data
+
+            shift = -1 * (data[x].shape[0] * (_mp_target - mp_data)) // 360
+            shift = int(shift)                   ## This is the number of indices between the data midpoint, and the target midpoint. Sign indicates direction needed to shift
+
+            new_data = data.roll(x = 1 * shift,roll_coords=True)   ## Shifts data so that the midpoint of the target domain is the middle of the data for easy slicing
+
+            new_x = new_data[x].values           ## Create a new longitude coordinate. We'll modify this to remove any seams (jumps like -270 -> 90) 
+
+            ## Take the 'seam' of the data, and either backfill or forward fill based on whether the data was shifted east or west
+            if shift > 0:
+                new_seam_index = shift
+
+                new_x[0:new_seam_index] -= 360
+
+            if shift < 0:
+                new_seam_index = data[x].shape[0] + shift
+
+                new_x[new_seam_index:] += 360
+
+            new_x -= i * 360 ## Use this to recentre the midpoint to match that of target domain
+           
+
+            new_data = new_data.assign_coords({x:new_x})
+
+            ## Choose the number of x points to take from the middle, including a buffer. Use this to index the new global dataset
+
+            num_xpoints = int(data[x].shape[0]* (mp_target - xextent[0]))// 360 + buffer * 2 ## The extra 8 is a buffer region
+
+            return new_data.isel(x = slice(data[x].shape[0]//2 - num_xpoints,data[x].shape[0]//2 + num_xpoints))
+
+
 # Ashley, written March 2023
 def motu_requests(xextent, yextent, daterange, outfolder, usr, pwd,segs,url = "https://my.cmems-du.eu/motu-web/Motu", serviceid = "GLOBAL_MULTIYEAR_PHY_001_030-TDS",productid = "cmems_mod_glo_phy_my_0.083_P1D-m",buffer = 0.3):
     """
