@@ -24,7 +24,7 @@ def nicer_slicer(data,xextent,x,buffer = 2):
         x (str)                        The name of the longitude dimension in your xarray
 
 
-    The algorithm works in three steps:
+    The algorithm works in five steps:
 
     Determine whether we need to add or subtract 360 to get the middle of the xextent to lie within data's lonitude range (hereby oldx)
 
