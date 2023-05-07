@@ -78,7 +78,7 @@ def nicer_slicer(data,xextent,x,buffer = 2):
 
             num_xpoints = int(data[x].shape[0]* (mp_target - xextent[0]))// 360 + buffer * 2 ## The extra 8 is a buffer region
 
-            return new_data.isel(x = slice(data[x].shape[0]//2 - num_xpoints,data[x].shape[0]//2 + num_xpoints))
+            return new_data.isel({x: slice(data[x].shape[0]//2 - num_xpoints,data[x].shape[0]//2 + num_xpoints)})
 
 
 # Ashley, written March 2023
