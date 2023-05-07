@@ -54,7 +54,7 @@ def nicer_slicer(data,xextent,x,buffer = 2):
             shift = -1 * (data[x].shape[0] * (_mp_target - mp_data)) // 360
             shift = int(shift)                   ## This is the number of indices between the data midpoint, and the target midpoint. Sign indicates direction needed to shift
 
-            new_data = data.roll(x = 1 * shift,roll_coords=True)   ## Shifts data so that the midpoint of the target domain is the middle of the data for easy slicing
+            new_data = data.roll({x:1 * shift},roll_coords=True)   ## Shifts data so that the midpoint of the target domain is the middle of the data for easy slicing
 
             new_x = new_data[x].values           ## Create a new longitude coordinate. We'll modify this to remove any seams (jumps like -270 -> 90) 
 
