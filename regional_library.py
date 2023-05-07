@@ -24,7 +24,7 @@ def nicer_slicer(data,xextent,x,buffer = 2):
         x (str)                        The name of the longitude dimension in your xarray
 
 
-    The algorithm works in three steps:
+    The algorithm works in five steps:
 
     Determine whether we need to add or subtract 360 to get the middle of the xextent to lie within data's lonitude range (hereby oldx)
 
@@ -45,7 +45,7 @@ def nicer_slicer(data,xextent,x,buffer = 2):
 
     ## Find a corresponding value for the intended domain midpint in our data. Assuming here that data has equally spaced longitude values spanning 360deg
     for i in range(-1,2,1):
-        if (data.x[0] <= mp_target + 360 * i <= data.x[-1]):
+        if (data[x][0] <= mp_target + 360 * i <= data[x][-1]):
 
             _mp_target = mp_target + 360 * i ## Shifted version of target midpoint. eg, could be -90 vs 270. i keeps track of what multiple of 360 we need to shift entire grid by to match midpoint
 
