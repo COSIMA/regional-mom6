@@ -292,7 +292,7 @@ class experiment:
 
         ic_raw = xr.open_dataset(path + "/ic_unprocessed")
 
-        if varnames["time"] in ic_raw.coords:
+        if varnames["time"] in ic_raw.dims:
             ic_raw = ic_raw.isel({varnames["time"] : 0})
 
         ## Separate out tracers from two velocity fields of IC
