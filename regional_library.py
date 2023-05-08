@@ -14,14 +14,14 @@ from dask.diagnostics import ProgressBar
 import datetime as dt
 
 
-def nicer_slicer(data,xextent,x,buffer = 2):
+def nicer_slicer(data,xextent,xcoords,buffer = 2):
     """
     Slices longitudes, handling periodicity and 'seams' where the data wraps around (commonly either at -180 -> 180 or -270 -> 90)
 
     Parameters:
         data (xarray dataset)          The global data you want to slice in longitude
         xextent (tuple)                The target longitudes you want to slice to. This must be either start negative and progress to positive, or be entirely positive
-        x (str)                        The name of the longitude dimension in your xarray
+        x (str or list of str)         The name of the longitude dimension in your xarray or list of names
 
 
     The algorithm works in five steps:
@@ -39,46 +39,52 @@ def nicer_slicer(data,xextent,x,buffer = 2):
 
     """
     
+    if isinstance(xcoords,str):
+        xcoords = [xcoords]
 
-    mp_target = np.mean(xextent) ## Midpoint of target domain
+    for x in xcoords:
+
+        mp_target = np.mean(xextent) ## Midpoint of target domain
 
 
-    ## Find a corresponding value for the intended domain midpint in our data. Assuming here that data has equally spaced longitude values spanning 360deg
-    for i in range(-1,2,1):
-        if (data[x][0] <= mp_target + 360 * i <= data[x][-1]):
+        ## Find a corresponding value for the intended domain midpint in our data. Assuming here that data has equally spaced longitude values spanning 360deg
+        for i in range(-1,2,1):
+            if (data[x][0] <= mp_target + 360 * i <= data[x][-1]):
 
-            _mp_target = mp_target + 360 * i ## Shifted version of target midpoint. eg, could be -90 vs 270. i keeps track of what multiple of 360 we need to shift entire grid by to match midpoint
+                _mp_target = mp_target + 360 * i ## Shifted version of target midpoint. eg, could be -90 vs 270. i keeps track of what multiple of 360 we need to shift entire grid by to match midpoint
 
-            mp_data = data[x][data[x].shape[0]//2].values ## Midpoint of the data
+                mp_data = data[x][data[x].shape[0]//2].values ## Midpoint of the data
 
-            shift = -1 * (data[x].shape[0] * (_mp_target - mp_data)) // 360
-            shift = int(shift)                   ## This is the number of indices between the data midpoint, and the target midpoint. Sign indicates direction needed to shift
+                shift = -1 * (data[x].shape[0] * (_mp_target - mp_data)) // 360
+                shift = int(shift)                   ## This is the number of indices between the data midpoint, and the target midpoint. Sign indicates direction needed to shift
 
-            new_data = data.roll({x:1 * shift},roll_coords=True)   ## Shifts data so that the midpoint of the target domain is the middle of the data for easy slicing
+                new_data = data.roll({x:1 * shift},roll_coords=True)   ## Shifts data so that the midpoint of the target domain is the middle of the data for easy slicing
 
-            new_x = new_data[x].values           ## Create a new longitude coordinate. We'll modify this to remove any seams (jumps like -270 -> 90) 
+                new_x = new_data[x].values           ## Create a new longitude coordinate. We'll modify this to remove any seams (jumps like -270 -> 90) 
 
-            ## Take the 'seam' of the data, and either backfill or forward fill based on whether the data was shifted east or west
-            if shift > 0:
-                new_seam_index = shift
+                ## Take the 'seam' of the data, and either backfill or forward fill based on whether the data was shifted east or west
+                if shift > 0:
+                    new_seam_index = shift
 
-                new_x[0:new_seam_index] -= 360
+                    new_x[0:new_seam_index] -= 360
 
-            if shift < 0:
-                new_seam_index = data[x].shape[0] + shift
+                if shift < 0:
+                    new_seam_index = data[x].shape[0] + shift
 
-                new_x[new_seam_index:] += 360
+                    new_x[new_seam_index:] += 360
 
-            new_x -= i * 360 ## Use this to recentre the midpoint to match that of target domain
-           
+                new_x -= i * 360 ## Use this to recentre the midpoint to match that of target domain
+            
 
-            new_data = new_data.assign_coords({x:new_x})
+                new_data = new_data.assign_coords({x:new_x})
 
-            ## Choose the number of x points to take from the middle, including a buffer. Use this to index the new global dataset
+                ## Choose the number of x points to take from the middle, including a buffer. Use this to index the new global dataset
 
-            num_xpoints = int(data[x].shape[0]* (mp_target - xextent[0]))// 360 + buffer * 2 ## The extra 8 is a buffer region
+                num_xpoints = int(data[x].shape[0]* (mp_target - xextent[0]))// 360 + buffer * 2 ## The extra 8 is a buffer region
 
-            return new_data.isel({x: slice(data[x].shape[0]//2 - num_xpoints,data[x].shape[0]//2 + num_xpoints)})
+                data = new_data.isel({x: slice(data[x].shape[0]//2 - num_xpoints,data[x].shape[0]//2 + num_xpoints)})
+
+        return data
 
 
 # Ashley, written March 2023
