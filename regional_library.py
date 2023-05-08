@@ -612,7 +612,10 @@ class experiment:
             if "topog.nc" not in os.listdir(self.mom_input_dir):
                 print("No topography file! Need to run make_bathymetry first")
                 return
-            os.remove("mask_table*") ## Removes old mask table so as not to clog up inputdir
+            try:            
+                os.remove("mask_table*") ## Removes old mask table so as not to clog up inputdir
+            except:
+                pass
             print("CHECK MASK" , subprocess.run(
                 self.toolpath + f"check_mask/check_mask --grid_file ocean_mosaic.nc --ocean_topog topog.nc --layout {layout[0]},{layout[1]} --halo 4",
                 shell=True,
