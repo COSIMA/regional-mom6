@@ -320,6 +320,7 @@ class experiment:
             ic_raw_u = ic_raw_u.rename({varnames["x"]:"lon",varnames["y"]:"lat"})
             ic_raw_v = ic_raw_v.rename({varnames["x"]:"lon",varnames["y"]:"lat"})
             ic_raw_eta = ic_raw_eta.rename({varnames["x"]:"lon",varnames["y"]:"lat"})
+
         if gridtype == "B":
             ic_raw_tracers = ic_raw_tracers.rename({varnames["xh"]:"lon",varnames["yh"]:"lat"})
             ic_raw_eta = ic_raw_eta.rename({varnames["xh"]:"lon",varnames["yh"]:"lat"})
@@ -733,7 +734,7 @@ class segment:
         if self.grid =="B":
             ## All tracers on one grid, all velocities on another
             regridder_velocity = xe.Regridder(
-                rawseg[self.tracers["salt"]].rename({self.xq:"lon", self.yq:"lat"}),
+                rawseg[self.u].rename({self.xq:"lon", self.yq:"lat"}),
                 interp_grid,
                 "bilinear",
                 locstream_out=True,
