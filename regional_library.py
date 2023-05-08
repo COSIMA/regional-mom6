@@ -84,7 +84,7 @@ def nicer_slicer(data,xextent,xcoords,buffer = 2):
 
                 data = new_data.isel({x: slice(data[x].shape[0]//2 - num_xpoints,data[x].shape[0]//2 + num_xpoints)})
 
-        return data
+    return data
 
 
 # Ashley, written March 2023
