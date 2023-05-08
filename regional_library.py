@@ -739,7 +739,7 @@ class segment:
                 "bilinear",
                 locstream_out=True,
                 reuse_weights=False,
-                filename= self.outfolder,
+                filename= self.outfolder + f"weights/bilinear_velocity_weights_{self.orientation}.nc",
             )
 
             regridder_tracer = xe.Regridder(
@@ -748,7 +748,7 @@ class segment:
                 "bilinear",
                 locstream_out=True,
                 reuse_weights=False,
-                filename=self.outfolder + f"weights/bilinear_velocity_weights_{self.orientation}.nc",
+                filename=self.outfolder + f"weights/bilinear_tracer_weights_{self.orientation}.nc",
             )
 
 
@@ -765,7 +765,7 @@ class segment:
                 "bilinear",
                 locstream_out=True,
                 reuse_weights=False,
-                filename= self.outfolder,
+                filename= self.outfolder + f"weights/bilinear_uvelocity_weights_{self.orientation}.nc",
             )
 
             regridder_vvelocity = xe.Regridder(
@@ -774,7 +774,7 @@ class segment:
                 "bilinear",
                 locstream_out=True,
                 reuse_weights=False,
-                filename= self.outfolder,
+                filename= self.outfolder + f"weights/bilinear_vvelocity_weights_{self.orientation}.nc",
             )
 
             regridder_tracer = xe.Regridder(
@@ -783,7 +783,7 @@ class segment:
                 "bilinear",
                 locstream_out=True,
                 reuse_weights=False,
-                filename=self.outfolder + f"weights/bilinear_velocity_weights_{self.orientation}.nc",
+                filename=self.outfolder + f"weights/bilinear_tracer_weights_{self.orientation}.nc",
             )
 
 
