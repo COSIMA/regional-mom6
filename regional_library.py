@@ -800,7 +800,7 @@ class segment:
         del segment_out["lat"]
         ## Convert temperatures to celsius # use pint
         if np.min(segment_out[self.tracers["temp"]].isel({self.time:0,self.z:0})) > 100:
-            segment_out[self.temp] -= 273.15
+            segment_out[self.tracers["temp"]] -= 273.15
 
         # fill in NaNs
         segment_out = (
