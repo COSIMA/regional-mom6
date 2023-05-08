@@ -517,7 +517,7 @@ class experiment:
 
         ## Remove inland lakes
         
-        min_depth = self.vcoord.zi[minimum_layers]
+        min_depth = self.vgrid.zi[minimum_layers]
 
 
         ocean_mask = topog.copy(deep = True).depth.where(topog.depth <= min_depth , 1)
