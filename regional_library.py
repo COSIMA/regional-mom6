@@ -492,10 +492,12 @@ class experiment:
 
 
         bathy = bathy.sel({
-            varnames["xh"]:slice(self.xextent[0],self.xextent[1]),
             varnames["yh"]:slice(self.yextent[0],self.yextent[1])
         }
         ).astype("float")
+
+        bathy = nicer_slicer(bathy,self.xextent,varnames["xh"])
+
 
         bathy.attrs['missing_value'] = -1e20
         bathy.to_netcdf(f"{self.mom_input_dir}bathy_original.nc", engine='netcdf4')
