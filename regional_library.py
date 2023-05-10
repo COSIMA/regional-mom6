@@ -479,7 +479,7 @@ class experiment:
         """
 
 
-        bathy = xr.open_dataset(bathy_path)[varnames["elevation"]]
+        bathy = xr.open_dataset(bathy_path,chunks="auto")[varnames["elevation"]]
 
 
         ## Determine whether we need to adjust bathymetry longitude to match model grid. 
@@ -509,7 +509,7 @@ class experiment:
         args = f"--mosaic ocean_mosaic.nc --topog_type realistic --topog_file bathy_original.nc --topog_field {varnames['elevation']} --scale_factor -1 --output topog_raw.nc".split(" ")
         print(
             "FRE TOOLS: make topog parallel\n\n",
-            subprocess.run(["/g/data/v45/jr5971/FRE-NCtools/build3_up_MAXXGRID/tools/make_topog/make_topog_parallel"] + args,cwd = self.mom_input_dir)
+            subprocess.run(["mpirun -np 8 /g/data/v45/jr5971/FRE-NCtools/build3_up_MAXXGRID/tools/make_topog/make_topog_parallel"] + args,cwd = self.mom_input_dir)
         )
 
 
@@ -676,7 +676,7 @@ class segment:
     def brushcut(self):
         ### Implement brushcutter scheme on single segment ### 
         # print(self.infile + f"/{self.orientation}_segment_unprocessed")
-        rawseg = xr.open_dataset(self.infile)
+        rawseg = xr.open_dataset(self.infile,decode_times=False)
 
         ## Depending on the orientation of the segment, cut out the right bit of the hgrid 
         ## and define which coordinate is along or into the segment
@@ -824,7 +824,7 @@ class segment:
         encoding_dict = {
             "time": {
                 "dtype": "double",
-                "units": "days since 1900-01-01 12:00:00",
+                "units": "days since 1950-01-01 12:00:00",
                 "calendar": "noleap",
             },
             f"nx_{self.seg_name}": {
