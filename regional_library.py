@@ -471,7 +471,7 @@ class experiment:
 
             seg.brushcut()
 
-    def bathymetry(self,bathy_path,varnames,fill_channels = False,minimum_layers = 3):
+    def bathymetry(self,bathy_path,varnames,fill_channels = False,minimum_layers = 3,maketopog = True):
         """
         Cuts out and interpolates chosen bathymetry, then fills inland lakes. Optionally fills narrow channels, although this is less of an issue for C grid based models like MOM6. Output saved to the input folder for your experiment. 
 
@@ -480,10 +480,10 @@ class experiment:
             varnames (dict)             Dictionary mapping the coordinate and variable names of interest. Eg: {'xh':'lon','yh':'lat','elevation':'depth'}
             fill_channels (bool)   Whether or not to fill in diagonal channels. This removes more narrow inlets, but can also connect extra islands to land. 
             minimum layers (bool)   The minimum depth allowed as an integer number of layers. 3 layers means that anything shallower than the 3rd layer is deemed land
+            maketopog (bool)            If true, runs fre tools to make topography. If False, reads in existing topog file and proceeds with hole filling
         """
 
 
-        bathy = xr.open_dataset(bathy_path,chunks="auto")[varnames["elevation"]]
 
 
         ## Determine whether we need to adjust bathymetry longitude to match model grid. 
@@ -495,26 +495,29 @@ class experiment:
 
 
 
-        bathy = bathy.sel({
-            varnames["yh"]:slice(self.yextent[0],self.yextent[1])
-        }
-        ).astype("float")
+        if maketopog == True:
+            bathy = xr.open_dataset(bathy_path,chunks="auto")[varnames["elevation"]]
+            
+            bathy = bathy.sel({
+                varnames["yh"]:slice(self.yextent[0],self.yextent[1])
+            }
+            ).astype("float")
 
-        bathy = nicer_slicer(bathy,self.xextent,varnames["xh"])
-
-
-        bathy.attrs['missing_value'] = -1e20
-        bathy.to_netcdf(f"{self.mom_input_dir}bathy_original.nc", engine='netcdf4')
-
-        ## Now pass bathymetry through the FRE tools
+            bathy = nicer_slicer(bathy,self.xextent,varnames["xh"])
 
 
-        ## Make Topog
-        args = f"--mosaic ocean_mosaic.nc --topog_type realistic --topog_file bathy_original.nc --topog_field {varnames['elevation']} --scale_factor -1 --output topog_raw.nc".split(" ")
-        print(
-            "FRE TOOLS: make topog parallel\n\n",
-            subprocess.run(["mpirun -np 8 /g/data/v45/jr5971/FRE-NCtools/build3_up_MAXXGRID/tools/make_topog/make_topog_parallel"] + args,cwd = self.mom_input_dir)
-        )
+            bathy.attrs['missing_value'] = -1e20
+            bathy.to_netcdf(f"{self.mom_input_dir}bathy_original.nc", engine='netcdf4')
+
+            ## Now pass bathymetry through the FRE tools
+
+
+            ## Make Topog
+            args = f"--mosaic ocean_mosaic.nc --topog_type realistic --topog_file bathy_original.nc --topog_field {varnames['elevation']} --scale_factor -1 --output topog_raw.nc".split(" ")
+            print(
+                "FRE TOOLS: make topog parallel\n\n",
+                subprocess.run(["mpirun -np 8 /g/data/v45/jr5971/FRE-NCtools/build3_up_MAXXGRID/tools/make_topog/make_topog_parallel"] + args,cwd = self.mom_input_dir)
+            )
 
 
 
