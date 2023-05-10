@@ -667,7 +667,7 @@ class segment:
         self.z = varnames["zl"]
         self.eta = varnames["eta"]
         self.time = varnames["time"]
-
+        self.startdate = startdate
         ## Store tracer names
         self.tracers = varnames["tracers"]
 
@@ -685,7 +685,8 @@ class segment:
     def brushcut(self):
         ### Implement brushcutter scheme on single segment ### 
         # print(self.infile + f"/{self.orientation}_segment_unprocessed")
-        rawseg = xr.open_dataset(self.infile,decode_times=False,chunks={self.time:30,self.z:25})
+        rawseg = xr.open_dataset(self.infile,decode_times=False)
+        # rawseg = xr.open_dataset(self.infile,decode_times=False,chunks={self.time:30,self.z:25})
 
         ## Depending on the orientation of the segment, cut out the right bit of the hgrid 
         ## and define which coordinate is along or into the segment
@@ -827,20 +828,20 @@ class segment:
 
 
         ##### FIX UP COORDINATE METADATA #####
-        start_jd50 = (self.daterange[0] - dt.datetime.strptime("1950-01-01 00:00:00","%Y-%m-%d %H:%M:%S")).days
+        start_jd50 = (self.startdate - dt.datetime.strptime("1950-01-01 00:00:00","%Y-%m-%d %H:%M:%S")).days
         time = np.arange(
             start_jd50,
-            start_jd50 + segment_out["time"].shape()[0]  ## Time is just range of days from start of window until end in Julian day offset from 1950 epoch
+            start_jd50 + segment_out["time"].shape[0]  ## Time is just range of days from start of window until end in Julian day offset from 1950 epoch
         )
 
         segment_out = segment_out.assign_coords({"time":time})
 
         # Dictionary we built for encoding the netcdf at end
         encoding_dict = {
-            "time": {
-                "units": "days since 1950-01-01 12:00:00",
-                "calendar": "gregorian",
-            },
+            # "time": {
+            #     "units": "days since 1950-01-01 12:00:00",
+            #     "calendar": "gregorian",
+            # },
             f"nx_{self.seg_name}": {
                 "dtype": "int32",
             },
@@ -913,7 +914,6 @@ class segment:
 
         ## Treat eta separately since it has no vertical coordinate. Do the same things as for the surface variables above
         segment_out = segment_out.rename({self.eta: f"eta_{self.seg_name}"})
-        print(segment_out.time)
         encoding_dict[ f"eta_{self.seg_name}"] = {
             "_FillValue": netCDF4.default_fillvals["f8"],
         }
@@ -939,4 +939,18 @@ class segment:
                 )
 
         return segment_out , encoding_dict
+    
+
+seg = segment(
+    expt.hgrid,
+    tmpdir + "/east_unprocessed",
+    inputdir,
+    {"time":"time","y":"latitude","x":"longitude",
+     "zl":"depth","eta":"zos","u":"uo","v":"vo",
+     "tracers":{"salt":"so","temp":"thetao"}},
+     "test",
+     "east",
+     expt.daterange[0]
+)
+seg.brushcut()
     
