@@ -941,16 +941,5 @@ class segment:
         return segment_out , encoding_dict
     
 
-seg = segment(
-    expt.hgrid,
-    tmpdir + "/east_unprocessed",
-    inputdir,
-    {"time":"time","y":"latitude","x":"longitude",
-     "zl":"depth","eta":"zos","u":"uo","v":"vo",
-     "tracers":{"salt":"so","temp":"thetao"}},
-     "test",
-     "east",
-     expt.daterange[0]
-)
-seg.brushcut()
+
     
