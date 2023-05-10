@@ -899,6 +899,7 @@ class segment:
 
         ## Treat eta separately since it has no vertical coordinate. Do the same things as for the surface variables above
         segment_out = segment_out.rename({self.eta: f"eta_{self.seg_name}"})
+        print(segment_out.time)
         encoding_dict[ f"eta_{self.seg_name}"] = {
             "_FillValue": netCDF4.default_fillvals["f8"],
         }
