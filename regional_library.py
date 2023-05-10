@@ -464,7 +464,7 @@ class experiment:
                 varnames,
                 "segment_{:03d}".format(i+1),
                 o.lower(), # orienataion
-                self.daterange,
+                self.daterange[0],
                 gridtype,
                 vcoord_type
             )
