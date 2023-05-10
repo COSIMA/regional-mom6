@@ -176,7 +176,7 @@ class experiment:
     Knows everything about your regional experiment! Methods in this class will generate the various input files you need to generate a MOM6 experiment forced with Open Boundary Conditions. It's written agnostic to your choice of boundary forcing,topography and surface forcing - you need to tell it what your variables are all called via mapping dictionaries where keys are mom6 variable / coordinate names, and entries are what they're called in your dataset. 
     """
 
-    def __init__(self, xextent,yextent,resolution,vlayers,dz_ratio,depth,mom_run_dir,mom_input_dir,toolpath):
+    def __init__(self, xextent,yextent,daterange,resolution,vlayers,dz_ratio,depth,mom_run_dir,mom_input_dir,toolpath):
         try:
             os.mkdir(mom_run_dir)
         except:
@@ -188,6 +188,8 @@ class experiment:
             pass
         self.xextent = xextent
         self.yextent = yextent
+        self.daterange = [dt.datetime.strptime(daterange[0],"%Y-%m-%d %H:%M:%S"),
+                          dt.datetime.strptime(daterange[1],"%Y-%m-%d %H:%M:%S")]
         self.res = resolution
         self.vlayers = vlayers
         self.dz_ratio = dz_ratio
@@ -457,11 +459,12 @@ class experiment:
         for i,o in enumerate(boundaries):
             seg = segment(
                 self.hgrid,
-                f"{path}/{o.lower()}_unprocessed",
-                f"{self.mom_input_dir}",
+                f"{path}/{o.lower()}_unprocessed", # location of raw boundary
+                f"{self.mom_input_dir}",           # Save path
                 varnames,
                 "segment_{:03d}".format(i+1),
-                o.lower(),
+                o.lower(), # orienataion
+                self.daterange,
                 gridtype,
                 vcoord_type
             )
@@ -470,7 +473,8 @@ class experiment:
 
     def bathymetry(self,bathy_path,varnames,fill_channels = False,minimum_layers = 3):
         """
-        Cuts out and interpolates chosen bathymetry. Output saved to the input folder for your experiment. 
+        Cuts out and interpolates chosen bathymetry, then fills inland lakes. Optionally fills narrow channels, although this is less of an issue for C grid based models like MOM6. Output saved to the input folder for your experiment. 
+
         Parameters:
             bathy_path (str)            Path to chosen bathymetry file. Should be a netcdf that contains your region of interest
             varnames (dict)             Dictionary mapping the coordinate and variable names of interest. Eg: {'xh':'lon','yh':'lat','elevation':'depth'}
@@ -629,8 +633,13 @@ class segment:
     """
     Class to turn raw boundary segment data into MOM6 boundary segments. 
     """
-    def __init__(self, hgrid,infile, outfolder,varnames,seg_name,orientation, gridtype="A",vcoord_type = "height"):
+    def __init__(self, hgrid,infile, outfolder,varnames,seg_name,orientation, startdate, gridtype="A",vcoord_type = "height"):
         """
+        Boundary segments should only contain the necessary data for that segment. No horizontal chunking is done here, so big fat segments will process slowly.
+
+        Data should be at daily temporal resolution, iterating upwards from the provided startdate. Function ignores the time metadata and puts it on Julian calendar. 
+
+
         hgrid:        xarray        the horizontal grid used for domain
         infolder:     string        path to the raw, unprocessed boundary segment
         outfolder:    string        path to folder where the model inputs will be stored
@@ -676,7 +685,7 @@ class segment:
     def brushcut(self):
         ### Implement brushcutter scheme on single segment ### 
         # print(self.infile + f"/{self.orientation}_segment_unprocessed")
-        rawseg = xr.open_dataset(self.infile,decode_times=False)
+        rawseg = xr.open_dataset(self.infile,decode_times=False,chunks={self.time:30,self.z:25})
 
         ## Depending on the orientation of the segment, cut out the right bit of the hgrid 
         ## and define which coordinate is along or into the segment
@@ -818,14 +827,19 @@ class segment:
 
 
         ##### FIX UP COORDINATE METADATA #####
+        start_jd50 = (self.daterange[0] - dt.datetime.strptime("1950-01-01 00:00:00","%Y-%m-%d %H:%M:%S")).days
+        time = np.arange(
+            start_jd50,
+            start_jd50 + segment_out["time"].shape()[0]  ## Time is just range of days from start of window until end in Julian day offset from 1950 epoch
+        )
 
+        segment_out = segment_out.assign_coords({"time":time})
 
         # Dictionary we built for encoding the netcdf at end
         encoding_dict = {
             "time": {
-                "dtype": "double",
                 "units": "days since 1950-01-01 12:00:00",
-                "calendar": "noleap",
+                "calendar": "gregorian",
             },
             f"nx_{self.seg_name}": {
                 "dtype": "int32",
