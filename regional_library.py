@@ -842,7 +842,7 @@ class segment:
         # Dictionary we built for encoding the netcdf at end
         encoding_dict = {
             "time": {
-                "dtype": "double"
+                "dtype": "double",
                 "units": "days since 1950-01-01 12:00:00",
                 "calendar": "gregorian",
             },
