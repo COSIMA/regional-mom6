@@ -839,7 +839,7 @@ class segment:
 
         segment_out = segment_out.assign_coords({"time":time})
 
-        segment_out.time.attrs = {"units": "days since 1950-01-01 00:00:00","calendar": "gregorian"}
+        segment_out.time.attrs = {"units": "days since 1950-01-01 00:00:00","calendar": "julian"}
         # Dictionary we built for encoding the netcdf at end
         encoding_dict = {
             "time": {
