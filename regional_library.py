@@ -62,7 +62,7 @@ def nicer_slicer(data,xextent,xcoords,buffer = 2):
 
                 new_x = new_data[x].values           ## Create a new longitude coordinate. We'll modify this to remove any seams (jumps like -270 -> 90) 
 
-                ## Take the 'seam' of the data, and either backfill or forward fill based on whether the data was shifted east or west
+                ## Take the 'seam' of the data, and either backfill or forward fill based on whether the data was shifted F or west
                 if shift > 0:
                     new_seam_index = shift
 
@@ -839,7 +839,7 @@ class segment:
 
         segment_out = segment_out.assign_coords({"time":time})
 
-        segment_out.time.attrs = {"units": "days since 1950-01-01 00:00:00","calendar": "julian"}
+        segment_out.time.attrs = {"units": "days since 1950-01-01 00:00:00","calendar": "noleap"}
         # Dictionary we built for encoding the netcdf at end
         encoding_dict = {
             "time": {
