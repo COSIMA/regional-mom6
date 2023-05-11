@@ -834,7 +834,7 @@ class segment:
         start_jd50 = (self.startdate - dt.datetime.strptime("1950-01-01 00:00:00","%Y-%m-%d %H:%M:%S")).days
         time = np.arange(
             start_jd50,
-            start_jd50 + segment_out["time"].shape[0]  ## Time is just range of days from start of window until end in Julian day offset from 1950 epoch
+            start_jd50 + rawseg[self.time].shape[0]  ## Time is just range of days from start of window until end in Julian day offset from 1950 epoch
         )
 
         segment_out = segment_out.assign_coords({"time":time})
