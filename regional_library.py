@@ -516,7 +516,7 @@ class experiment:
             args = f"--mosaic ocean_mosaic.nc --topog_type realistic --topog_file bathy_original.nc --topog_field {varnames['elevation']} --scale_factor -1 --output topog_raw.nc".split(" ")
             print(
                 "FRE TOOLS: make topog parallel\n\n",
-                subprocess.run(["mpirun -np 8 /g/data/v45/jr5971/FRE-NCtools/build3_up_MAXXGRID/tools/make_topog/make_topog_parallel"] + args,cwd = self.mom_input_dir)
+                subprocess.run(["/g/data/v45/jr5971/FRE-NCtools/build3_up_MAXXGRID/tools/make_topog/make_topog_parallel"] + args,cwd = self.mom_input_dir)
             )
 
 
