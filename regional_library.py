@@ -105,7 +105,7 @@ def motu_requests(xextent, yextent, daterange, outfolder, usr, pwd,segs,url = "h
 
     """
     if type(segs) == str:
-        return f"\nprintf 'processing {segs} segment' \npython -m motuclient --motu {url} --service-id {serviceid} --product-id {productid} --longitude-min {xextent[0]} --longitude-max {xextent[1]} --latitude-min {yextent[0]} --latitude-max {yextent[1]} --date-min {daterange[0]} --date-max {daterange[1]} --depth-min 0.49 --depth-max 6000 --variable so --variable thetao --variable vo --variable zos --variable uo --out-dir {outfolder} --out-name {segs}_unprocessed --user '{usr}' --pwd '{pwd}' & \n"
+        return f"\nprintf 'processing {segs} segment' \npython -m motuclient --motu {url} --service-id {serviceid} --product-id {productid} --longitude-min {xextent[0]} --longitude-max {xextent[1]} --latitude-min {yextent[0]} --latitude-max {yextent[1]} --date-min {daterange[0]} --date-max {daterange[1]} --depth-min 0.49 --depth-max 6000 --variable so --variable thetao --variable vo --variable zos --variable uo --out-dir {outfolder} --out-name {segs}_unprocessed --user '{usr}' --pwd '{pwd}'\n"
     
     ## Buffer pads out our boundaries a small amount to allow for interpolation
     xextent,yextent = np.array(xextent) , np.array(yextent)
@@ -636,7 +636,7 @@ class segment:
     """
     Class to turn raw boundary segment data into MOM6 boundary segments. 
     """
-    def __init__(self, hgrid,infile, outfolder,varnames,seg_name,orientation, startdate, gridtype="A",vcoord_type = "height"):
+    def __init__(self, hgrid,infile, outfolder,varnames,seg_name,orientation, startdate, gridtype="A",vcoord_type = "height",time_units = "days"):
         """
         Boundary segments should only contain the necessary data for that segment. No horizontal chunking is done here, so big fat segments will process slowly.
 
@@ -651,6 +651,7 @@ class segment:
         gridtype:     string        A,B or C type grid
         seg_name:     string        Name of the segment. Something like 'segment_001'
         vcoord_type:  string        Vertical coordinate is either interfacial 'height' or layer 'thickness'. Handles appropriately
+        time_units:   string        The units used by raw forcing file. eg. hours, days
         """
 
         ## Store coordinate names
@@ -685,7 +686,7 @@ class segment:
         self.seg_name = seg_name
         self.vcoord_type = vcoord_type
 
-    def brushcut(self):
+    def brushcut(self,ryf = False):
         ### Implement brushcutter scheme on single segment ### 
         # print(self.infile + f"/{self.orientation}_segment_unprocessed")
         rawseg = xr.open_dataset(self.infile,decode_times=False)
@@ -831,15 +832,26 @@ class segment:
 
 
         ##### FIX UP COORDINATE METADATA #####
-        start_jd50 = (self.startdate - dt.datetime.strptime("1950-01-01 00:00:00","%Y-%m-%d %H:%M:%S")).days
+        ## OLD: Use 1950 reference
+        # start_jd50 = (self.startdate - dt.datetime.strptime("1950-01-01 00:00:00","%Y-%m-%d %H:%M:%S")).days
+        # time = np.arange(
+        #     start_jd50,
+        #     start_jd50 + rawseg[self.time].shape[0]  ## Time is just range of days from start of window until end in Julian day offset from 1950 epoch
+        # )
+
+        #! This only works for RYF or shorter IAF runs. 
+        #  We'd need a better way to split up forcing files into separate chunks if you wanted to run one year at a time. 
         time = np.arange(
-            start_jd50,
-            start_jd50 + rawseg[self.time].shape[0]  ## Time is just range of days from start of window until end in Julian day offset from 1950 epoch
+            0, #! Indexing everything from start of experiment = simple but maybe counterintutive? 
+            segment_out[self.time].shape[0], ## Time is indexed from start date of window
+            dtype = float
         )
+
+        {"calendar":"julian","units":f"{time_units} since {self.startdate}"}
 
         segment_out = segment_out.assign_coords({"time":time})
 
-        segment_out.time.attrs = {"units": "days since 1950-01-01","calendar": "noleap"}
+        segment_out.time.attrs = {"units": f"days since {self.[0]}","calendar": "noleap"}
         # Dictionary we built for encoding the netcdf at end
         encoding_dict = {
             "time": {
