@@ -847,11 +847,11 @@ class segment:
             dtype = float
         )
 
-        {"calendar":"julian","units":f"{time_units} since {self.startdate}"}
+        
 
         segment_out = segment_out.assign_coords({"time":time})
 
-        segment_out.time.attrs = {"units": f"days since {self.[0]}","calendar": "noleap"}
+        segment_out.time.attrs = {"calendar":"julian","units":f"{self.time_units} since {self.startdate}","modulo":" "}
         # Dictionary we built for encoding the netcdf at end
         encoding_dict = {
             "time": {
