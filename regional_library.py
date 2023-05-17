@@ -674,7 +674,7 @@ class segment:
         self.startdate = startdate
         ## Store tracer names
         self.tracers = varnames["tracers"]
-
+        self.time_units = time_units
 
 
         ## Store other data
