@@ -12,7 +12,8 @@ import netCDF4
 from dask.distributed import Client, worker_client
 from dask.diagnostics import ProgressBar
 import datetime as dt
-
+import warnings
+warnings.filterwarnings('ignore')
 
 def nicer_slicer(data,xextent,xcoords,buffer = 2):
     """
@@ -368,18 +369,20 @@ class experiment:
             ic_raw_tracers, tgrid, "bilinear",
         )
 
-
+        print("INITIAL CONDITIONS")
         ## Regrid all fields horizontally.
-
+        print("Regridding Velocities...",end="")
         vel_out = xr.merge(
             [
             regridder_u(ic_raw_u).rename({"lon": "xq", "lat": "yh", "nyp": "ny",varnames["zl"]:"zl"}).rename("u"),
             regridder_v(ic_raw_v).rename({"lon": "xh", "lat": "yq", "nxp": "nx",varnames["zl"]:"zl"}).rename("v")
             ]
         )
+        print("Done.\nRegridding Tracers...")
         tracers_out = xr.merge(
             [regridder_t(ic_raw_tracers[varnames["tracers"][i]]).rename(i) for i in varnames["tracers"]]
             ).rename({"lon": "xh", "lat": "yh",varnames["zl"]:"zl"})
+        print("Done.\nRegridding Free surface...")
         
         eta_out = regridder_t(ic_raw_eta).rename({"lon": "xh", "lat": "yh"}).rename("eta_t") ## eta_t is the name set in MOM_input by default
 
@@ -421,7 +424,7 @@ class experiment:
         tracers_out = tracers_out.interp({'zl':self.vgrid.zl.values})
         vel_out = vel_out.interp({'zl':self.vgrid.zl.values})
 
-
+        print("Saving outputs... ",end="")
         vel_out.fillna(0).to_netcdf(
             self.mom_input_dir + "forcing/init_vel.nc",
             mode = "w",
@@ -450,13 +453,16 @@ class experiment:
                         'eta_t':{'_FillValue':None}
                         },
         )
-
+        print("done.")
 
         if boundaries == None:
             return
-        
+
+        print("BRUSHCUT BOUNDARIES")
+
         ## Generate a rectangular OBC domain. This is the default configuration. For fancier domains, need to use the segment class manually
         for i,o in enumerate(boundaries):
+            print(f"Processing {o}...",end="")
             seg = segment(
                 self.hgrid,
                 f"{path}/{o.lower()}_unprocessed", # location of raw boundary
@@ -470,6 +476,7 @@ class experiment:
             )
 
             seg.brushcut()
+            print("Done.")
 
     def bathymetry(self,bathy_path,varnames,fill_channels = False,minimum_layers = 3,maketopog = True):
         """
@@ -510,24 +517,24 @@ class experiment:
             bathy.to_netcdf(f"{self.mom_input_dir}bathy_original.nc", engine='netcdf4')
 
 
-            #! New code to test: Can we regrid first to pass make_topog a smaller dataset to handle?
-            tgrid = xr.Dataset(
-            {"lon":(["lon"],self.hgrid.x.isel(nxp=slice(1, None, 2), nyp=1).values),
-            "lat":(["lat"],self.hgrid.y.isel(nxp=1, nyp=slice(1, None, 2)).values)
-                    }
-        )
-            bathy_regrid = regridder_t = xe.Regridder(
-                bathy, tgrid, "bilinear",
-            )
+        #     #! New code to test: Can we regrid first to pass make_topog a smaller dataset to handle?
+        #     tgrid = xr.Dataset(
+        #     {"lon":(["lon"],self.hgrid.x.isel(nxp=slice(1, None, 2), nyp=1).values),
+        #     "lat":(["lat"],self.hgrid.y.isel(nxp=1, nyp=slice(1, None, 2)).values)
+        #             }
+        # )
+        #     regridder_t = xe.Regridder(
+        #         bathy, tgrid, "bilinear",
+        #     )
 
-            bathy_regrid.to_netcdf(f"{self.mom_input_dir}bathy_regrid.nc", engine='netcdf4')
-            #! End new test code
+        #     bathy_regrid.to_netcdf(f"{self.mom_input_dir}bathy_regrid.nc", engine='netcdf4')
+        #     #! End new test code
 
             ## Now pass bathymetry through the FRE tools
 
 
             ## Make Topog
-            args = f"--mosaic ocean_mosaic.nc --topog_type realistic --topog_file bathy_regrid.nc --topog_field {varnames['elevation']} --scale_factor -1 --output topog_raw.nc".split(" ")
+            args = f"--mosaic ocean_mosaic.nc --topog_type realistic --topog_file bathy_original.nc --topog_field {varnames['elevation']} --scale_factor -1 --output topog_raw.nc".split(" ")
             print(
                 "FRE TOOLS: make topog parallel\n\n",
                 subprocess.run(["/g/data/v45/jr5971/FRE-NCtools/build3_up_MAXXGRID/tools/make_topog/make_topog_parallel"] + args,cwd = self.mom_input_dir)
