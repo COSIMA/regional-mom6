@@ -689,7 +689,7 @@ class segment:
     def brushcut(self,ryf = False):
         ### Implement brushcutter scheme on single segment ### 
         # print(self.infile + f"/{self.orientation}_segment_unprocessed")
-        rawseg = xr.open_dataset(self.infile,decode_times=False)
+        rawseg = xr.open_dataset(self.infile,decode_times=False,engine="netcdf4")
         # rawseg = xr.open_dataset(self.infile,decode_times=False,chunks={self.time:30,self.z:25})
 
         ## Depending on the orientation of the segment, cut out the right bit of the hgrid 
