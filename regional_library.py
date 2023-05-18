@@ -509,11 +509,25 @@ class experiment:
             bathy.attrs['missing_value'] = -1e20
             bathy.to_netcdf(f"{self.mom_input_dir}bathy_original.nc", engine='netcdf4')
 
+
+            #! New code to test: Can we regrid first to pass make_topog a smaller dataset to handle?
+            tgrid = xr.Dataset(
+            {"lon":(["lon"],self.hgrid.x.isel(nxp=slice(1, None, 2), nyp=1).values),
+            "lat":(["lat"],self.hgrid.y.isel(nxp=1, nyp=slice(1, None, 2)).values)
+                    }
+        )
+            bathy_regrid = regridder_t = xe.Regridder(
+                bathy, tgrid, "bilinear",
+            )
+
+            bathy_regrid.to_netcdf(f"{self.mom_input_dir}bathy_regrid.nc", engine='netcdf4')
+            #! End new test code
+
             ## Now pass bathymetry through the FRE tools
 
 
             ## Make Topog
-            args = f"--mosaic ocean_mosaic.nc --topog_type realistic --topog_file bathy_original.nc --topog_field {varnames['elevation']} --scale_factor -1 --output topog_raw.nc".split(" ")
+            args = f"--mosaic ocean_mosaic.nc --topog_type realistic --topog_file bathy_regrid.nc --topog_field {varnames['elevation']} --scale_factor -1 --output topog_raw.nc".split(" ")
             print(
                 "FRE TOOLS: make topog parallel\n\n",
                 subprocess.run(["/g/data/v45/jr5971/FRE-NCtools/build3_up_MAXXGRID/tools/make_topog/make_topog_parallel"] + args,cwd = self.mom_input_dir)
