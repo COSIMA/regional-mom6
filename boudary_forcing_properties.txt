@@ -1,0 +1,48 @@
+netcdf forcing_obc_segment_001 {
+dimensions:
+	time = UNLIMITED ; // (365 currently)
+	nz_segment_001_temp = 75 ;
+	nz_segment_001_salt = 75 ;
+	nz_segment_001_u = 75 ;
+	nz_segment_001_v = 75 ;
+	nx_segment_001 = 421 ;
+	ny_segment_001 = 1 ;
+	nz_temp_segment_001 = 75 ;
+	nz_salt_segment_001 = 75 ;
+	nz_u_segment_001 = 75 ;
+	nz_v_segment_001 = 75 ;
+variables:
+	double time(time) ;
+		time:_FillValue = NaN ;
+		time:modulo = " " ;
+		time:units = "days since 1900-01-01T12:00:00" ;
+		time:calendar = "noleap" ;
+	int nz_segment_001_temp(nz_segment_001_temp) ;
+	int nz_segment_001_salt(nz_segment_001_salt) ;
+	int nz_segment_001_u(nz_segment_001_u) ;
+	int nz_segment_001_v(nz_segment_001_v) ;
+	int nx_segment_001(nx_segment_001) ;
+	int ny_segment_001(ny_segment_001) ;
+	float eta_t_segment_001(time, ny_segment_001, nx_segment_001) ;
+		eta_t_segment_001:_FillValue = 9.96921e+36f ;
+	float salt_segment_001(time, nz_segment_001_salt, ny_segment_001, nx_segment_001) ;
+		salt_segment_001:_FillValue = 9.96921e+36f ;
+	float temp_segment_001(time, nz_segment_001_temp, ny_segment_001, nx_segment_001) ;
+		temp_segment_001:_FillValue = 9.96921e+36f ;
+	float u_segment_001(time, nz_segment_001_u, ny_segment_001, nx_segment_001) ;
+		u_segment_001:_FillValue = 9.96921e+36f ;
+	float v_segment_001(time, nz_segment_001_v, ny_segment_001, nx_segment_001) ;
+		v_segment_001:_FillValue = 9.96921e+36f ;
+	double lon_segment_001(ny_segment_001, nx_segment_001) ;
+		lon_segment_001:_FillValue = NaN ;
+	double lat_segment_001(ny_segment_001, nx_segment_001) ;
+		lat_segment_001:_FillValue = NaN ;
+	double dz_temp_segment_001(time, nz_temp_segment_001, ny_segment_001, nx_segment_001) ;
+		dz_temp_segment_001:_FillValue = 9.96920996838687e+36 ;
+	double dz_salt_segment_001(time, nz_salt_segment_001, ny_segment_001, nx_segment_001) ;
+		dz_salt_segment_001:_FillValue = 9.96920996838687e+36 ;
+	double dz_u_segment_001(time, nz_u_segment_001, ny_segment_001, nx_segment_001) ;
+		dz_u_segment_001:_FillValue = 9.96920996838687e+36 ;
+	double dz_v_segment_001(time, nz_v_segment_001, ny_segment_001, nx_segment_001) ;
+		dz_v_segment_001:_FillValue = 9.96920996838687e+36 ;
+
