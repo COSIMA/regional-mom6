@@ -282,7 +282,7 @@ class experiment:
         Reads in the forcing files that force the ocean at boundaries (if specified) and for initial condition
 
         Parameters:
-            path (str)                   path to directory where the forcing files are stored. Files should be named north_segment_unprocessed for each boundary and ic_unprocessed for the ic
+            `path (str)`                   path to directory where the forcing files are stored. Files should be named north_segment_unprocessed for each boundary and ic_unprocessed for the ic
             varnames (dict)              dictionary that maps the mom6 variable / coordinate names to what they're called in this dataset. See documentation for expected format.
             boundaries (list of str)     List of the cardinal directions of included boundaries in anticlockwise order
             gridtype (str)               input is A,B or C type grid. Gets converted to mom6's C grid
@@ -455,6 +455,10 @@ class experiment:
         )
         print("done.")
 
+        self.ic_eta = eta_out
+        self.ic_tracers = tracers_out
+        self.ic_vels = vel_out
+
         if boundaries == None:
             return
 
@@ -513,7 +517,7 @@ class experiment:
             bathy = nicer_slicer(bathy,self.xextent,varnames["xh"])
 
 
-            bathy.attrs['missing_value'] = -1e20
+            bathy.attrs['missing_value'] = -1e20 # idk ask Adcroft
             bathy.to_netcdf(f"{self.mom_input_dir}bathy_original.nc", engine='netcdf4')
 
 

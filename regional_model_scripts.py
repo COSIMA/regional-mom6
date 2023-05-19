@@ -366,7 +366,7 @@ def interp_segment(segment,path,weights_exist = False,base = os.getenv("PBS_JOBF
 
     with ProgressBar():
         segment_out["time"] = segment_out["time"].assign_attrs({"modulo":" "}) ## Add modulo attribute for MOM6 to treat as repeat forcing
-        segment_out.load().to_netcdf(path + f"forcing/forcing_obc_{seg}.nc", encoding=encoding_dict, unlimited_dims="time")
+        segment_out.load().to_netcdf(path + f"forcing/forcing_obc_{seg}.nc", encoding=encoding_dict, unlimited_dims="time",engine="netcdf4")
 
 
 
