@@ -13,7 +13,6 @@ extensible: we should be able to target any domain with a minimum of
 fuss.
 
 [mom6-panan]: https://github.com/cosima/mom6-panan
-[mom6-eac]: https://github.com/cosima/mom6-eac/
 
 
 ## Pipeline steps
