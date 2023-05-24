@@ -226,6 +226,7 @@ def rectangular_hgrid(x,y):
     #! Hardcoded for grid that lies on lat/lon lines. Rotated grid must be handled separately
 
     res = x[1] - x[0] #! Replace this if you deviate from rectangular grid!!
+    
     R = 6371000 # This is the exact radius of the Earth if anyone asks 
 
     # dx = pi R cos(phi) / 180. Note dividing resolution by two because we're on the supergrid
@@ -237,7 +238,7 @@ def rectangular_hgrid(x,y):
     # dy  = pi R delta Phi / 180. Note dividing dy by 2 because we're on supergrid
     dy = np.broadcast_to(
         R * np.pi * 0.5 * np.diff(y) / 180,
-        (x.shape[0] - 1,y.shape[0])
+        (x.shape[0],y.shape[0] - 1)
         ).T
 
     X , Y = np.meshgrid(x,y)
