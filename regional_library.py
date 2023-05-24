@@ -172,6 +172,127 @@ def dz(npoints,ratio,target_depth,min_dz = 0.0001,tolerence = 1):
 
     return dz(npoints,ratio,target_depth,min_dz * err_ratio)
 
+# Borrowed from grid tools (GFDL)
+def angle_between(v1, v2, v3):
+    """Returns angle v2-v1-v3 i.e betweeen v1-v2 and v1-v3."""
+    # vector product between v1 and v2
+    px = v1[1] * v2[2] - v1[2] * v2[1]
+    py = v1[2] * v2[0] - v1[0] * v2[2]
+    pz = v1[0] * v2[1] - v1[1] * v2[0]
+    # vector product between v1 and v3
+    qx = v1[1] * v3[2] - v1[2] * v3[1]
+    qy = v1[2] * v3[0] - v1[0] * v3[2]
+    qz = v1[0] * v3[1] - v1[1] * v3[0]
+
+    ddd = (px * px + py * py + pz * pz) * (qx * qx + qy * qy + qz * qz)
+    ddd = (px * qx + py * qy + pz * qz) / np.sqrt(ddd)
+    angle = np.arccos( ddd )
+    return angle
+
+# Borrowed from grid tools (GFDL)
+def quad_area(lat, lon):
+    """Returns area of spherical quad (bounded by great arcs)."""
+    # x,y,z are 3D coordinates
+    d2r = np.deg2rad(1.)
+    x = np.cos(d2r * lat) * np.cos(d2r * lon)
+    y = np.cos(d2r * lat) * np.sin(d2r * lon)
+    z = np.sin(d2r * lat)
+    c0 = (x[ :-1, :-1], y[ :-1, :-1], z[ :-1, :-1])
+    c1 = (x[ :-1,1:  ], y[ :-1,1:  ], z[ :-1,1:  ])
+    c2 = (x[1:  ,1:  ], y[1:  ,1:  ], z[1:  ,1:  ])
+    c3 = (x[1:  , :-1], y[1:  , :-1], z[1:  , :-1])
+    a0 = angle_between(c1, c0, c2)
+    a1 = angle_between(c2, c1, c3)
+    a2 = angle_between(c3, c2, c0)
+    a3 = angle_between(c0, c3, c1)
+    return a0 + a1 + a2 + a3 - 2. * np.pi
+
+
+
+def rectangular_hgrid(x,y):
+    """
+    Given an array of latitudes and longitudes, constructs a working hgrid with all the metadata. X must be evenly spaced, y can be scaled to your hearts content (eg if you want to ensure equal sized cells)
+
+    LIMITATIONS: This is hard coded to only take x and y on perfectly rectangular grid. Rotated grid needs to be handled separately. Make sure both x and y are monatonically increasing.
+    
+    Parameters:
+        `x (array)'         Array of all longitude points on supergrid. Assumes even spacing in x
+        `y (array)'         Likewise for latitude. 
+
+    Returns:
+        horizontal grid with all the bells and whistles that MOM6 / FMS wants
+    """
+
+    #! Hardcoded for grid that lies on lat/lon lines. Rotated grid must be handled separately
+
+    res = x[1] - x[0] #! Replace this if you deviate from rectangular grid!!
+    
+    R = 6371000 # This is the exact radius of the Earth if anyone asks 
+
+    # dx = pi R cos(phi) / 180. Note dividing resolution by two because we're on the supergrid
+    dx = np.broadcast_to(
+        np.pi * R * np.cos(np.pi * y / 180) * 0.5 * res / 180,
+        (x.shape[0] - 1,y.shape[0])
+        ).T
+
+    # dy  = pi R delta Phi / 180. Note dividing dy by 2 because we're on supergrid
+    dy = np.broadcast_to(
+        R * np.pi * 0.5 * np.diff(y) / 180,
+        (x.shape[0],y.shape[0] - 1)
+        ).T
+
+    X , Y = np.meshgrid(x,y)
+    area = quad_area(Y,X) * 6371e3 ** 2
+
+    attrs = {
+        "tile":{
+            "standard_name" :"grid_tile_spec",
+            "geometry" :"spherical",
+            "north_pole" :"0.0 90.0",
+            "discretization" :"logically_rectangular",
+            "conformal" :"true"
+        },
+        "x":{
+            "standard_name" : "geographic_longitude",
+            "units" : "degree_east"
+        },
+        "y":{        
+            "standard_name" : "geographic_latitude",
+            "units" : "degree_north"
+        },
+        "dx":{
+            "standard_name":"grid_edge_x_distance",
+            "units":"metres",
+        },
+        "dy":{
+            "standard_name":"grid_edge_y_distance",
+            "units":"metres",
+        },
+        "area":{
+            "standard_name":"grid_cell_area",
+            "units":"m2",
+        },
+        "angle_dx":{
+            "standard_name":"grid_vertex_x_angle_WRT_geographic_east",
+            "units":"degrees_east",
+        },
+        "arcx": {
+            "standard_name":"grid_edge_x_arc_type",
+            "north_pole" :"0.0 90.0",
+        }
+        
+    }
+
+    return xr.Dataset(
+        {"tile":((),np.array(b'tile1', dtype='|S255'),attrs["tile"]),
+        "x":(["nyp","nxp"],X,attrs["x"]),
+        "y":(["nyp","nxp"],Y,attrs["y"]),
+        "dx":(["nyp","nx"],dx,attrs["dx"]),
+        "dy":(["ny","nxp"],dy,attrs["dy"]),
+        "area":(["ny","nx"],area,attrs["area"]),
+        "angle_dx":(["nyp","nxp"],X * 0,attrs["angle_dx"]),
+        "arcx":((),np.array(b'small_circle', dtype='|S255'),attrs["arcx"])
+        })
 class experiment:
     """
     Knows everything about your regional experiment! Methods in this class will generate the various input files you need to generate a MOM6 experiment forced with Open Boundary Conditions. It's written agnostic to your choice of boundary forcing,topography and surface forcing - you need to tell it what your variables are all called via mapping dictionaries where keys are mom6 variable / coordinate names, and entries are what they're called in your dataset. 
@@ -215,7 +336,23 @@ class experiment:
         
         return 
     
-    def _make_hgrid(self):
+    def _make_hgrid(self,method = "even_spacing"):
+        """
+        Sets up hgrid based on users specification of domain. Default behaviour leaves latitude and longitude evenly spaced. 
+        If user specifies a resolution of 0.1 degrees, longitude is spaced this way and latitude spaced with 0.1 cos(mean_latitude). This way, grids in the 
+        centre of the domain are perfectly square, but decrease monatonically in area away from the equator 
+        """
+        if method == "even_spacing":
+            # longitudes will just be evenly spaced, based only on resolution and bounds
+            x = np.linspace(self.xextent[0],self.xextent[1],int((self.xextent[1] - self.xextent[0])/(self.res / 2)) + 1)
+
+            # Latitudes evenly spaced by dx * cos(mean_lat)
+            res_y = self.res * np.cos(np.mean(self.yextent) * np.pi / 180) 
+            y = np.linspace(self.yextent[0],self.yextent[1],int((self.yextent[1] - self.yextent[0])/(res_y / 2)) + 1)
+            return rectangular_hgrid(x,y)
+
+
+    def _old_make_hgrid(self):
         """
         Generates a mom6 hgrid ready to go. Makes a basic grid first, then uses FRE tools to create a full hgrid with all the metadata.
         """
@@ -517,7 +654,7 @@ class experiment:
             bathy = nicer_slicer(bathy,self.xextent,varnames["xh"])
 
 
-            bathy.attrs['missing_value'] = -1e20 # idk ask Adcroft
+            bathy.attrs['missing_value'] = -1e20 # This is what FRE tools expects I guess?
             bathy.to_netcdf(f"{self.mom_input_dir}bathy_original.nc", engine='netcdf4')
 
 
