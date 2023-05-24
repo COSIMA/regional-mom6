@@ -349,7 +349,7 @@ class experiment:
             # Latitudes evenly spaced by dx * cos(mean_lat)
             res_y = self.res * np.cos(np.mean(self.yextent) * np.pi / 180) 
             y = np.linspace(self.yextent[0],self.yextent[1],int((self.yextent[1] - self.yextent[0])/(res_y / 2)) + 1)
-
+            print("sssssssssssssssss")
             return rectangular_hgrid(x,y)
 
 
