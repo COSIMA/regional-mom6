@@ -351,7 +351,7 @@ class experiment:
             y = np.linspace(self.yextent[0],self.yextent[1],int((self.yextent[1] - self.yextent[0])/(res_y / 2)) + 1)
 
             self.hgrid = rectangular_hgrid(x,y)
-            self.hgrid.to_netcdf(self.inputdir + "hgrid.nc",mode = "w")
+            self.hgrid.to_netcdf(self.mom_input_dir + "hgrid.nc",mode = "w")
 
             return
 
