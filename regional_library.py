@@ -689,7 +689,7 @@ class experiment:
             # topog_raw file is the 'target' grid used for gridgen. This is then overweitten by the second ESMF function (needs a blank netcdf to overwrite as the output)
 
             print(subprocess.run(
-                "mpirun -np 27 ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional",
+                "mpirun ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional",
                 shell = True,cwd = self.mom_input_dir))
             
 
