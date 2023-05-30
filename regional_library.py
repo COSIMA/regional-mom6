@@ -345,11 +345,20 @@ class experiment:
         """
         if method == "even_spacing":
             # longitudes will just be evenly spaced, based only on resolution and bounds
-            x = np.linspace(self.xextent[0],self.xextent[1],int((self.xextent[1] - self.xextent[0])/(self.res / 2)) + 1)
+            nx = int((self.xextent[1] - self.xextent[0])/(self.res / 2))
+            if nx %2 != 1:
+                nx += 1
+
+            x = np.linspace(self.xextent[0],self.xextent[1],nx)
 
             # Latitudes evenly spaced by dx * cos(mean_lat)
             res_y = self.res * np.cos(np.mean(self.yextent) * np.pi / 180) 
-            y = np.linspace(self.yextent[0],self.yextent[1],int((self.yextent[1] - self.yextent[0])/(res_y / 2)) + 1)
+
+            ny = int((self.yextent[1] - self.yextent[0])/(res_y / 2)) + 1
+            if ny %2 != 1:
+                ny += 1
+
+            y = np.linspace(self.yextent[0],self.yextent[1],ny)
             hgrid = rectangular_hgrid(x,y) 
             hgrid.to_netcdf(self.mom_input_dir + "/hgrid.nc")
             
@@ -635,17 +644,6 @@ class experiment:
             minimum layers (bool)   The minimum depth allowed as an integer number of layers. 3 layers means that anything shallower than the 3rd layer is deemed land
             maketopog (bool)            If true, runs fre tools to make topography. If False, reads in existing topog file and proceeds with hole filling
         """
-
-
-
-
-        ## Determine whether we need to adjust bathymetry longitude to match model grid. 
-        # 
-        # eg if bathy is 0->360 but self.hgrid is -180->180, longitude slice becomes 
-        ## 
-
-        # if bathy[varnames["xh"]].values[0] < 0:
-
 
 
         if maketopog == True:
