@@ -299,7 +299,7 @@ class experiment:
     Knows everything about your regional experiment! Methods in this class will generate the various input files you need to generate a MOM6 experiment forced with Open Boundary Conditions. It's written agnostic to your choice of boundary forcing,topography and surface forcing - you need to tell it what your variables are all called via mapping dictionaries where keys are mom6 variable / coordinate names, and entries are what they're called in your dataset. 
     """
 
-    def __init__(self, xextent,yextent,daterange,resolution,vlayers,dz_ratio,depth,mom_run_dir,mom_input_dir,toolpath):
+    def __init__(self, xextent,yextent,daterange,resolution,vlayers,dz_ratio,depth,mom_run_dir,mom_input_dir,toolpath,gridtype = "even_spacing"):
         try:
             os.mkdir(mom_run_dir)
         except:
@@ -320,8 +320,9 @@ class experiment:
         self.mom_run_dir = mom_run_dir
         self.mom_input_dir = mom_input_dir
         self.toolpath = toolpath
-        self.hgrid = self._make_hgrid()
+        self.hgrid = self._make_hgrid(gridtype)
         self.vgrid = self._make_vgrid()
+        self.gridtype = gridtype
         # if "temp" not in os.listdir(inputdir):
         #     os.mkdir(inputdir + "temp")
 
@@ -337,13 +338,13 @@ class experiment:
         
         return 
     
-    def _make_hgrid(self,method = "even_spacing"):
+    def _make_hgrid(self,gridtype):
         """
         Sets up hgrid based on users specification of domain. Default behaviour leaves latitude and longitude evenly spaced. 
         If user specifies a resolution of 0.1 degrees, longitude is spaced this way and latitude spaced with 0.1 cos(mean_latitude). This way, grids in the 
         centre of the domain are perfectly square, but decrease monatonically in area away from the equator 
         """
-        if method == "even_spacing":
+        if gridtype == "even_spacing":
             # longitudes will just be evenly spaced, based only on resolution and bounds
             nx = int((self.xextent[1] - self.xextent[0])/(self.res / 2))
             if nx %2 != 1:
