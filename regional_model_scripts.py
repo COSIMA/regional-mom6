@@ -436,8 +436,8 @@ def regrid_runoff(ocean_mask_path,hgrid_path,runoff_path,output_path,xextent,yex
 
     # open the runoff section and construct its corner points
     dr = xr.open_dataset(runoff_path).sel(latitude = slice(yextent[0],yextent[1]),
-         longitude = slice(xextent[0] + 360,xextent[1] + 360) ## need to add 360 since xextent is between -280 -> 80
-        ) 
+         longitude = slice(xextent[0] + 360,xextent[1] + 360)) ## need to add 360 since xextent is between -280 -> 80
+    print(dr)
     res = 0.25
     lons = np.arange(dr.longitude[0] - res/2, dr.longitude[-1] + res, res)
     lats = np.arange(dr.latitude[0] - res/2,  dr.latitude[-1] + res, res)
