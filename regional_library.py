@@ -283,6 +283,7 @@ def rectangular_hgrid(x,y):
         
     }
 
+
     return xr.Dataset(
         {"tile":((),np.array(b'tile1', dtype='|S255'),attrs["tile"]),
         "x":(["nyp","nxp"],X,attrs["x"]),
@@ -349,7 +350,11 @@ class experiment:
             # Latitudes evenly spaced by dx * cos(mean_lat)
             res_y = self.res * np.cos(np.mean(self.yextent) * np.pi / 180) 
             y = np.linspace(self.yextent[0],self.yextent[1],int((self.yextent[1] - self.yextent[0])/(res_y / 2)) + 1)
-            return rectangular_hgrid(x,y)
+            hgrid = rectangular_hgrid(x,y) 
+            hgrid.to_netcdf(self.mom_input_dir + "/hgrid.nc")
+            
+
+            return hgrid
 
 
     def _old_make_hgrid(self):
