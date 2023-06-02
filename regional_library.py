@@ -689,9 +689,10 @@ class experiment:
             #! Hardcoded for whole node notebook. 
             # topog_raw file is the 'target' grid used for gridgen. This is then overweitten by the second ESMF function (needs a blank netcdf to overwrite as the output)
 
-            print(subprocess.run(
+            if subprocess.run(
                 "mpirun ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional",
-                shell = True,cwd = self.mom_input_dir))
+                shell = True,cwd = self.mom_input_dir).returncode != 0:
+                raise RuntimeError("Regridding of bathymetry failed! This is probably because mpirun was initialised earlier by xesmf doing some other regridding. Try restarting the kernel, then calling .bathymetry() before any other methods.")
             
 
         ## reopen topography to modify
@@ -794,25 +795,26 @@ class experiment:
 
         self.processor_mask((10,10))
         self.topog = topog
-        return topog
+        return
 
     def processor_mask(self,layout):
-            """
-            Just a wrapper for FRE Tools check_mask. User provides processor layout tuple of processing units.
-            """
+        """
+        Just a wrapper for FRE Tools check_mask. User provides processor layout tuple of processing units.
+        """
 
-            if "topog.nc" not in os.listdir(self.mom_input_dir):
-                print("No topography file! Need to run make_bathymetry first")
-                return
-            try:            
-                os.remove("mask_table*") ## Removes old mask table so as not to clog up inputdir
-            except:
-                pass
-            print("CHECK MASK" , subprocess.run(
-                self.toolpath + f"check_mask/check_mask --grid_file ocean_mosaic.nc --ocean_topog topog.nc --layout {layout[0]},{layout[1]} --halo 4",
-                shell=True,
-                cwd = self.mom_input_dir))
+        if "topog.nc" not in os.listdir(self.mom_input_dir):
+            print("No topography file! Need to run make_bathymetry first")
             return
+        try:            
+            os.remove("mask_table*") ## Removes old mask table so as not to clog up inputdir
+        except:
+            pass
+        print("CHECK MASK" , subprocess.run(
+            self.toolpath + f"check_mask/check_mask --grid_file ocean_mosaic.nc --ocean_topog topog.nc --layout {layout[0]},{layout[1]} --halo 4",
+            shell=True,
+            cwd = self.mom_input_dir))
+        self.layout = layout
+        return
     
     
 
