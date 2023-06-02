@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="regional-mom6",
+    name="mom6-regional-scripts",
     description="Automatic generation of regional configurations for Modular Ocean Model 6",
     author="Ashley Barnes and contributors",
     use_scm_version=True,
