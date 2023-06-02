@@ -16,7 +16,7 @@ def open_ryf_global(outputs=range(1077,1082)):
         matches = glob.glob(pattern)
         filepaths.extend(matches)
     om2_input = xr.open_mfdataset(filepaths, decode_times=True,
-                                 parallel=True, 
+                                 parallel=True,
                                  chunks={'time':-1, 'yu_ocean':300, 'yt_ocean':300, 'xu_ocean':300, 'xt_ocean':300})
     return om2_input
 
@@ -38,8 +38,10 @@ def select_slice(d, borders, boundary = 'east'):
             y1 = yextent[1]; y2 = y1
     bound = d.sel(
         yu_ocean = slice(y1 - 0.2, y2 + 0.2),
-        yt_ocean = slice(y1 - 0.2, y2 + 0.2))
-    bound = nicer_slicer(bound, [x1, x2], ["xu_ocean", "xt_ocean"])
+        yt_ocean = slice(y1 - 0.2, y2 + 0.2),
+        xu_ocean = slice(x1-0.2, x2+0.2),
+        xt_ocean = slice(x1-0.2, x2+0.2))
+    # bound = nicer_slicer(bound, [x1, x2], ["xu_ocean", "xt_ocean"])
     return bound
 
 def time_rotate(d, run_year = 2170):
