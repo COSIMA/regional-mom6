@@ -299,7 +299,7 @@ class experiment:
     Knows everything about your regional experiment! Methods in this class will generate the various input files you need to generate a MOM6 experiment forced with Open Boundary Conditions. It's written agnostic to your choice of boundary forcing,topography and surface forcing - you need to tell it what your variables are all called via mapping dictionaries where keys are mom6 variable / coordinate names, and entries are what they're called in your dataset. 
     """
 
-    def __init__(self, xextent,yextent,daterange,resolution,vlayers,dz_ratio,depth,mom_run_dir,mom_input_dir,toolpath):
+    def __init__(self, xextent,yextent,daterange,resolution,vlayers,dz_ratio,depth,mom_run_dir,mom_input_dir,toolpath,gridtype = "even_spacing"):
         try:
             os.mkdir(mom_run_dir)
         except:
@@ -320,8 +320,9 @@ class experiment:
         self.mom_run_dir = mom_run_dir
         self.mom_input_dir = mom_input_dir
         self.toolpath = toolpath
-        self.hgrid = self._make_hgrid()
+        self.hgrid = self._make_hgrid(gridtype)
         self.vgrid = self._make_vgrid()
+        self.gridtype = gridtype
         # if "temp" not in os.listdir(inputdir):
         #     os.mkdir(inputdir + "temp")
 
@@ -337,19 +338,28 @@ class experiment:
         
         return 
     
-    def _make_hgrid(self,method = "even_spacing"):
+    def _make_hgrid(self,gridtype):
         """
         Sets up hgrid based on users specification of domain. Default behaviour leaves latitude and longitude evenly spaced. 
         If user specifies a resolution of 0.1 degrees, longitude is spaced this way and latitude spaced with 0.1 cos(mean_latitude). This way, grids in the 
         centre of the domain are perfectly square, but decrease monatonically in area away from the equator 
         """
-        if method == "even_spacing":
+        if gridtype == "even_spacing":
             # longitudes will just be evenly spaced, based only on resolution and bounds
-            x = np.linspace(self.xextent[0],self.xextent[1],int((self.xextent[1] - self.xextent[0])/(self.res / 2)) + 1)
+            nx = int((self.xextent[1] - self.xextent[0])/(self.res / 2))
+            if nx %2 != 1:
+                nx += 1
+
+            x = np.linspace(self.xextent[0],self.xextent[1],nx)
 
             # Latitudes evenly spaced by dx * cos(mean_lat)
             res_y = self.res * np.cos(np.mean(self.yextent) * np.pi / 180) 
-            y = np.linspace(self.yextent[0],self.yextent[1],int((self.yextent[1] - self.yextent[0])/(res_y / 2)) + 1)
+
+            ny = int((self.yextent[1] - self.yextent[0])/(res_y / 2)) + 1
+            if ny %2 != 1:
+                ny += 1
+
+            y = np.linspace(self.yextent[0],self.yextent[1],ny)
             hgrid = rectangular_hgrid(x,y) 
             hgrid.to_netcdf(self.mom_input_dir + "/hgrid.nc")
             
@@ -641,61 +651,73 @@ class experiment:
         """
 
 
-
-
-        ## Determine whether we need to adjust bathymetry longitude to match model grid. 
-        # 
-        # eg if bathy is 0->360 but self.hgrid is -180->180, longitude slice becomes 
-        ## 
-
-        # if bathy[varnames["xh"]].values[0] < 0:
-
-
-
         if maketopog == True:
-            bathy = xr.open_dataset(bathy_path,chunks="auto")[varnames["elevation"]]
+            bathy = xr.open_dataset(bathy_path,chunks={varnames["xh"]:500,varnames["yh"]:500})[varnames["elevation"]]
             
             bathy = bathy.sel({
-                varnames["yh"]:slice(self.yextent[0],self.yextent[1])
+                varnames["yh"]:slice(self.yextent[0] - 0.1,self.yextent[1] + 0.1)
             }
             ).astype("float")
 
-            bathy = nicer_slicer(bathy,self.xextent,varnames["xh"])
-
+            bathy = nicer_slicer(bathy,np.array(self.xextent) + np.array([-0.1,0.1]),varnames["xh"])
 
             bathy.attrs['missing_value'] = -1e20 # This is what FRE tools expects I guess?
-            bathy.to_netcdf(f"{self.mom_input_dir}bathy_original.nc", engine='netcdf4')
+
+            bathy = xr.Dataset({"elevation":bathy})
+
+            bathy.lon.attrs["units"] = "degrees_east"
+            bathy.lat.attrs["units"] = "degrees_north"
+            bathy.lon.attrs["_FillValue"] = 1e20
+            bathy.elevation.attrs["_FillValue"] = 1e20 
+            bathy.elevation.attrs["units"] = "m" 
+            bathy.elevation.attrs["standard_name"] = "height_above_reference_ellipsoid" 
+            bathy.elevation.attrs["long_name"] = "Elevation relative to sea level" 
+            bathy.elevation.attrs["coordinates"] = "lon lat" 
 
 
-        #     #! New code to test: Can we regrid first to pass make_topog a smaller dataset to handle?
-        #     tgrid = xr.Dataset(
-        #     {"lon":(["lon"],self.hgrid.x.isel(nxp=slice(1, None, 2), nyp=1).values),
-        #     "lat":(["lat"],self.hgrid.y.isel(nxp=1, nyp=slice(1, None, 2)).values)
-        #             }
-        # )
-        #     regridder_t = xe.Regridder(
-        #         bathy, tgrid, "bilinear",
-        #     )
 
-        #     bathy_regrid.to_netcdf(f"{self.mom_input_dir}bathy_regrid.nc", engine='netcdf4')
-        #     #! End new test code
+            bathy.to_netcdf(f"{self.mom_input_dir}bathy_original.nc", mode = "w",engine='netcdf4')
 
-            ## Now pass bathymetry through the FRE tools
-
-
-            ## Make Topog
-            args = f"--mosaic ocean_mosaic.nc --topog_type realistic --topog_file bathy_original.nc --topog_field {varnames['elevation']} --scale_factor -1 --output topog_raw.nc".split(" ")
-            print(
-                "FRE TOOLS: make topog parallel\n\n",
-                subprocess.run(["/g/data/v45/jr5971/FRE-NCtools/build3_up_MAXXGRID/tools/make_topog/make_topog_parallel"] + args,cwd = self.mom_input_dir)
+            tgrid = xr.Dataset(
+            {"lon":(["lon"],self.hgrid.x.isel(nxp=slice(1, None, 2), nyp=1).values),
+            "lat":(["lat"],self.hgrid.y.isel(nxp=1, nyp=slice(1, None, 2)).values)
+                    }
             )
 
+            tgrid.lon.attrs["units"] = "degrees_east"
+            tgrid.lon.attrs["_FillValue"] = 1e20
+            tgrid.lat.attrs["units"] = "degrees_north"
+            # tgrid.to_netcdf(f"{self.mom_input_dir}tgrid.nc", mode = "w",engine='netcdf4')
+            tgrid.to_netcdf(f"{self.mom_input_dir}topog_raw.nc", mode = "w",engine='netcdf4')
 
+            #! Hardcoded for whole node notebook. 
+            # topog_raw file is the 'target' grid used for gridgen. This is then overweitten by the second ESMF function (needs a blank netcdf to overwrite as the output)
+
+            if subprocess.run(
+                "mpirun ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional",
+                shell = True,cwd = self.mom_input_dir).returncode != 0:
+                raise RuntimeError("Regridding of bathymetry failed! This is probably because mpirun was initialised earlier by xesmf doing some other regridding. Try restarting the kernel, then calling .bathymetry() before any other methods.")
+            
 
         ## reopen topography to modify
         topog = xr.open_dataset(self.mom_input_dir + "topog_raw.nc", engine='netcdf4')
 
-        ## Remove inland lakes
+        ## Ensure correct encoding
+        topog = xr.Dataset(
+            {"depth":(["ny","nx"],topog[varnames["elevation"]].values)}
+        )
+        topog.attrs["depth"] = "meters"
+        topog.attrs["standard_name"] = "topographic depth at T-cell centers"
+        topog.attrs["coordinates"] = "zi"
+
+        topog.expand_dims("tiles",0)
+
+        if topog.depth.mean() < 0:
+            ## Ensure that coordinate is positive down!
+            topog["depth"] *= -1
+
+
+        ## REMOVE INLAND LAKES
         
         min_depth = self.vgrid.zi[minimum_layers]
 
@@ -743,16 +765,12 @@ class experiment:
 
                     forward = True
 
-              
+                
             newmask = xr.where(newmask > 0 , 1,0)
             changed = np.max(newmask) == 1
             land_mask += newmask
 
-        # land_mask.to_netcdf(self.mom_input_dir + "land_mask.nc")
         ocean_mask = np.abs(land_mask - 1)
-        # ocean_mask.to_netcdf(self.mom_input_dir + "ocean_mask.nc")
-
-        # ocean_mask = ocean_mask.where(ocean_mask == 1,-1e30)
 
         topog["depth"] *= ocean_mask
 
@@ -764,13 +782,13 @@ class experiment:
         subprocess.run("mv topog_deseas.nc topog.nc",shell=True,cwd=self.mom_input_dir)
         
 
-        ## Now run the remaining FRE tools to construct masks based on our topography
+        ## FINAL STEP: run the remaining FRE tools to construct masks based on our topography
 
         args = "--num_tiles 1 --dir . --mosaic_name ocean_mosaic --tile_file hgrid.nc".split(" ")
         print("MAKE SOLO MOSAIC",subprocess.run(
             self.toolpath + "make_solo_mosaic/make_solo_mosaic --num_tiles 1 --dir . --mosaic_name ocean_mosaic --tile_file hgrid.nc",
-             shell=True,
-             cwd = self.mom_input_dir),sep = "\n\n")
+                shell=True,
+                cwd = self.mom_input_dir),sep = "\n\n")
 
 
 
@@ -780,25 +798,27 @@ class experiment:
             ,cwd = self.mom_input_dir),sep = "\n\n")
 
         self.processor_mask((10,10))
-        return 
+        self.topog = topog
+        return
 
     def processor_mask(self,layout):
-            """
-            Just a wrapper for FRE Tools check_mask. User provides processor layout tuple of processing units.
-            """
+        """
+        Just a wrapper for FRE Tools check_mask. User provides processor layout tuple of processing units.
+        """
 
-            if "topog.nc" not in os.listdir(self.mom_input_dir):
-                print("No topography file! Need to run make_bathymetry first")
-                return
-            try:            
-                os.remove("mask_table*") ## Removes old mask table so as not to clog up inputdir
-            except:
-                pass
-            print("CHECK MASK" , subprocess.run(
-                self.toolpath + f"check_mask/check_mask --grid_file ocean_mosaic.nc --ocean_topog topog.nc --layout {layout[0]},{layout[1]} --halo 4",
-                shell=True,
-                cwd = self.mom_input_dir))
+        if "topog.nc" not in os.listdir(self.mom_input_dir):
+            print("No topography file! Need to run make_bathymetry first")
             return
+        try:            
+            os.remove("mask_table*") ## Removes old mask table so as not to clog up inputdir
+        except:
+            pass
+        print("CHECK MASK" , subprocess.run(
+            self.toolpath + f"check_mask/check_mask --grid_file ocean_mosaic.nc --ocean_topog topog.nc --layout {layout[0]},{layout[1]} --halo 4",
+            shell=True,
+            cwd = self.mom_input_dir))
+        self.layout = layout
+        return
     
     
 
