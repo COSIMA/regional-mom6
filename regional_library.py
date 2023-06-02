@@ -689,9 +689,10 @@ class experiment:
             #! Hardcoded for whole node notebook. 
             # topog_raw file is the 'target' grid used for gridgen. This is then overweitten by the second ESMF function (needs a blank netcdf to overwrite as the output)
 
-            print(subprocess.run(
+            if subprocess.run(
                 "mpirun ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional",
-                shell = True,cwd = self.mom_input_dir))
+                shell = True,cwd = self.mom_input_dir).returncode != 0:
+                raise RuntimeError("Regridding of bathymetry failed! This is probably because mpirun was initialised earlier by xesmf doing some other regridding. Try restarting the kernel, then calling .bathymetry() before any other methods.")
             
 
         ## reopen topography to modify
@@ -794,7 +795,7 @@ class experiment:
 
         self.processor_mask((10,10))
         self.topog = topog
-        return topog
+        return
 
     def processor_mask(self,layout):
         """
