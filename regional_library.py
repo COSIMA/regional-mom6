@@ -353,6 +353,10 @@ class experiment:
             hgrid = rectangular_hgrid(x,y) 
             hgrid.to_netcdf(self.mom_input_dir + "/hgrid.nc")
             
+            ## Make Solo Mosaic
+            args = "--num_tiles 1 --dir . --mosaic_name ocean_mosaic --tile_file hgrid.nc".split(" ")
+            print("FRE TOOLS: Make solo mosaic\n\n",subprocess.run([self.toolpath + "make_solo_mosaic/make_solo_mosaic"] + args, cwd=self.mom_input_dir), sep="\n")
+            return xr.open_dataset(self.mom_input_dir + "/hgrid.nc")
 
             return hgrid
 
