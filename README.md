@@ -1,4 +1,4 @@
-# A Modular Modular Ocean Model 6 regional domain generator
+# A regional domain generator for Modular Ocean Model 6
 
 The `regional_library.py` file contains functions and classes that do most of the legwork in setting up a regional domain in MOM6.
 Just give it some information about where, when and how big, and point it in the direction of your raw input files, and it'll sort out the boring details to create MOM6-friendly input files.
