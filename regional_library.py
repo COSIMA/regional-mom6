@@ -13,6 +13,8 @@ from dask.distributed import Client, worker_client
 from dask.diagnostics import ProgressBar
 import datetime as dt
 import warnings
+import xarray_leaflet
+from ipyleaflet import Map, basemaps
 warnings.filterwarnings('ignore')
 
 def nicer_slicer(data,xextent,xcoords,buffer = 2):
@@ -309,6 +311,7 @@ class experiment:
             os.mkdir(mom_input_dir)
         except:
             pass
+        
         self.xextent = xextent
         self.yextent = yextent
         self.daterange = [dt.datetime.strptime(daterange[0],"%Y-%m-%d %H:%M:%S"),
@@ -449,7 +452,7 @@ class experiment:
 
         ## pull out the initial velocity on MOM5's Bgrid
 
-        ic_raw = xr.open_dataset(path + "/ic_unprocessed")
+        ic_raw = xr.open_dataset(path + "/ic_unprocessed.nc")
 
         if varnames["time"] in ic_raw.dims:
             ic_raw = ic_raw.isel({varnames["time"] : 0})
@@ -625,7 +628,7 @@ class experiment:
             print(f"Processing {o}...",end="")
             seg = segment(
                 self.hgrid,
-                f"{path}/{o.lower()}_unprocessed", # location of raw boundary
+                f"{path}/{o.lower()}_unprocessed.nc", # location of raw boundary
                 f"{self.mom_input_dir}",           # Save path
                 varnames,
                 "segment_{:03d}".format(i+1),
@@ -700,7 +703,7 @@ class experiment:
             
 
         ## reopen topography to modify
-        topog = xr.open_dataset(self.mom_input_dir + "topog_raw.nc", engine='netcdf4')
+        topog = xr.open_dataset(self.mom_input_dir + "topog_raw.nc")
 
         ## Ensure correct encoding
         topog = xr.Dataset(
@@ -880,7 +883,8 @@ class segment:
     def brushcut(self,ryf = False):
         ### Implement brushcutter scheme on single segment ### 
         # print(self.infile + f"/{self.orientation}_segment_unprocessed")
-        rawseg = xr.open_dataset(self.infile,decode_times=False,engine="netcdf4")
+        # rawseg = xr.open_dataset(self.infile,decode_times=False,engine="netcdf4")
+        rawseg = xr.open_dataset(self.infile, decode_times=True)
         # rawseg = xr.open_dataset(self.infile,decode_times=False,chunks={self.time:30,self.z:25})
 
         ## Depending on the orientation of the segment, cut out the right bit of the hgrid 
