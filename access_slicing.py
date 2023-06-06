@@ -31,7 +31,7 @@ def select_slice(d, borders, boundary = 'east'):
             x1 = xextent[0]
             x2 = x1
     else:
-        x1 = xextent[0]; x2 = xextent[0]
+        x1 = xextent[0]; x2 = xextent[1]
         if boundary == 'south':
             y1 = yextent[0]; y2 = y1
         else:

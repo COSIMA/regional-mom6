@@ -13,6 +13,8 @@ from dask.distributed import Client, worker_client
 from dask.diagnostics import ProgressBar
 import datetime as dt
 import warnings
+import xarray_leaflet
+from ipyleaflet import Map, basemaps
 warnings.filterwarnings('ignore')
 
 def nicer_slicer(data,xextent,xcoords,buffer = 2):
@@ -309,6 +311,7 @@ class experiment:
             os.mkdir(mom_input_dir)
         except:
             pass
+        
         self.xextent = xextent
         self.yextent = yextent
         self.daterange = [dt.datetime.strptime(daterange[0],"%Y-%m-%d %H:%M:%S"),
