@@ -1,0 +1,31 @@
+name: mom6-regional-dev
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - dask[distributed]
+  - zarr
+  - netCDF4
+  - xarray
+  - pandas
+  - pangeo-xesmf>=0.6.3
+  - pykdtree
+  - pytest
+  - pytest-xdist
+  - pytest-randomly
+  - pytest-cov
+  - pre-commit
+  - gitpython
+  - flake8==3.9.1
+  - isort==5.8.0
+  - autopep8
+  - sphinx-gallery<0.8
+  - pip
+  - setuptools
+  - twine
+  - pandoc==2.16.2
+  # make html in docs folder
+  - sphinx
+  - tox-conda
+  - pip:
+    - sphinx_copybutton
