@@ -8,7 +8,7 @@ dependencies:
   - netCDF4
   - xarray
   - pandas
-  - pangeo-xesmf>=0.6.3
+  - xesmf>=0.6.3
   - pykdtree
   - pytest
   - pytest-xdist
