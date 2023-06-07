@@ -27,7 +27,7 @@ jobs:
           auto-activate-base: false
           activate-environment: mom6-regional-ci
           python-version: ${{ matrix.python-version }}
-          channels: defaults,conda-forge
+          channels: defaults, conda-forge
           environment-file: environment-ci.yml
           use-only-tar-bz2: true
       - name: Install from source
@@ -40,7 +40,7 @@ jobs:
       - name: Test with pytest
         shell: pwsh
         run: |
-          if("${{ matrix.os }}" -eq "windows-latest"){
+          if("${{ matrix.os }}" -eq "ubuntu-latest"){
              pytest
           } else {
              pytest --cov=./ --cov-report=xml
