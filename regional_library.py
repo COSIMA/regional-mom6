@@ -638,16 +638,17 @@ class experiment:
             seg.brushcut()
             print("Done.")
 
-    def bathymetry(self,bathy_path,varnames,fill_channels = False,minimum_layers = 3,maketopog = True):
+    def bathymetry(self,bathy_path,varnames,fill_channels = False,minimum_layers = 3,maketopog = True,positivedown = False):
         """
         Cuts out and interpolates chosen bathymetry, then fills inland lakes. Optionally fills narrow channels, although this is less of an issue for C grid based models like MOM6. Output saved to the input folder for your experiment. 
 
         Parameters:
-            bathy_path (str)            Path to chosen bathymetry file. Should be a netcdf that contains your region of interest
-            varnames (dict)             Dictionary mapping the coordinate and variable names of interest. Eg: {'xh':'lon','yh':'lat','elevation':'depth'}
-            fill_channels (bool)   Whether or not to fill in diagonal channels. This removes more narrow inlets, but can also connect extra islands to land. 
-            minimum layers (bool)   The minimum depth allowed as an integer number of layers. 3 layers means that anything shallower than the 3rd layer is deemed land
-            maketopog (bool)            If true, runs fre tools to make topography. If False, reads in existing topog file and proceeds with hole filling
+            `bathy_path (str)`            Path to chosen bathymetry file. Should be a netcdf that contains your region of interest
+            `varnames (dict)`             Dictionary mapping the coordinate and variable names of interest. Eg: {'xh':'lon','yh':'lat','elevation':'depth'}
+            `fill_channels (bool)`   Whether or not to fill in diagonal channels. This removes more narrow inlets, but can also connect extra islands to land. 
+            `minimum layers (bool)`   The minimum depth allowed as an integer number of layers. 3 layers means that anything shallower than the 3rd layer is deemed land
+            `maketopog (bool)`            If true, runs fre tools to make topography. If False, reads in existing topog file and proceeds with hole filling
+            `positivedown (bool)`            If true, assumes that bathymetry vertical coordinate is positive down
         """
 
 
@@ -712,7 +713,9 @@ class experiment:
 
         topog.expand_dims("tiles",0)
 
-        if topog.depth.mean() < 0:
+
+
+        if not positivedown:
             ## Ensure that coordinate is positive down!
             topog["depth"] *= -1
 
