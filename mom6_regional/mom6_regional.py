@@ -16,6 +16,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 __all__ = [
+    "parabola",
     "nicer_slicer",
     "motu_requests",
     "dz",
@@ -25,6 +26,9 @@ __all__ = [
     "experiment",
     "segment"
 ]
+
+def parabola(x):
+    return x**2
 
 def nicer_slicer(data,xextent,xcoords,buffer = 2):
     """
