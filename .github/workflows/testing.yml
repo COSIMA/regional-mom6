@@ -51,4 +51,6 @@ jobs:
           env_vars: OS,PYTHON
           files: ./coverage.xml
           name: codecov-umbrella
-  
+          paths: |
+            !tests/*
+            !docs/*
