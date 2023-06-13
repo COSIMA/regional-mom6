@@ -22,7 +22,7 @@ jobs:
         shell: bash -el {0}
     strategy:
       matrix:
-        python-version: ["3.9", "3.10"]
+        python-version: ["3.10"]
 
     steps:
       - uses: actions/checkout@v3
@@ -49,5 +49,6 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: ./coverage/reports/
           env_vars: OS,PYTHON
+          files: coverage.xml
           name: codecov-umbrella
   
