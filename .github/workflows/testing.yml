@@ -47,6 +47,5 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: ./coverage/reports/
           env_vars: OS,PYTHON
-          files: ./coverage1.xml,./coverage2.xml,!./cache
           name: codecov-umbrella
   
