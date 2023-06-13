@@ -1,17 +1,14 @@
 [project]
 name = "mom6_regional"
-
 description = "Automatic generation of regional configurations for Modular Ocean Model 6"
-
 keywords = ["mom6", "regional", "ocean modeling"]
-
 authors = [
   {name = "Ashley Barnes"},
 ]
 dynamic = ["version"]
-
 dependencies = [
   "dask[array]",
+  "dask[distributed]",
   "numpy>=1.17.0",
   "scipy>=1.2.0",
   "netCDF4",
