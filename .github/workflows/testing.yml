@@ -42,7 +42,11 @@ jobs:
           python -m pip install pytest-cov
       - name: Test with pytest
         run: |
-          python -m pytest --cov=./ --cov-report=xml tests/
+          if [[ "${{ matrix.python-version }}" == "3.10" ]]; then
+            python -m pytest --cov=./ --cov-report=xml --cov-exclude=tests/,docs/ tests/ 
+          else
+            python -m pytest tests/
+          fi
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -51,6 +55,3 @@ jobs:
           env_vars: OS,PYTHON
           files: ./coverage.xml
           name: codecov-umbrella
-          paths: |
-            !tests/*
-            !docs/*
