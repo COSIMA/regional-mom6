@@ -39,7 +39,7 @@ jobs:
           python -m pip install pytest
       - name: Test with pytest
         run: |
-          python -m --cov pytest tests 
+          python -m pytest --cov tests 
       - name: Upload code coverage to Codecov
         uses: codecov/codecov-action@v3
         env:
