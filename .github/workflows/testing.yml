@@ -8,6 +8,9 @@ on:
 jobs:
   testing:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
     strategy:
       matrix:
         python-version: ["3.9", "3.10"]
@@ -15,8 +18,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: conda-incubator/setup-miniconda@v2
         with:
+          auto-update-conda: true
+          auto-activate-base: false
+          environment-file: environment-ci.yml
           python-version: ${{ matrix.python-version }}
       - name: Install from source
         run: |
