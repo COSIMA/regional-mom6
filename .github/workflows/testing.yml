@@ -37,10 +37,9 @@ jobs:
         run: |
           pip install pytest
           pip install pytest-cov
-          pytest --cov=./ --cov-report=xml
       - name: Test with pytest
         run: |
-          pytest --cov=./ --cov-report=xml tests
+          pytest --cov=./ --cov-report=xml tests/
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
