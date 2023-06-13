@@ -41,13 +41,13 @@ jobs:
       - name: Test with pytest
         run: |
           pytest --cov=./ --cov-report=xml tests
-        - name: Upload coverage to Codecov
-          uses: codecov/codecov-action@v3
-          with:
-            token: ${{ secrets.CODECOV_TOKEN }}
-            directory: ./coverage/reports/
-            env_vars: OS,PYTHON
-            files: ./coverage1.xml,./coverage2.xml,!./cache
-            name: codecov-umbrella
-            verbose: true
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./coverage/reports/
+          env_vars: OS,PYTHON
+          files: ./coverage1.xml,./coverage2.xml,!./cache
+          name: codecov-umbrella
+          verbose: true
   
