@@ -1,4 +1,4 @@
-from ..mom6_regional import parabola
+from mom6_regional import parabola
 
 def func(x):
     return x + 1
