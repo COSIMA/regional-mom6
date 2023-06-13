@@ -39,8 +39,6 @@ jobs:
           python -m pip install pytest
       - name: Test with pytest
         run: |
-          python -m pytest --cov tests 
+          python -m pytest tests 
       - name: Upload code coverage to Codecov
         uses: codecov/codecov-action@v3
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
