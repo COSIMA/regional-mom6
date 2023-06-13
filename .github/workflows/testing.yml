@@ -43,7 +43,7 @@ jobs:
       - name: Test with pytest
         run: |
           if [[ "${{ matrix.python-version }}" == "3.10" ]]; then
-            python -m pytest --cov=./ --cov-report=xml --cov-exclude=tests/,docs/ tests/ 
+            python -m pytest --cov=mom6_regional --cov-report=xml tests/
           else
             python -m pytest tests/
           fi
