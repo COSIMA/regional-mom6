@@ -479,8 +479,6 @@ class experiment:
             )
             return hgrid
 
-
-
     def _make_vgrid(self):
         """
         Generates a vertical grid based on the number of layers and vertical ratio specified at the class level.
@@ -600,7 +598,7 @@ class experiment:
         ### Drop NaNs to be re-added later
         # NaNs are from the land mask. When we interpolate onto a new grid, need to put in the new land mask. If NaNs left in, land mask stays the same
         ic_raw_tracers = (
-            ic_raw_tracers.interpolate_na("lon",method ="linear")
+            ic_raw_tracers.interpolate_na("lon", method="linear")
             .ffill("lon")
             .bfill("lon")
             .ffill("lat")
@@ -609,7 +607,7 @@ class experiment:
         )
 
         ic_raw_u = (
-            ic_raw_u.interpolate_na("lon",method ="linear")
+            ic_raw_u.interpolate_na("lon", method="linear")
             .ffill("lon")
             .bfill("lon")
             .ffill("lat")
@@ -618,7 +616,7 @@ class experiment:
         )
 
         ic_raw_v = (
-            ic_raw_v.interpolate_na("lon",method ="linear")
+            ic_raw_v.interpolate_na("lon", method="linear")
             .ffill("lon")
             .bfill("lon")
             .ffill("lat")
@@ -627,12 +625,12 @@ class experiment:
         )
 
         ic_raw_eta = (
-            ic_raw_eta.interpolate_na("lon",method ="linear")
+            ic_raw_eta.interpolate_na("lon", method="linear")
             .ffill("lon")
             .bfill("lon")
             .ffill("lat")
             .bfill("lat")
-        )        )
+        )
 
         ## Make our three horizontal regrideers
         regridder_u = xe.Regridder(
@@ -1459,3 +1457,4 @@ class segment:
             )
 
         return segment_out, encoding_dict
+  
