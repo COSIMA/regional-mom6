@@ -477,72 +477,9 @@ class experiment:
                 ),
                 sep="\n",
             )
-            return xr.open_dataset(self.mom_input_dir + "/hgrid.nc")
-
             return hgrid
 
-    def _old_make_hgrid(self):
-        """
-        Generates a mom6 hgrid ready to go. Makes a basic grid first, then uses FRE tools to create a full hgrid with all the metadata.
-        """
-        ## Total number of qpoints in x
-        qpoints_x = int((self.xextent[1] - self.xextent[0]) / self.res) + 1
-        qpoints_y = int((self.yextent[1] - self.yextent[0]) / self.res) + 1
-        if qpoints_x == 0 or qpoints_y == 0:
-            raise ValueError("Please ensure domain extents match chosen resolution")
-        Xq = np.linspace(self.xextent[0], self.xextent[1], qpoints_x)
-        Yq = np.linspace(self.yextent[0], self.yextent[1], qpoints_y)
 
-        Xt = np.linspace(
-            self.xextent[0] + self.res / 2,
-            self.xextent[1] - self.res / 2,
-            qpoints_x - 1,
-        )
-
-        Yt = np.Xt = np.linspace(
-            self.yextent[0] + self.res / 2,
-            self.yextent[1] - self.res / 2,
-            qpoints_y - 1,
-        )
-
-        # broadcast to meshgrid
-        Xt, Yt = np.meshgrid(Xt, Yt)
-        Xq, Yq = np.meshgrid(Xq, Yq)
-
-        # create output dataset
-        ds = xr.Dataset(
-            {
-                "grid_lon": (["grid_yc", "grid_xc"], Xq),
-                "grid_lat": (["grid_yc", "grid_xc"], Yq),
-                "grid_lont": (["grid_yt", "grid_xt"], Xt),
-                "grid_latt": (["grid_yt", "grid_xt"], Yt),
-            }
-        )
-        ds.to_netcdf(self.mom_input_dir + "/grid.nc")
-
-        ## Generate the hgrid with fretools. Need to generalise later to not rely on random scripts!
-        args = "--grid_type from_file --my_grid_file grid.nc".split(" ")
-        print(
-            "FRE TOOLS: Make hgrid \n\n",
-            subprocess.run(
-                [self.toolpath + "make_hgrid/make_hgrid"] + args, cwd=self.mom_input_dir
-            ),
-        )
-        subprocess.run(["mv", "horizontal_grid.nc", "hgrid.nc"], cwd=self.mom_input_dir)
-
-        ## Make Solo Mosaic
-        args = "--num_tiles 1 --dir . --mosaic_name ocean_mosaic --tile_file hgrid.nc".split(
-            " "
-        )
-        print(
-            "FRE TOOLS: Make solo mosaic\n\n",
-            subprocess.run(
-                [self.toolpath + "make_solo_mosaic/make_solo_mosaic"] + args,
-                cwd=self.mom_input_dir,
-            ),
-            sep="\n",
-        )
-        return xr.open_dataset(self.mom_input_dir + "/hgrid.nc")
 
     def _make_vgrid(self):
         """
@@ -662,21 +599,40 @@ class experiment:
 
         ### Drop NaNs to be re-added later
         # NaNs are from the land mask. When we interpolate onto a new grid, need to put in the new land mask. If NaNs left in, land mask stays the same
-
         ic_raw_tracers = (
-            ic_raw_tracers.interpolate_na("lon", method="nearest")
+            ic_raw_tracers.interpolate_na("lon",method ="linear")
             .ffill("lon")
             .bfill("lon")
+            .ffill("lat")
+            .bfill("lat")
+            .ffill(varnames["zl"])
         )
-        ic_raw_eta = (
-            ic_raw_eta.interpolate_na("lon", method="nearest").ffill("lon").bfill("lon")
-        )
+
         ic_raw_u = (
-            ic_raw_u.interpolate_na("lon", method="nearest").ffill("lon").bfill("lon")
+            ic_raw_u.interpolate_na("lon",method ="linear")
+            .ffill("lon")
+            .bfill("lon")
+            .ffill("lat")
+            .bfill("lat")
+            .ffill(varnames["zl"])
         )
+
         ic_raw_v = (
-            ic_raw_v.interpolate_na("lon", method="nearest").ffill("lon").bfill("lon")
+            ic_raw_v.interpolate_na("lon",method ="linear")
+            .ffill("lon")
+            .bfill("lon")
+            .ffill("lat")
+            .bfill("lat")
+            .ffill(varnames["zl"])
         )
+
+        ic_raw_eta = (
+            ic_raw_eta.interpolate_na("lon",method ="linear")
+            .ffill("lon")
+            .bfill("lon")
+            .ffill("lat")
+            .bfill("lat")
+        )        )
 
         ## Make our three horizontal regrideers
         regridder_u = xe.Regridder(
@@ -759,7 +715,7 @@ class experiment:
         vel_out = vel_out.interp({"zl": self.vgrid.zl.values})
 
         print("Saving outputs... ", end="")
-        vel_out.fillna(0).to_netcdf(
+        vel_out.fillna(0).drop("time").to_netcdf(
             self.mom_input_dir + "forcing/init_vel.nc",
             mode="w",
             encoding={
@@ -768,7 +724,7 @@ class experiment:
             },
         )
 
-        tracers_out.to_netcdf(
+        tracers_out.drop("time").to_netcdf(
             self.mom_input_dir + "forcing/init_tracers.nc",
             mode="w",
             encoding={
@@ -779,7 +735,7 @@ class experiment:
                 "salt": {"_FillValue": -1e20, "missing_value": -1e20},
             },
         )
-        eta_out.to_netcdf(
+        eta_out.drop("time").to_netcdf(
             self.mom_input_dir + "forcing/init_eta.nc",
             mode="w",
             encoding={
