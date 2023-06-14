@@ -1,0 +1,25 @@
+[project]
+name = "mom6_regional"
+description = "Automatic generation of regional configurations for Modular Ocean Model 6"
+authors = [
+  {name = "Ashley Barnes"},
+]
+dynamic = ["version"]
+dependencies = [
+  "dask[array]",
+  "numpy>=1.17.0",
+  "scipy>=1.2.0",
+  "netCDF4",
+  "xarray",
+  "xesmf",
+]
+
+[build-system]
+requires = ["setuptools", "setuptools_scm[toml]"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["mom6_regional"]
+
+[tool.setuptools_scm]
+write_to = "mom6_regional/_version.py"
