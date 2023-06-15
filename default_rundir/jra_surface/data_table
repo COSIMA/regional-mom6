@@ -13,7 +13,7 @@
 "ICE", "sw_flux_nir_dif_dn", "rsds", "./INPUT/RYF.rsds.1990_1991.nc", "bilinear", 0.215
 "ICE", "lprec", "prrn", "./INPUT/RYF.rain.1990_1991.nc", "bilinear", 1.0
 "ICE", "fprec", "prsn", "./INPUT/RYF.snow.1990_1991.nc", "bilinear", 1.0
-"ICE", "runoff", "friver", "./INPUT/runoff_regrid.nc", "none", 1.0
+"ICE", "runoff", "", "", "none", 0.0
 "ICE", "dhdt", "", "", "none", 80.0
 "ICE", "dedt", "", "", "none", 2.0e-6
 "ICE", "drdt", "", "", "none", 10.0
