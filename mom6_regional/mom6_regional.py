@@ -1457,4 +1457,3 @@ class segment:
             )
 
         return segment_out, encoding_dict
-  
