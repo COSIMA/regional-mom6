@@ -1,13 +1,6 @@
-from mom6_regional import parabola
+import numpy as np
+from mom6_regional import angle_between
 
-
-def func(x):
-    return x + 1
-
-
-def test_answer():
-    assert func(4) == 5
-
-
-def test_parabola():
-    assert parabola(2) == 4
+# placeholder trivial test test
+def test_angle_between():
+    assert angle_between([1, 0, 0], [0, 1, 0], [0, 0, 1]) == np.pi / 2
