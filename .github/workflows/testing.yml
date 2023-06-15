@@ -26,6 +26,22 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+      - name: Get date
+        id: get-date
+        run: echo "today=$(/bin/date -u '+%Y%m%d')" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Cache Conda packages
+        uses: actions/cache@v3
+        with:
+          path: ~/conda_pkgs_dir
+          key: ${{ runner.os }}-conda-${{ steps.get-date.outputs.today }}-${{ hashFiles('environment-ci.yml') }}
+      - name: Cache pip packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ steps.get-date.outputs.today }}-${{ hashFiles('pyproject.toml') }}
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: conda-incubator/setup-miniconda@v2
         with:
@@ -33,6 +49,7 @@ jobs:
           auto-activate-base: false
           environment-file: environment-ci.yml
           python-version: ${{ matrix.python-version }}
+          use-only-tar-bz2: true
       - name: Install from source
         run: |
           python -m pip install .
