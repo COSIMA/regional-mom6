@@ -8,14 +8,14 @@ To build the docs from a local clone of the repository we first need to create a
 environment. Navigate to the `docs` directory of your local repository clone (e.g., `cd docs`)
 and then 
 
-```bash
+```{bash}
 cd docs
 conda create --name my-docs-env-name --file requirements.txt
 ```
 
 Then activate this environment and run `make`:
 
-```bash
+```{bash}
 conda activate my-docs-env-name
 make html
 ```
