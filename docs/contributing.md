@@ -21,3 +21,11 @@ make html
 ```
 
 and open `_build/html/index.html` in your favorite browser.
+
+Alternatively, you can also build the docs with `pip`.
+
+```bash
+cd docs
+pip install -r docs/requirements.txt
+make html
+```
