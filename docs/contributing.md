@@ -22,7 +22,7 @@ make html
 
 and open `_build/html/index.html` in your favorite browser.
 
-Alternatively, you can also build the docs with `pip`.
+Alternatively, we can also install the dependencies needed for the docs via `pip`.
 
 ```bash
 cd docs
