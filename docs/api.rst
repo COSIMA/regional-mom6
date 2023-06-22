@@ -2,6 +2,6 @@
  API reference
 ===============
 
-.. automodule:: mom6_regional.mom6_regional
+.. automodule:: regional_mom6.regional_mom6
    :members:
    :undoc-members:

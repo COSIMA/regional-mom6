@@ -1,7 +1,7 @@
 Instructions for Contributors
 =============================
 
-Before you submit a [pull request](https://github.com/COSIMA/mom6-regional/pulls) it's always a
+Before you submit a [pull request](https://github.com/COSIMA/regional-mom6/pulls) it's always a
 good idea to run the tests locally and catch any potential bugs/errors that might have been
 introduced. Also, sometimes it's also a good idea to build the documentation locally to see
 how new docstrings or any new bits of documentation that you may have added look like.

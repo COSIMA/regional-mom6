@@ -3,4 +3,4 @@ try:
 except ImportError:
     __version__ = "unknown"
 
-from .mom6_regional import *  # noqa
+from .regional_mom6 import *  # noqa

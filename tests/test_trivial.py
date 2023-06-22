@@ -1,5 +1,5 @@
 import numpy as np
-from mom6_regional import angle_between
+from regional_mom6 import angle_between
 
 
 # placeholder trivial test test
