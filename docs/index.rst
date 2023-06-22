@@ -5,6 +5,7 @@ Welcome to MOM6 Regional's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   contributing
    api
 
 

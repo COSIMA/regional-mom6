@@ -1,5 +1,8 @@
 __pycache__
 .ipynb_checkpoints
 build
+_build
 mom6_regional/_version.py
 mom6_regional.egg-info
+.pytest_cache
+env
