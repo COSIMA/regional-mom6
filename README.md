@@ -4,4 +4,4 @@
 
 Just provide some information about where, when and how big, and also where raw input forcing files live. The package will sort out all the boring details to create MOM6-friendly input files.
 
-Check out the [demo notebook](https://nbviewer.org/github/COSIMA/regional-mom6/blob/m/demo.ipynb) and also the [documentation](https://readthedocs.org/projects/regional-mom6/badge/?version=latest)!
+Check out the [demo notebook](https://nbviewer.org/github/COSIMA/regional-mom6/blob/main/demo.ipynb) and also the [documentation](https://readthedocs.org/projects/regional-mom6/badge/?version=latest)!
