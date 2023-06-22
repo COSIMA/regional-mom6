@@ -60,6 +60,6 @@ Alternatively, we can also install the dependencies needed for the docs via `pip
 
 ```{code-block} bash
 cd docs
-pip install -r docs/requirements.txt
+pip install -r requirements.txt
 make html
 ```
