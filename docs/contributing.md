@@ -47,10 +47,16 @@ cd docs
 conda create --name docs-env --file requirements.txt
 ```
 
-Then activate this environment and run `make`:
+Then activate this environment and install the package itself as an editable install (`pip install -e`).
 
 ```{code-block} bash
 conda activate docs-env
+pip install -e ../.
+```
+
+Now we can make the docs
+
+```{code-block} bash
 make html
 ```
 
