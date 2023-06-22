@@ -1,7 +1,7 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = "MOM6 Regional"
+project = "Regional MOM6"
 copyright = "2023, Ashley Barnes & COSIMA Contributors"
 author = "Ashley Barnes & COSIMA Contributors"
 
