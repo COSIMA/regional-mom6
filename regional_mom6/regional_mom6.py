@@ -349,9 +349,7 @@ def rectangular_hgrid(λ, φ):
     ).T
 
     # dy = R * np.deg2rad(dφ) / 2. Note, we divide dy by 2 because we're on the supergrid
-    dy = np.broadcast_to(
-        R * np.deg2rad(np.diff(φ)) / 2, (λ.shape[0], φ.shape[0] - 1)
-    ).T
+    dy = np.broadcast_to(R * np.deg2rad(np.diff(φ)) / 2, (λ.shape[0], φ.shape[0] - 1)).T
 
     lon, lat = np.meshgrid(λ, φ)
     area = quad_area(lat, lon) * R**2
