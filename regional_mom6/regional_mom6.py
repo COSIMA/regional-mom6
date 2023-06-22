@@ -333,8 +333,8 @@ def rectangular_hgrid(λ, φ):
         Make sure both `λ` and `φ` *must* be monotonically increasing.
 
     Args:
-        `λ` (numpy.array): All longitude points on the supergrid.
-        `φ` (numpy.array): All latitude points on the supergrid.
+        λ (numpy.array): All longitude points on the supergrid.
+        φ (numpy.array): All latitude points on the supergrid.
 
     Returns:
         xarray.Dataset: A FMS-compatible *hgrid*, including the required attributes.
