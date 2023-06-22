@@ -1,5 +1,5 @@
 [project]
-name = "mom6_regional"
+name = "regional_mom6"
 description = "Automatic generation of regional configurations for Modular Ocean Model 6"
 keywords = ["mom6", "regional", "ocean modeling"]
 authors = [
@@ -21,7 +21,7 @@ requires = ["setuptools", "setuptools_scm[toml]"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["mom6_regional"]
+packages = ["regional_mom6"]
 
 [tool.setuptools_scm]
-write_to = "mom6_regional/_version.py"
+write_to = "regional_mom6/_version.py"

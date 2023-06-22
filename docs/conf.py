@@ -23,6 +23,6 @@ autodoc_mock_imports = ["xesmf"]
 html_theme = "sphinx_book_theme"
 html_static_path = ["_static"]
 html_theme_options = {
-    "repository_url": "https://github.com/COSIMA/mom6-regional",
+    "repository_url": "https://github.com/COSIMA/regional-mom6",
     "use_repository_button": True,
 }
