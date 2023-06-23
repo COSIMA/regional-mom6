@@ -7,4 +7,4 @@
 Users just need to provide some information about where, when, and how big their domain is and also where raw input forcing files are.
 The package sorts out all the boring details and creates a set of MOM6-friendly input files along with setup directories ready to go!
 
-Check out the the [documentation](https://readthedocs.org/projects/regional-mom6/badge/?version=latest) and browse through the [demos](https://regional-mom6.readthedocs.io/en/latest/demos.html).
+Check out the the [documentation](https://regional-mom6.readthedocs.io/en/latest/) and browse through the [demos](https://regional-mom6.readthedocs.io/en/latest/demos.html).
