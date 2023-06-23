@@ -8,3 +8,34 @@ Users just need to provide some information about where, when, and how big their
 The package sorts out all the boring details and creates a set of MOM6-friendly input files along with setup directories ready to go!
 
 Check out the the [documentation](https://regional-mom6.readthedocs.io/en/latest/) and browse through the [demos](https://regional-mom6.readthedocs.io/en/latest/demos.html).
+
+
+### Installation
+
+At the moment you can install the package via `pip` from Github. To do so first you can create a custom
+conda environment or activate an environment you already have. Then first install `emspy`
+
+```bash
+conda install -c conda-forge esmpy
+```
+
+and then you can install `regional_mom6` via pip.
+
+```bash
+pip install git+https://github.com/COSIMA/regional-mom6.git
+```
+
+This will install the latest version of `regional_mom6` plus any required dependencies.
+(`esmpy` won't be installed as a dependency and that's why we had to install it separately.)
+
+Alternatively, you can also install a particular tag or git commit using, e.g.,
+
+```bash
+pip install git+https://github.com/COSIMA/regional-mom6.git@v0.X.X
+```
+
+or
+
+```bash
+pip install git+https://github.com/COSIMA/regional-mom6.git@061b0ef80c7cbc04de0566df329c4ea472002f7e
+```
