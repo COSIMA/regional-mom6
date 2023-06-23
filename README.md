@@ -12,8 +12,8 @@ Check out the the [documentation](https://regional-mom6.readthedocs.io/en/latest
 
 ### Installation
 
-At the moment you can install the package via `pip` from Github. To do so first you can create a custom
-conda environment or activate an environment you already have. Then first install `emspy`
+At the moment you can install the package via `pip` from Github. To do so, you can first create a custom
+conda environment or activate an environment you already have. Then we need to install `emspy`
 
 ```bash
 conda install -c conda-forge esmpy
@@ -21,12 +21,14 @@ conda install -c conda-forge esmpy
 
 and then you can install `regional_mom6` via pip.
 
+(If your environment don't have pip then `conda install pip` should do the job.)
+
 ```bash
 pip install git+https://github.com/COSIMA/regional-mom6.git
 ```
 
 This will install the latest version of `regional_mom6` plus any required dependencies.
-(`esmpy` won't be installed as a dependency and that's why we had to install it separately.)
+(`esmpy` won't be installed as a dependency and that's why need to install it separately.)
 
 Alternatively, you can also install a particular tag or git commit using, e.g.,
 
