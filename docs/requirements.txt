@@ -1,2 +1,4 @@
 myst-parser
 sphinx-book-theme
+nbsphinx
+IPython
