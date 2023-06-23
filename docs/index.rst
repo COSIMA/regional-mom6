@@ -8,6 +8,7 @@ configurations for the Modular Ocean Model 6
    :maxdepth: 1
    :caption: Contents:
 
+   installation
    contributing
    api
    demos

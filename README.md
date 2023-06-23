@@ -12,8 +12,8 @@ Check out the the [documentation](https://regional-mom6.readthedocs.io/en/latest
 
 ### Installation
 
-At the moment you can install the package via `pip` from Github. To do so, you can first create a custom
-conda environment or activate an environment you already have. Then we need to install `emspy`
+At the moment you can install the package via `pip` from Github. To do so, first we create a custom
+conda environment or activate an environment we already have. Then we first need to install `emspy`:
 
 ```bash
 conda install -c conda-forge esmpy
