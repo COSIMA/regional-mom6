@@ -9,26 +9,29 @@ The package sorts out all the boring details and creates a set of MOM6-friendly 
 
 Check out the the [documentation](https://regional-mom6.readthedocs.io/en/latest/) and browse through the [demos](https://regional-mom6.readthedocs.io/en/latest/demos.html).
 
+## Installation
 
-### Installation
-
-At the moment you can install the package via `pip` from Github. To do so, first we create a custom
-conda environment or activate an environment we already have. Then we first need to install `emspy`:
+At the moment you can install the package via `pip` from
+GitHub. Before this, the binary `esmpy` dependency is required. This
+is easiest to install using Conda. To do so, first create a custom
+Conda environment, or activate an existing environment into which you
+want to install `esmpy` and `regional_mom6`. Then install `emspy`:
 
 ```bash
 conda install -c conda-forge esmpy
 ```
 
-and then you can install `regional_mom6` via pip.
-
-(If your environment don't have pip then `conda install pip` should do the job.)
+Alternatively, it's possible to follow the [Installing ESMPy from
+Source](https://earthsystemmodeling.org/esmpy_doc/release/latest/html/install.html#installing-esmpy-from-source)
+instructions to do this in a Conda-free way. With `esmpy` available, you can then install
+`regional_mom6` via pip. If your environment doesn't yet have pip, then `conda install pip` should do the job.
 
 ```bash
 pip install git+https://github.com/COSIMA/regional-mom6.git
 ```
 
 This will install the latest version of `regional_mom6` plus any required dependencies.
-(`esmpy` won't be installed as a dependency and that's why need to install it separately.)
+`esmpy` won't be installed as a dependency and that's why need to install it separately.
 
 Alternatively, you can also install a particular tag or git commit using, e.g.,
 
