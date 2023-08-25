@@ -344,7 +344,7 @@ def rectangular_hgrid(λ, φ):
 
     # dx = R * cos(φ) * np.deg2rad(dλ) / 2. Note, we divide dy by 2 because we're on the supergrid
     dx = np.broadcast_to(
-        R * np.cos(np.deg2rad(y)) * np.deg2rad(np.diff(λ)) / 2,
+        R * np.cos(np.deg2rad(φ)) * np.deg2rad(np.diff(λ)) / 2,
         (λ.shape[0] - 1, φ.shape[0]),
     ).T
 
