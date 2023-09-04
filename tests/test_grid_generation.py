@@ -13,15 +13,16 @@ import xarray as xr
         ([1, 0, 0], [1, 1, 0], [0, 1, 1], np.pi / 4),
     ],
 )
-
 def test_angle_between(v1, v2, v3, true_angle):
     assert np.isclose(angle_between(v1, v2, v3), true_angle)
+
 
 # create a lat-lon mesh that covers 1/4 of the North Hemisphere
 lon1, lat1 = np.meshgrid(np.linspace(0, 90, 5), np.linspace(0, 90, 5))
 
 # create a lat-lon mesh that covers 1/4 of the whole globe
 lon2, lat2 = np.meshgrid(np.linspace(-45, 45, 5), np.linspace(-90, 90, 5))
+
 
 @pytest.mark.parametrize(
     ("lat", "lon", "true_area"),
