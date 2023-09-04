@@ -6,3 +6,4 @@ regional_mom6/_version.py
 regional_mom6.egg-info
 .pytest_cache
 .env
+env
