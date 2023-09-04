@@ -29,6 +29,7 @@ def test_quad_area(lat, lon, true_area):
     assert np.isclose(np.sum(quad_area(lat, lon)), true_area)
 
 
+# a simple test that rectangular_hgrid runs without erroring
 @pytest.mark.parametrize(
     ("lat", "lon"),
     [
