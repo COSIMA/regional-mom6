@@ -23,7 +23,7 @@ lon, lat = np.meshgrid(np.linspace(0, 90, 5), np.linspace(0, 90, 5))
 @pytest.mark.parametrize(
     ("lat", "lon", "true_area"),
     [
-        (Y, X, 0.5 * np.pi),
+        (lat, lon, 0.5 * np.pi),
     ],
 )
 def test_quad_area(lat, lon, true_area):
