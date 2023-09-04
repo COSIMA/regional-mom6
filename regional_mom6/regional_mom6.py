@@ -21,7 +21,7 @@ __all__ = [
     "motu_requests",
     "dz",
     "angle_between",
-    "quad_area",
+    "quadilateral_area",
     "rectangular_hgrid",
     "experiment",
     "segment",
@@ -300,7 +300,7 @@ def angle_between(v1, v2, v3):
 
 
 # Borrowed from grid tools (GFDL)
-def quad_area(lat, lon):
+def quadilateral_area(lat, lon):
     """Returns area of spherical quadrilaterals (bounded by great arcs)."""
 
     # x, y, z are 3D coordinates on the unit sphere
@@ -356,7 +356,7 @@ def rectangular_hgrid(λ, φ):
 
     lon, lat = np.meshgrid(λ, φ)
 
-    area = quad_area(lat, lon) * R**2
+    area = quadilateral_area(lat, lon) * R**2
 
     attrs = {
         "tile": {
