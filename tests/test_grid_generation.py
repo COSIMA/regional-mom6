@@ -3,6 +3,7 @@ import pytest
 from regional_mom6 import angle_between
 from regional_mom6 import quad_area
 from regional_mom6 import rectangular_hgrid
+import xarray as xr
 
 
 @pytest.mark.parametrize(
@@ -18,6 +19,7 @@ def test_angle_between(v1, v2, v3, true_angle):
 
 # create a lat-lon mesh that covers 1/4 of the North Hemisphere
 lon, lat = np.meshgrid(np.linspace(0, 90, 5), np.linspace(0, 90, 5))
+
 
 @pytest.mark.parametrize(
     ("lat", "lon", "true_area"),
@@ -37,4 +39,4 @@ def test_quad_area(lat, lon, true_area):
     ],
 )
 def test_rectangular_hgrid(lat, lon):
-    rectangular_hgrid(lat, lon)
+    assert isinstance(rectangular_hgrid(lat, lon), xr.Dataset)
