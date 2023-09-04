@@ -5,11 +5,13 @@ Regional MOM6 Documentation
 configurations for the Modular Ocean Model 6
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents:
 
+   installation
    contributing
    api
+   demos
 
 
 Indices and tables
