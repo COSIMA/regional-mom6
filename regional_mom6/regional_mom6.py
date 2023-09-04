@@ -323,12 +323,13 @@ def quad_area(lat, lon):
 
 def rectangular_hgrid(λ, φ):
     """
-    Constructs a horizontal grid with all the metadata given an array of
+    Construct a horizontal grid with all the metadata given an array of
     latitudes (`φ`) and longitudes (`λ`).
 
     Caution:
-        Here it is assumed that `λ` and `φ` are on a perfectly rectangular grid.
-        Rotated grid needs to be handled separately.
+        Here, it is assumed the grid's boundaries are lines of constant latitude and
+        longitude. Rotated grids need to be handled in a different manner.
+        Also we assume here that the longitude array values are uniformly spaced.
 
         Make sure both `λ` and `φ` *must* be monotonically increasing.
 
@@ -340,11 +341,13 @@ def rectangular_hgrid(λ, φ):
         xarray.Dataset: A FMS-compatible *hgrid*, including the required attributes.
     """
 
-    R = 6371e3  # mean radius of the Earth
+    R = 6371e3 # mean radius of the Earth
+
+    dλ = λ[1] - λ[0] # assuming that longitude is uniformly spaced
 
     # dx = R * cos(φ) * np.deg2rad(dλ) / 2. Note, we divide dy by 2 because we're on the supergrid
     dx = np.broadcast_to(
-        R * np.cos(np.deg2rad(φ)) * np.deg2rad(np.diff(λ)) / 2,
+        R * np.cos(np.deg2rad(φ)) * np.deg2rad(dλ) / 2,
         (λ.shape[0] - 1, φ.shape[0]),
     ).T
 
@@ -352,6 +355,7 @@ def rectangular_hgrid(λ, φ):
     dy = np.broadcast_to(R * np.deg2rad(np.diff(φ)) / 2, (λ.shape[0], φ.shape[0] - 1)).T
 
     lon, lat = np.meshgrid(λ, φ)
+
     area = quad_area(lat, lon) * R**2
 
     attrs = {
