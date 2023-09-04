@@ -295,65 +295,68 @@ def angle_between(v1, v2, v3):
     ddd = (px * px + py * py + pz * pz) * (qx * qx + qy * qy + qz * qz)
     ddd = (px * qx + py * qy + pz * qz) / np.sqrt(ddd)
     angle = np.arccos(ddd)
+
     return angle
 
 
 # Borrowed from grid tools (GFDL)
 def quad_area(lat, lon):
-    """Returns area of spherical quad (bounded by great arcs)."""
+    """Returns area of spherical quadrilaterals (bounded by great arcs)."""
 
-    # x,y,z are 3D coordinates
-    d2r = np.deg2rad(1.0)
-    x = np.cos(d2r * lat) * np.cos(d2r * lon)
-    y = np.cos(d2r * lat) * np.sin(d2r * lon)
-    z = np.sin(d2r * lat)
+    # x, y, z are 3D coordinates on the unit sphere
+    x = np.cos(np.deg2rad(lat)) * np.cos(np.deg2rad(lon))
+    y = np.cos(np.deg2rad(lat)) * np.sin(np.deg2rad(lon))
+    z = np.sin(np.deg2rad(lat))
+
     c0 = (x[:-1, :-1], y[:-1, :-1], z[:-1, :-1])
     c1 = (x[:-1, 1:], y[:-1, 1:], z[:-1, 1:])
     c2 = (x[1:, 1:], y[1:, 1:], z[1:, 1:])
     c3 = (x[1:, :-1], y[1:, :-1], z[1:, :-1])
+
     a0 = angle_between(c1, c0, c2)
     a1 = angle_between(c2, c1, c3)
     a2 = angle_between(c3, c2, c0)
     a3 = angle_between(c0, c3, c1)
+
     return a0 + a1 + a2 + a3 - 2.0 * np.pi
 
 
-def rectangular_hgrid(x, y):
-    """Given an array of latitudes and longitudes, constructs a
-    working hgrid with all the metadata. Longitudes must be evenly
-    spaced, but there is no such restriction on latitudes.
+def rectangular_hgrid(λ, φ):
+    """
+    Construct a horizontal grid with all the metadata given an array of
+    latitudes (`φ`) and longitudes (`λ`).
 
     Caution:
-        This is hard coded to only take x and y on a perfectly
-        rectangular grid. Rotated grid needs to be handled
-        separately. Make sure both x and y are monotonically increasing.
+        Here, it is assumed the grid's boundaries are lines of constant latitude and
+        longitude. Rotated grids need to be handled in a different manner.
+        Also we assume here that the longitude array values are uniformly spaced.
+
+        Make sure both `λ` and `φ` *must* be monotonically increasing.
 
     Args:
-        x (numpy.array): All longitude points on supergrid. Assumes even spacing.
-        y (numpy.array): All latitude points on supergrid.
+        λ (numpy.array): All longitude points on the supergrid.
+        φ (numpy.array): All latitude points on the supergrid.
 
     Returns:
         xarray.Dataset: A FMS-compatible *hgrid*, including the required attributes.
-
     """
 
-    res = x[1] - x[0]  #! Replace this if you deviate from rectangular grid!!
+    R = 6371e3  # mean radius of the Earth
 
-    R = 6371000  # This is the exact radius of the Earth if anyone asks
+    dλ = λ[1] - λ[0]  # assuming that longitude is uniformly spaced
 
-    # dx = pi R cos(phi) / 180. Note dividing resolution by two because we're on the supergrid
+    # dx = R * cos(φ) * np.deg2rad(dλ) / 2. Note, we divide dy by 2 because we're on the supergrid
     dx = np.broadcast_to(
-        np.pi * R * np.cos(np.pi * y / 180) * 0.5 * res / 180,
-        (x.shape[0] - 1, y.shape[0]),
+        R * np.cos(np.deg2rad(φ)) * np.deg2rad(dλ) / 2,
+        (λ.shape[0] - 1, φ.shape[0]),
     ).T
 
-    # dy  = pi R delta Phi / 180. Note dividing dy by 2 because we're on supergrid
-    dy = np.broadcast_to(
-        R * np.pi * 0.5 * np.diff(y) / 180, (x.shape[0], y.shape[0] - 1)
-    ).T
+    # dy = R * np.deg2rad(dφ) / 2. Note, we divide dy by 2 because we're on the supergrid
+    dy = np.broadcast_to(R * np.deg2rad(np.diff(φ)) / 2, (λ.shape[0], φ.shape[0] - 1)).T
 
-    X, Y = np.meshgrid(x, y)
-    area = quad_area(Y, X) * 6371e3**2
+    lon, lat = np.meshgrid(λ, φ)
+
+    area = quad_area(lat, lon) * R**2
 
     attrs = {
         "tile": {
@@ -390,12 +393,12 @@ def rectangular_hgrid(x, y):
     return xr.Dataset(
         {
             "tile": ((), np.array(b"tile1", dtype="|S255"), attrs["tile"]),
-            "x": (["nyp", "nxp"], X, attrs["x"]),
-            "y": (["nyp", "nxp"], Y, attrs["y"]),
+            "x": (["nyp", "nxp"], lon, attrs["x"]),
+            "y": (["nyp", "nxp"], lat, attrs["y"]),
             "dx": (["nyp", "nx"], dx, attrs["dx"]),
             "dy": (["ny", "nxp"], dy, attrs["dy"]),
             "area": (["ny", "nx"], area, attrs["area"]),
-            "angle_dx": (["nyp", "nxp"], X * 0, attrs["angle_dx"]),
+            "angle_dx": (["nyp", "nxp"], lon * 0, attrs["angle_dx"]),
             "arcx": ((), np.array(b"small_circle", dtype="|S255"), attrs["arcx"]),
         }
     )
