@@ -6,7 +6,7 @@
 
 Users just need to provide some information about where, when, and how big their domain is and also where raw input forcing files are. The package sorts out all the boring details and creates a set of MOM6-friendly input files along with setup directories ready to go! 
 
-Although the resultant regional configuration will likely still need some tweaking, the idea behind this package is that the model should help the user sidestep some of the tricky issues with getting the model to run in the first place. This removes some of the steep learning curve for people new to working with the model.
+The idea behind this package is that it should the user sidestep some of the tricky issues with getting the model to run in the first place. This removes some of the steep learning curve for people new to working with the model. Note that the resultant model configuration might still need some tweaking (e.g., fiddling with timestep to avoid CFL-related numerical stability issues or fiddling with bathymetry to deal with very narrow fjords or channels that may exist).
 
 Limitations: Currently the package supports only one horizontal grid type (that is equally spaced in longitude); there are plans to add more grid options. We have designed the package in a way that it is modular so, for example, one needs to implement just another method for a different type of grid and the rest should be good to go.
 
