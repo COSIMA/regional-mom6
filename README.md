@@ -8,7 +8,9 @@ Users just need to provide some information about where, when, and how big their
 
 Although the resultant regional configuration will likely still need some tweaking, the idea behind this package is that the model should help the user sidestep some of the tricky issues with getting the model to run in the first place. This removes some of the steep learning curve for people new to working with the model.
 
-This module package is very much a work in progress - for example there is currently only one horizontal grid type (equally spaced longitude and latitude) but we plan to add many more options in the future. This functionality should be easy to add given the modular desin of the package. If you find this package useful and would like to add more functionality, [we'd love for contributions!](https://regional-mom6.readthedocs.io/en/latest/contributing.html).
+Limitations: Currently the package supports only one horizontal grid type (that is equally spaced in longitude); there are plans to add more grid options. We have designed the package in a way that it is modular so, for example, one needs to implement just another method for a different type of grid and the rest should be good to go.
+
+If you find this package useful and have any suggestions please feel free to open an [issue](https://github.com/COSIMA/regional-mom6/issues) or a [discussion](https://github.com/COSIMA/regional-mom6/discussions). We'd love to have [new contributors](https://regional-mom6.readthedocs.io/en/latest/contributing.html) and we are very keen to help you out along the way!
 
 ## What you need to get started
 1. A cool idea for a new regional MOM6 domain
