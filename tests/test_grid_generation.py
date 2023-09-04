@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from regional_mom6 import angle_between
-from regional_mom6 import quad_area
+from regional_mom6 import quadilateral_area
 from regional_mom6 import rectangular_hgrid
 import xarray as xr
 
@@ -18,17 +18,21 @@ def test_angle_between(v1, v2, v3, true_angle):
 
 
 # create a lat-lon mesh that covers 1/4 of the North Hemisphere
-lon, lat = np.meshgrid(np.linspace(0, 90, 5), np.linspace(0, 90, 5))
+lon1, lat1 = np.meshgrid(np.linspace(0, 90, 5), np.linspace(0, 90, 5))
+
+# create a lat-lon mesh that covers 1/4 of the whole globe
+lon2, lat2 = np.meshgrid(np.linspace(-45, 45, 5), np.linspace(-90, 90, 5))
 
 
 @pytest.mark.parametrize(
     ("lat", "lon", "true_area"),
     [
-        (lat, lon, 0.5 * np.pi),
+        (lat1, lon1, 0.5 * np.pi),
+        (lat2, lon2, np.pi),
     ],
 )
-def test_quad_area(lat, lon, true_area):
-    assert np.isclose(np.sum(quad_area(lat, lon)), true_area)
+def test_quadilateral_area(lat, lon, true_area):
+    assert np.isclose(np.sum(quadilateral_area(lat, lon)), true_area)
 
 
 # a simple test that rectangular_hgrid runs without erroring
