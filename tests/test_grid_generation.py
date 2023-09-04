@@ -15,7 +15,6 @@ def test_angle_between(v1, v2, v3, true_angle):
     assert np.isclose(angle_between(v1, v2, v3), true_angle)
 
 
-X, Y = np.meshgrid(np.linspace(0, 90, 100), np.linspace(0, 90, 100))
 # create a lat-lon mesh that covers 1/4 of the North Hemisphere
 lon, lat = np.meshgrid(np.linspace(0, 90, 5), np.linspace(0, 90, 5))
 
