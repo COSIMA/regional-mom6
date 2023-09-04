@@ -2,6 +2,8 @@ import numpy as np
 import pytest
 from regional_mom6 import angle_between
 from regional_mom6 import quad_area
+from regional_mom6 import rectangular_hgrid
+import xarray as xr
 
 
 @pytest.mark.parametrize(
@@ -29,4 +31,12 @@ def test_quad_area(lat, lon, true_area):
     assert np.isclose(np.sum(quad_area(lat, lon)), true_area)
 
 
-# what to return when pytest passes
+# a simple test that rectangular_hgrid runs without erroring
+@pytest.mark.parametrize(
+    ("lat", "lon"),
+    [
+        (np.linspace(0, 10, 7), np.linspace(0, 10, 13)),
+    ],
+)
+def test_rectangular_hgrid(lat, lon):
+    assert isinstance(rectangular_hgrid(lat, lon), xr.Dataset)
