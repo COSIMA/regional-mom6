@@ -4,7 +4,6 @@ from regional_mom6 import angle_between
 from regional_mom6 import quad_area
 
 
-# placeholder trivial test test
 @pytest.mark.parametrize(
     ("v1", "v2", "v3", "true_angle"),
     [
