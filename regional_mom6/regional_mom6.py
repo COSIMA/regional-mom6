@@ -341,9 +341,9 @@ def rectangular_hgrid(λ, φ):
         xarray.Dataset: A FMS-compatible *hgrid*, including the required attributes.
     """
 
-    R = 6371e3 # mean radius of the Earth
+    R = 6371e3  # mean radius of the Earth
 
-    dλ = λ[1] - λ[0] # assuming that longitude is uniformly spaced
+    dλ = λ[1] - λ[0]  # assuming that longitude is uniformly spaced
 
     # dx = R * cos(φ) * np.deg2rad(dλ) / 2. Note, we divide dy by 2 because we're on the supergrid
     dx = np.broadcast_to(
