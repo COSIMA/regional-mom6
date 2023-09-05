@@ -304,6 +304,7 @@ def quadilateral_area(v1, v2, v3, v4):
 
     return a1 + a2 + a3 + a4 - 2.0 * np.pi
 
+
 # Borrowed from grid tools (GFDL)
 def quadilateral_areas(lat, lon):
     """Returns area of spherical quadrilaterals on the unit sphere that are formed
@@ -321,14 +322,14 @@ def quadilateral_areas(lat, lon):
 
     nx, ny = np.shape(lat)
 
-    areas = np.zeros((nx-1, ny-1))
+    areas = np.zeros((nx - 1, ny - 1))
 
-    for j in range(ny-1):
-        for i in range(nx-1):
-            v1 = [x[ i,   j ], y[ i,   j ], z[ i,   j ]]
-            v2 = [x[ i,  j+1], y[ i,  j+1], z[ i,  j+1]]
-            v3 = [x[i+1, j+1], y[i+1, j+1], z[i+1, j+1]]
-            v4 = [x[i+1,  j ], y[i+1,  j ], z[i+1,  j ]]
+    for j in range(ny - 1):
+        for i in range(nx - 1):
+            v1 = [x[i, j], y[i, j], z[i, j]]
+            v2 = [x[i, j + 1], y[i, j + 1], z[i, j + 1]]
+            v3 = [x[i + 1, j + 1], y[i + 1, j + 1], z[i + 1, j + 1]]
+            v4 = [x[i + 1, j], y[i + 1, j], z[i + 1, j]]
 
             areas[i, j] = quadilateral_area(v1, v2, v3, v4)
 
