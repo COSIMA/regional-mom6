@@ -1,10 +1,24 @@
 import numpy as np
 import pytest
 from regional_mom6 import angle_between
+from regional_mom6 import latlon_to_cartesian
 from regional_mom6 import quadilateral_area
 from regional_mom6 import quadilateral_areas
 from regional_mom6 import rectangular_hgrid
 import xarray as xr
+
+
+@pytest.mark.parametrize(
+    ("lat", "lon", "true_xyz"),
+    [
+        (0, 0, (1, 0, 0)),
+        (90, 0, (0, 0, 1)),
+        (0, 90, (0, 1, 0)),
+        (-90, 0, (0, 0, -1)),
+    ],
+)
+def test_latlon_to_cartesian(lat, lon, true_xyz):
+    assert np.isclose(latlon_to_cartesian(lat, lon), true_xyz).all()
 
 
 @pytest.mark.parametrize(
@@ -18,14 +32,6 @@ import xarray as xr
 )
 def test_angle_between(v1, v2, v3, true_angle):
     assert np.isclose(angle_between(v1, v2, v3), true_angle)
-
-
-def latlon_to_cartesian(lat, lon):
-    """Convert latitude-longitude to Cartesian coordinates on a unit sphere."""
-    x = np.cos(np.deg2rad(lat)) * np.cos(np.deg2rad(lon))
-    y = np.cos(np.deg2rad(lat)) * np.sin(np.deg2rad(lon))
-    z = np.sin(np.deg2rad(lat))
-    return np.array([x, y, z])
 
 
 @pytest.mark.parametrize(

@@ -21,6 +21,7 @@ __all__ = [
     "motu_requests",
     "dz",
     "angle_between",
+    "latlon_to_cartesian",
     "quadilateral_area",
     "quadilateral_areas",
     "rectangular_hgrid",
@@ -305,6 +306,14 @@ def quadilateral_area(v1, v2, v3, v4):
     return a1 + a2 + a3 + a4 - 2.0 * np.pi
 
 
+def latlon_to_cartesian(lat, lon):
+    """Convert latitude-longitude to Cartesian coordinates on a unit sphere."""
+    x = np.cos(np.deg2rad(lat)) * np.cos(np.deg2rad(lon))
+    y = np.cos(np.deg2rad(lat)) * np.sin(np.deg2rad(lon))
+    z = np.sin(np.deg2rad(lat))
+    return x, y, z
+
+
 def quadilateral_areas(lat, lon):
     """Returns area of spherical quadrilaterals on the unit sphere that are formed
     by constant latitude and longitude lines on the `lat`-`lon` grid provided.
@@ -319,10 +328,7 @@ def quadilateral_areas(lat, lon):
                        then `areas` is `(m-1) x (n-1)`.
     """
 
-    # x, y, z are 3D coordinates on the unit sphere
-    x = np.cos(np.deg2rad(lat)) * np.cos(np.deg2rad(lon))
-    y = np.cos(np.deg2rad(lat)) * np.sin(np.deg2rad(lon))
-    z = np.sin(np.deg2rad(lat))
+    x, y, z = latlon_to_cartesian(lat, lon)
 
     nx, ny = np.shape(lat)
 
