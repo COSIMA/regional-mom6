@@ -6,19 +6,13 @@ from regional_mom6 import rectangular_hgrid
 import xarray as xr
 
 
-def random_unit_vector():
-    """Return a random unit vector on the unit sphere."""
-    z = 2 * np.random.rand(1)[0] - 1
-    z
-    θ = 2 * np.pi * np.random.rand(1)[0]
-    return [np.sqrt(1 - z**2) * np.cos(θ), np.sqrt(1 - z**2) * np.sin(θ), z]
-
-
 @pytest.mark.parametrize(
     ("v1", "v2", "v3", "true_angle"),
     [
         ([1, 0, 0], [0, 1, 0], [0, 0, 1], np.pi / 2),
         ([1, 0, 0], [1, 1, 0], [0, 1, 1], np.pi / 4),
+        ([1, 0, 0], [1, 1, 1], [0, 0, 1], np.pi / 4),
+        ([1, 1, 1], [1, 1, 0], [0, 1, 1], 2 * np.pi / 3)
     ],
 )
 def test_angle_between(v1, v2, v3, true_angle):
