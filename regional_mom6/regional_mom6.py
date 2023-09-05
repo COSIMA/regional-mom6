@@ -292,24 +292,25 @@ def angle_between(v1, v2, v3):
 
 # Borrowed from grid tools (GFDL)
 def quadilateral_area(lat, lon):
-    """Returns area of spherical quadrilaterals (bounded by great arcs)."""
+    """Returns area of spherical quadrilaterals on the unit sphere that are formed
+    by constant latitude and longitude lines on the `lat`-`lon` grid provided."""
 
     # x, y, z are 3D coordinates on the unit sphere
     x = np.cos(np.deg2rad(lat)) * np.cos(np.deg2rad(lon))
     y = np.cos(np.deg2rad(lat)) * np.sin(np.deg2rad(lon))
     z = np.sin(np.deg2rad(lat))
 
-    c0 = (x[:-1, :-1], y[:-1, :-1], z[:-1, :-1])
-    c1 = (x[:-1, 1:], y[:-1, 1:], z[:-1, 1:])
-    c2 = (x[1:, 1:], y[1:, 1:], z[1:, 1:])
-    c3 = (x[1:, :-1], y[1:, :-1], z[1:, :-1])
+    c1 = (x[:-1, :-1], y[:-1, :-1], z[:-1, :-1])
+    c2 = (x[:-1, 1:], y[:-1, 1:], z[:-1, 1:])
+    c3 = (x[1:, 1:], y[1:, 1:], z[1:, 1:])
+    c4 = (x[1:, :-1], y[1:, :-1], z[1:, :-1])
 
-    a0 = angle_between(c1, c0, c2)
     a1 = angle_between(c2, c1, c3)
-    a2 = angle_between(c3, c2, c0)
-    a3 = angle_between(c0, c3, c1)
+    a2 = angle_between(c3, c2, c4)
+    a3 = angle_between(c4, c3, c1)
+    a4 = angle_between(c1, c4, c2)
 
-    return a0 + a1 + a2 + a3 - 2.0 * np.pi
+    return a1 + a2 + a3 + a4 - 2.0 * np.pi
 
 
 def rectangular_hgrid(λ, φ):
