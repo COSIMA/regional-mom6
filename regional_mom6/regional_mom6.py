@@ -305,10 +305,19 @@ def quadilateral_area(v1, v2, v3, v4):
     return a1 + a2 + a3 + a4 - 2.0 * np.pi
 
 
-# Borrowed from grid tools (GFDL)
 def quadilateral_areas(lat, lon):
     """Returns area of spherical quadrilaterals on the unit sphere that are formed
-    by constant latitude and longitude lines on the `lat`-`lon` grid provided."""
+    by constant latitude and longitude lines on the `lat`-`lon` grid provided.
+
+    Args:
+        lat (array): Array of latitude points
+        lon (array): Array of longitude points
+
+    Returns:
+        areas (array): Array with the areas of the quadrilaterals defined by the
+                       `lat`-`lon` grid provided. If the `lat`-`lon` are `m x n`
+                       then `areas` is `(m-1) x (n-1)`.
+    """
 
     # x, y, z are 3D coordinates on the unit sphere
     x = np.cos(np.deg2rad(lat)) * np.cos(np.deg2rad(lon))
