@@ -20,6 +20,32 @@ def test_angle_between(v1, v2, v3, true_angle):
     assert np.isclose(angle_between(v1, v2, v3), true_angle)
 
 
+def latlon_to_cartesian(lat, lon):
+    """Convert latitude-longitude to Cartesian coordinates on a unit sphere."""
+    x = np.cos(np.deg2rad(lat)) * np.cos(np.deg2rad(lon))
+    y = np.cos(np.deg2rad(lat)) * np.sin(np.deg2rad(lon))
+    z = np.sin(np.deg2rad(lat))
+    return np.array([x, y, z])
+
+
+@pytest.mark.parametrize(
+    ("v1", "v2", "v3", "v4", "true_area"),
+    [
+        (
+            latlon_to_cartesian(0, 0),
+            latlon_to_cartesian(0, 90),
+            latlon_to_cartesian(90, 0),
+            latlon_to_cartesian(0, -90),
+            np.pi,
+        ),
+    ],
+)
+def test_quadilateral_area(v1, v2, v3, v4, true_area):
+    print(quadilateral_area(v1, v2, v3, v4))
+    print(true_area)
+    assert np.isclose(quadilateral_area(v1, v2, v3, v4), true_area)
+
+
 # create a lat-lon mesh that covers 1/4 of the North Hemisphere
 lon1, lat1 = np.meshgrid(np.linspace(0, 90, 5), np.linspace(0, 90, 5))
 
