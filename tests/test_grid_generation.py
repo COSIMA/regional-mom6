@@ -59,16 +59,18 @@ def test_quadilateral_area(v1, v2, v3, v4, true_area):
 
 # create a lat-lon mesh that covers 1/4 of the North Hemisphere
 lon1, lat1 = np.meshgrid(np.linspace(0, 90, 5), np.linspace(0, 90, 5))
+area1 = 1 / 8 * (4 * np.pi)
 
 # create a lat-lon mesh that covers 1/4 of the whole globe
 lon2, lat2 = np.meshgrid(np.linspace(-45, 45, 5), np.linspace(-90, 90, 5))
+area2 = 1 / 4 * (4 * np.pi)
 
 
 @pytest.mark.parametrize(
     ("lat", "lon", "true_area"),
     [
-        (lat1, lon1, 0.5 * np.pi),
-        (lat2, lon2, np.pi),
+        (lat1, lon1, area1),
+        (lat2, lon2, area2),
     ],
 )
 def test_quadilateral_areas(lat, lon, true_area):
