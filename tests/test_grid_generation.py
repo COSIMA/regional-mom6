@@ -5,12 +5,13 @@ from regional_mom6 import quadilateral_area
 from regional_mom6 import rectangular_hgrid
 import xarray as xr
 
+
 def random_unit_vector():
     """Return a random unit vector on the unit sphere."""
-    z = 2 * np.random.rand(1)[0] - 1; z
+    z = 2 * np.random.rand(1)[0] - 1
+    z
     θ = 2 * np.pi * np.random.rand(1)[0]
     return [np.sqrt(1 - z**2) * np.cos(θ), np.sqrt(1 - z**2) * np.sin(θ), z]
-
 
 
 @pytest.mark.parametrize(

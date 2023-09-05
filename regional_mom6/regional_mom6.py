@@ -283,7 +283,9 @@ def angle_between(v1, v2, v3):
 
     v1xv2 = np.cross(v1, v2)
     v1xv3 = np.cross(v1, v3)
-    cosangle = np.dot(v1xv2, v1xv3) / np.sqrt(np.dot(v1xv2, v1xv2) * np.dot(v1xv3, v1xv3))
+    cosangle = np.dot(v1xv2, v1xv3) / np.sqrt(
+        np.dot(v1xv2, v1xv2) * np.dot(v1xv3, v1xv3)
+    )
 
     return np.arccos(cosangle)
 
