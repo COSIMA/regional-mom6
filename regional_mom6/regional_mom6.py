@@ -315,11 +315,6 @@ def quadilateral_areas(lat, lon):
     y = np.cos(np.deg2rad(lat)) * np.sin(np.deg2rad(lon))
     z = np.sin(np.deg2rad(lat))
 
-    c0 = (x[:-1, :-1], y[:-1, :-1], z[:-1, :-1])
-    c1 = (x[:-1, 1:], y[:-1, 1:], z[:-1, 1:])
-    c2 = (x[1:, 1:], y[1:, 1:], z[1:, 1:])
-    c3 = (x[1:, :-1], y[1:, :-1], z[1:, :-1])
-
     nx, ny = np.shape(lat)
 
     areas = np.zeros((nx - 1, ny - 1))
