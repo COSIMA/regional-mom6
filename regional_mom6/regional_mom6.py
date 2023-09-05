@@ -319,8 +319,8 @@ def quadilateral_areas(lat, lon):
     by constant latitude and longitude lines on the `lat`-`lon` grid provided.
 
     Args:
-        lat (array): Array of latitude points
-        lon (array): Array of longitude points
+        lat (array): Array of latitude points (in degrees)
+        lon (array): Array of longitude points (in degrees)
 
     Returns:
         areas (array): Array with the areas of the quadrilaterals defined by the
