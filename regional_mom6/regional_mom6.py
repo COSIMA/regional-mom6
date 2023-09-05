@@ -261,7 +261,6 @@ def dz(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
 
     Returns:
         numpy.array: An array containing the thickness profile.
-
     """
 
     profile = min_dz + 0.5 * (np.abs(ratio) * min_dz - min_dz) * (
@@ -279,24 +278,14 @@ def dz(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
     return dz(npoints, ratio, target_depth, min_dz * err_ratio)
 
 
-# Borrowed from grid tools (GFDL)
 def angle_between(v1, v2, v3):
-    """Returns angle v2-v1-v3 i.e betweeen v1-v2 and v1-v3."""
+    """Returns angle v2-v1-v3 that is between the vectors v1-v2 and v1-v3."""
 
-    # vector product between v1 and v2
-    px = v1[1] * v2[2] - v1[2] * v2[1]
-    py = v1[2] * v2[0] - v1[0] * v2[2]
-    pz = v1[0] * v2[1] - v1[1] * v2[0]
-    # vector product between v1 and v3
-    qx = v1[1] * v3[2] - v1[2] * v3[1]
-    qy = v1[2] * v3[0] - v1[0] * v3[2]
-    qz = v1[0] * v3[1] - v1[1] * v3[0]
+    v1xv2 = np.cross(v1, v2)
+    v1xv3 = np.cross(v1, v3)
+    cosangle = np.dot(v1xv2, v1xv3) / np.sqrt(np.dot(v1xv2, v1xv2) * np.dot(v1xv3, v1xv3))
 
-    ddd = (px * px + py * py + pz * pz) * (qx * qx + qy * qy + qz * qz)
-    ddd = (px * qx + py * qy + pz * qz) / np.sqrt(ddd)
-    angle = np.arccos(ddd)
-
-    return angle
+    return np.arccos(cosangle)
 
 
 # Borrowed from grid tools (GFDL)
