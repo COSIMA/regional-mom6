@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 from regional_mom6 import angle_between
 from regional_mom6 import quadilateral_area
+from regional_mom6 import quadilateral_areas
 from regional_mom6 import rectangular_hgrid
 import xarray as xr
 
@@ -33,8 +34,8 @@ lon2, lat2 = np.meshgrid(np.linspace(-45, 45, 5), np.linspace(-90, 90, 5))
         (lat2, lon2, np.pi),
     ],
 )
-def test_quadilateral_area(lat, lon, true_area):
-    assert np.isclose(np.sum(quadilateral_area(lat, lon)), true_area)
+def test_quadilateral_areas(lat, lon, true_area):
+    assert np.isclose(np.sum(quadilateral_areas(lat, lon)), true_area)
 
 
 # a simple test that rectangular_hgrid runs without erroring

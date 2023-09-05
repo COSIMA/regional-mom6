@@ -22,6 +22,7 @@ __all__ = [
     "dz",
     "angle_between",
     "quadilateral_area",
+    "quadilateral_areas",
     "rectangular_hgrid",
     "experiment",
     "segment",
@@ -290,9 +291,23 @@ def angle_between(v1, v2, v3):
     return np.arccos(cosangle)
 
 
+def quadilateral_area(v1, v2, v3, v4):
+    """Returns area of a spherical quadrilateral on the unit sphere that
+    has vertices on 3-vectors `v1`, `v2`, `v3`, `v4` (counter-clockwise
+    orientation is implied). The area is computed as the excess of the
+    sum of the spherical angles of the quadrilateral from 2π."""
+
+    a1 = angle_between(v1, v2, v4)
+    a2 = angle_between(v2, v3, v1)
+    a3 = angle_between(v3, v4, v2)
+    a4 = angle_between(v4, v1, v3)
+
+    return a1 + a2 + a3 + a4 - 2.0 * np.pi
+
 # Borrowed from grid tools (GFDL)
-def quadilateral_area(lat, lon):
-    """Returns area of spherical quadrilaterals (bounded by great arcs)."""
+def quadilateral_areas(lat, lon):
+    """Returns area of spherical quadrilaterals on the unit sphere that are formed
+    by constant latitude and longitude lines on the `lat`-`lon` grid provided."""
 
     # x, y, z are 3D coordinates on the unit sphere
     x = np.cos(np.deg2rad(lat)) * np.cos(np.deg2rad(lon))
@@ -304,12 +319,20 @@ def quadilateral_area(lat, lon):
     c2 = (x[1:, 1:], y[1:, 1:], z[1:, 1:])
     c3 = (x[1:, :-1], y[1:, :-1], z[1:, :-1])
 
-    a0 = angle_between(c1, c0, c2)
-    a1 = angle_between(c2, c1, c3)
-    a2 = angle_between(c3, c2, c0)
-    a3 = angle_between(c0, c3, c1)
+    nx, ny = np.shape(lat)
 
-    return a0 + a1 + a2 + a3 - 2.0 * np.pi
+    areas = np.zeros((nx-1, ny-1))
+
+    for j in range(ny-1):
+        for i in range(nx-1):
+            v1 = [x[ i,   j ], y[ i,   j ], z[ i,   j ]]
+            v2 = [x[ i,  j+1], y[ i,  j+1], z[ i,  j+1]]
+            v3 = [x[i+1, j+1], y[i+1, j+1], z[i+1, j+1]]
+            v4 = [x[i+1,  j ], y[i+1,  j ], z[i+1,  j ]]
+
+            areas[i, j] = quadilateral_area(v1, v2, v3, v4)
+
+    return areas
 
 
 def rectangular_hgrid(λ, φ):
@@ -347,7 +370,7 @@ def rectangular_hgrid(λ, φ):
 
     lon, lat = np.meshgrid(λ, φ)
 
-    area = quadilateral_area(lat, lon) * R**2
+    area = quadilateral_areas(lat, lon) * R**2
 
     attrs = {
         "tile": {
