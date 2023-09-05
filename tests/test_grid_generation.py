@@ -54,8 +54,6 @@ def test_angle_between(v1, v2, v3, true_angle):
     ],
 )
 def test_quadilateral_area(v1, v2, v3, v4, true_area):
-    print(quadilateral_area(v1, v2, v3, v4))
-    print(true_area)
     assert np.isclose(quadilateral_area(v1, v2, v3, v4), true_area)
 
 
