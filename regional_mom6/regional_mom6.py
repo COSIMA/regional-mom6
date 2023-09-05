@@ -281,10 +281,11 @@ def dz(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
 
 
 def angle_between(v1, v2, v3):
-    """Returns angle v2-v1-v3 that is between the vectors v1-v2 and v1-v3."""
+    """Returns the angle v2-v1-v3 (in radians). That is the angle between vectors v1-v2 and v1-v3."""
 
     v1xv2 = np.cross(v1, v2)
     v1xv3 = np.cross(v1, v3)
+
     cosangle = np.dot(v1xv2, v1xv3) / np.sqrt(
         np.dot(v1xv2, v1xv2) * np.dot(v1xv3, v1xv3)
     )
