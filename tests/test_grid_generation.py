@@ -44,6 +44,13 @@ def test_angle_between(v1, v2, v3, true_angle):
             latlon_to_cartesian(0, -90),
             np.pi,
         ),
+        (
+            latlon_to_cartesian(0, 0),
+            latlon_to_cartesian(90, 0),
+            latlon_to_cartesian(0, 90),
+            latlon_to_cartesian(-90, 0),
+            np.pi,
+        ),
     ],
 )
 def test_quadilateral_area(v1, v2, v3, v4, true_area):
