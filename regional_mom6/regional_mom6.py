@@ -321,6 +321,7 @@ def quadilateral_areas(lat, lon):
 
     for j in range(ny - 1):
         for i in range(nx - 1):
+            # construct the 4 3-vectors v1, v2, v3, v4 that point to the vertices of the quadrilaterals
             v1 = [x[i, j], y[i, j], z[i, j]]
             v2 = [x[i, j + 1], y[i, j + 1], z[i, j + 1]]
             v3 = [x[i + 1, j + 1], y[i + 1, j + 1], z[i + 1, j + 1]]
