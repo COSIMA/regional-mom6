@@ -307,7 +307,7 @@ def quadilateral_area(v1, v2, v3, v4):
 
 
 def latlon_to_cartesian(lat, lon):
-    """Convert latitude-longitude to Cartesian coordinates on a unit sphere."""
+    """Convert latitude-longitude (in degrees) to Cartesian coordinates on a unit sphere."""
     x = np.cos(np.deg2rad(lat)) * np.cos(np.deg2rad(lon))
     y = np.cos(np.deg2rad(lat)) * np.sin(np.deg2rad(lon))
     z = np.sin(np.deg2rad(lat))
