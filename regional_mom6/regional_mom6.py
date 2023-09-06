@@ -299,10 +299,12 @@ def quadilateral_area(v1, v2, v3, v4):
     orientation is implied). The area is computed as the excess of the
     sum of the spherical angles of the quadrilateral from 2π."""
 
-    if not (np.isclose(np.dot(v1, v1), np.dot(v2, v2)) &
-            np.isclose(np.dot(v1, v1), np.dot(v2, v2)) &
-            np.isclose(np.dot(v1, v1), np.dot(v3, v3)) &
-            np.isclose(np.dot(v1, v1), np.dot(v4, v4))):
+    if not (
+        np.isclose(np.dot(v1, v1), np.dot(v2, v2))
+        & np.isclose(np.dot(v1, v1), np.dot(v2, v2))
+        & np.isclose(np.dot(v1, v1), np.dot(v3, v3))
+        & np.isclose(np.dot(v1, v1), np.dot(v4, v4))
+    ):
         raise Exception("vectors provided don't have same length")
 
     R = np.sqrt(np.dot(v1, v1))
