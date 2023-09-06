@@ -57,10 +57,10 @@ def test_quadrilateral_area(v1, v2, v3, v4, true_area):
     assert np.isclose(quadrilateral_area(v1, v2, v3, v4), true_area)
 
 
-v1 = latlon_to_cartesian(0, 0, R=2)
-v2 = latlon_to_cartesian(90, 0, R=2)
-v3 = latlon_to_cartesian(0, 90, R=2)
-v4 = latlon_to_cartesian(-90, 0, R=2.1)
+v1 = np.dstack(latlon_to_cartesian(0, 0, R=2))
+v2 = np.dstack(latlon_to_cartesian(90, 0, R=2))
+v3 = np.dstack(latlon_to_cartesian(0, 90, R=2))
+v4 = np.dstack(latlon_to_cartesian(-90, 0, R=2.1))
 
 
 def test_quadrilateral_area_exception():
