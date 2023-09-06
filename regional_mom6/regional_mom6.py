@@ -299,25 +299,36 @@ def quadilateral_area(v1, v2, v3, v4):
     orientation is implied). The area is computed as the excess of the
     sum of the spherical angles of the quadrilateral from 2π."""
 
+    if not (np.isclose(np.dot(v1, v1), np.dot(v2, v2)) &
+            np.isclose(np.dot(v1, v1), np.dot(v2, v2)) &
+            np.isclose(np.dot(v1, v1), np.dot(v3, v3)) &
+            np.isclose(np.dot(v1, v1), np.dot(v4, v4))):
+        raise Exception("vectors provided don't have same length")
+
+    R = np.sqrt(np.dot(v1, v1))
+
     a1 = angle_between(v1, v2, v4)
     a2 = angle_between(v2, v3, v1)
     a3 = angle_between(v3, v4, v2)
     a4 = angle_between(v4, v1, v3)
 
-    return a1 + a2 + a3 + a4 - 2.0 * np.pi
+    return (a1 + a2 + a3 + a4 - 2 * np.pi) * R**2
 
 
-def latlon_to_cartesian(lat, lon):
-    """Convert latitude-longitude (in degrees) to Cartesian coordinates on a unit sphere."""
-    x = np.cos(np.deg2rad(lat)) * np.cos(np.deg2rad(lon))
-    y = np.cos(np.deg2rad(lat)) * np.sin(np.deg2rad(lon))
-    z = np.sin(np.deg2rad(lat))
+def latlon_to_cartesian(lat, lon, R=1):
+    """Convert latitude-longitude (in degrees) to Cartesian coordinates on a sphere of radius `R`.
+    By default `R = 1`."""
+
+    x = R * np.cos(np.deg2rad(lat)) * np.cos(np.deg2rad(lon))
+    y = R * np.cos(np.deg2rad(lat)) * np.sin(np.deg2rad(lon))
+    z = R * np.sin(np.deg2rad(lat))
+
     return x, y, z
 
 
-def quadilateral_areas(lat, lon):
-    """Returns area of spherical quadrilaterals on the unit sphere that are formed
-    by constant latitude and longitude lines on the `lat`-`lon` grid provided.
+def quadilateral_areas(lat, lon, R=1):
+    """Returns area of spherical quadrilaterals on a sphere of radius `R`. By default, `R = 1`.
+    The quadrilaterals are formed by constant latitude and longitude lines on the `lat`-`lon` grid provided.
 
     Args:
         lat (array): Array of latitude points (in degrees)
@@ -329,7 +340,7 @@ def quadilateral_areas(lat, lon):
                        then `areas` is `(m-1) x (n-1)`.
     """
 
-    x, y, z = latlon_to_cartesian(lat, lon)
+    x, y, z = latlon_to_cartesian(lat, lon, R)
 
     nx, ny = np.shape(lat)
 
@@ -372,18 +383,20 @@ def rectangular_hgrid(λ, φ):
 
     dλ = λ[1] - λ[0]  # assuming that longitude is uniformly spaced
 
-    # dx = R * cos(φ) * np.deg2rad(dλ) / 2. Note, we divide dy by 2 because we're on the supergrid
+    # dx = R * cos(φ) * np.deg2rad(dλ) / 2
+    # Note: division by 2 because we're on the supergrid
     dx = np.broadcast_to(
         R * np.cos(np.deg2rad(φ)) * np.deg2rad(dλ) / 2,
         (λ.shape[0] - 1, φ.shape[0]),
     ).T
 
-    # dy = R * np.deg2rad(dφ) / 2. Note, we divide dy by 2 because we're on the supergrid
+    # dy = R * np.deg2rad(dφ) / 2
+    # Note: division by 2 because we're on the supergrid
     dy = np.broadcast_to(R * np.deg2rad(np.diff(φ)) / 2, (λ.shape[0], φ.shape[0] - 1)).T
 
     lon, lat = np.meshgrid(λ, φ)
 
-    area = quadilateral_areas(lat, lon) * R**2
+    area = quadilateral_areas(lat, lon, R)
 
     attrs = {
         "tile": {
