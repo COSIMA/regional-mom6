@@ -13,6 +13,7 @@ from dask.distributed import Client, worker_client
 from dask.diagnostics import ProgressBar
 import datetime as dt
 import warnings
+from .utils import vecdot
 
 warnings.filterwarnings("ignore")
 
@@ -21,7 +22,9 @@ __all__ = [
     "motu_requests",
     "dz",
     "angle_between",
-    "quadilateral_area",
+    "latlon_to_cartesian",
+    "quadrilateral_area",
+    "quadrilateral_areas",
     "rectangular_hgrid",
     "experiment",
     "segment",
@@ -261,7 +264,6 @@ def dz(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
 
     Returns:
         numpy.array: An array containing the thickness profile.
-
     """
 
     profile = min_dz + 0.5 * (np.abs(ratio) * min_dz - min_dz) * (
@@ -279,47 +281,73 @@ def dz(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
     return dz(npoints, ratio, target_depth, min_dz * err_ratio)
 
 
-# Borrowed from grid tools (GFDL)
 def angle_between(v1, v2, v3):
-    """Returns angle v2-v1-v3 i.e betweeen v1-v2 and v1-v3."""
+    """Returns the angle v2-v1-v3 (in radians). That is the angle between vectors v1-v2 and v1-v3."""
 
-    # vector product between v1 and v2
-    px = v1[1] * v2[2] - v1[2] * v2[1]
-    py = v1[2] * v2[0] - v1[0] * v2[2]
-    pz = v1[0] * v2[1] - v1[1] * v2[0]
-    # vector product between v1 and v3
-    qx = v1[1] * v3[2] - v1[2] * v3[1]
-    qy = v1[2] * v3[0] - v1[0] * v3[2]
-    qz = v1[0] * v3[1] - v1[1] * v3[0]
+    v1xv2 = np.cross(v1, v2)
+    v1xv3 = np.cross(v1, v3)
 
-    ddd = (px * px + py * py + pz * pz) * (qx * qx + qy * qy + qz * qz)
-    ddd = (px * qx + py * qy + pz * qz) / np.sqrt(ddd)
-    angle = np.arccos(ddd)
+    cosangle = vecdot(v1xv2, v1xv3) / np.sqrt(
+        vecdot(v1xv2, v1xv2) * vecdot(v1xv3, v1xv3)
+    )
 
-    return angle
+    return np.arccos(cosangle)
 
 
-# Borrowed from grid tools (GFDL)
-def quadilateral_area(lat, lon):
-    """Returns area of spherical quadrilaterals on the unit sphere that are formed
-    by constant latitude and longitude lines on the `lat`-`lon` grid provided."""
+def quadrilateral_area(v1, v2, v3, v4):
+    """Returns area of a spherical quadrilateral on the unit sphere that
+    has vertices on 3-vectors `v1`, `v2`, `v3`, `v4` (counter-clockwise
+    orientation is implied). The area is computed via the excess of the
+    sum of the spherical angles of the quadrilateral from 2π."""
 
-    # x, y, z are 3D coordinates on the unit sphere
-    x = np.cos(np.deg2rad(lat)) * np.cos(np.deg2rad(lon))
-    y = np.cos(np.deg2rad(lat)) * np.sin(np.deg2rad(lon))
-    z = np.sin(np.deg2rad(lat))
+    if not (
+        np.all(np.isclose(vecdot(v1, v1), vecdot(v2, v2)))
+        & np.all(np.isclose(vecdot(v1, v1), vecdot(v2, v2)))
+        & np.all(np.isclose(vecdot(v1, v1), vecdot(v3, v3)))
+        & np.all(np.isclose(vecdot(v1, v1), vecdot(v4, v4)))
+    ):
+        raise ValueError("vectors provided must have the same length")
 
-    c1 = (x[:-1, :-1], y[:-1, :-1], z[:-1, :-1])
-    c2 = (x[:-1, 1:], y[:-1, 1:], z[:-1, 1:])
-    c3 = (x[1:, 1:], y[1:, 1:], z[1:, 1:])
-    c4 = (x[1:, :-1], y[1:, :-1], z[1:, :-1])
+    R = np.sqrt(vecdot(v1, v1))
 
-    a1 = angle_between(c2, c1, c3)
-    a2 = angle_between(c3, c2, c4)
-    a3 = angle_between(c4, c3, c1)
-    a4 = angle_between(c1, c4, c2)
+    a1 = angle_between(v1, v2, v4)
+    a2 = angle_between(v2, v3, v1)
+    a3 = angle_between(v3, v4, v2)
+    a4 = angle_between(v4, v1, v3)
 
-    return a1 + a2 + a3 + a4 - 2.0 * np.pi
+    return (a1 + a2 + a3 + a4 - 2 * np.pi) * R**2
+
+
+def latlon_to_cartesian(lat, lon, R=1):
+    """Convert latitude-longitude (in degrees) to Cartesian coordinates on a sphere of radius `R`.
+    By default `R = 1`."""
+
+    x = R * np.cos(np.deg2rad(lat)) * np.cos(np.deg2rad(lon))
+    y = R * np.cos(np.deg2rad(lat)) * np.sin(np.deg2rad(lon))
+    z = R * np.sin(np.deg2rad(lat))
+
+    return x, y, z
+
+
+def quadrilateral_areas(lat, lon, R=1):
+    """Returns area of spherical quadrilaterals on a sphere of radius `R`. By default, `R = 1`.
+    The quadrilaterals are formed by constant latitude and longitude lines on the `lat`-`lon` grid provided.
+
+    Args:
+        lat (array): Array of latitude points (in degrees)
+        lon (array): Array of longitude points (in degrees)
+
+    Returns:
+        areas (array): Array with the areas of the quadrilaterals defined by the
+                       `lat`-`lon` grid provided. If the `lat`-`lon` are `m x n`
+                       then `areas` is `(m-1) x (n-1)`.
+    """
+
+    coords = np.dstack(latlon_to_cartesian(lat, lon, R))
+
+    return quadrilateral_area(
+        coords[:-1, :-1, :], coords[:-1, 1:, :], coords[1:, 1:, :], coords[1:, :-1, :]
+    )
 
 
 def rectangular_hgrid(λ, φ):
@@ -346,18 +374,20 @@ def rectangular_hgrid(λ, φ):
 
     dλ = λ[1] - λ[0]  # assuming that longitude is uniformly spaced
 
-    # dx = R * cos(φ) * np.deg2rad(dλ) / 2. Note, we divide dy by 2 because we're on the supergrid
+    # dx = R * cos(φ) * np.deg2rad(dλ) / 2
+    # Note: division by 2 because we're on the supergrid
     dx = np.broadcast_to(
         R * np.cos(np.deg2rad(φ)) * np.deg2rad(dλ) / 2,
         (λ.shape[0] - 1, φ.shape[0]),
     ).T
 
-    # dy = R * np.deg2rad(dφ) / 2. Note, we divide dy by 2 because we're on the supergrid
+    # dy = R * np.deg2rad(dφ) / 2
+    # Note: division by 2 because we're on the supergrid
     dy = np.broadcast_to(R * np.deg2rad(np.diff(φ)) / 2, (λ.shape[0], φ.shape[0] - 1)).T
 
     lon, lat = np.meshgrid(λ, φ)
 
-    area = quadilateral_area(lat, lon) * R**2
+    area = quadrilateral_areas(lat, lon, R)
 
     attrs = {
         "tile": {
