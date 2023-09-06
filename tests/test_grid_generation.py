@@ -64,7 +64,7 @@ v4 = latlon_to_cartesian(-90, 0, R=2.1)
 
 
 def test_quadilateral_area_exception():
-    with pytest.raises(Exception) as excinfo:
+    with pytest.raises(ValueError) as excinfo:
         quadilateral_area(v1, v2, v3, v4)
 
     assert str(excinfo.value) == "vectors provided must have the same length"
