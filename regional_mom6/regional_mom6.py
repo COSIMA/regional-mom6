@@ -520,18 +520,6 @@ class experiment:
             hgrid = rectangular_hgrid(x, y)
             hgrid.to_netcdf(self.mom_input_dir + "/hgrid.nc")
 
-            ## Make Solo Mosaic
-            args = "--num_tiles 1 --dir . --mosaic_name ocean_mosaic --tile_file hgrid.nc".split(
-                " "
-            )
-            print(
-                "FRE TOOLS: Make solo mosaic\n\n",
-                subprocess.run(
-                    [self.toolpath + "make_solo_mosaic/make_solo_mosaic"] + args,
-                    cwd=self.mom_input_dir,
-                ),
-                sep="\n",
-            )
             return hgrid
 
     def _make_vgrid(self):
@@ -845,6 +833,7 @@ class experiment:
         minimum_layers=3,
         maketopog=True,
         positivedown=False,
+        run_fretools = True
     ):
         """Cuts out and interpolates chosen bathymetry, then fills
         inland lakes.
@@ -868,6 +857,11 @@ class experiment:
                 make topography (if true), or read an existing file.
             positivedown (Optional[bool]): If true, assumes that
                 bathymetry vertical coordinate is positive down.
+            run_fretools (Optional[bool]): If true, runs FREtools to
+                generate mosaic & masks. Set to false for testing purposes
+                if you don't have FRE tools compiled. Otherwise should be 
+                set to true to ensure that the masks are updated with changes
+                to topography. 
 
         """
 
@@ -1105,34 +1099,35 @@ class experiment:
             "mv topog_deseas.nc topog.nc", shell=True, cwd=self.mom_input_dir
         )
 
-        ## FINAL STEP: run the remaining FRE tools to construct masks based on our topography
+        if run_fretools == True:
 
-        args = "--num_tiles 1 --dir . --mosaic_name ocean_mosaic --tile_file hgrid.nc".split(
-            " "
-        )
-        print(
-            "MAKE SOLO MOSAIC",
-            subprocess.run(
-                self.toolpath
-                + "make_solo_mosaic/make_solo_mosaic --num_tiles 1 --dir . --mosaic_name ocean_mosaic --tile_file hgrid.nc",
-                shell=True,
-                cwd=self.mom_input_dir,
-            ),
-            sep="\n\n",
-        )
+            ## FINAL STEP: run the remaining FRE tools to construct masks based on our topography
 
-        print(
-            "QUICK MOSAIC",
-            subprocess.run(
-                self.toolpath
-                + "make_quick_mosaic/make_quick_mosaic --input_mosaic ocean_mosaic.nc --mosaic_name grid_spec --ocean_topog topog.nc",
-                shell=True,
-                cwd=self.mom_input_dir,
-            ),
-            sep="\n\n",
-        )
+            args = "--num_tiles 1 --dir . --mosaic_name ocean_mosaic --tile_file hgrid.nc".split(
+                " "
+            )
+            print(
+                "MAKE SOLO MOSAIC",
+                subprocess.run(
+                    self.toolpath
+                    + "make_solo_mosaic/make_solo_mosaic --num_tiles 1 --dir . --mosaic_name ocean_mosaic --tile_file hgrid.nc",
+                    shell=True,
+                    cwd=self.mom_input_dir,
+                ),
+                sep="\n\n",
+            )
 
-        self.processor_mask((10, 10))
+            print(
+                "QUICK MOSAIC",
+                subprocess.run(
+                    self.toolpath
+                    + "make_quick_mosaic/make_quick_mosaic --input_mosaic ocean_mosaic.nc --mosaic_name grid_spec --ocean_topog topog.nc",
+                    shell=True,
+                    cwd=self.mom_input_dir,
+                ),
+                sep="\n\n",
+            )
+
         self.topog = topog
         return
 
