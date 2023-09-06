@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 from regional_mom6 import angle_between
 from regional_mom6 import latlon_to_cartesian
-from regional_mom6 import quadilateral_area
-from regional_mom6 import quadilateral_areas
+from regional_mom6 import quadrilateral_area
+from regional_mom6 import quadrilateral_areas
 from regional_mom6 import rectangular_hgrid
 import xarray as xr
 
@@ -38,23 +38,23 @@ def test_angle_between(v1, v2, v3, true_angle):
     ("v1", "v2", "v3", "v4", "true_area"),
     [
         (
-            latlon_to_cartesian(0, 0),
-            latlon_to_cartesian(0, 90),
-            latlon_to_cartesian(90, 0),
-            latlon_to_cartesian(0, -90),
+            np.dstack(latlon_to_cartesian(0, 0)),
+            np.dstack(latlon_to_cartesian(0, 90)),
+            np.dstack(latlon_to_cartesian(90, 0)),
+            np.dstack(latlon_to_cartesian(0, -90)),
             np.pi,
         ),
         (
-            latlon_to_cartesian(0, 0),
-            latlon_to_cartesian(90, 0),
-            latlon_to_cartesian(0, 90),
-            latlon_to_cartesian(-90, 0),
+            np.dstack(latlon_to_cartesian(0, 0)),
+            np.dstack(latlon_to_cartesian(90, 0)),
+            np.dstack(latlon_to_cartesian(0, 90)),
+            np.dstack(latlon_to_cartesian(-90, 0)),
             np.pi,
         ),
     ],
 )
-def test_quadilateral_area(v1, v2, v3, v4, true_area):
-    assert np.isclose(quadilateral_area(v1, v2, v3, v4), true_area)
+def test_quadrilateral_area(v1, v2, v3, v4, true_area):
+    assert np.isclose(quadrilateral_area(v1, v2, v3, v4), true_area)
 
 
 v1 = latlon_to_cartesian(0, 0, R=2)
@@ -63,9 +63,9 @@ v3 = latlon_to_cartesian(0, 90, R=2)
 v4 = latlon_to_cartesian(-90, 0, R=2.1)
 
 
-def test_quadilateral_area_exception():
+def test_quadrilateral_area_exception():
     with pytest.raises(ValueError) as excinfo:
-        quadilateral_area(v1, v2, v3, v4)
+        quadrilateral_area(v1, v2, v3, v4)
 
     assert str(excinfo.value) == "vectors provided must have the same length"
 
@@ -86,8 +86,8 @@ area2 = 1 / 4 * (4 * np.pi)
         (lat2, lon2, area2),
     ],
 )
-def test_quadilateral_areas(lat, lon, true_area):
-    assert np.isclose(np.sum(quadilateral_areas(lat, lon)), true_area)
+def test_quadrilateral_areas(lat, lon, true_area):
+    assert np.isclose(np.sum(quadrilateral_areas(lat, lon)), true_area)
 
 
 # a simple test that rectangular_hgrid runs without erroring

@@ -13,6 +13,7 @@ from dask.distributed import Client, worker_client
 from dask.diagnostics import ProgressBar
 import datetime as dt
 import warnings
+from .utils import vecdot
 
 warnings.filterwarnings("ignore")
 
@@ -22,8 +23,8 @@ __all__ = [
     "dz",
     "angle_between",
     "latlon_to_cartesian",
-    "quadilateral_area",
-    "quadilateral_areas",
+    "quadrilateral_area",
+    "quadrilateral_areas",
     "rectangular_hgrid",
     "experiment",
     "segment",
@@ -286,28 +287,28 @@ def angle_between(v1, v2, v3):
     v1xv2 = np.cross(v1, v2)
     v1xv3 = np.cross(v1, v3)
 
-    cosangle = np.dot(v1xv2, v1xv3) / np.sqrt(
-        np.dot(v1xv2, v1xv2) * np.dot(v1xv3, v1xv3)
+    cosangle = vecdot(v1xv2, v1xv3) / np.sqrt(
+        vecdot(v1xv2, v1xv2) * vecdot(v1xv3, v1xv3)
     )
 
     return np.arccos(cosangle)
 
 
-def quadilateral_area(v1, v2, v3, v4):
+def quadrilateral_area(v1, v2, v3, v4):
     """Returns area of a spherical quadrilateral on the unit sphere that
     has vertices on 3-vectors `v1`, `v2`, `v3`, `v4` (counter-clockwise
     orientation is implied). The area is computed via the excess of the
     sum of the spherical angles of the quadrilateral from 2π."""
 
     if not (
-        np.isclose(np.dot(v1, v1), np.dot(v2, v2))
-        & np.isclose(np.dot(v1, v1), np.dot(v2, v2))
-        & np.isclose(np.dot(v1, v1), np.dot(v3, v3))
-        & np.isclose(np.dot(v1, v1), np.dot(v4, v4))
+        np.all(np.isclose(vecdot(v1, v1), vecdot(v2, v2)))
+        & np.all(np.isclose(vecdot(v1, v1), vecdot(v2, v2)))
+        & np.all(np.isclose(vecdot(v1, v1), vecdot(v3, v3)))
+        & np.all(np.isclose(vecdot(v1, v1), vecdot(v4, v4)))
     ):
         raise ValueError("vectors provided must have the same length")
 
-    R = np.sqrt(np.dot(v1, v1))
+    R = np.sqrt(vecdot(v1, v1))
 
     a1 = angle_between(v1, v2, v4)
     a2 = angle_between(v2, v3, v1)
@@ -328,7 +329,7 @@ def latlon_to_cartesian(lat, lon, R=1):
     return x, y, z
 
 
-def quadilateral_areas(lat, lon, R=1):
+def quadrilateral_areas(lat, lon, R=1):
     """Returns area of spherical quadrilaterals on a sphere of radius `R`. By default, `R = 1`.
     The quadrilaterals are formed by constant latitude and longitude lines on the `lat`-`lon` grid provided.
 
@@ -342,23 +343,11 @@ def quadilateral_areas(lat, lon, R=1):
                        then `areas` is `(m-1) x (n-1)`.
     """
 
-    x, y, z = latlon_to_cartesian(lat, lon, R)
+    coords = np.dstack(latlon_to_cartesian(lat, lon, R))
 
-    nx, ny = np.shape(lat)
-
-    areas = np.zeros((nx - 1, ny - 1))
-
-    for j in range(ny - 1):
-        for i in range(nx - 1):
-            # construct the 4 3-vectors v1, v2, v3, v4 that point to the vertices of the quadrilaterals
-            v1 = [x[i, j], y[i, j], z[i, j]]
-            v2 = [x[i, j + 1], y[i, j + 1], z[i, j + 1]]
-            v3 = [x[i + 1, j + 1], y[i + 1, j + 1], z[i + 1, j + 1]]
-            v4 = [x[i + 1, j], y[i + 1, j], z[i + 1, j]]
-
-            areas[i, j] = quadilateral_area(v1, v2, v3, v4)
-
-    return areas
+    return quadrilateral_area(
+        coords[:-1, :-1, :], coords[:-1, 1:, :], coords[1:, 1:, :], coords[1:, :-1, :]
+    )
 
 
 def rectangular_hgrid(λ, φ):
@@ -398,7 +387,7 @@ def rectangular_hgrid(λ, φ):
 
     lon, lat = np.meshgrid(λ, φ)
 
-    area = quadilateral_areas(lat, lon, R)
+    area = quadrilateral_areas(lat, lon, R)
 
     attrs = {
         "tile": {
