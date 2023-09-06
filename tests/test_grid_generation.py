@@ -57,6 +57,19 @@ def test_quadilateral_area(v1, v2, v3, v4, true_area):
     assert np.isclose(quadilateral_area(v1, v2, v3, v4), true_area)
 
 
+v1 = latlon_to_cartesian(0, 0, R=2)
+v2 = latlon_to_cartesian(90, 0, R=2)
+v3 = latlon_to_cartesian(0, 90, R=2)
+v4 = latlon_to_cartesian(-90, 0, R=2.1)
+
+
+def test_quadilateral_area_exception():
+    with pytest.raises(Exception) as excinfo:
+        quadilateral_area(v1, v2, v3, v4)
+
+    assert str(excinfo.value) == "vectors provided must have the same length"
+
+
 # create a lat-lon mesh that covers 1/4 of the North Hemisphere
 lon1, lat1 = np.meshgrid(np.linspace(0, 90, 5), np.linspace(0, 90, 5))
 area1 = 1 / 8 * (4 * np.pi)
