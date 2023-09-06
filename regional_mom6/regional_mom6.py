@@ -296,7 +296,7 @@ def angle_between(v1, v2, v3):
 def quadilateral_area(v1, v2, v3, v4):
     """Returns area of a spherical quadrilateral on the unit sphere that
     has vertices on 3-vectors `v1`, `v2`, `v3`, `v4` (counter-clockwise
-    orientation is implied). The area is computed as the excess of the
+    orientation is implied). The area is computed via the excess of the
     sum of the spherical angles of the quadrilateral from 2π."""
 
     if not (
