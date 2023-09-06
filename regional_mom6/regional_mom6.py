@@ -832,7 +832,7 @@ class experiment:
         fill_channels=False,
         minimum_layers=3,
         maketopog=True,
-        positivedown=False
+        positivedown=False,
     ):
         """Cuts out and interpolates chosen bathymetry, then fills
         inland lakes.
@@ -1094,7 +1094,6 @@ class experiment:
             "mv topog_deseas.nc topog.nc", shell=True, cwd=self.mom_input_dir
         )
 
-
         self.topog = topog
         return
 
@@ -1112,7 +1111,7 @@ class experiment:
             )  ## Removes old mask table so as not to clog up inputdir
         except:
             pass
-        
+
         print(
             "MAKE SOLO MOSAIC",
             subprocess.run(
@@ -1134,7 +1133,7 @@ class experiment:
             ),
             sep="\n\n",
         )
-        
+
         print(
             "CHECK MASK",
             subprocess.run(
