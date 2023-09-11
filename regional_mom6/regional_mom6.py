@@ -869,26 +869,36 @@ class experiment:
                 {varnames["yh"]: slice(self.yextent[0] - 0.1, self.yextent[1] + 0.1)}
             ).astype("float")
 
-            bathy = nicer_slicer(
-                bathy, np.array(self.xextent) + np.array([-0.1, 0.1]), varnames["xh"]
-            )
+
+            ## Here need to make a decision as to whether to slice 'normally' or with nicer slicer for 360 degree domain. 
+
+            if bathy[varnames["xh"]][-1] - bathy[varnames["xh"]][0] > 355:
+                ## Assume that we're dealing with a global grid, in which case we use nicer slicer
+                bathy = nicer_slicer(
+                    bathy, np.array(self.xextent) + np.array([-0.1, 0.1]), varnames["xh"]
+                )
+            else:
+                ## Otherwise just slice normally
+                bathy = bathy.sel(
+                    {varnames["xh"]: slice(self.xextent[0] - 0.1, self.xextent[1] + 0.1)}
+                )
 
             bathy.attrs[
                 "missing_value"
             ] = -1e20  # This is what FRE tools expects I guess?
+            bathyout = xr.Dataset({"elevation": bathy})
+            bathy.close()
 
-            bathy = xr.Dataset({"elevation": bathy})
-
-            bathy.lon.attrs["units"] = "degrees_east"
-            bathy.lat.attrs["units"] = "degrees_north"
-            bathy.lon.attrs["_FillValue"] = 1e20
-            bathy.elevation.attrs["_FillValue"] = 1e20
-            bathy.elevation.attrs["units"] = "m"
-            bathy.elevation.attrs["standard_name"] = "height_above_reference_ellipsoid"
-            bathy.elevation.attrs["long_name"] = "Elevation relative to sea level"
-            bathy.elevation.attrs["coordinates"] = "lon lat"
-
-            bathy.to_netcdf(
+            bathyout = bathyout.rename({varnames["xh"] : "lon",varnames["yh"] : "lat"})
+            bathyout.lon.attrs["units"] = "degrees_east"
+            bathyout.lat.attrs["units"] = "degrees_north"
+            # bathyout.lon.attrs["_FillValue"] = 1e20
+            bathyout.elevation.attrs["_FillValue"] = -1e20
+            bathyout.elevation.attrs["units"] = "m"
+            bathyout.elevation.attrs["standard_name"] = "height_above_reference_ellipsoid"
+            bathyout.elevation.attrs["long_name"] = "Elevation relative to sea level"
+            bathyout.elevation.attrs["coordinates"] = "lon lat"
+            bathyout.to_netcdf(
                 f"{self.mom_input_dir}bathy_original.nc", mode="w", engine="netcdf4"
             )
 
@@ -912,7 +922,7 @@ class experiment:
             tgrid.to_netcdf(
                 f"{self.mom_input_dir}topog_raw.nc", mode="w", engine="netcdf4"
             )
-
+            tgrid.close()
             #! Hardcoded for whole node notebook.
             # topog_raw file is the 'target' grid used for gridgen. This is then overweitten by the second ESMF function (needs a blank netcdf to overwrite as the output)
 

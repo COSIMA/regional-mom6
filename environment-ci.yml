@@ -1,5 +1,8 @@
 name: mom6-regional-dev
 channels:
   - conda-forge
+  - defaults
 dependencies:
-  - esmpy
+  - esmpy # 8.0.1
+  - xesmf # 0.3.0
+  - dask # 2.21.0
