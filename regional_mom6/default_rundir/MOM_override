@@ -1,7 +1,0 @@
-#override OBC_SEGMENT_001_VELOCITY_NUDGING_TIMESCALES = .3, 300.0 ! inflow and outflow timescales
-#override OBC_SEGMENT_001_VELOCITY_NUDGING_TIMESCALES = .3, 300.0 ! inflow and outflow timescales
-#override OBC_SEGMENT_003_VELOCITY_NUDGING_TIMESCALES = .3, 300.0 ! inflow and outflow timescales
-#override OBC_SEGMENT_004_VELOCITY_NUDGING_TIMESCALES = .3, 300.0 ! inflow and outflow timescales
-
-#override DT = 300
-#override DT_THERM = 600
