@@ -566,7 +566,7 @@ class experiment:
         ## Do initial condition
 
         ## pull out the initial velocity on MOM5's Bgrid
-
+        print(subprocess.run("pwd", shell=True))
         ic_raw = xr.open_dataset(path + "/ic_unprocessed")
 
         if varnames["time"] in ic_raw.dims:
@@ -767,7 +767,16 @@ class experiment:
         vel_out = vel_out.interp({"zl": self.vgrid.zl.values})
 
         print("Saving outputs... ", end="")
-        vel_out.fillna(0).drop("time").to_netcdf(
+
+        ## Remove time IF it exists. Users may already have done so for us
+        if "time" in vel_out.dims:
+            vel_out = vel_out.isel(time=0).drop("time")
+        if "time" in vel_out.dims:
+            tracers_out = tracers_out.isel(time=0).drop("time")
+        if "time" in vel_out.dims:
+            eta_out = eta_out.isel(time=0).drop("time")
+
+        vel_out.fillna(0).to_netcdf(
             self.mom_input_dir + "forcing/init_vel.nc",
             mode="w",
             encoding={
@@ -776,7 +785,7 @@ class experiment:
             },
         )
 
-        tracers_out.drop("time").to_netcdf(
+        tracers_out.to_netcdf(
             self.mom_input_dir + "forcing/init_tracers.nc",
             mode="w",
             encoding={
@@ -787,7 +796,7 @@ class experiment:
                 "salt": {"_FillValue": -1e20, "missing_value": -1e20},
             },
         )
-        eta_out.drop("time").to_netcdf(
+        eta_out.to_netcdf(
             self.mom_input_dir + "forcing/init_eta.nc",
             mode="w",
             encoding={
@@ -833,6 +842,7 @@ class experiment:
         minimum_layers=3,
         maketopog=True,
         positivedown=False,
+        chunks="auto",
     ):
         """Cuts out and interpolates chosen bathymetry, then fills
         inland lakes.
@@ -856,17 +866,23 @@ class experiment:
                 make topography (if true), or read an existing file.
             positivedown (Optional[bool]): If true, assumes that
                 bathymetry vertical coordinate is positive down.
+            chunks (Optional Dict[str, str]): Chunking scheme for bathymetry, eg {"lon": 100, "lat": 100}. Use lat/lon rather than the coordinate names in the input file.
 
 
         """
 
+
         if maketopog == True:
+
+            if chunks != "auto":
+                chunks = {varnames["xh"]: chunks["lon"], varnames["yh"]: chunks["lat"]}
+
             bathy = xr.open_dataset(
-                bathy_path, chunks={varnames["xh"]: 500, varnames["yh"]: 500}
+                bathy_path, chunks=chunks
             )[varnames["elevation"]]
 
             bathy = bathy.sel(
-                {varnames["yh"]: slice(self.yextent[0] - 0.1, self.yextent[1] + 0.1)}
+                {varnames["yh"]: slice(self.yextent[0] - 1, self.yextent[1] + 1)}
             ).astype("float")
 
 
@@ -880,7 +896,7 @@ class experiment:
             else:
                 ## Otherwise just slice normally
                 bathy = bathy.sel(
-                    {varnames["xh"]: slice(self.xextent[0] - 0.1, self.xextent[1] + 0.1)}
+                    {varnames["xh"]: slice(self.xextent[0] - 1, self.xextent[1] + 1)}
                 )
 
             bathy.attrs[
@@ -902,6 +918,7 @@ class experiment:
                 f"{self.mom_input_dir}bathy_original.nc", mode="w", engine="netcdf4"
             )
 
+
             tgrid = xr.Dataset(
                 {
                     "lon": (
@@ -914,7 +931,28 @@ class experiment:
                     ),
                 }
             )
+            tgrid = xr.Dataset(
+                data_vars = {
+                    "elevation":(["lat","lon"],np.zeros(self.hgrid.x.isel(nxp=slice(1, None, 2), nyp=slice(1, None, 2)).shape))},
+                    coords={
+                    "lon": (
+                        ["lon"],
+                        self.hgrid.x.isel(nxp=slice(1, None, 2), nyp=1).values,
+                    ),
+                    "lat": (
+                        ["lat"],
+                        self.hgrid.y.isel(nxp=1, nyp=slice(1, None, 2)).values,
+                    ),
+                }
 
+
+            )
+
+            # rewrite chunks to use lat/lon now for use with xesmf
+            if chunks != "auto":
+                chunks = {"lon": chunks[varnames["xh"]], "lat": chunks[varnames["yh"]]}
+
+            tgrid = tgrid.chunk(chunks)
             tgrid.lon.attrs["units"] = "degrees_east"
             tgrid.lon.attrs["_FillValue"] = 1e20
             tgrid.lat.attrs["units"] = "degrees_north"
@@ -923,22 +961,55 @@ class experiment:
                 f"{self.mom_input_dir}topog_raw.nc", mode="w", engine="netcdf4"
             )
             tgrid.close()
-            #! Hardcoded for whole node notebook.
-            # topog_raw file is the 'target' grid used for gridgen. This is then overweitten by the second ESMF function (needs a blank netcdf to overwrite as the output)
 
-            if (
-                subprocess.run(
-                    "mpirun ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional",
-                    shell=True,
-                    cwd=self.mom_input_dir,
-                ).returncode
-                != 0
-            ):
-                raise RuntimeError(
-                    "Regridding of bathymetry failed! This is probably because mpirun was initialised earlier by xesmf doing some other regridding. Try restarting the kernel, then calling .bathymetry() before any other methods."
-                )
+            ## Replace subprocess run with regular regridder 
+            print("Starting to regrid bathymetry. If this process hangs you might be better off calling ESMF directly from a terminal with appropriate computational resources using \n mpirun ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\nThis is better for larger domains.")
+
+            print(tgrid)
+
+            print("chunks")
+            print(tgrid.chunks)
+
+            # If we have a domain large enough for chunks, we'll run regridder with parallel=True
+            parallel = True
+            if len(tgrid.chunks) != 2:
+                parallel = False
+
+
+
+            regridder = xe.Regridder(
+                bathyout,
+                tgrid,
+                "bilinear",
+                parallel = parallel
+            )
+            topog = regridder(bathyout)
+            topog.to_netcdf(
+                f"{self.mom_input_dir}topog_raw.nc", mode="w", engine="netcdf4"
+            )
+
+
+
+
+
+            # if (
+            #     subprocess.run(
+            #         "mpirun ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional",
+            #         shell=True,
+            #         cwd=self.mom_input_dir,
+            #     ).returncode
+            #     != 0
+            # ):
+            #     raise RuntimeError(
+            #         "Regridding of bathymetry failed! This is probably because mpirun was initialised earlier by xesmf doing some other regridding. Try restarting the kernel, then calling .bathymetry() before any other methods."
+            #     )
+
+
+            ## END CHANGES
+
 
         ## reopen topography to modify
+        print("Reading in regridded bathymetry to fix up metadata...", end="")
         topog = xr.open_dataset(self.mom_input_dir + "topog_raw.nc", engine="netcdf4")
 
         ## Ensure correct encoding
@@ -1103,7 +1174,7 @@ class experiment:
         subprocess.run(
             "mv topog_deseas.nc topog.nc", shell=True, cwd=self.mom_input_dir
         )
-
+        print("done.")
         self.topog = topog
         return
 
@@ -1279,9 +1350,10 @@ class segment:
         ).set_coords(["lat", "lon"])
 
         if self.grid == "A":
+            rawseg = rawseg.rename({self.x: "lon", self.y: "lat"})
             ## In this case velocities and tracers all on same points
             regridder = xe.Regridder(
-                rawseg[self.u].rename({self.x: "lon", self.y: "lat"}),
+                rawseg[self.u],
                 interp_grid,
                 "bilinear",
                 locstream_out=True,
@@ -1289,6 +1361,7 @@ class segment:
                 filename=self.outfolder
                 + f"weights/bilinear_velocity_weights_{self.orientation}.nc",
             )
+
             segment_out = xr.merge(
                 [
                     regridder(
@@ -1301,6 +1374,7 @@ class segment:
             )
 
         if self.grid == "B":
+
             ## All tracers on one grid, all velocities on another
             regridder_velocity = xe.Regridder(
                 rawseg[self.u].rename({self.xq: "lon", self.yq: "lat"}),
@@ -1324,9 +1398,9 @@ class segment:
 
             segment_out = xr.merge(
                 [
-                    regridder_velocity(rawseg[[self.u, self.v]]),
+                    regridder_velocity(rawseg[[self.u, self.v]].rename({self.xq: "lon", self.yq: "lat"})),
                     regridder_tracer(
-                        rawseg[[self.eta] + [self.tracers[i] for i in self.tracers]]
+                        rawseg[[self.eta.rename({self.xh: "lon", self.yh: "lat"})] + [self.tracers[i].rename({self.xh: "lon", self.yh: "lat"}) for i in self.tracers]]
                     ),
                 ]
             )
