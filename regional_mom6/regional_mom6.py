@@ -971,7 +971,6 @@ class experiment:
                 "Starting to regrid bathymetry. If this process hangs you might be better off calling ESMF directly from a terminal with appropriate computational resources using \n\n mpirun ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\n\nThis is better for larger domains.\n\n"
             )
 
-  
             # If we have a domain large enough for chunks, we'll run regridder with parallel=True
             parallel = True
             if len(tgrid.chunks) != 2:
@@ -980,12 +979,12 @@ class experiment:
             try:
                 regridder = xe.Regridder(bathyout, tgrid, "bilinear", parallel=parallel)
             except TypeError:
-                print("Warning: xesmf parallel regridding failed. You likely have an older version of xesmf installed - try updating to 0.8.x or higher.")
+                print(
+                    "Warning: xesmf parallel regridding failed. You likely have an older version of xesmf installed - try updating to 0.8.x or higher."
+                )
                 bathyout = bathyout.chunk({"lon": -1, "lat": -1})
                 tgrid = tgrid.chunk({"lon": -1, "lat": -1})
                 regridder = xe.Regridder(bathyout, tgrid, "bilinear")
-
-            
 
             topog = regridder(bathyout)
             topog.to_netcdf(
