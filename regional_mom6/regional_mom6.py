@@ -871,27 +871,24 @@ class experiment:
 
         """
 
-
         if maketopog == True:
-
             if chunks != "auto":
                 chunks = {varnames["xh"]: chunks["lon"], varnames["yh"]: chunks["lat"]}
 
-            bathy = xr.open_dataset(
-                bathy_path, chunks=chunks
-            )[varnames["elevation"]]
+            bathy = xr.open_dataset(bathy_path, chunks=chunks)[varnames["elevation"]]
 
             bathy = bathy.sel(
                 {varnames["yh"]: slice(self.yextent[0] - 1, self.yextent[1] + 1)}
             ).astype("float")
 
-
-            ## Here need to make a decision as to whether to slice 'normally' or with nicer slicer for 360 degree domain. 
+            ## Here need to make a decision as to whether to slice 'normally' or with nicer slicer for 360 degree domain.
 
             if bathy[varnames["xh"]][-1] - bathy[varnames["xh"]][0] > 355:
                 ## Assume that we're dealing with a global grid, in which case we use nicer slicer
                 bathy = nicer_slicer(
-                    bathy, np.array(self.xextent) + np.array([-0.1, 0.1]), varnames["xh"]
+                    bathy,
+                    np.array(self.xextent) + np.array([-0.1, 0.1]),
+                    varnames["xh"],
                 )
             else:
                 ## Otherwise just slice normally
@@ -905,19 +902,20 @@ class experiment:
             bathyout = xr.Dataset({"elevation": bathy})
             bathy.close()
 
-            bathyout = bathyout.rename({varnames["xh"] : "lon",varnames["yh"] : "lat"})
+            bathyout = bathyout.rename({varnames["xh"]: "lon", varnames["yh"]: "lat"})
             bathyout.lon.attrs["units"] = "degrees_east"
             bathyout.lat.attrs["units"] = "degrees_north"
             # bathyout.lon.attrs["_FillValue"] = 1e20
             bathyout.elevation.attrs["_FillValue"] = -1e20
             bathyout.elevation.attrs["units"] = "m"
-            bathyout.elevation.attrs["standard_name"] = "height_above_reference_ellipsoid"
+            bathyout.elevation.attrs[
+                "standard_name"
+            ] = "height_above_reference_ellipsoid"
             bathyout.elevation.attrs["long_name"] = "Elevation relative to sea level"
             bathyout.elevation.attrs["coordinates"] = "lon lat"
             bathyout.to_netcdf(
                 f"{self.mom_input_dir}bathy_original.nc", mode="w", engine="netcdf4"
             )
-
 
             tgrid = xr.Dataset(
                 {
@@ -932,9 +930,17 @@ class experiment:
                 }
             )
             tgrid = xr.Dataset(
-                data_vars = {
-                    "elevation":(["lat","lon"],np.zeros(self.hgrid.x.isel(nxp=slice(1, None, 2), nyp=slice(1, None, 2)).shape))},
-                    coords={
+                data_vars={
+                    "elevation": (
+                        ["lat", "lon"],
+                        np.zeros(
+                            self.hgrid.x.isel(
+                                nxp=slice(1, None, 2), nyp=slice(1, None, 2)
+                            ).shape
+                        ),
+                    )
+                },
+                coords={
                     "lon": (
                         ["lon"],
                         self.hgrid.x.isel(nxp=slice(1, None, 2), nyp=1).values,
@@ -943,9 +949,7 @@ class experiment:
                         ["lat"],
                         self.hgrid.y.isel(nxp=1, nyp=slice(1, None, 2)).values,
                     ),
-                }
-
-
+                },
             )
 
             # rewrite chunks to use lat/lon now for use with xesmf
@@ -962,8 +966,10 @@ class experiment:
             )
             tgrid.close()
 
-            ## Replace subprocess run with regular regridder 
-            print("Starting to regrid bathymetry. If this process hangs you might be better off calling ESMF directly from a terminal with appropriate computational resources using \n mpirun ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\nThis is better for larger domains.")
+            ## Replace subprocess run with regular regridder
+            print(
+                "Starting to regrid bathymetry. If this process hangs you might be better off calling ESMF directly from a terminal with appropriate computational resources using \n mpirun ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\nThis is better for larger domains."
+            )
 
             print(tgrid)
 
@@ -975,22 +981,11 @@ class experiment:
             if len(tgrid.chunks) != 2:
                 parallel = False
 
-
-
-            regridder = xe.Regridder(
-                bathyout,
-                tgrid,
-                "bilinear",
-                parallel = parallel
-            )
+            regridder = xe.Regridder(bathyout, tgrid, "bilinear", parallel=parallel)
             topog = regridder(bathyout)
             topog.to_netcdf(
                 f"{self.mom_input_dir}topog_raw.nc", mode="w", engine="netcdf4"
             )
-
-
-
-
 
             # if (
             #     subprocess.run(
@@ -1004,9 +999,7 @@ class experiment:
             #         "Regridding of bathymetry failed! This is probably because mpirun was initialised earlier by xesmf doing some other regridding. Try restarting the kernel, then calling .bathymetry() before any other methods."
             #     )
 
-
             ## END CHANGES
-
 
         ## reopen topography to modify
         print("Reading in regridded bathymetry to fix up metadata...", end="")
@@ -1374,7 +1367,6 @@ class segment:
             )
 
         if self.grid == "B":
-
             ## All tracers on one grid, all velocities on another
             regridder_velocity = xe.Regridder(
                 rawseg[self.u].rename({self.xq: "lon", self.yq: "lat"}),
@@ -1398,9 +1390,19 @@ class segment:
 
             segment_out = xr.merge(
                 [
-                    regridder_velocity(rawseg[[self.u, self.v]].rename({self.xq: "lon", self.yq: "lat"})),
+                    regridder_velocity(
+                        rawseg[[self.u, self.v]].rename(
+                            {self.xq: "lon", self.yq: "lat"}
+                        )
+                    ),
                     regridder_tracer(
-                        rawseg[[self.eta.rename({self.xh: "lon", self.yh: "lat"})] + [self.tracers[i].rename({self.xh: "lon", self.yh: "lat"}) for i in self.tracers]]
+                        rawseg[
+                            [self.eta.rename({self.xh: "lon", self.yh: "lat"})]
+                            + [
+                                self.tracers[i].rename({self.xh: "lon", self.yh: "lat"})
+                                for i in self.tracers
+                            ]
+                        ]
                     ),
                 ]
             )
