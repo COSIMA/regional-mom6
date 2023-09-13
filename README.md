@@ -18,6 +18,7 @@ If you find this package useful and have any suggestions please feel free to ope
 3. A bathymetry file that at least covers your domain
 4. 3D ocean forcing files *of any resolution* on your choice of A, B or C Arakawa grid
 5. Surface forcing files (eg ERA or JRA reanalysis)
+6. A copy of [GFDL's FRE tools](https://github.com/NOAA-GFDL/FRE-NCtools) downloaded and compiled somewhere.
 
 Check out the the [documentation](https://regional-mom6.readthedocs.io/en/latest/) and browse through the [demos](https://regional-mom6.readthedocs.io/en/latest/demos.html).
 
@@ -61,3 +62,9 @@ pip install git+https://github.com/COSIMA/regional-mom6.git@061b0ef80c7cbc04de05
 ## Getting started
 
 The two example notebooks walk you through how to use the package on two different sets of input datasets. Make sure that you can get at least one of these working on your setup with your MOM6 executable, and then try to modify them to apply to your domain with your bathymethry / forcing / boundaries. 
+
+### Note for larger domains
+
+The example notebooks deal with a pretty small domain, but might not scale well if you try to run something really computationally expensive. When we first wrote this tool, xesmf (the package that handles all the regridding) didn't support parallelised weight generation. This meant that for large domains, you needed to call the underlying ESMF library with `mpirun`. This is especially important for the `.bathymetry` method, as the weight generation step becomes very slow for large areas if there's no spatial chunking. With the [introduction of `xesmf 0.8.x`](https://xesmf.readthedocs.io/en/latest/changes.html), a parallel option is now possible directly in python. 
+
+If you have the latest version of `xesmf` the package will attempt to regrid in parallel, and if not will throw a warning and run it in serial. It will also print out the relevant `mpirun` command which you could use as a backup. Depending on your setup, you may need to write scripts that implement the package to access more computational resources than might be available in a Jupyter notebook as is the case at the NCI facility. 
