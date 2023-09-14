@@ -292,16 +292,4 @@ def test_ocean_forcing(
     return
 
 
-test_ocean_forcing(
-    [-5, 5],
-    [0, 10],
-    ["2003-01-01 00:00:00", "2003-01-01 00:00:00"],
-    0.1,
-    5,
-    1,
-    1000,
-    "test_path/rundir/",
-    "test_path/inputdir/",
-    "toolpath",
-    "even_spacing",
-)
+
