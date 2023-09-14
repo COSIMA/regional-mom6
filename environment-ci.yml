@@ -2,4 +2,4 @@ name: mom6-regional-dev
 channels:
   - conda-forge
 dependencies:
-  - esmpy 
+  - xesmf 
