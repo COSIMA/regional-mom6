@@ -3,6 +3,6 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - esmpy # 8.0.1
-  - xesmf # 0.3.0
-  - dask # 2.21.0
+  - esmpy >=8.0.1
+  - xesmf >=0.8.1
+  - dask >=2.21.0
