@@ -3,7 +3,7 @@ name = "regional_mom6"
 description = "Automatic generation of regional configurations for Modular Ocean Model 6"
 keywords = ["mom6", "regional", "ocean modeling"]
 authors = [
-  {name = "Ashley Barnes"},
+  {name = "Ashley Barnes, COSIMA community, and contributors"},
 ]
 dynamic = ["version"]
 dependencies = [
