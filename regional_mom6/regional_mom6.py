@@ -550,18 +550,6 @@ class experiment:
             hgrid = rectangular_hgrid(x, y)
             hgrid.to_netcdf(self.mom_input_dir + "/hgrid.nc")
 
-            ## Make Solo Mosaic
-            args = "--num_tiles 1 --dir . --mosaic_name ocean_mosaic --tile_file hgrid.nc".split(
-                " "
-            )
-            print(
-                "FRE TOOLS: Make solo mosaic\n\n",
-                subprocess.run(
-                    [self.toolpath + "make_solo_mosaic/make_solo_mosaic"] + args,
-                    cwd=self.mom_input_dir,
-                ),
-                sep="\n",
-            )
             return hgrid
 
     def _make_vgrid(self):
@@ -899,6 +887,7 @@ class experiment:
             positivedown (Optional[bool]): If true, assumes that
                 bathymetry vertical coordinate is positive down.
 
+
         """
 
         if maketopog == True:
@@ -1135,11 +1124,24 @@ class experiment:
             "mv topog_deseas.nc topog.nc", shell=True, cwd=self.mom_input_dir
         )
 
-        ## FINAL STEP: run the remaining FRE tools to construct masks based on our topography
+        self.topog = topog
+        return
 
-        args = "--num_tiles 1 --dir . --mosaic_name ocean_mosaic --tile_file hgrid.nc".split(
-            " "
-        )
+    def FRE_tools(self, layout):
+        """
+        Just a wrapper for FRE Tools check_mask, make_solo_mosaic and make_quick_mosaic. User provides processor layout tuple of processing units.
+        """
+
+        if "topog.nc" not in os.listdir(self.mom_input_dir):
+            print("No topography file! Need to run make_bathymetry first")
+            return
+        try:
+            os.remove(
+                "mask_table*"
+            )  ## Removes old mask table so as not to clog up inputdir
+        except:
+            pass
+
         print(
             "MAKE SOLO MOSAIC",
             subprocess.run(
@@ -1162,24 +1164,6 @@ class experiment:
             sep="\n\n",
         )
 
-        self.processor_mask((10, 10))
-        self.topog = topog
-        return
-
-    def processor_mask(self, layout):
-        """
-        Just a wrapper for FRE Tools check_mask. User provides processor layout tuple of processing units.
-        """
-
-        if "topog.nc" not in os.listdir(self.mom_input_dir):
-            print("No topography file! Need to run make_bathymetry first")
-            return
-        try:
-            os.remove(
-                "mask_table*"
-            )  ## Removes old mask table so as not to clog up inputdir
-        except:
-            pass
         print(
             "CHECK MASK",
             subprocess.run(
