@@ -11,9 +11,9 @@ dependencies = [
   "dask[distributed]",
   "numpy>=1.17.0",
   "scipy>=1.2.0",
+  "xesmf>=0.8",
   "netCDF4",
   "xarray",
-  "xesmf",
 ]
 
 [build-system]
