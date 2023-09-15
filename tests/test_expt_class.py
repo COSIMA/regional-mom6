@@ -211,6 +211,9 @@ def test_ocean_forcing(
         }
     )
 
+
+    # Generate boundary forcing
+
     eastern_boundary = xr.Dataset(
         {
             "temp": xr.DataArray(
