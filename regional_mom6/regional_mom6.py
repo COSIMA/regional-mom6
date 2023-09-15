@@ -1019,20 +1019,6 @@ class experiment:
                 f"{self.mom_input_dir}topog_raw.nc", mode="w", engine="netcdf4"
             )
 
-            # if (
-            #     subprocess.run(
-            #         "mpirun ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional",
-            #         shell=True,
-            #         cwd=self.mom_input_dir,
-            #     ).returncode
-            #     != 0
-            # ):
-            #     raise RuntimeError(
-            #         "Regridding of bathymetry failed! This is probably because mpirun was initialised earlier by xesmf doing some other regridding. Try restarting the kernel, then calling .bathymetry() before any other methods."
-            #     )
-
-            ## END CHANGES
-
         ## reopen topography to modify
         print("Reading in regridded bathymetry to fix up metadata...", end="")
         topog = xr.open_dataset(self.mom_input_dir + "topog_raw.nc", engine="netcdf4")
