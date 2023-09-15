@@ -287,8 +287,4 @@ def test_ocean_forcing(
         gridtype="A",
     )
 
-    print(subprocess.run("rm dummyinputs/ic_unprocessed", shell=True))
-    print(subprocess.run("rm dummyinputs/east_unprocessed", shell=True))
-    ## Make an IC file to test on
-
     return
