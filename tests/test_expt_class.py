@@ -100,7 +100,6 @@ from regional_mom6 import experiment
 import subprocess
 import xarray as xr
 
-# reload(experiment)
 
 
 @pytest.mark.parametrize(
