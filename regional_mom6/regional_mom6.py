@@ -1003,16 +1003,7 @@ class experiment:
             parallel = True
             if len(tgrid.chunks) != 2:
                 parallel = False
-
-            try:
-                regridder = xe.Regridder(bathyout, tgrid, "bilinear", parallel=parallel)
-            except TypeError:
-                print(
-                    "Warning: xesmf parallel regridding failed. You likely have an older version of xesmf installed - try updating to 0.8.x or higher."
-                )
-                bathyout = bathyout.chunk({"lon": -1, "lat": -1})
-                tgrid = tgrid.chunk({"lon": -1, "lat": -1})
-                regridder = xe.Regridder(bathyout, tgrid, "bilinear")
+            regridder = xe.Regridder(bathyout, tgrid, "bilinear", parallel=parallel)
 
             topog = regridder(bathyout)
             topog.to_netcdf(
