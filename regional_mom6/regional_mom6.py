@@ -596,7 +596,6 @@ class experiment:
         ## Do initial condition
 
         ## pull out the initial velocity on MOM5's Bgrid
-        print(subprocess.run("pwd", shell=True))
         ic_raw = xr.open_dataset(path + "/ic_unprocessed")
 
         if varnames["time"] in ic_raw.dims:
