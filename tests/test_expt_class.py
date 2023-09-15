@@ -79,6 +79,8 @@ def test_bathymetry(
 
     bathy.to_netcdf("bathy.nc", mode="a")
     bathy.close()
+
+    # Now use this bathymetry as input in `expt.bathymetry()`
     expt.bathymetry(
         "bathy.nc",
         {"xh": "lona", "yh": "lata", "elevation": "elevation"},
