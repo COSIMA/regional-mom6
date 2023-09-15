@@ -800,9 +800,9 @@ class experiment:
         ## Remove time IF it exists. Users may already have done so for us
         if "time" in vel_out.dims:
             vel_out = vel_out.isel(time=0).drop("time")
-        if "time" in vel_out.dims:
+        if "time" in tracers_out.dims:
             tracers_out = tracers_out.isel(time=0).drop("time")
-        if "time" in vel_out.dims:
+        if "time" in eta_out.dims:
             eta_out = eta_out.isel(time=0).drop("time")
 
         vel_out.fillna(0).to_netcdf(
@@ -907,7 +907,7 @@ class experiment:
             bathy = xr.open_dataset(bathy_path, chunks=chunks)[varnames["elevation"]]
 
             bathy = bathy.sel(
-                {varnames["yh"]: slice(self.yextent[0] - 1, self.yextent[1] + 1)}
+                {varnames["yh"]: slice(self.yextent[0] - 1, self.yextent[1] + 1)} #! Hardcoded 1 degree buffer around bathymetry selection. Should automatically select buffer in future
             ).astype("float")
 
             ## Here need to make a decision as to whether to slice 'normally' or with nicer slicer for 360 degree domain.

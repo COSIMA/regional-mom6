@@ -161,6 +161,7 @@ def test_ocean_forcing(
 
     ## Generate some bathymetry to test on
 
+    # initial condition includes, temp, salt, eta, u, v
     initial_cond = xr.Dataset(
         {
             "temp": xr.DataArray(
