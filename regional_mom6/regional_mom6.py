@@ -934,7 +934,6 @@ class experiment:
             bathyout = bathyout.rename({varnames["xh"]: "lon", varnames["yh"]: "lat"})
             bathyout.lon.attrs["units"] = "degrees_east"
             bathyout.lat.attrs["units"] = "degrees_north"
-            # bathyout.lon.attrs["_FillValue"] = 1e20
             bathyout.elevation.attrs["_FillValue"] = -1e20
             bathyout.elevation.attrs["units"] = "m"
             bathyout.elevation.attrs[
