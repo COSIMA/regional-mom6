@@ -907,7 +907,9 @@ class experiment:
             bathy = xr.open_dataset(bathy_path, chunks=chunks)[varnames["elevation"]]
 
             bathy = bathy.sel(
-                {varnames["yh"]: slice(self.yextent[0] - 1, self.yextent[1] + 1)} #! Hardcoded 1 degree buffer around bathymetry selection. Should automatically select buffer in future
+                {
+                    varnames["yh"]: slice(self.yextent[0] - 1, self.yextent[1] + 1)
+                }  #! Hardcoded 1 degree buffer around bathymetry selection. Should automatically select buffer in future
             ).astype("float")
 
             ## Here need to make a decision as to whether to slice 'normally' or with nicer slicer for 360 degree domain.

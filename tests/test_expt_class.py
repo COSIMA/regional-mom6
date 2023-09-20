@@ -101,7 +101,6 @@ import subprocess
 import xarray as xr
 
 
-
 @pytest.mark.parametrize(
     (
         "xextent",
@@ -210,7 +209,6 @@ def test_ocean_forcing(
             ),
         }
     )
-
 
     # Generate boundary forcing
 
