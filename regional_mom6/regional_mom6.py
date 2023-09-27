@@ -909,7 +909,7 @@ class experiment:
             bathy = bathy.sel(
                 {
                     varnames["yh"]: slice(self.yextent[0] - 1, self.yextent[1] + 1)
-                }  #! Hardcoded 1 degree buffer around bathymetry selection. Should automatically select buffer in future
+                }  #! Hardcoded 1 degree buffer around bathymetry selection. TODO: automatically select buffer
             ).astype("float")
 
             ## Here need to make a decision as to whether to slice 'normally' or with nicer slicer for 360 degree domain.
@@ -918,13 +918,13 @@ class experiment:
                 ## Assume that we're dealing with a global grid, in which case we use nicer slicer
                 bathy = nicer_slicer(
                     bathy,
-                    np.array(self.xextent) + np.array([-0.1, 0.1]),
+                    np.array(self.xextent) + np.array([-0.1, 0.1]), #! Hardcoded 0.1 degree buffer around bathymetry selection. TODO: automatically select buffer
                     varnames["xh"],
                 )
             else:
                 ## Otherwise just slice normally
                 bathy = bathy.sel(
-                    {varnames["xh"]: slice(self.xextent[0] - 1, self.xextent[1] + 1)}
+                    {varnames["xh"]: slice(self.xextent[0] - 1, self.xextent[1] + 1)} #! Hardcoded 1 degree buffer around bathymetry selection. TODO: automatically select buffer
                 )
 
             bathy.attrs[
