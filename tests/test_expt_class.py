@@ -158,7 +158,7 @@ def test_ocean_forcing(
         gridtype,
     )
 
-    ## Generate some bathymetry to test on
+    ## Generate some initial condition to test on
 
     # initial condition includes, temp, salt, eta, u, v
     initial_cond = xr.Dataset(
