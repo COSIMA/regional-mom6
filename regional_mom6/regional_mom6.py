@@ -1002,7 +1002,6 @@ class experiment:
             tgrid.lon.attrs["units"] = "degrees_east"
             tgrid.lon.attrs["_FillValue"] = 1e20
             tgrid.lat.attrs["units"] = "degrees_north"
-            # tgrid.to_netcdf(f"{self.mom_input_dir}tgrid.nc", mode = "w",engine='netcdf4')
             tgrid.to_netcdf(
                 f"{self.mom_input_dir}topog_raw.nc", mode="w", engine="netcdf4"
             )

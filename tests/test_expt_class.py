@@ -1,11 +1,9 @@
 import numpy as np
 import pytest
 from regional_mom6 import experiment
-import subprocess
 import xarray as xr
 
 
-# reload(experiment)
 @pytest.mark.parametrize(
     (
         "xextent",
@@ -48,6 +46,7 @@ def test_bathymetry(
     mom_input_dir,
     toolpath,
     gridtype,
+    tmp_path,
 ):
     expt = experiment(
         xextent,
@@ -65,6 +64,8 @@ def test_bathymetry(
 
     ## Generate some bathymetry to test on
 
+    bathy_file = tmp_path / "bathy.nc"
+
     bathy = np.random.random((100, 100)) * (-100)
     bathy = xr.DataArray(
         bathy,
@@ -74,31 +75,19 @@ def test_bathymetry(
             "lona": np.linspace(xextent[0] - 5, xextent[1] + 5, 100),
         },
     )
-    # name the bathymetry variable of xarray dataarray
     bathy.name = "elevation"
-
-    bathy.to_netcdf("bathy.nc", mode="a")
+    bathy.to_netcdf(bathy_file)
     bathy.close()
 
     # Now use this bathymetry as input in `expt.bathymetry()`
     expt.bathymetry(
-        "bathy.nc",
+        str(bathy_file),
         {"xh": "lona", "yh": "lata", "elevation": "elevation"},
         minimum_layers=1,
         chunks={"lat": 10, "lon": 10},
     )
 
-    print(subprocess.run("rm bathy.nc", shell=True))
-    ## Make an IC file to test on
-
-    return
-
-
-import numpy as np
-import pytest
-from regional_mom6 import experiment
-import subprocess
-import xarray as xr
+    bathy_file.unlink()
 
 
 @pytest.mark.parametrize(
@@ -143,6 +132,7 @@ def test_ocean_forcing(
     mom_input_dir,
     toolpath,
     gridtype,
+    tmp_path,
 ):
     expt = experiment(
         xextent,
@@ -266,14 +256,13 @@ def test_ocean_forcing(
         }
     )
 
-    subprocess.run("mkdir dummyinputs", shell=True)
-    eastern_boundary.to_netcdf("dummyinputs/east_unprocessed", mode="a")
-    initial_cond.to_netcdf("dummyinputs/ic_unprocessed", mode="a")
+    eastern_boundary.to_netcdf(tmp_path / "east_unprocessed")
+    initial_cond.to_netcdf(tmp_path / "ic_unprocessed")
     eastern_boundary.close()
     initial_cond.close()
 
     expt.ocean_forcing(
-        "dummyinputs",
+        str(tmp_path),
         {
             "x": "lona",
             "y": "lata",
@@ -287,5 +276,3 @@ def test_ocean_forcing(
         boundaries=["east"],
         gridtype="A",
     )
-
-    return
