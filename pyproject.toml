@@ -7,13 +7,14 @@ authors = [
 ]
 dynamic = ["version"]
 dependencies = [
+  "bottleneck",
   "dask[array]",
   "dask[distributed]",
+  "netCDF4",
   "numpy>=1.17.0",
   "scipy>=1.2.0",
-  "netCDF4",
   "xarray",
-  "xesmf",
+  "xesmf>=0.8",
 ]
 
 [build-system]

@@ -18,6 +18,7 @@ If you find this package useful and have any suggestions please feel free to ope
 3. A bathymetry file that at least covers your domain
 4. 3D ocean forcing files *of any resolution* on your choice of A, B or C Arakawa grid
 5. Surface forcing files (eg ERA or JRA reanalysis)
+6. [GFDL's FRE tools](https://github.com/NOAA-GFDL/FRE-NCtools) must be downloaded and compiled on the machine you are using.
 
 Check out the the [documentation](https://regional-mom6.readthedocs.io/en/latest/) and browse through the [demos](https://regional-mom6.readthedocs.io/en/latest/demos.html).
 
@@ -60,4 +61,9 @@ pip install git+https://github.com/COSIMA/regional-mom6.git@061b0ef80c7cbc04de05
 
 ## Getting started
 
-The two example notebooks walk you through how to use the package on two different sets of input datasets. Make sure that you can get at least one of these working on your setup with your MOM6 executable, and then try to modify them to apply to your domain with your bathymethry / forcing / boundaries. 
+The two example notebooks walk you through how to use the package using two different sets of input datasets.
+Make sure that you can get at least one of these working on your setup with your MOM6 executable, and then try to modify them to apply to your domain with your bathymethry, forcing, and boundary conditions.
+
+The `xesmf` the package will attempt to regrid in parallel, and if it's not able it will throw a warning and run it in serial.
+You will also get a print out of the relevant `mpirun` command which you could use as a backup.
+Depending on your setup of your machine, you may need to write scripts that implement the package to access more computational resources than might be available, e.g., on the HPC machine of you are working on.
