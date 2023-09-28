@@ -915,9 +915,13 @@ class experiment:
             ## Here need to make a decision as to whether to slice 'normally' or with nicer slicer for 360 degree domain.
 
             horizontal_resolution = bathy[varnames["xh"]][1] - bathy[varnames["xh"]][0]
-            horizontal_extent = bathy[varnames["xh"]][-1] - bathy[varnames["xh"]][0] + horizontal_resolution
+            horizontal_extent = (
+                bathy[varnames["xh"]][-1]
+                - bathy[varnames["xh"]][0]
+                + horizontal_resolution
+            )
 
-            if np.isclose(horizontal_extent, 360)
+            if np.isclose(horizontal_extent, 360):
                 ## Assume that we're dealing with a global grid, in which case we use nicer slicer
                 bathy = nicer_slicer(
                     bathy,
