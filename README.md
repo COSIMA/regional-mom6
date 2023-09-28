@@ -61,6 +61,9 @@ pip install git+https://github.com/COSIMA/regional-mom6.git@061b0ef80c7cbc04de05
 
 ## Getting started
 
-The two example notebooks walk you through how to use the package on two different sets of input datasets. Make sure that you can get at least one of these working on your setup with your MOM6 executable, and then try to modify them to apply to your domain with your bathymethry / forcing / boundaries. 
+The two example notebooks walk you through how to use the package using two different sets of input datasets.
+Make sure that you can get at least one of these working on your setup with your MOM6 executable, and then try to modify them to apply to your domain with your bathymethry, forcing, and boundary conditions.
 
-If you have the latest version of `xesmf` the package will attempt to regrid in parallel, and if not will throw a warning and run it in serial. It will also print out the relevant `mpirun` command which you could use as a backup. Depending on your setup, you may need to write scripts that implement the package to access more computational resources than might be available in a Jupyter notebook as is the case at the NCI facility. 
+The `xesmf` the package will attempt to regrid in parallel, and if it's not able it will throw a warning and run it in serial.
+You will also get a print out of the relevant `mpirun` command which you could use as a backup.
+Depending on your setup of your machine, you may need to write scripts that implement the package to access more computational resources than might be available, e.g., on the HPC machine of you are working on.
