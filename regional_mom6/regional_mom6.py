@@ -918,13 +918,18 @@ class experiment:
                 ## Assume that we're dealing with a global grid, in which case we use nicer slicer
                 bathy = nicer_slicer(
                     bathy,
-                    np.array(self.xextent) + np.array([-0.1, 0.1]), #! Hardcoded 0.1 degree buffer around bathymetry selection. TODO: automatically select buffer
+                    np.array(self.xextent)
+                    + np.array(
+                        [-0.1, 0.1]
+                    ),  #! Hardcoded 0.1 degree buffer around bathymetry selection. TODO: automatically select buffer
                     varnames["xh"],
                 )
             else:
                 ## Otherwise just slice normally
                 bathy = bathy.sel(
-                    {varnames["xh"]: slice(self.xextent[0] - 1, self.xextent[1] + 1)} #! Hardcoded 1 degree buffer around bathymetry selection. TODO: automatically select buffer
+                    {
+                        varnames["xh"]: slice(self.xextent[0] - 1, self.xextent[1] + 1)
+                    }  #! Hardcoded 1 degree buffer around bathymetry selection. TODO: automatically select buffer
                 )
 
             bathy.attrs[
