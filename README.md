@@ -43,7 +43,7 @@ instructions to do this in a Conda-free way. With `esmpy` available, you can the
 pip install git+https://github.com/COSIMA/regional-mom6.git
 ```
 
-This will install the latest version of `regional_mom6` plus any required dependencies.
+This installs the latest version of `regional_mom6` plus any required dependencies.
 `esmpy` won't be installed as a dependency and that's why need to install it separately.
 
 Alternatively, you can also install a particular tag or git commit using, e.g.,
@@ -61,9 +61,9 @@ pip install git+https://github.com/COSIMA/regional-mom6.git@061b0ef80c7cbc04de05
 
 ## Getting started
 
-The two example notebooks walk you through how to use the package using two different sets of input datasets.
+The [example notebooks](https://regional-mom6.readthedocs.io/en/latest/demos.html) walk you through how to use the package using two different sets of input datasets.
 Make sure that you can get at least one of these working on your setup with your MOM6 executable, and then try to modify them to apply to your domain with your bathymethry, forcing, and boundary conditions.
 
-The `xesmf` the package will attempt to regrid in parallel, and if it's not able it will throw a warning and run it in serial.
-You will also get a print out of the relevant `mpirun` command which you could use as a backup.
+The `xesmf` the package attempts to regrid in parallel, and if it's not able to do so, it throws a warning and run in serial.
+You also get a print out of the relevant `mpirun` command which you could use as a backup.
 Depending on your setup of your machine, you may need to write scripts that implement the package to access more computational resources than might be available, e.g., on the HPC machine of you are working on.
