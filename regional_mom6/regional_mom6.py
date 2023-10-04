@@ -1,6 +1,6 @@
 import numpy as np
 from itertools import cycle
-import os
+from pathlib import Path
 import dask.array as da
 import dask.bag as db
 import numpy as np
@@ -475,15 +475,12 @@ class experiment:
         toolpath,
         gridtype="even_spacing",
     ):
-        try:
-            os.mkdir(mom_run_dir)
-        except:
-            pass
+        self.mom_run_dir = Path(mom_run_dir)
+        self.mom_input_dir = Path(mom_input_dir)
 
-        try:
-            os.mkdir(mom_input_dir)
-        except:
-            pass
+        self.mom_run_dir.mkdir(exist_ok=True)
+        self.mom_input_dir.mkdir(exist_ok=True)
+
         self.xextent = xextent
         self.yextent = yextent
         self.daterange = [
@@ -494,29 +491,21 @@ class experiment:
         self.vlayers = vlayers
         self.dz_ratio = dz_ratio
         self.depth = depth
-        self.mom_run_dir = mom_run_dir
-        self.mom_input_dir = mom_input_dir
         self.toolpath = toolpath
         self.hgrid = self._make_hgrid(gridtype)
         self.vgrid = self._make_vgrid()
         self.gridtype = gridtype
-        # if "temp" not in os.listdir(inputdir):
-        #     os.mkdir(inputdir + "temp")
 
-        if "weights" not in os.listdir(self.mom_input_dir):
-            os.mkdir(mom_input_dir + "weights")
-        if "forcing" not in os.listdir(self.mom_input_dir):
-            os.mkdir(self.mom_input_dir + "forcing")
+        # create additional directories and links
+        (self.mom_input_dir / "weights").mkdir(exist_ok=True)
+        (self.mom_input_dir / "forcing").mkdir(exist_ok=True)
 
-        # create a simlink from input directory to run directory and vv
-        subprocess.run(
-            f"ln -s {self.mom_input_dir} {self.mom_run_dir}/inputdir", shell=True
-        )
-        subprocess.run(
-            f"ln -s {self.mom_run_dir} {self.mom_input_dir}/rundir", shell=True
-        )
-
-        return
+        run_inputdir = self.mom_run_dir / "inputdir"
+        if not run_inputdir.exists():
+            run_inputdir.symlink_to(self.mom_input_dir.resolve())
+        input_rundir = self.mom_input_dir / "rundir"
+        if not input_rundir.exists():
+            input_rundir.symlink_to(self.mom_run_dir.resolve())
 
     def _make_hgrid(self, gridtype):
         """Sets up hgrid based on users specification of
@@ -548,7 +537,7 @@ class experiment:
 
             y = np.linspace(self.yextent[0], self.yextent[1], ny)
             hgrid = rectangular_hgrid(x, y)
-            hgrid.to_netcdf(self.mom_input_dir + "/hgrid.nc")
+            hgrid.to_netcdf(self.mom_input_dir / "hgrid.nc")
 
             return hgrid
 
@@ -566,7 +555,7 @@ class experiment:
             }  ## THIS MIGHT BE WRONG REVISIT
         )
         vcoord["zi"].attrs = {"units": "meters"}
-        vcoord.to_netcdf(self.mom_input_dir + "/vcoord.nc")
+        vcoord.to_netcdf(self.mom_input_dir / "vcoord.nc")
 
         return vcoord
 
@@ -577,7 +566,7 @@ class experiment:
         boundaries (if specified) and for initial condition
 
         Args:
-            path (str): Path to directory containing the forcing
+            path (Union[str, Path]): Path to directory containing the forcing
                 files. Files should be named
                 ``north_segment_unprocessed`` for each boundary (for
                 the cardinal directions) and ``ic_unprocessed`` for the
@@ -593,10 +582,12 @@ class experiment:
 
         """
 
+        path = Path(path)
+
         ## Do initial condition
 
         ## pull out the initial velocity on MOM5's Bgrid
-        ic_raw = xr.open_dataset(path + "/ic_unprocessed")
+        ic_raw = xr.open_dataset(path / "ic_unprocessed")
 
         if varnames["time"] in ic_raw.dims:
             ic_raw = ic_raw.isel({varnames["time"]: 0})
@@ -806,7 +797,7 @@ class experiment:
             eta_out = eta_out.isel(time=0).drop("time")
 
         vel_out.fillna(0).to_netcdf(
-            self.mom_input_dir + "forcing/init_vel.nc",
+            self.mom_input_dir / "forcing/init_vel.nc",
             mode="w",
             encoding={
                 "u": {"_FillValue": netCDF4.default_fillvals["f4"]},
@@ -815,7 +806,7 @@ class experiment:
         )
 
         tracers_out.to_netcdf(
-            self.mom_input_dir + "forcing/init_tracers.nc",
+            self.mom_input_dir / "forcing/init_tracers.nc",
             mode="w",
             encoding={
                 "xh": {"_FillValue": None},
@@ -826,7 +817,7 @@ class experiment:
             },
         )
         eta_out.to_netcdf(
-            self.mom_input_dir + "forcing/init_eta.nc",
+            self.mom_input_dir / "forcing/init_eta.nc",
             mode="w",
             encoding={
                 "xh": {"_FillValue": None},
@@ -840,18 +831,20 @@ class experiment:
         self.ic_tracers = tracers_out
         self.ic_vels = vel_out
 
-        if boundaries == None:
+        if boundaries is None:
             return
 
         print("BRUSHCUT BOUNDARIES")
 
-        ## Generate a rectangular OBC domain. This is the default configuration. For fancier domains, need to use the segment class manually
+        ## Generate a rectangular OBC domain. This is the default
+        ## configuration. For fancier domains, need to use the segment
+        ## class manually
         for i, o in enumerate(boundaries):
             print(f"Processing {o}...", end="")
             seg = segment(
                 self.hgrid,
-                f"{path}/{o.lower()}_unprocessed",  # location of raw boundary
-                f"{self.mom_input_dir}",  # Save path
+                path / f"{o.lower()}_unprocessed",  # location of raw boundary
+                self.mom_input_dir,
                 varnames,
                 "segment_{:03d}".format(i + 1),
                 o.lower(),  # orienataion
@@ -956,7 +949,7 @@ class experiment:
             bathyout.elevation.attrs["long_name"] = "Elevation relative to sea level"
             bathyout.elevation.attrs["coordinates"] = "lon lat"
             bathyout.to_netcdf(
-                f"{self.mom_input_dir}bathy_original.nc", mode="w", engine="netcdf4"
+                self.mom_input_dir / "bathy_original.nc", mode="w", engine="netcdf4"
             )
 
             tgrid = xr.Dataset(
@@ -1003,7 +996,7 @@ class experiment:
             tgrid.lon.attrs["_FillValue"] = 1e20
             tgrid.lat.attrs["units"] = "degrees_north"
             tgrid.to_netcdf(
-                f"{self.mom_input_dir}topog_raw.nc", mode="w", engine="netcdf4"
+                self.mom_input_dir / "topog_raw.nc", mode="w", engine="netcdf4"
             )
             tgrid.close()
 
@@ -1020,12 +1013,12 @@ class experiment:
 
             topog = regridder(bathyout)
             topog.to_netcdf(
-                f"{self.mom_input_dir}topog_raw.nc", mode="w", engine="netcdf4"
+                self.mom_input_dir / "topog_raw.nc", mode="w", engine="netcdf4"
             )
 
         ## reopen topography to modify
         print("Reading in regridded bathymetry to fix up metadata...", end="")
-        topog = xr.open_dataset(self.mom_input_dir + "topog_raw.nc", engine="netcdf4")
+        topog = xr.open_dataset(self.mom_input_dir / "topog_raw.nc", engine="netcdf4")
 
         ## Ensure correct encoding
         topog = xr.Dataset(
@@ -1181,32 +1174,26 @@ class experiment:
         topog["depth"] = topog["depth"].where(topog["depth"] != 0, np.nan)
 
         topog.expand_dims({"ntiles": 1}).to_netcdf(
-            self.mom_input_dir + "topog_deseas.nc",
+            self.mom_input_dir / "topog_deseas.nc",
             mode="w",
             encoding={"depth": {"_FillValue": None}},
         )
 
-        subprocess.run(
-            "mv topog_deseas.nc topog.nc", shell=True, cwd=self.mom_input_dir
-        )
+        (self.mom_input_dir / "topog_deseas.nc").rename(self.mom_input_dir / "topog.nc")
         print("done.")
         self.topog = topog
-        return
 
     def FRE_tools(self, layout):
         """
         Just a wrapper for FRE Tools check_mask, make_solo_mosaic and make_quick_mosaic. User provides processor layout tuple of processing units.
         """
 
-        if "topog.nc" not in os.listdir(self.mom_input_dir):
+        if not (self.mom_input_dir / "topog.nc").exists():
             print("No topography file! Need to run make_bathymetry first")
             return
-        try:
-            os.remove(
-                "mask_table*"
-            )  ## Removes old mask table so as not to clog up inputdir
-        except:
-            pass
+
+        for p in self.mom_input_dir.glob("mask_table*"):
+            p.unlink()
 
         print(
             "MAKE SOLO MOSAIC",
@@ -1240,7 +1227,6 @@ class experiment:
             ),
         )
         self.layout = layout
-        return
 
 
 class segment:
@@ -1258,8 +1244,8 @@ class segment:
 
     Args:
         hgrid (xarray.Dataset): The horizontal grid used for domain
-        infile (str): Path to the raw, unprocessed boundary segment
-        outfolder (str): Path to folder where the model inputs will be stored
+        infile (Union[str, Path]): Path to the raw, unprocessed boundary segment
+        outfolder (Union[str, Path]): Path to folder where the model inputs will be stored
         varnames (Dict[str, str]): Mapping between the
             variable/dimension names and standard naming convension of
             this pipeline, e.g. ``{"xq":"longitude, "yh":"latitude",
@@ -1322,9 +1308,7 @@ class segment:
 
     def brushcut(self, ryf=False):
         ### Implement brushcutter scheme on single segment ###
-        # print(self.infile + f"/{self.orientation}_segment_unprocessed")
         rawseg = xr.open_dataset(self.infile, decode_times=False, engine="netcdf4")
-        # rawseg = xr.open_dataset(self.infile,decode_times=False,chunks={self.time:30,self.z:25})
 
         ## Depending on the orientation of the segment, cut out the right bit of the hgrid
         ## and define which coordinate is along or into the segment
@@ -1374,7 +1358,7 @@ class segment:
                 locstream_out=True,
                 reuse_weights=False,
                 filename=self.outfolder
-                + f"weights/bilinear_velocity_weights_{self.orientation}.nc",
+                / f"weights/bilinear_velocity_weights_{self.orientation}.nc",
             )
 
             segment_out = xr.merge(
@@ -1397,7 +1381,7 @@ class segment:
                 locstream_out=True,
                 reuse_weights=False,
                 filename=self.outfolder
-                + f"weights/bilinear_velocity_weights_{self.orientation}.nc",
+                / f"weights/bilinear_velocity_weights_{self.orientation}.nc",
             )
 
             regridder_tracer = xe.Regridder(
@@ -1407,7 +1391,7 @@ class segment:
                 locstream_out=True,
                 reuse_weights=False,
                 filename=self.outfolder
-                + f"weights/bilinear_tracer_weights_{self.orientation}.nc",
+                / f"weights/bilinear_tracer_weights_{self.orientation}.nc",
             )
 
             segment_out = xr.merge(
@@ -1438,7 +1422,7 @@ class segment:
                 locstream_out=True,
                 reuse_weights=False,
                 filename=self.outfolder
-                + f"weights/bilinear_uvelocity_weights_{self.orientation}.nc",
+                / f"weights/bilinear_uvelocity_weights_{self.orientation}.nc",
             )
 
             regridder_vvelocity = xe.Regridder(
@@ -1448,7 +1432,7 @@ class segment:
                 locstream_out=True,
                 reuse_weights=False,
                 filename=self.outfolder
-                + f"weights/bilinear_vvelocity_weights_{self.orientation}.nc",
+                / f"weights/bilinear_vvelocity_weights_{self.orientation}.nc",
             )
 
             regridder_tracer = xe.Regridder(
@@ -1458,7 +1442,7 @@ class segment:
                 locstream_out=True,
                 reuse_weights=False,
                 filename=self.outfolder
-                + f"weights/bilinear_tracer_weights_{self.orientation}.nc",
+                / f"weights/bilinear_tracer_weights_{self.orientation}.nc",
             )
 
             segment_out = xr.merge(
@@ -1626,14 +1610,12 @@ class segment:
             hgrid_seg.y.data,
         )
 
-        # del segment_out["depth"]
-
         with ProgressBar():
             segment_out["time"] = segment_out["time"].assign_attrs(
                 {"modulo": " "}
             )  ## Add modulo attribute for MOM6 to treat as repeat forcing
             segment_out.load().to_netcdf(
-                self.outfolder + f"forcing/forcing_obc_{self.seg_name}.nc",
+                self.outfolder / f"forcing/forcing_obc_{self.seg_name}.nc",
                 encoding=encoding_dict,
                 unlimited_dims="time",
             )
