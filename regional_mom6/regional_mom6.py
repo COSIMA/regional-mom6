@@ -1022,7 +1022,7 @@ class experiment:
 
         ## Ensure correct encoding
         topog = xr.Dataset(
-            {"depth": (["ny", "nx"], topog[varnames["elevation"]].values)}
+            {"depth": (["ny", "nx"], topog["elevation"].values)}
         )
         topog.attrs["depth"] = "meters"
         topog.attrs["standard_name"] = "topographic depth at T-cell centers"
