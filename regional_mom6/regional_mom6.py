@@ -1021,9 +1021,7 @@ class experiment:
         topog = xr.open_dataset(self.mom_input_dir / "topog_raw.nc", engine="netcdf4")
 
         ## Ensure correct encoding
-        topog = xr.Dataset(
-            {"depth": (["ny", "nx"], topog["elevation"].values)}
-        )
+        topog = xr.Dataset({"depth": (["ny", "nx"], topog["elevation"].values)})
         topog.attrs["depth"] = "meters"
         topog.attrs["standard_name"] = "topographic depth at T-cell centers"
         topog.attrs["coordinates"] = "zi"
