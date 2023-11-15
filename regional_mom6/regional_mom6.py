@@ -1228,7 +1228,7 @@ class experiment:
         )
         self.layout = layout
 
-    def setup_run_directory(self,rmom6_path,surface_forcing = "era5",using_payu = False):
+    def setup_run_directory(self, rmom6_path, surface_forcing="era5", using_payu=False):
         """Sets up the run directory for MOM6. Creates a symbolic link
         to the input directory, and creates a payu configuration file
         if payu is being used.
@@ -1242,13 +1242,15 @@ class experiment:
 
         ## Copy the default directory to the run directory
 
-        subprocess.run(f"cp {str(Path(rmom6_path) / 'regional_mom6' / 'default_rundir' / surface_forcing)}_surface/* {str(self.mom_run_dir)}",shell=True)
+        subprocess.run(
+            f"cp {str(Path(rmom6_path) / 'regional_mom6' / 'default_rundir' / surface_forcing)}_surface/* {str(self.mom_run_dir)}",
+            shell=True,
+        )
         ## Make symlinks between run and input directories
         if not (self.mom_run_dir / "inputdir").exists():
             os.symlink(str(self.mom_input_dir), str(self.mom_run_dir / "inputdir"))
         if not (self.mom_input_dir / "rundir").exists():
             os.symlink(str(self.mom_run_dir), str(self.mom_input_dir / "rundir"))
-
 
         ## Get mask table information
         ncpus = 10
@@ -1266,7 +1268,7 @@ class experiment:
         print("Number of CPUs required: ", ncpus)
 
         ## Modify MOM_input
-        inputfile = open(f"{self.mom_run_dir}/MOM_input",'r')
+        inputfile = open(f"{self.mom_run_dir}/MOM_input", "r")
         lines = inputfile.readlines()
         inputfile.close()
         for i in range(len(lines)):
@@ -1276,9 +1278,9 @@ class experiment:
                 else:
                     lines[i] = "# MASKTABLE = no mask table"
             if "LAYOUT =" in lines[i] and "IO" not in lines[i]:
-                lines[i] = f'LAYOUT = {self.layout[1]},{self.layout[0]}\n'
+                lines[i] = f"LAYOUT = {self.layout[1]},{self.layout[0]}\n"
 
-            if "NIGLOBAL" in lines[i]: 
+            if "NIGLOBAL" in lines[i]:
                 # lines[i] = f"NIGLOBAL = {str(x_indices_centre[1] - x_indices_centre[0])}\n"
                 lines[i] = f"NIGLOBAL = {self.hgrid.nx.shape[0]//2}\n"
 
@@ -1286,14 +1288,13 @@ class experiment:
                 # lines[i] = f"NJGLOBAL = {str(y_indices_centre[1] - y_indices_centre[0])}\n"
                 lines[i] = f"NJGLOBAL = {self.hgrid.ny.shape[0]//2}\n"
 
-                
-        inputfile = open(f"{self.mom_run_dir}/MOM_input",'w')
+        inputfile = open(f"{self.mom_run_dir}/MOM_input", "w")
 
         inputfile.writelines(lines)
         inputfile.close()
 
         ## Modify SIS_input
-        inputfile = open(f"{self.mom_run_dir}/SIS_input",'r')
+        inputfile = open(f"{self.mom_run_dir}/SIS_input", "r")
         lines = inputfile.readlines()
         inputfile.close()
         for i in range(len(lines)):
@@ -1303,52 +1304,51 @@ class experiment:
                 # lines[i] = f"NIGLOBAL = {str(x_indices_centre[1] - x_indices_centre[0])}\n"
                 lines[i] = f"NIGLOBAL = {self.hgrid.nx.shape[0]//2}\n"
             if "LAYOUT =" in lines[i] and "IO" not in lines[i]:
-                lines[i] = f'LAYOUT = {self.layout[1]},{self.layout[0]}\n'
+                lines[i] = f"LAYOUT = {self.layout[1]},{self.layout[0]}\n"
             if "NJGLOBAL" in lines[i]:
                 # lines[i] = f"NJGLOBAL = {str(y_indices_centre[1] - y_indices_centre[0])}\n"
                 lines[i] = f"NJGLOBAL = {self.hgrid.ny.shape[0]//2}\n"
-                
-        inputfile = open(f"{self.mom_run_dir}/SIS_input",'w')
+
+        inputfile = open(f"{self.mom_run_dir}/SIS_input", "w")
         inputfile.writelines(lines)
         inputfile.close()
-
 
         ## If using payu to run the model, create a payu configuration file
         if not using_payu:
             os.remove(f"{self.mom_run_dir}/config.yaml")
 
         else:
-        ## Modify config.yaml 
-            inputfile = open(f"{self.mom_run_dir}/config.yaml",'r')
+            ## Modify config.yaml
+            inputfile = open(f"{self.mom_run_dir}/config.yaml", "r")
             lines = inputfile.readlines()
             inputfile.close()
             for i in range(len(lines)):
                 if "ncpus" in lines[i]:
-                    lines[i] = f'ncpus: {str(ncpus)}\n'
-                    
+                    lines[i] = f"ncpus: {str(ncpus)}\n"
+
                 if "input:" in lines[i]:
                     lines[i + 1] = f"    - {self.mom_input_dir}\n"
 
-            inputfile = open(f"{self.mom_run_dir}/config.yaml",'w')
+            inputfile = open(f"{self.mom_run_dir}/config.yaml", "w")
             inputfile.writelines(lines)
             inputfile.close()
 
-
-            # Modify input.nml 
-            inputfile = open(f"{self.mom_run_dir}/input.nml",'r')
+            # Modify input.nml
+            inputfile = open(f"{self.mom_run_dir}/input.nml", "r")
             lines = inputfile.readlines()
             inputfile.close()
             for i in range(len(lines)):
                 if "current_date" in lines[i]:
                     tmp = self.daterange[0]
-                    lines[i] = f"{lines[i].split(' = ')[0]} = {int(tmp.year)},{int(tmp.month)},{int(tmp.day)},0,0,0,\n"
+                    lines[
+                        i
+                    ] = f"{lines[i].split(' = ')[0]} = {int(tmp.year)},{int(tmp.month)},{int(tmp.day)},0,0,0,\n"
 
-            
-            inputfile = open(f"{self.mom_run_dir}/input.nml",'w')
+            inputfile = open(f"{self.mom_run_dir}/input.nml", "w")
             inputfile.writelines(lines)
             inputfile.close()
 
-    def setup_era5(self,era5_path):
+    def setup_era5(self, era5_path):
         """
         Sets up the ERA5 forcing files for your experiment. This assumes that you'd downloaded all of the ERA5 data in your daterange.
         You'll need the following fields:
@@ -1360,45 +1360,71 @@ class experiment:
 
         """
 
-
         ## Firstly just open all raw data
         rawdata = {}
-        for fname , vname in zip(["2t","10u","10v","sp","2d"] , ["t2m","u10","v10","sp","d2m"]):
-
+        for fname, vname in zip(
+            ["2t", "10u", "10v", "sp", "2d"], ["t2m", "u10", "v10", "sp", "d2m"]
+        ):
             ## Cut out this variable to our domain size
             rawdata[fname] = nicer_slicer(
-                xr.open_mfdataset(f"{era5_path}/{fname}/{self.daterange[0].year}/{fname}*",decode_times = False,chunks = {"longitude":100,"latitude":100}),
+                xr.open_mfdataset(
+                    f"{era5_path}/{fname}/{self.daterange[0].year}/{fname}*",
+                    decode_times=False,
+                    chunks={"longitude": 100, "latitude": 100},
+                ),
                 self.xextent,
-                "longitude"
+                "longitude",
             ).sel(
-                latitude = slice(self.yextent[1],self.yextent[0]) ## This is because ERA5 has latitude in decreasing order (??)
+                latitude=slice(
+                    self.yextent[1], self.yextent[0]
+                )  ## This is because ERA5 has latitude in decreasing order (??)
             )
 
             ## Now fix up the latitude and time dimensions
 
-            rawdata[fname] = rawdata[fname].isel(
-                latitude = slice(None,None,-1) ## Flip latitude        
-                ).assign_coords(
-                time = np.arange(0,rawdata[fname].time.shape[0],dtype=float) ## Set the zero date of forcing to start of run
+            rawdata[fname] = (
+                rawdata[fname]
+                .isel(latitude=slice(None, None, -1))  ## Flip latitude
+                .assign_coords(
+                    time=np.arange(
+                        0, rawdata[fname].time.shape[0], dtype=float
+                    )  ## Set the zero date of forcing to start of run
                 )
-            
+            )
 
-            rawdata[fname].time.attrs = {"calendar":"julian","units":f"hours since {self.daterange[0].strftime('%Y-%m-%d %H:%M:%S')}"} ## Fix up calendar to match
+            rawdata[fname].time.attrs = {
+                "calendar": "julian",
+                "units": f"hours since {self.daterange[0].strftime('%Y-%m-%d %H:%M:%S')}",
+            }  ## Fix up calendar to match
 
             if fname == "2d":
-                ## Calculate specific humidity from dewpoint temperature 
+                ## Calculate specific humidity from dewpoint temperature
                 q = xr.Dataset(
-                    data_vars= {
-                        "q": (0.622 / rawdata["sp"]["sp"]) * (10**(8.07131 - 1730.63 / (233.426 + rawdata["2d"]["d2m"] - 273.15) )) * 101325 / 760
-                        }
-
+                    data_vars={
+                        "q": (0.622 / rawdata["sp"]["sp"])
+                        * (
+                            10
+                            ** (
+                                8.07131
+                                - 1730.63 / (233.426 + rawdata["2d"]["d2m"] - 273.15)
+                            )
+                        )
+                        * 101325
+                        / 760
+                    }
                 )
-                q.q.attrs = {"long_name":"Specific Humidity","units": "kg/kg"}
-                q.to_netcdf(f"{self.mom_input_dir}/forcing/q_ERA5",unlimited_dims = "time",encoding = {"q":{"dtype":"double"}})
+                q.q.attrs = {"long_name": "Specific Humidity", "units": "kg/kg"}
+                q.to_netcdf(
+                    f"{self.mom_input_dir}/forcing/q_ERA5",
+                    unlimited_dims="time",
+                    encoding={"q": {"dtype": "double"}},
+                )
             else:
-                rawdata[fname].to_netcdf(f"{self.mom_input_dir}/forcing/{fname}_ERA5",unlimited_dims = "time",encoding = {vname:{"dtype":"double"}})
-
-
+                rawdata[fname].to_netcdf(
+                    f"{self.mom_input_dir}/forcing/{fname}_ERA5",
+                    unlimited_dims="time",
+                    encoding={vname: {"dtype": "double"}},
+                )
 
 
 class segment:
