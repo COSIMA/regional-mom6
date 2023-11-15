@@ -513,9 +513,7 @@ class experiment:
         spaced. This is very simple but suitable for small domains.
 
         Note:
-            The intention is for the hgrid generation to be very flexible. In future updates, further options will built
-            into _make_grid(), probably wrapping some functions from the `Grid Gen repository <https://github.com/ESMG/gridtools>`_.
-            For now, you can customise the hgrid by simply overwriting the `hgrid.nc` file that's deposited in your `rundir` after initialising an `experiment`. To conserve the metadata, it might be easiest to read the file in, then modify the fields before re-saving.
+            The intention is for the hgrid generation to be very flexible. For now there is only one implemented horizontal grid included in the package, but you can customise it by simply overwriting the `hgrid.nc` file that's deposited in your `rundir` after initialising an `experiment`. To conserve the metadata, it might be easiest to read the file in, then modify the fields before re-saving.
         """
 
         if gridtype == "even_spacing":
