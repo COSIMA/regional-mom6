@@ -1021,9 +1021,7 @@ class experiment:
         topog = xr.open_dataset(self.mom_input_dir / "topog_raw.nc", engine="netcdf4")
 
         ## Ensure correct encoding
-        topog = xr.Dataset(
-            {"depth": (["ny", "nx"], topog[varnames["elevation"]].values)}
-        )
+        topog = xr.Dataset({"depth": (["ny", "nx"], topog["elevation"].values)})
         topog.attrs["depth"] = "meters"
         topog.attrs["standard_name"] = "topographic depth at T-cell centers"
         topog.attrs["coordinates"] = "zi"
@@ -1403,12 +1401,8 @@ class segment:
                     ),
                     regridder_tracer(
                         rawseg[
-                            [self.eta.rename({self.xh: "lon", self.yh: "lat"})]
-                            + [
-                                self.tracers[i].rename({self.xh: "lon", self.yh: "lat"})
-                                for i in self.tracers
-                            ]
-                        ]
+                            [self.eta] + [self.tracers[i] for i in self.tracers]
+                        ].rename({self.xh: "lon", self.yh: "lat"})
                     ),
                 ]
             )
