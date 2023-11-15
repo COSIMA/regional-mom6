@@ -510,14 +510,10 @@ class experiment:
     def _make_hgrid(self, gridtype):
         """Sets up hgrid based on users specification of
         domain. Default behaviour leaves latitude and longitude evenly
-        spaced.
+        spaced. This is very simple but suitable for small domains.
 
-        If user specifies a resolution of 0.1 degrees, longitude is
-        spaced this way and latitude spaced with 0.1
-        cos(mean_latitude). This way, grids in the centre of the
-        domain are perfectly square, but decrease monatonically in
-        area away from the equator
-
+        Note:
+            The intention is for the hgrid generation to be very flexible. For now there is only one implemented horizontal grid included in the package, but you can customise it by simply overwriting the `hgrid.nc` file that's deposited in your `rundir` after initialising an `experiment`. To conserve the metadata, it might be easiest to read the file in, then modify the fields before re-saving.
         """
 
         if gridtype == "even_spacing":
