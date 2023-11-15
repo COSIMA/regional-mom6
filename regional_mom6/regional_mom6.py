@@ -1401,12 +1401,9 @@ class segment:
                     ),
                     regridder_tracer(
                         rawseg[
-                            [self.eta.rename({self.xh: "lon", self.yh: "lat"})]
-                            + [
-                                self.tracers[i].rename({self.xh: "lon", self.yh: "lat"})
-                                for i in self.tracers
-                            ]
-                        ]
+                            [self.eta]
+                            + [self.tracers[i] for i in self.tracers]
+                        ].rename({self.xh: "lon", self.yh: "lat"})
                     ),
                 ]
             )
