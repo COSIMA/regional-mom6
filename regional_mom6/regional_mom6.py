@@ -13,6 +13,8 @@ from dask.distributed import Client, worker_client
 from dask.diagnostics import ProgressBar
 import datetime as dt
 import warnings
+import shutil
+import os
 from .utils import vecdot
 
 warnings.filterwarnings("ignore")
@@ -1225,6 +1227,175 @@ class experiment:
             ),
         )
         self.layout = layout
+
+    def setup_run_directory(self,surface_forcing = "era5",using_payu = False):
+        """Sets up the run directory for MOM6. Creates a symbolic link
+        to the input directory, and creates a payu configuration file
+        if payu is being used.
+
+        Args:
+            surface_forcing (Optional[str]): The surface forcing to use. One of ``era5`` or ``jra``.
+            using_payu (Optional[bool]): Whether or not to use payu to run the model. If True, a payu configuration file will be created.
+
+        """
+
+        ## Copy the default directory to the run directory
+
+        shutil.copy(f"default_rundir/{surface_forcing}_surface/data_table", str(self.rundir))
+        ## Make symlinks between run and input directories
+        os.symlink(str(self.inputdir), str(self.rundir / "inputdir"))
+        os.symlink(str(self.rundir), str(self.inputdir / "rundir"))
+
+
+        ## Get mask table information
+        ncpus = 10
+        mask_table = None
+        for i in os.listdir(f"{self.inputdir}"):
+            if "mask_table" in i:
+                mask_table = i
+                a = mask_table.split(".")[1]
+                b = mask_table.split(".")[2].split("x")
+                ncpus = int(b[0]) * int(b[1]) - int(a)
+        if mask_table == None:
+            print("No mask table found! Run FRE_tools first. Terminating")
+            raise ValueError
+
+        print("Number of CPUs required: ", ncpus)
+
+        ## Modify MOM_input
+        inputfile = open(f"{self.rundir}/MOM_input",'r')
+        lines = inputfile.readlines()
+        inputfile.close()
+        for i in range(len(lines)):
+            if "MASKTABLE" in lines[i]:
+                if mask_table != None:
+                    lines[i] = f'MASKTABLE = "{mask_table}"\n'
+                else:
+                    lines[i] = "# MASKTABLE = no mask table"
+            if "LAYOUT =" in lines[i] and "IO" not in lines[i]:
+                lines[i] = f'LAYOUT = {self.layout[1]},{self.layout[0]}\n'
+
+            if "NIGLOBAL" in lines[i]: 
+                # lines[i] = f"NIGLOBAL = {str(x_indices_centre[1] - x_indices_centre[0])}\n"
+                lines[i] = f"NIGLOBAL = {self.hgrid.nx.shape[0]//2}\n"
+
+            if "NJGLOBAL" in lines[i]:
+                # lines[i] = f"NJGLOBAL = {str(y_indices_centre[1] - y_indices_centre[0])}\n"
+                lines[i] = f"NJGLOBAL = {self.hgrid.ny.shape[0]//2}\n"
+
+                
+        inputfile = open(f"{self.rundir}/MOM_input",'w')
+
+        inputfile.writelines(lines)
+        inputfile.close()
+
+        ## Modify SIS_input
+        inputfile = open(f"{self.rundir}/SIS_input",'r')
+        lines = inputfile.readlines()
+        inputfile.close()
+        for i in range(len(lines)):
+            if "MASKTABLE" in lines[i]:
+                lines[i] = f'MASKTABLE = "{mask_table}"\n'
+            if "NIGLOBAL" in lines[i]:
+                # lines[i] = f"NIGLOBAL = {str(x_indices_centre[1] - x_indices_centre[0])}\n"
+                lines[i] = f"NIGLOBAL = {self.hgrid.nx.shape[0]//2}\n"
+            if "LAYOUT =" in lines[i] and "IO" not in lines[i]:
+                lines[i] = f'LAYOUT = {self.layout[1]},{self.layout[0]}\n'
+            if "NJGLOBAL" in lines[i]:
+                # lines[i] = f"NJGLOBAL = {str(y_indices_centre[1] - y_indices_centre[0])}\n"
+                lines[i] = f"NJGLOBAL = {self.hgrid.ny.shape[0]//2}\n"
+                
+        inputfile = open(f"{self.rundir}/SIS_input",'w')
+        inputfile.writelines(lines)
+        inputfile.close()
+
+
+        ## If using payu to run the model, create a payu configuration file
+        if not using_payu:
+            shutil.rmtree(f"{self.rundir}/config.yaml")
+
+        else:
+        ## Modify config.yaml 
+            inputfile = open(f"{self.rundir}/config.yaml",'r')
+            lines = inputfile.readlines()
+            inputfile.close()
+            for i in range(len(lines)):
+                if "ncpus" in lines[i]:
+                    lines[i] = f'ncpus: {str(ncpus)}\n'
+                    
+                if "input:" in lines[i]:
+                    lines[i + 1] = f"    - {self.inputdir}\n"
+
+            inputfile = open(f"{self.rundir}/config.yaml",'w')
+            inputfile.writelines(lines)
+            inputfile.close()
+
+
+            # Modify input.nml 
+            inputfile = open(f"{self.rundir}/input.nml",'r')
+            lines = inputfile.readlines()
+            inputfile.close()
+            for i in range(len(lines)):
+                if "current_date" in lines[i]:
+                    tmp = self.daterange[0].split(" ")[0].split("-")
+                    lines[i] = f"{lines[i].split(' = ')[0]} = {int(tmp[0])},{int(tmp[1])},{int(tmp[2])},0,0,0,\n"
+
+            
+            inputfile = open(f"{self.rundir}/input.nml",'w')
+            inputfile.writelines(lines)
+            inputfile.close()
+
+    def setup_era5(self,era5_path):
+        """
+        Sets up the ERA5 forcing files for your experiment. This assumes that you'd downloaded all of the ERA5 data in your daterange.
+        You'll need the following fields:
+        2t, 10u, 10v, sp, 2d
+
+
+        Args:
+            era5_path (str): Path to the ERA5 forcing files
+
+        """
+
+
+        ## Firstly just open all raw data
+        rawdata = {}
+        for fname , vname in zip(["2t","10u","10v","sp","2d"] , ["t2m","u10","v10","sp","d2m"]):
+
+            ## Cut out this variable to our domain size
+            rawdata[fname] = nicer_slicer(
+                xr.open_mfdataset(f"{era5_path}/{fname}/{self.daterange[0].split('-')[0]}/{fname}*",decode_times = False,chunks = {"longitude":100,"latitude":100}),
+                self.xextent,
+                "longitude"
+            ).sel(
+                latitude = slice(self.yextent[1],self.yextent[0]) ## This is because ERA5 has latitude in decreasing order (??)
+            )
+
+            ## Now fix up the latitude and time dimensions
+
+            rawdata[fname] = rawdata[fname].isel(
+                latitude = slice(None,None,-1) ## Flip latitude        
+                ).assign_coords(
+                time = np.arange(0,rawdata[fname].time.shape[0],dtype=float) ## Set the zero date of forcing to start of run
+                )
+            
+
+            rawdata[fname].time.attrs = {"calendar":"julian","units":f"hours since {self.daterange[0]}"} ## Fix up calendar to match
+
+            if fname == "2d":
+                ## Calculate specific humidity from dewpoint temperature 
+                q = xr.Dataset(
+                    data_vars= {
+                        "q": (0.622 / rawdata["sp"]["sp"]) * (10**(8.07131 - 1730.63 / (233.426 + rawdata["2d"]["d2m"] - 273.15) )) * 101325 / 760
+                        }
+
+                )
+                q.q.attrs = {"long_name":"Specific Humidity","units": "kg/kg"}
+                q.to_netcdf(f"{self.inputdir}/forcing/q_ERA5",unlimited_dims = "time",encoding = {"q":{"dtype":"double"}})
+            else:
+                rawdata[fname].to_netcdf(f"{self.inputdir}/forcing/{fname}_ERA5",unlimited_dims = "time",encoding = {vname:{"dtype":"double"}})
+
+
 
 
 class segment:
