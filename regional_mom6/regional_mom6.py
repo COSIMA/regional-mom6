@@ -1228,12 +1228,13 @@ class experiment:
         )
         self.layout = layout
 
-    def setup_run_directory(self,surface_forcing = "era5",using_payu = False):
+    def setup_run_directory(self,rmom6_path,surface_forcing = "era5",using_payu = False):
         """Sets up the run directory for MOM6. Creates a symbolic link
         to the input directory, and creates a payu configuration file
         if payu is being used.
 
         Args:
+            rmom6_path [str]:   The path to where the regional_mom6 package is installed. This is needed to find the default run directory that this function builds on
             surface_forcing (Optional[str]): The surface forcing to use. One of ``era5`` or ``jra``.
             using_payu (Optional[bool]): Whether or not to use payu to run the model. If True, a payu configuration file will be created.
 
@@ -1241,16 +1242,18 @@ class experiment:
 
         ## Copy the default directory to the run directory
 
-        shutil.copy(f"default_rundir/{surface_forcing}_surface/data_table", str(self.rundir))
+        subprocess.run(f"cp {str(Path(rmom6_path) / 'regional_mom6' / 'default_rundir' / surface_forcing)}_surface/* {str(self.mom_run_dir)}",shell=True)
         ## Make symlinks between run and input directories
-        os.symlink(str(self.inputdir), str(self.rundir / "inputdir"))
-        os.symlink(str(self.rundir), str(self.inputdir / "rundir"))
+        if not (self.mom_run_dir / "inputdir").exists():
+            os.symlink(str(self.mom_input_dir), str(self.mom_run_dir / "inputdir"))
+        if not (self.mom_input_dir / "rundir").exists():
+            os.symlink(str(self.mom_run_dir), str(self.mom_input_dir / "rundir"))
 
 
         ## Get mask table information
         ncpus = 10
         mask_table = None
-        for i in os.listdir(f"{self.inputdir}"):
+        for i in os.listdir(f"{self.mom_input_dir}"):
             if "mask_table" in i:
                 mask_table = i
                 a = mask_table.split(".")[1]
@@ -1263,7 +1266,7 @@ class experiment:
         print("Number of CPUs required: ", ncpus)
 
         ## Modify MOM_input
-        inputfile = open(f"{self.rundir}/MOM_input",'r')
+        inputfile = open(f"{self.mom_run_dir}/MOM_input",'r')
         lines = inputfile.readlines()
         inputfile.close()
         for i in range(len(lines)):
@@ -1284,13 +1287,13 @@ class experiment:
                 lines[i] = f"NJGLOBAL = {self.hgrid.ny.shape[0]//2}\n"
 
                 
-        inputfile = open(f"{self.rundir}/MOM_input",'w')
+        inputfile = open(f"{self.mom_run_dir}/MOM_input",'w')
 
         inputfile.writelines(lines)
         inputfile.close()
 
         ## Modify SIS_input
-        inputfile = open(f"{self.rundir}/SIS_input",'r')
+        inputfile = open(f"{self.mom_run_dir}/SIS_input",'r')
         lines = inputfile.readlines()
         inputfile.close()
         for i in range(len(lines)):
@@ -1305,18 +1308,18 @@ class experiment:
                 # lines[i] = f"NJGLOBAL = {str(y_indices_centre[1] - y_indices_centre[0])}\n"
                 lines[i] = f"NJGLOBAL = {self.hgrid.ny.shape[0]//2}\n"
                 
-        inputfile = open(f"{self.rundir}/SIS_input",'w')
+        inputfile = open(f"{self.mom_run_dir}/SIS_input",'w')
         inputfile.writelines(lines)
         inputfile.close()
 
 
         ## If using payu to run the model, create a payu configuration file
         if not using_payu:
-            shutil.rmtree(f"{self.rundir}/config.yaml")
+            os.remove(f"{self.mom_run_dir}/config.yaml")
 
         else:
         ## Modify config.yaml 
-            inputfile = open(f"{self.rundir}/config.yaml",'r')
+            inputfile = open(f"{self.mom_run_dir}/config.yaml",'r')
             lines = inputfile.readlines()
             inputfile.close()
             for i in range(len(lines)):
@@ -1324,24 +1327,24 @@ class experiment:
                     lines[i] = f'ncpus: {str(ncpus)}\n'
                     
                 if "input:" in lines[i]:
-                    lines[i + 1] = f"    - {self.inputdir}\n"
+                    lines[i + 1] = f"    - {self.mom_input_dir}\n"
 
-            inputfile = open(f"{self.rundir}/config.yaml",'w')
+            inputfile = open(f"{self.mom_run_dir}/config.yaml",'w')
             inputfile.writelines(lines)
             inputfile.close()
 
 
             # Modify input.nml 
-            inputfile = open(f"{self.rundir}/input.nml",'r')
+            inputfile = open(f"{self.mom_run_dir}/input.nml",'r')
             lines = inputfile.readlines()
             inputfile.close()
             for i in range(len(lines)):
                 if "current_date" in lines[i]:
-                    tmp = self.daterange[0].split(" ")[0].split("-")
-                    lines[i] = f"{lines[i].split(' = ')[0]} = {int(tmp[0])},{int(tmp[1])},{int(tmp[2])},0,0,0,\n"
+                    tmp = self.daterange[0]
+                    lines[i] = f"{lines[i].split(' = ')[0]} = {int(tmp.year)},{int(tmp.month)},{int(tmp.day)},0,0,0,\n"
 
             
-            inputfile = open(f"{self.rundir}/input.nml",'w')
+            inputfile = open(f"{self.mom_run_dir}/input.nml",'w')
             inputfile.writelines(lines)
             inputfile.close()
 
@@ -1364,7 +1367,7 @@ class experiment:
 
             ## Cut out this variable to our domain size
             rawdata[fname] = nicer_slicer(
-                xr.open_mfdataset(f"{era5_path}/{fname}/{self.daterange[0].split('-')[0]}/{fname}*",decode_times = False,chunks = {"longitude":100,"latitude":100}),
+                xr.open_mfdataset(f"{era5_path}/{fname}/{self.daterange[0].year}/{fname}*",decode_times = False,chunks = {"longitude":100,"latitude":100}),
                 self.xextent,
                 "longitude"
             ).sel(
@@ -1380,7 +1383,7 @@ class experiment:
                 )
             
 
-            rawdata[fname].time.attrs = {"calendar":"julian","units":f"hours since {self.daterange[0]}"} ## Fix up calendar to match
+            rawdata[fname].time.attrs = {"calendar":"julian","units":f"hours since {self.daterange[0].strftime('%Y-%m-%d %H:%M:%S')}"} ## Fix up calendar to match
 
             if fname == "2d":
                 ## Calculate specific humidity from dewpoint temperature 
@@ -1391,9 +1394,9 @@ class experiment:
 
                 )
                 q.q.attrs = {"long_name":"Specific Humidity","units": "kg/kg"}
-                q.to_netcdf(f"{self.inputdir}/forcing/q_ERA5",unlimited_dims = "time",encoding = {"q":{"dtype":"double"}})
+                q.to_netcdf(f"{self.mom_input_dir}/forcing/q_ERA5",unlimited_dims = "time",encoding = {"q":{"dtype":"double"}})
             else:
-                rawdata[fname].to_netcdf(f"{self.inputdir}/forcing/{fname}_ERA5",unlimited_dims = "time",encoding = {vname:{"dtype":"double"}})
+                rawdata[fname].to_netcdf(f"{self.mom_input_dir}/forcing/{fname}_ERA5",unlimited_dims = "time",encoding = {vname:{"dtype":"double"}})
 
 
 
