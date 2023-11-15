@@ -547,6 +547,7 @@ class experiment:
         """Generates a vertical grid based on the number of layers
         and vertical ratio specified at the class level.
 
+        The vertical profile uses a hyperbolic tangent function to smoothly transition the thickness of cells. If the `dz_ratio` is set to one, the vertical grid will be uniform, for `dz_ratio` = 10, the top layer will be 10 times thicker than the bottom layer, and for negative numbers the bottom layer will be thicker than the top
         """
 
         thickness = dz(self.vlayers + 1, self.dz_ratio, self.depth)
@@ -554,7 +555,7 @@ class experiment:
             {
                 "zi": ("zi", np.cumsum(thickness)),
                 "zl": ("zl", (np.cumsum(thickness) + 0.5 * thickness)[0:-1]),
-            }  ## THIS MIGHT BE WRONG REVISIT
+            }
         )
         vcoord["zi"].attrs = {"units": "meters"}
         vcoord.to_netcdf(self.mom_input_dir / "vcoord.nc")
