@@ -510,7 +510,7 @@ class experiment:
     def _make_hgrid(self, gridtype):
         """Sets up hgrid based on users specification of
         domain. Default behaviour leaves latitude and longitude evenly
-        spaced. This is very simple but suitable for small domains. 
+        spaced. This is very simple but suitable for small domains.
 
         Note:
             The intention is for the hgrid generation to be very flexible. In future updates, further options will built
