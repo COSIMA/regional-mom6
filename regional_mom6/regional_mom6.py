@@ -1257,7 +1257,6 @@ class experiment:
         rundir_in_inputdir.symlink_to(self.mom_run_dir)
 
         ## Get mask table information
-        ncpus = 10
         mask_table = None
         for i in os.listdir(f"{self.mom_input_dir}"):
             if "mask_table" in i:
