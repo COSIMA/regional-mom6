@@ -1247,10 +1247,14 @@ class experiment:
         )
         shutil.copytree(rundir_src, self.mom_run_dir)
         ## Make symlinks between run and input directories
-        if not (self.mom_run_dir / "inputdir").exists():
-            os.symlink(str(self.mom_input_dir), str(self.mom_run_dir / "inputdir"))
-        if not (self.mom_input_dir / "rundir").exists():
-            os.symlink(str(self.mom_run_dir), str(self.mom_input_dir / "rundir"))
+        inputdir_in_rundir = self.mom_run_dir / "inputdir"
+        rundir_in_inputdir = self.mom_input_dir / "rundir"
+        
+        inputdir_in_rundir.unlink(missing_ok=True)
+        inputdir_in_rundir.symlink_to(self.mom_input_dir)
+        
+        rundir_in_inputdir.unlink(missing_ok=True)
+        rundir_in_inputdir.symlink_to(self.mom_run_dir)
 
         ## Get mask table information
         ncpus = 10
