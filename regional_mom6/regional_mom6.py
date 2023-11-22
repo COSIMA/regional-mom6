@@ -1239,10 +1239,13 @@ class experiment:
 
         ## Copy the default directory to the run directory
 
-        subprocess.run(
-            f"cp {str(Path(rmom6_path) / 'regional_mom6' / 'default_rundir' / surface_forcing)}_surface/* {str(self.mom_run_dir)}",
-            shell=True,
+        rundir_src = (
+          Path(__file__).parent() /
+          "regional_mom6" /
+          "default_rundir" /
+          f"{surface_forcing}_surface"
         )
+        shutil.copytree(rundir_src, self.mom_run_dir)
         ## Make symlinks between run and input directories
         if not (self.mom_run_dir / "inputdir").exists():
             os.symlink(str(self.mom_input_dir), str(self.mom_run_dir / "inputdir"))
