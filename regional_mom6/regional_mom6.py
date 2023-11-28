@@ -11,12 +11,13 @@ from scipy.ndimage import binary_fill_holes
 import netCDF4
 from dask.distributed import Client, worker_client
 from dask.diagnostics import ProgressBar
+import f90nml
 import datetime as dt
 import warnings
 import shutil
 import os
 from .utils import vecdot
-
+import yaml
 warnings.filterwarnings("ignore")
 
 __all__ = [
@@ -1225,23 +1226,23 @@ class experiment:
         )
         self.layout = layout
 
-    def setup_run_directory(self, use_default="era5", using_payu=False):
-        """Sets up the run directory for MOM6. Creates a symbolic link
-        to the input directory, and creates a payu configuration file
-        if payu is being used.
+    def setup_run_directory(self, demo_run_dir=False, using_payu=False):
+        """Sets up the run directory for MOM6. Either copies a pre-made set of files, or modifies existing files in the `rundir` directory for the experiment.
 
         Args:
-            use_default (Optional[str]): Choose a default run directory. One of ``era5`` or ``jra`` corresponding to the choices of surface forcing.
+            use_default (Optional[str,bool]): Choose whether or not to load a premade run directory. If yes, choose one of ``era5`` or ``jra`` corresponding to the choices of surface forcing.
             using_payu (Optional[bool]): Whether or not to use payu to run the model. If True, a payu configuration file will be created.
         """
 
         ## Copy the default directory to the run directory
-
-        rundir_src = (
-          Path(__file__).parent /
-          "default_rundir" /
-          f"{use_default}_surface"
-        )
+        if demo_run_dir != False:
+            rundir_src = (
+            Path(__file__).parent.parent /
+            "premade_run_directories" /
+            f"{demo_run_dir}"
+            )
+        else:
+            print("Setting up run directory without using a premade template. Will attempt to modify files in existing run directory. At a minimum, you'll need `MOM_input`, `SIS_input` and `input.nml` files.")
         shutil.copytree(rundir_src, self.mom_run_dir, dirs_exist_ok=True)
         ## Make symlinks between run and input directories
         inputdir_in_rundir = self.mom_run_dir / "inputdir"
@@ -1258,9 +1259,10 @@ class experiment:
         for p in self.mom_input_dir.glob("mask_table.*"):
             if mask_table != None:
                 print(f"WARNING: Multiple mask tables found. Defaulting to {p}. If this is not what you want, remove it from the run directory and try again.")
-          mask_table, masked, layout = p.name.split(".")
-          x, y = (int(v) for v in layout.split("x"))
-          ncpus = (x * y) - masked
+            
+            mask_table, masked, layout = p.name.split(".")
+            x, y = (int(v) for v in layout.split("x"))
+            ncpus = (x * y) - masked
         if mask_table == None:
             print("No mask table found! This suggests your domain is mostly water, so there are no `non compute` cells that are entirely land. If this doesn't seem right, ensure you've already run .FRE_tools().")
             ncpus = self.layout[0] * self.layout[1]
@@ -1270,56 +1272,36 @@ class experiment:
         inputfile = open(f"{self.mom_run_dir}/MOM_input", "r")
         lines = inputfile.readlines()
         inputfile.close()
-        for i in range(len(lines)):
-            if "MASKTABLE" in lines[i]:
-                if mask_table != None:
-                    lines[i] = f'MASKTABLE = "{mask_table}"\n'
-                else:
-                    lines[i] = "# MASKTABLE = no mask table"
-            if "LAYOUT =" in lines[i] and "IO" not in lines[i]:
-                lines[i] = f"LAYOUT = {self.layout[1]},{self.layout[0]}\n"
 
-            if "NIGLOBAL" in lines[i]:
-                # lines[i] = f"NIGLOBAL = {str(x_indices_centre[1] - x_indices_centre[0])}\n"
-                lines[i] = f"NIGLOBAL = {self.hgrid.nx.shape[0]//2}\n"
+        ## Modify the input namelists to give the correct layouts
+        for j in ["MOM_input","SIS_input"]:
+            with open(self.mom_run_dir / j , "r").readlines() as lines:
+                for jj in range(len(lines)):
+                    if "MASKTABLE" in lines[i]:
+                        if mask_table != None:
+                            lines[jj] = f'MASKTABLE = "{mask_table}"\n'
+                        else:
+                            lines[jj] = "# MASKTABLE = no mask table"
+                    if "LAYOUT =" in lines[jj] and "IO" not in lines[jj]:
+                        lines[jj] = f"LAYOUT = {self.layout[1]},{self.layout[0]}\n"
 
-            if "NJGLOBAL" in lines[i]:
-                # lines[i] = f"NJGLOBAL = {str(y_indices_centre[1] - y_indices_centre[0])}\n"
-                lines[i] = f"NJGLOBAL = {self.hgrid.ny.shape[0]//2}\n"
+                    if "NIGLOBAL" in lines[jj]:
+                        lines[jj] = f"NIGLOBAL = {self.hgrid.nx.shape[0]//2}\n"
 
-        inputfile = open(f"{self.mom_run_dir}/MOM_input", "w")
+                    if "NJGLOBAL" in lines[jj]:
+                        lines[jj] = f"NJGLOBAL = {self.hgrid.ny.shape[0]//2}\n"
 
-        inputfile.writelines(lines)
-        inputfile.close()
+            with open(self.mom_run_dir / j , "w") as f:
+                f.writelines(lines)
 
-        ## Modify SIS_input
-        inputfile = open(f"{self.mom_run_dir}/SIS_input", "r")
-        lines = inputfile.readlines()
-        inputfile.close()
-        for i in range(len(lines)):
-            if "MASKTABLE" in lines[i]:
-                lines[i] = f'MASKTABLE = "{mask_table}"\n'
-            if "NIGLOBAL" in lines[i]:
-                # lines[i] = f"NIGLOBAL = {str(x_indices_centre[1] - x_indices_centre[0])}\n"
-                lines[i] = f"NIGLOBAL = {self.hgrid.nx.shape[0]//2}\n"
-            if "LAYOUT =" in lines[i] and "IO" not in lines[i]:
-                lines[i] = f"LAYOUT = {self.layout[1]},{self.layout[0]}\n"
-            if "NJGLOBAL" in lines[i]:
-                # lines[i] = f"NJGLOBAL = {str(y_indices_centre[1] - y_indices_centre[0])}\n"
-                lines[i] = f"NJGLOBAL = {self.hgrid.ny.shape[0]//2}\n"
-
-        inputfile = open(f"{self.mom_run_dir}/SIS_input", "w")
-        inputfile.writelines(lines)
-        inputfile.close()
 
         ## If using payu to run the model, create a payu configuration file
-        if not using_payu:
+        if not using_payu and os.path.exists(f"{self.mom_run_dir}/config.yaml"):
             os.remove(f"{self.mom_run_dir}/config.yaml")
 
         else:
             with open(self.mom_run_dir / "config.yaml", "r") as f:
                 payu_config = yaml.safe_load(f)
-
                 payu_config["ncpus"] = ncpus
                 payu_config["input"].append(self.mom_input_dir)
 
@@ -1328,19 +1310,12 @@ class experiment:
 
 
         # Modify input.nml
-        inputfile = open(f"{self.mom_run_dir}/input.nml", "r")
-        lines = inputfile.readlines()
-        inputfile.close()
-        for i in range(len(lines)):
-            if "current_date" in lines[i]:
-                tmp = self.daterange[0]
-                lines[
-                    i
-                ] = f"{lines[i].split(' = ')[0]} = {int(tmp.year)},{int(tmp.month)},{int(tmp.day)},0,0,0,\n"
+        nml = f90nml.read(self.mom_run_dir / "input.nml")
+        nml["coupler_nml"]["current_date"] = [self.daterange[0].year, self.daterange[0].month,self.daterange[0].day , 0, 0, 0]
+        nml.write(self.mom_run_dir / "input.nml", force=True)
 
-        inputfile = open(f"{self.mom_run_dir}/input.nml", "w")
-        inputfile.writelines(lines)
-        inputfile.close()
+        return
+
 
     def setup_era5(self, era5_path):
         """
