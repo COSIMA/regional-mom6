@@ -1,0 +1,27 @@
+## Example of a config.yaml file for running mom6 via payu
+
+project: x77
+queue: normal
+walltime: 02:00:00
+jobname: mom6_regional
+ncpus: 82
+jobfs: 10GB
+
+shortpath: /scratch/x77
+
+model: mom6
+input:
+    - /scratch/v45/ab8992/mom6/regional_configs/gippsland
+    - /g/data/ik11/inputs/JRA-55/RYF/v1-3/
+exe: /g/data/x77/ahg157/exes/MOM6_SIS2/symmetric_FMS2-e7d09b7
+
+
+collate: false
+storage:
+  gdata:
+    - ua8
+    - x77
+    - ik11
+
+mpi:
+  module: openmpi/4.1.2
