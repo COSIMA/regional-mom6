@@ -1258,13 +1258,10 @@ class experiment:
         rundir_in_inputdir.symlink_to(self.mom_run_dir)
 
         ## Get mask table information
-        mask_table = None
-        for i in os.listdir(f"{self.mom_input_dir}"):
-            if "mask_table" in i:
-                mask_table = i
-                a = mask_table.split(".")[1]
-                b = mask_table.split(".")[2].split("x")
-                ncpus = int(b[0]) * int(b[1]) - int(a)
+        for p in self.mom_input_dir.glob("mask_table.*"):
+          mask_table, masked, layout = p.name.split(".")
+          x, y = (int(v) for v in layout.split("x"))
+          ncpus = (x * y) - masked
         if mask_table == None:
             print("No mask table found! This suggests your domain is mostly water, so there are no `non compute` cells that are entirely land. If this doesn't seem right, ensure you've already run .FRE_tools().")
             ncpus = self.layout[0] * self.layout[1]
