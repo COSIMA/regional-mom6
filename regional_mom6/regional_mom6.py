@@ -1243,10 +1243,6 @@ class experiment:
           f"{use_default}_surface"
         )
         shutil.copytree(rundir_src, self.mom_run_dir, dirs_exist_ok=True)
-        subprocess.run(
-            f"cp {str(rundir_src)}/* {str(self.mom_run_dir)}",
-            shell=True,
-        )
         ## Make symlinks between run and input directories
         inputdir_in_rundir = self.mom_run_dir / "inputdir"
         rundir_in_inputdir = self.mom_input_dir / "rundir"
@@ -1258,7 +1254,10 @@ class experiment:
         rundir_in_inputdir.symlink_to(self.mom_run_dir)
 
         ## Get mask table information
+        mask_table = None
         for p in self.mom_input_dir.glob("mask_table.*"):
+            if mask_table != None:
+                print(f"WARNING: Multiple mask tables found. Defaulting to {p}. If this is not what you want, remove it from the run directory and try again.")
           mask_table, masked, layout = p.name.split(".")
           x, y = (int(v) for v in layout.split("x"))
           ncpus = (x * y) - masked
@@ -1399,20 +1398,16 @@ class experiment:
 
             if fname == "2d":
                 ## Calculate specific humidity from dewpoint temperature
+                dewpoint = 8.07131 - 1730.63 / (233.426 + rawdata["2d"]["d2m"] - 273.15)
+                humidity = (
+                    (0.622 / rawdata["sp"]["sp"]) * (10**dewpoint) * 101325 / 760
+                )
                 q = xr.Dataset(
                     data_vars={
-                        "q": (0.622 / rawdata["sp"]["sp"])
-                        * (
-                            10
-                            ** (
-                                8.07131
-                                - 1730.63 / (233.426 + rawdata["2d"]["d2m"] - 273.15)
-                            )
-                        )
-                        * 101325
-                        / 760
+                        "q": humidity
                     }
                 )
+
                 q.q.attrs = {"long_name": "Specific Humidity", "units": "kg/kg"}
                 q.to_netcdf(
                     f"{self.mom_input_dir}/forcing/q_ERA5",
