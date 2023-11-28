@@ -1225,27 +1225,28 @@ class experiment:
         )
         self.layout = layout
 
-    def setup_run_directory(self, rmom6_path, surface_forcing="era5", using_payu=False):
+    def setup_run_directory(self, use_default="era5", using_payu=False):
         """Sets up the run directory for MOM6. Creates a symbolic link
         to the input directory, and creates a payu configuration file
         if payu is being used.
 
         Args:
-            rmom6_path [str]:   The path to where the regional_mom6 package is installed. This is needed to find the default run directory that this function builds on
-            surface_forcing (Optional[str]): The surface forcing to use. One of ``era5`` or ``jra``.
+            use_default (Optional[str]): Choose a default run directory. One of ``era5`` or ``jra`` corresponding to the choices of surface forcing.
             using_payu (Optional[bool]): Whether or not to use payu to run the model. If True, a payu configuration file will be created.
-
         """
 
         ## Copy the default directory to the run directory
 
         rundir_src = (
-          Path(__file__).parent() /
-          "regional_mom6" /
+          Path(__file__).parent /
           "default_rundir" /
-          f"{surface_forcing}_surface"
+          f"{use_default}_surface"
         )
-        shutil.copytree(rundir_src, self.mom_run_dir)
+        shutil.copytree(rundir_src, self.mom_run_dir, dirs_exist_ok=True)
+        subprocess.run(
+            f"cp {str(rundir_src)}/* {str(self.mom_run_dir)}",
+            shell=True,
+        )
         ## Make symlinks between run and input directories
         inputdir_in_rundir = self.mom_run_dir / "inputdir"
         rundir_in_inputdir = self.mom_input_dir / "rundir"
@@ -1265,9 +1266,8 @@ class experiment:
                 b = mask_table.split(".")[2].split("x")
                 ncpus = int(b[0]) * int(b[1]) - int(a)
         if mask_table == None:
-            print("No mask table found! Run FRE_tools first. Terminating")
-            raise ValueError
-
+            print("No mask table found! This suggests your domain is mostly water, so there are no `non compute` cells that are entirely land. If this doesn't seem right, ensure you've already run .FRE_tools().")
+            ncpus = self.layout[0] * self.layout[1]
         print("Number of CPUs required: ", ncpus)
 
         ## Modify MOM_input
