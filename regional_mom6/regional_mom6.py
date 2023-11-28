@@ -1317,35 +1317,30 @@ class experiment:
             os.remove(f"{self.mom_run_dir}/config.yaml")
 
         else:
-            ## Modify config.yaml
-            inputfile = open(f"{self.mom_run_dir}/config.yaml", "r")
-            lines = inputfile.readlines()
-            inputfile.close()
-            for i in range(len(lines)):
-                if "ncpus" in lines[i]:
-                    lines[i] = f"ncpus: {str(ncpus)}\n"
+            with open(self.mom_run_dir / "config.yaml", "r") as f:
+                payu_config = yaml.safe_load(f)
 
-                if "input:" in lines[i]:
-                    lines[i + 1] = f"    - {self.mom_input_dir}\n"
+                payu_config["ncpus"] = ncpus
+                payu_config["input"].append(self.mom_input_dir)
 
-            inputfile = open(f"{self.mom_run_dir}/config.yaml", "w")
-            inputfile.writelines(lines)
-            inputfile.close()
+            with open(self.mom_run_dir / "config.yaml", "w") as f:
+                yaml.dump(payu_config)
 
-            # Modify input.nml
-            inputfile = open(f"{self.mom_run_dir}/input.nml", "r")
-            lines = inputfile.readlines()
-            inputfile.close()
-            for i in range(len(lines)):
-                if "current_date" in lines[i]:
-                    tmp = self.daterange[0]
-                    lines[
-                        i
-                    ] = f"{lines[i].split(' = ')[0]} = {int(tmp.year)},{int(tmp.month)},{int(tmp.day)},0,0,0,\n"
 
-            inputfile = open(f"{self.mom_run_dir}/input.nml", "w")
-            inputfile.writelines(lines)
-            inputfile.close()
+        # Modify input.nml
+        inputfile = open(f"{self.mom_run_dir}/input.nml", "r")
+        lines = inputfile.readlines()
+        inputfile.close()
+        for i in range(len(lines)):
+            if "current_date" in lines[i]:
+                tmp = self.daterange[0]
+                lines[
+                    i
+                ] = f"{lines[i].split(' = ')[0]} = {int(tmp.year)},{int(tmp.month)},{int(tmp.day)},0,0,0,\n"
+
+        inputfile = open(f"{self.mom_run_dir}/input.nml", "w")
+        inputfile.writelines(lines)
+        inputfile.close()
 
     def setup_era5(self, era5_path):
         """
