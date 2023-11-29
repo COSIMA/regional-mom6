@@ -1231,7 +1231,7 @@ class experiment:
         """Sets up the run directory for MOM6. Either copies a pre-made set of files, or modifies existing files in the `rundir` directory for the experiment.
 
         Args:
-            use_default (Optional[str,bool]): Choose whether or not to load a premade run directory. If yes, choose one of ``era5`` or ``jra`` corresponding to the choices of surface forcing.
+            demo_run_dir (Optional[str,bool]): Choose whether or not to load a premade run directory. If yes, choose one of ``era5`` or ``jra`` corresponding to the choices of surface forcing.
             using_payu (Optional[bool]): Whether or not to use payu to run the model. If True, a payu configuration file will be created.
         """
 
@@ -1276,11 +1276,6 @@ class experiment:
             )
             ncpus = self.layout[0] * self.layout[1]
         print("Number of CPUs required: ", ncpus)
-
-        ## Modify MOM_input
-        # inputfile = open(f"{self.mom_run_dir}/MOM_input", "r")
-        # lines = inputfile.readlines()
-        # inputfile.close()
 
         ## Modify the input namelists to give the correct layouts
         for j in ["MOM_input", "SIS_input"]:
@@ -1348,7 +1343,7 @@ class experiment:
 
 
         Args:
-            era5_path (str): Path to the ERA5 forcing files
+            era5_path (str): Path to the ERA5 forcing files. Specifically, the single level reanalysis product. Eg `SOMEPATH/era5/single-levels/reanalysis`
 
         """
 
