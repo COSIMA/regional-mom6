@@ -18,6 +18,7 @@ import shutil
 import os
 from .utils import vecdot
 import yaml
+
 warnings.filterwarnings("ignore")
 
 __all__ = [
@@ -1237,21 +1238,23 @@ class experiment:
         ## Copy the default directory to the run directory
         if demo_run_dir != False:
             rundir_src = (
-            Path(__file__).parent.parent /
-            "demos" /
-            "premade_run_directories" /
-            f"{demo_run_dir}"
+                Path(__file__).parent.parent
+                / "demos"
+                / "premade_run_directories"
+                / f"{demo_run_dir}"
             )
         else:
-            print("Setting up run directory without using a premade template. Will attempt to modify files in existing run directory. At a minimum, you'll need `MOM_input`, `SIS_input` and `input.nml` files.")
+            print(
+                "Setting up run directory without using a premade template. Will attempt to modify files in existing run directory. At a minimum, you'll need `MOM_input`, `SIS_input` and `input.nml` files."
+            )
         shutil.copytree(rundir_src, self.mom_run_dir, dirs_exist_ok=True)
         ## Make symlinks between run and input directories
         inputdir_in_rundir = self.mom_run_dir / "inputdir"
         rundir_in_inputdir = self.mom_input_dir / "rundir"
-        
+
         inputdir_in_rundir.unlink(missing_ok=True)
         inputdir_in_rundir.symlink_to(self.mom_input_dir)
-        
+
         rundir_in_inputdir.unlink(missing_ok=True)
         rundir_in_inputdir.symlink_to(self.mom_run_dir)
 
@@ -1259,14 +1262,18 @@ class experiment:
         mask_table = None
         for p in self.mom_input_dir.glob("mask_table.*"):
             if mask_table != None:
-                print(f"WARNING: Multiple mask tables found. Defaulting to {p}. If this is not what you want, remove it from the run directory and try again.")
-            
-            _ , masked, layout = p.name.split(".")
+                print(
+                    f"WARNING: Multiple mask tables found. Defaulting to {p}. If this is not what you want, remove it from the run directory and try again."
+                )
+
+            _, masked, layout = p.name.split(".")
             mask_table = p.name
             x, y = (int(v) for v in layout.split("x"))
             ncpus = (x * y) - int(masked)
         if mask_table == None:
-            print("No mask table found! This suggests your domain is mostly water, so there are no `non compute` cells that are entirely land. If this doesn't seem right, ensure you've already run .FRE_tools().")
+            print(
+                "No mask table found! This suggests your domain is mostly water, so there are no `non compute` cells that are entirely land. If this doesn't seem right, ensure you've already run .FRE_tools()."
+            )
             ncpus = self.layout[0] * self.layout[1]
         print("Number of CPUs required: ", ncpus)
 
@@ -1276,8 +1283,8 @@ class experiment:
         # inputfile.close()
 
         ## Modify the input namelists to give the correct layouts
-        for j in ["MOM_input","SIS_input"]:
-            with open(self.mom_run_dir / j , "r") as file:
+        for j in ["MOM_input", "SIS_input"]:
+            with open(self.mom_run_dir / j, "r") as file:
                 lines = file.readlines()
                 for jj in range(len(lines)):
                     if "MASKTABLE" in lines[jj]:
@@ -1294,39 +1301,44 @@ class experiment:
                     if "NJGLOBAL" in lines[jj]:
                         lines[jj] = f"NJGLOBAL = {self.hgrid.ny.shape[0]//2}\n"
 
-            with open(self.mom_run_dir / j , "w") as f:
+            with open(self.mom_run_dir / j, "w") as f:
                 f.writelines(lines)
-
 
         ## If using payu to run the model, create a payu configuration file
         if not using_payu and os.path.exists(f"{self.mom_run_dir}/config.yaml"):
             os.remove(f"{self.mom_run_dir}/config.yaml")
 
         else:
-            with open(f"{self.mom_run_dir}/config.yaml",'r') as file:
+            with open(f"{self.mom_run_dir}/config.yaml", "r") as file:
                 lines = file.readlines()
 
-                inputfile = open(f"{self.mom_run_dir}/config.yaml",'r')
+                inputfile = open(f"{self.mom_run_dir}/config.yaml", "r")
                 lines = inputfile.readlines()
                 inputfile.close()
                 for i in range(len(lines)):
                     if "ncpus" in lines[i]:
-                        lines[i] = f'ncpus: {str(ncpus)}\n'
+                        lines[i] = f"ncpus: {str(ncpus)}\n"
                     if "jobname" in lines[i]:
                         lines[i] = f"jobname: mom6_{self.mom_input_dir.name}\n"
-                        
+
                     if "input:" in lines[i]:
                         lines[i + 1] = f"    - {self.mom_input_dir}\n"
 
-            with open(f"{self.mom_run_dir}/config.yaml",'w') as file:
+            with open(f"{self.mom_run_dir}/config.yaml", "w") as file:
                 file.writelines(lines)
 
         # Modify input.nml
         nml = f90nml.read(self.mom_run_dir / "input.nml")
-        nml["coupler_nml"]["current_date"] = [self.daterange[0].year, self.daterange[0].month,self.daterange[0].day , 0, 0, 0]
+        nml["coupler_nml"]["current_date"] = [
+            self.daterange[0].year,
+            self.daterange[0].month,
+            self.daterange[0].day,
+            0,
+            0,
+            0,
+        ]
         nml.write(self.mom_run_dir / "input.nml", force=True)
         return
-
 
     def setup_era5(self, era5_path):
         """
@@ -1383,11 +1395,7 @@ class experiment:
                 humidity = (
                     (0.622 / rawdata["sp"]["sp"]) * (10**dewpoint) * 101325 / 760
                 )
-                q = xr.Dataset(
-                    data_vars={
-                        "q": humidity
-                    }
-                )
+                q = xr.Dataset(data_vars={"q": humidity})
 
                 q.q.attrs = {"long_name": "Specific Humidity", "units": "kg/kg"}
                 q.to_netcdf(
