@@ -1238,6 +1238,7 @@ class experiment:
         if demo_run_dir != False:
             rundir_src = (
             Path(__file__).parent.parent /
+            "demos" /
             "premade_run_directories" /
             f"{demo_run_dir}"
             )
@@ -1260,24 +1261,26 @@ class experiment:
             if mask_table != None:
                 print(f"WARNING: Multiple mask tables found. Defaulting to {p}. If this is not what you want, remove it from the run directory and try again.")
             
-            mask_table, masked, layout = p.name.split(".")
+            _ , masked, layout = p.name.split(".")
+            mask_table = p.name
             x, y = (int(v) for v in layout.split("x"))
-            ncpus = (x * y) - masked
+            ncpus = (x * y) - int(masked)
         if mask_table == None:
             print("No mask table found! This suggests your domain is mostly water, so there are no `non compute` cells that are entirely land. If this doesn't seem right, ensure you've already run .FRE_tools().")
             ncpus = self.layout[0] * self.layout[1]
         print("Number of CPUs required: ", ncpus)
 
         ## Modify MOM_input
-        inputfile = open(f"{self.mom_run_dir}/MOM_input", "r")
-        lines = inputfile.readlines()
-        inputfile.close()
+        # inputfile = open(f"{self.mom_run_dir}/MOM_input", "r")
+        # lines = inputfile.readlines()
+        # inputfile.close()
 
         ## Modify the input namelists to give the correct layouts
         for j in ["MOM_input","SIS_input"]:
-            with open(self.mom_run_dir / j , "r").readlines() as lines:
+            with open(self.mom_run_dir / j , "r") as file:
+                lines = file.readlines()
                 for jj in range(len(lines)):
-                    if "MASKTABLE" in lines[i]:
+                    if "MASKTABLE" in lines[jj]:
                         if mask_table != None:
                             lines[jj] = f'MASKTABLE = "{mask_table}"\n'
                         else:
@@ -1300,20 +1303,28 @@ class experiment:
             os.remove(f"{self.mom_run_dir}/config.yaml")
 
         else:
-            with open(self.mom_run_dir / "config.yaml", "r") as f:
-                payu_config = yaml.safe_load(f)
-                payu_config["ncpus"] = ncpus
-                payu_config["input"].append(self.mom_input_dir)
+            with open(f"{self.mom_run_dir}/config.yaml",'r') as file:
+                lines = file.readlines()
 
-            with open(self.mom_run_dir / "config.yaml", "w") as f:
-                yaml.dump(payu_config)
+                inputfile = open(f"{self.mom_run_dir}/config.yaml",'r')
+                lines = inputfile.readlines()
+                inputfile.close()
+                for i in range(len(lines)):
+                    if "ncpus" in lines[i]:
+                        lines[i] = f'ncpus: {str(ncpus)}\n'
+                    if "jobname" in lines[i]:
+                        lines[i] = f"jobname: mom6_{self.mom_input_dir.name}\n"
+                        
+                    if "input:" in lines[i]:
+                        lines[i + 1] = f"    - {self.mom_input_dir}\n"
 
+            with open(f"{self.mom_run_dir}/config.yaml",'w') as file:
+                file.writelines(lines)
 
         # Modify input.nml
         nml = f90nml.read(self.mom_run_dir / "input.nml")
         nml["coupler_nml"]["current_date"] = [self.daterange[0].year, self.daterange[0].month,self.daterange[0].day , 0, 0, 0]
         nml.write(self.mom_run_dir / "input.nml", force=True)
-
         return
 
 
