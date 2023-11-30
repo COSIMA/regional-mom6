@@ -15,7 +15,7 @@ dependencies = [
   "scipy>=1.2.0",
   "xarray",
   "xesmf>=0.8",
-  "PyYAML>=6.0.1",
+  "ruamel.yaml>=0.18.0",
   "f90nml>=1.4.1",
 ]
 

@@ -17,7 +17,7 @@ import warnings
 import shutil
 import os
 from .utils import vecdot
-import yaml
+from ruamel.yaml import YAML
 
 warnings.filterwarnings("ignore")
 
@@ -1300,27 +1300,20 @@ class experiment:
                 f.writelines(lines)
 
         ## If using payu to run the model, create a payu configuration file
-        if not using_payu and os.path.exists(f"{self.mom_run_dir}/config.yaml"):
-            os.remove(f"{self.mom_run_dir}/config.yaml")
-
+        config_yaml_file = self.mom_run_dir / "config.yaml"
+        if not using_payu:
+            config_yaml_file.unlink(missing_ok=True)
         else:
-            with open(f"{self.mom_run_dir}/config.yaml", "r") as file:
-                lines = file.readlines()
+            yaml = YAML()  # round-trip yaml parser
+            with open(config_yaml_file, "r") as f:
+                conf = yaml.load(f)
 
-                inputfile = open(f"{self.mom_run_dir}/config.yaml", "r")
-                lines = inputfile.readlines()
-                inputfile.close()
-                for i in range(len(lines)):
-                    if "ncpus" in lines[i]:
-                        lines[i] = f"ncpus: {str(ncpus)}\n"
-                    if "jobname" in lines[i]:
-                        lines[i] = f"jobname: mom6_{self.mom_input_dir.name}\n"
+            conf["ncpus"] = ncpus
+            conf["jobname"] = f"mom6_{self.mom_input_dir.name}"
+            conf["input"].append(self.mom_input_dir)
 
-                    if "input:" in lines[i]:
-                        lines[i + 1] = f"    - {self.mom_input_dir}\n"
-
-            with open(f"{self.mom_run_dir}/config.yaml", "w") as file:
-                file.writelines(lines)
+            with open(config_yaml_file, "w") as f:
+                yaml.dump(conf, f)
 
         # Modify input.nml
         nml = f90nml.read(self.mom_run_dir / "input.nml")
@@ -1333,7 +1326,6 @@ class experiment:
             0,
         ]
         nml.write(self.mom_run_dir / "input.nml", force=True)
-        return
 
     def setup_era5(self, era5_path):
         """
