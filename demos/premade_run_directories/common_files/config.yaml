@@ -1,0 +1,24 @@
+project: x77
+queue: normal
+walltime: 05:00:00
+jobname: jobname
+ncpus: 1234
+jobfs: 10GB
+shortpath: /scratch/nm03
+
+model: mom6
+input:
+    - path_to_input_files
+
+exe: /g/data/v45/ab8992/mom_executables/dec-23-build
+collate: false
+#runlog: true
+storage:
+  gdata:
+    - ua8
+    - x77
+    - ik11
+
+mpi:
+  module: openmpi/4.1.2
+

@@ -12,11 +12,6 @@ DO_ICEBERGS = False
 ! time between writes of global ice diags and conservation
 ICE_STATS_INTERVAL = 0.25
 
-NIGLOBAL = 80
-NJGLOBAL = 129
-LAYOUT = 10,10
-MASKTABLE = "mask_table.18.10x10"
-
 GRID_CONFIG = "mosaic"
 GRID_FILE = "hgrid.nc"
 INPUTDIR = "INPUT"
