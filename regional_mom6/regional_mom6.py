@@ -1720,7 +1720,6 @@ class segment:
         segment_out.time.attrs = {
             "calendar": "julian",
             "units": f"{self.time_units} since {self.startdate}",
-            "modulo": " ",
         }
         # Dictionary we built for encoding the netcdf at end
         encoding_dict = {
@@ -1832,10 +1831,14 @@ class segment:
             hgrid_seg.y.data,
         )
 
-        with ProgressBar():
+        # If repeat year forcing, add modulo coordinate
+        if ryf:
             segment_out["time"] = segment_out["time"].assign_attrs(
                 {"modulo": " "}
-            )  ## Add modulo attribute for MOM6 to treat as repeat forcing
+            )
+
+        with ProgressBar():
+
             segment_out.load().to_netcdf(
                 self.outfolder / f"forcing/forcing_obc_{self.seg_name}.nc",
                 encoding=encoding_dict,
