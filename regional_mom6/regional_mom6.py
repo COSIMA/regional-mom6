@@ -1227,7 +1227,9 @@ class experiment:
         )
         self.layout = layout
 
-    def setup_run_directory(self, surface_forcing=False, using_payu=False,overwrite = False):
+    def setup_run_directory(
+        self, surface_forcing=False, using_payu=False, overwrite=False
+    ):
         """Sets up the run directory for MOM6. Either copies a pre-made set of files, or modifies existing files in the `rundir` directory for the experiment.
 
         Args:
@@ -1235,13 +1237,13 @@ class experiment:
             using_payu (Optional[bool]): Whether or not to use payu to run the model. If True, a payu configuration file will be created.
             overwrite (Optional[bool]): Whether or not to overwrite existing files in the run directory. If False, will only modify the `MOM_layout` file and not re-copy across the rest of the default files.
         """
-        
+
         # Define the locations of the directories we'll copy files across from. Base contains most of the files, and overwrite replaces files in the base directory.
         base_run_dir = (
-            Path(__file__).parent.parent ## Path to where the demos are stored
-                / "demos"
-                / "premade_run_directories"
-                / "common_files"
+            Path(__file__).parent.parent  ## Path to where the demos are stored
+            / "demos"
+            / "premade_run_directories"
+            / "common_files"
         )
         if surface_forcing != False:
             overwrite_run_dir = (
@@ -1253,31 +1255,33 @@ class experiment:
             print(overwrite_run_dir)
             if not overwrite_run_dir.exists():
                 raise ValueError(
-                    f"Surface forcing {surface_forcing} not available. Please choose from {str(os.listdir(base_run_dir.parent))}." ##Here print all available run directories
+                    f"Surface forcing {surface_forcing} not available. Please choose from {str(os.listdir(base_run_dir.parent))}."  ##Here print all available run directories
                 )
-        else: 
+        else:
             overwrite_run_dir = False
 
-
         # 3 different cases to handle:
-        #   1. User is creating a new run directory from scratch. Here we copy across all files and modify. 
+        #   1. User is creating a new run directory from scratch. Here we copy across all files and modify.
         #   2. User has already created a run directory, and wants to modify it. Here we only modify the MOM_layout file.
         #   3. User has already created a run directory, and wants to overwrite it. Here we copy across all files and modify. This requires overwrite = True
 
-
         if not overwrite:
-            for file in base_run_dir.glob("*"): ## copy each file individually if it doesn't already exist OR overwrite = True
+            for file in base_run_dir.glob(
+                "*"
+            ):  ## copy each file individually if it doesn't already exist OR overwrite = True
                 if not os.path.exists(self.mom_run_dir / file.name):
                     ## Check whether this file exists in an override directory or not
-                    if overwrite_run_dir != False and (overwrite_run_dir / file.name).exists():
-                        shutil.copy(overwrite_run_dir / file.name,self.mom_run_dir)
+                    if (
+                        overwrite_run_dir != False
+                        and (overwrite_run_dir / file.name).exists()
+                    ):
+                        shutil.copy(overwrite_run_dir / file.name, self.mom_run_dir)
                     else:
-                        shutil.copy(base_run_dir / file,self.mom_run_dir)
+                        shutil.copy(base_run_dir / file, self.mom_run_dir)
         else:
             shutil.copytree(base_run_dir, self.mom_run_dir, dirs_exist_ok=True)
             if overwrite_run_dir != False:
-                shutil.copy(base_run_dir / file,self.mom_run_dir)
-
+                shutil.copy(base_run_dir / file, self.mom_run_dir)
 
         ## Make symlinks between run and input directories
         inputdir_in_rundir = self.mom_run_dir / "inputdir"
@@ -1289,7 +1293,7 @@ class experiment:
         rundir_in_inputdir.unlink(missing_ok=True)
         rundir_in_inputdir.symlink_to(self.mom_run_dir)
 
-        #TODO Modify below here to reimplement with separate layout file
+        # TODO Modify below here to reimplement with separate layout file
 
         ## Get mask table information
         mask_table = None
@@ -1316,7 +1320,7 @@ class experiment:
         print("Number of CPUs required: ", ncpus)
 
         ## Modify the input namelists to give the correct layouts
-        #TODO Re-implement with package that works for this file type? or at least tidy up code
+        # TODO Re-implement with package that works for this file type? or at least tidy up code
         with open(self.mom_run_dir / "MOM_layout", "r") as file:
             lines = file.readlines()
             for jj in range(len(lines)):
@@ -1390,10 +1394,11 @@ class experiment:
         for fname, vname in zip(
             ["2t", "10u", "10v", "sp", "2d"], ["t2m", "u10", "v10", "sp", "d2m"]
         ):
-            
             ## Load data from all relevant years
             datasets = []
-            years = [i for i in range(self.daterange[0].year,self.daterange[1].year+1)]
+            years = [
+                i for i in range(self.daterange[0].year, self.daterange[1].year + 1)
+            ]
             # Loop through each year and read the corresponding files
             for year in years:
                 ds = xr.open_mfdataset(
@@ -1403,7 +1408,7 @@ class experiment:
                 )
                 datasets.append(ds)
 
-            combined_ds = xr.concat(datasets, dim='time')
+            combined_ds = xr.concat(datasets, dim="time")
 
             ## Cut out this variable to our domain size
             rawdata[fname] = nicer_slicer(
@@ -1833,12 +1838,9 @@ class segment:
 
         # If repeat year forcing, add modulo coordinate
         if ryf:
-            segment_out["time"] = segment_out["time"].assign_attrs(
-                {"modulo": " "}
-            )
+            segment_out["time"] = segment_out["time"].assign_attrs({"modulo": " "})
 
         with ProgressBar():
-
             segment_out.load().to_netcdf(
                 self.outfolder / f"forcing/forcing_obc_{self.seg_name}.nc",
                 encoding=encoding_dict,
