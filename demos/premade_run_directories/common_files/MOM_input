@@ -147,7 +147,7 @@ OBC_TIDE_REF_DATE = 1995, 1, 1  !
 
 ! === module MOM_verticalGrid ===
 ! Parameters providing information about the vertical grid.
-NK = 100                        !   [nondim]
+NK = 75                        !   [nondim]
                                 ! The number of model layers.
 
 ! === module MOM_EOS ===

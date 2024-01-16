@@ -590,8 +590,14 @@ class experiment:
         ## pull out the initial velocity on MOM5's Bgrid
         ic_raw = xr.open_dataset(path / "ic_unprocessed")
 
-        if varnames["time"] in ic_raw.dims:
+        if 'time' in ic_raw.variables:
+            ic_raw = ic_raw.drop_vars('time')
+        elif varnames["time"] in ic_raw.dims:
             ic_raw = ic_raw.isel({varnames["time"]: 0})
+
+
+
+        if varnames["time"] in ic_raw
 
         ## Separate out tracers from two velocity fields of IC
         try:
