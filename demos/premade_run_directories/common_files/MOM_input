@@ -104,7 +104,7 @@ OBC_COMPUTED_STRAIN = True      !   [Boolean] default = False
 OBC_ZERO_BIHARMONIC = True      !   [Boolean] default = False
                                 ! If true, zeros the Laplacian of flow on open boundaries in the biharmonic
                                 ! viscosity term.
-OBC_TIDE_N_CONSTITUENTS = 1     ! default = 0
+OBC_TIDE_N_CONSTITUENTS = 0     ! default = 0
                                 ! Number of tidal constituents being added to the open boundary.
 OBC_SEGMENT_001 = "J=0,I=0:N,FLATHER,ORLANSKI,NUDGED,ORLANSKI_TAN,NUDGED_TAN" !
                                 ! Documentation needs to be dynamic?????
@@ -263,40 +263,26 @@ VELOCITY_CONFIG = "file"        ! default = "zero"
                                 !     USER - call a user modified routine.
 VELOCITY_FILE = "forcing/init_vel.nc" !
                                 ! The name of the velocity initial condition file.
-OBC_SEGMENT_001_DATA = "U=file:forcing/forcing_obc_segment_001.nc(u),V=file:forcing/forcing_obc_segment_001.nc(v),SSH=file:forcing/forcing_obc_segment_001.nc(eta),TEMP=file:forcing/forcing_obc_segment_001.nc(temp),SALT=file:forcing/forcing_obc_segment_001.nc(salt),Uamp=file:forcing/tu_001.nc(uamp),Uphase=file:forcing/tu_001.nc(uphase),Vamp=file:forcing/tu_001.nc(vamp),Vphase=file:forcing/tu_001.nc(vphase),SSHamp=file:forcing/tz_001.nc(zamp),SSHphase=file:forcing/tz_001.nc(zphase)" !
+OBC_SEGMENT_001_DATA = "U=file:forcing/forcing_obc_segment_001.nc(u),V=file:forcing/forcing_obc_segment_001.nc(v),SSH=file:forcing/forcing_obc_segment_001.nc(eta),TEMP=file:forcing/forcing_obc_segment_001.nc(temp),SALT=file:forcing/forcing_obc_segment_001.nc(salt)" !
                                 ! OBC segment docs
-OBC_SEGMENT_002_DATA = "U=file:forcing/forcing_obc_segment_002.nc(u),V=file:forcing/forcing_obc_segment_002.nc(v),SSH=file:forcing/forcing_obc_segment_002.nc(eta),TEMP=file:forcing/forcing_obc_segment_002.nc(temp),SALT=file:forcing/forcing_obc_segment_002.nc(salt),Uamp=file:forcing/tu_002.nc(uamp),Uphase=file:forcing/tu_002.nc(uphase),Vamp=file:forcing/tu_002.nc(vamp),Vphase=file:forcing/tu_002.nc(vphase),SSHamp=file:forcing/tz_002.nc(zamp),SSHphase=file:forcing/tz_002.nc(zphase)" !
+OBC_SEGMENT_002_DATA = "U=file:forcing/forcing_obc_segment_002.nc(u),V=file:forcing/forcing_obc_segment_002.nc(v),SSH=file:forcing/forcing_obc_segment_002.nc(eta),TEMP=file:forcing/forcing_obc_segment_002.nc(temp),SALT=file:forcing/forcing_obc_segment_002.nc(salt)" !
                                 ! OBC segment docs
-OBC_SEGMENT_003_DATA = "U=file:forcing/forcing_obc_segment_003.nc(u),V=file:forcing/forcing_obc_segment_003.nc(v),SSH=file:forcing/forcing_obc_segment_003.nc(eta),TEMP=file:forcing/forcing_obc_segment_003.nc(temp),SALT=file:forcing/forcing_obc_segment_003.nc(salt),Uamp=file:forcing/tu_003.nc(uamp),Uphase=file:forcing/tu_003.nc(uphase),Vamp=file:forcing/tu_003.nc(vamp),Vphase=file:forcing/tu_003.nc(vphase),SSHamp=file:forcing/tz_003.nc(zamp),SSHphase=file:forcing/tz_003.nc(zphase)" !
+OBC_SEGMENT_003_DATA = "U=file:forcing/forcing_obc_segment_003.nc(u),V=file:forcing/forcing_obc_segment_003.nc(v),SSH=file:forcing/forcing_obc_segment_003.nc(eta),TEMP=file:forcing/forcing_obc_segment_003.nc(temp),SALT=file:forcing/forcing_obc_segment_003.nc(salt)" !
                                 ! OBC segment docs
-OBC_SEGMENT_004_DATA = "U=file:forcing/forcing_obc_segment_004.nc(u),V=file:forcing/forcing_obc_segment_004.nc(v),SSH=file:forcing/forcing_obc_segment_004.nc(eta),TEMP=file:forcing/forcing_obc_segment_004.nc(temp),SALT=file:forcing/forcing_obc_segment_004.nc(salt),Uamp=file:forcing/tu_004.nc(uamp),Uphase=file:forcing/tu_004.nc(uphase),Vamp=file:forcing/tu_004.nc(vamp),Vphase=file:forcing/tu_004.nc(vphase),SSHamp=file:forcing/tz_004.nc(zamp),SSHphase=file:forcing/tz_004.nc(zphase)" !
+OBC_SEGMENT_004_DATA = "U=file:forcing/forcing_obc_segment_004.nc(u),V=file:forcing/forcing_obc_segment_004.nc(v),SSH=file:forcing/forcing_obc_segment_004.nc(eta),TEMP=file:forcing/forcing_obc_segment_004.nc(temp),SALT=file:forcing/forcing_obc_segment_004.nc(salt)" !
                                 ! OBC segment docs
 
 ! === module MOM_diag_mediator ===
-NUM_DIAG_COORDS = 2             ! default = 1
+NUM_DIAG_COORDS = 1             ! default = 1
                                 ! The number of diagnostic vertical coordinates to use. For each coordinate, an
                                 ! entry in DIAG_COORDS must be provided.
-DIAG_COORDS = "z Z ZSTAR", "rho2 RHO2 RHO" !
+DIAG_COORDS = "z Z ZSTAR" !
                                 ! A list of string tuples associating diag_table modules to a coordinate
                                 ! definition used for diagnostics. Each string is of the form
                                 ! "MODULE_SUFFIX,PARAMETER_SUFFIX,COORDINATE_NAME".
 DIAG_COORD_DEF_Z = "FILE:vcoord.nc,interfaces=zi" ! default = "WOA09"
                                 ! Determines how to specify the coordinate resolution. Valid options are:
                                 !  PARAM       - use the vector-parameter DIAG_COORD_RES_Z
-                                !  UNIFORM[:N] - uniformly distributed
-                                !  FILE:string - read from a file. The string specifies
-                                !                the filename and variable name, separated
-                                !                by a comma or space, e.g. FILE:lev.nc,dz
-                                !                or FILE:lev.nc,interfaces=zw
-                                !  WOA09[:N]   - the WOA09 vertical grid (approximately)
-                                !  FNC1:string - FNC1:dz_min,H_total,power,precision
-                                !  HYBRID:string - read from a file. The string specifies
-                                !                the filename and two variable names, separated
-                                !                by a comma or space, for sigma-2 and dz. e.g.
-                                !                HYBRID:vgrid.nc,sigma2,dz
-DIAG_COORD_DEF_RHO2 = "FILE:diag_rho2.nc,interfaces=rho2" ! default = "WOA09"
-                                ! Determines how to specify the coordinate resolution. Valid options are:
-                                !  PARAM       - use the vector-parameter DIAG_COORD_RES_RHO2
                                 !  UNIFORM[:N] - uniformly distributed
                                 !  FILE:string - read from a file. The string specifies
                                 !                the filename and variable name, separated
@@ -345,7 +331,7 @@ KHTH_MAX_CFL = 0.1              !   [nondimensional] default = 0.8
 ! === module MOM_porous_barriers ===
 
 ! === module MOM_dynamics_split_RK2 ===
-TIDES = True                    !   [Boolean] default = False
+TIDES = False                    !   [Boolean] default = False
                                 ! If true, apply tidal momentum forcing.
 ! === module MOM_continuity ===
 

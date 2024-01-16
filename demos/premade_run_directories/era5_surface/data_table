@@ -1,9 +1,9 @@
-"ATM", "p_surf", "sp", "./INPUT/forcing/sp_ERA5", "bilinear", 1.0
-"ATM", "p_bot",  "sp", "./INPUT/forcing/sp_ERA5", "bilinear", 1.0
-"ATM", "t_bot",  "t2m", "./INPUT/forcing/2t_ERA5", "bilinear", 1.0
-"ATM", "sphum_bot", "q", "./INPUT/forcing/q_ERA5", "bilinear", 1.0
-"ATM", "u_bot", "u10", "./INPUT/forcing/10u_ERA5", "bicubic", 1.0
-"ATM", "v_bot", "v10", "./INPUT/forcing/10v_ERA5", "bicubic", 1.0
+"ATM", "p_surf", "sp", "./INPUT/forcing/sp_ERA5.nc", "bilinear", 1.0
+"ATM", "p_bot",  "sp", "./INPUT/forcing/sp_ERA5.nc", "bilinear", 1.0
+"ATM", "t_bot",  "t2m", "./INPUT/forcing/2t_ERA5.nc", "bilinear", 1.0
+"ATM", "sphum_bot", "q", "./INPUT/forcing/q_ERA5.nc", "bilinear", 1.0
+"ATM", "u_bot", "u10", "./INPUT/forcing/10u_ERA5.nc", "bicubic", 1.0
+"ATM", "v_bot", "v10", "./INPUT/forcing/10v_ERA5.nc", "bicubic", 1.0
 "ATM", "z_bot", "", "", "bilinear", 10.0
 "ATM", "gust", "", "", "bilinear", 1.0e-4
 "ICE", "lw_flux_dn", "", "", "bilinear", 1.0
