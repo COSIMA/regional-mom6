@@ -591,7 +591,7 @@ class experiment:
         ic_raw = xr.open_dataset(path / "ic_unprocessed")
 
         if varnames["time"] in ic_raw.variables:
-            ic_raw = ic_raw.drop_vars('time')
+            ic_raw = ic_raw.drop_vars("time")
         if varnames["time"] in ic_raw.dims:
             ic_raw = ic_raw.isel({varnames["time"]: 0})
         print(ic_raw)
