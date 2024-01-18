@@ -11,9 +11,13 @@ from scipy.ndimage import binary_fill_holes
 import netCDF4
 from dask.distributed import Client, worker_client
 from dask.diagnostics import ProgressBar
+import f90nml
 import datetime as dt
 import warnings
+import shutil
+import os
 from .utils import vecdot
+import yaml
 
 warnings.filterwarnings("ignore")
 
@@ -491,7 +495,7 @@ class experiment:
         self.vlayers = vlayers
         self.dz_ratio = dz_ratio
         self.depth = depth
-        self.toolpath = toolpath
+        self.toolpath = Path(toolpath)
         self.hgrid = self._make_hgrid(gridtype)
         self.vgrid = self._make_vgrid()
         self.gridtype = gridtype
@@ -541,6 +545,7 @@ class experiment:
         """Generates a vertical grid based on the number of layers
         and vertical ratio specified at the class level.
 
+        The vertical profile uses a hyperbolic tangent function to smoothly transition the thickness of cells. If the `dz_ratio` is set to one, the vertical grid will be uniform, for `dz_ratio` = 10, the top layer will be 10 times thicker than the bottom layer, and for negative numbers the bottom layer will be thicker than the top
         """
 
         thickness = dz(self.vlayers + 1, self.dz_ratio, self.depth)
@@ -548,7 +553,7 @@ class experiment:
             {
                 "zi": ("zi", np.cumsum(thickness)),
                 "zl": ("zl", (np.cumsum(thickness) + 0.5 * thickness)[0:-1]),
-            }  ## THIS MIGHT BE WRONG REVISIT
+            }
         )
         vcoord["zi"].attrs = {"units": "meters"}
         vcoord.to_netcdf(self.mom_input_dir / "vcoord.nc")
@@ -585,9 +590,11 @@ class experiment:
         ## pull out the initial velocity on MOM5's Bgrid
         ic_raw = xr.open_dataset(path / "ic_unprocessed")
 
+        if varnames["time"] in ic_raw.variables:
+            ic_raw = ic_raw.drop_vars("time")
         if varnames["time"] in ic_raw.dims:
             ic_raw = ic_raw.isel({varnames["time"]: 0})
-
+        print(ic_raw)
         ## Separate out tracers from two velocity fields of IC
         try:
             ic_raw_tracers = ic_raw[
@@ -1192,8 +1199,8 @@ class experiment:
         print(
             "MAKE SOLO MOSAIC",
             subprocess.run(
-                self.toolpath
-                + "make_solo_mosaic/make_solo_mosaic --num_tiles 1 --dir . --mosaic_name ocean_mosaic --tile_file hgrid.nc",
+                str(self.toolpath / "make_solo_mosaic/make_solo_mosaic")
+                + " --num_tiles 1 --dir . --mosaic_name ocean_mosaic --tile_file hgrid.nc",
                 shell=True,
                 cwd=self.mom_input_dir,
             ),
@@ -1203,8 +1210,8 @@ class experiment:
         print(
             "QUICK MOSAIC",
             subprocess.run(
-                self.toolpath
-                + "make_quick_mosaic/make_quick_mosaic --input_mosaic ocean_mosaic.nc --mosaic_name grid_spec --ocean_topog topog.nc",
+                str(self.toolpath / "make_quick_mosaic/make_quick_mosaic")
+                + " --input_mosaic ocean_mosaic.nc --mosaic_name grid_spec --ocean_topog topog.nc",
                 shell=True,
                 cwd=self.mom_input_dir,
             ),
@@ -1214,13 +1221,245 @@ class experiment:
         print(
             "CHECK MASK",
             subprocess.run(
-                self.toolpath
-                + f"check_mask/check_mask --grid_file ocean_mosaic.nc --ocean_topog topog.nc --layout {layout[0]},{layout[1]} --halo 4",
+                str(self.toolpath / "check_mask/check_mask")
+                + f" --grid_file ocean_mosaic.nc --ocean_topog topog.nc --layout {layout[0]},{layout[1]} --halo 4",
                 shell=True,
                 cwd=self.mom_input_dir,
             ),
         )
         self.layout = layout
+
+    def setup_run_directory(
+        self, surface_forcing=False, using_payu=False, overwrite=False
+    ):
+        """Sets up the run directory for MOM6. Either copies a pre-made set of files, or modifies existing files in the `rundir` directory for the experiment.
+
+        Args:
+            surface_forcing (Optional[str,bool]): Specify the choice of surface forcing, one of `jra` or `era5`. If left blank, constant fluxes will be used.
+            using_payu (Optional[bool]): Whether or not to use payu to run the model. If True, a payu configuration file will be created.
+            overwrite (Optional[bool]): Whether or not to overwrite existing files in the run directory. If False, will only modify the `MOM_layout` file and not re-copy across the rest of the default files.
+        """
+
+        # Define the locations of the directories we'll copy files across from. Base contains most of the files, and overwrite replaces files in the base directory.
+        base_run_dir = (
+            Path(__file__).parent.parent  ## Path to where the demos are stored
+            / "demos"
+            / "premade_run_directories"
+            / "common_files"
+        )
+        if surface_forcing != False:
+            overwrite_run_dir = (
+                Path(__file__).parent.parent
+                / "demos"
+                / "premade_run_directories"
+                / f"{surface_forcing}_surface"
+            )
+            print(overwrite_run_dir)
+            if not overwrite_run_dir.exists():
+                raise ValueError(
+                    f"Surface forcing {surface_forcing} not available. Please choose from {str(os.listdir(base_run_dir.parent))}."  ##Here print all available run directories
+                )
+        else:
+            overwrite_run_dir = False
+
+        # 3 different cases to handle:
+        #   1. User is creating a new run directory from scratch. Here we copy across all files and modify.
+        #   2. User has already created a run directory, and wants to modify it. Here we only modify the MOM_layout file.
+        #   3. User has already created a run directory, and wants to overwrite it. Here we copy across all files and modify. This requires overwrite = True
+
+        if not overwrite:
+            for file in base_run_dir.glob(
+                "*"
+            ):  ## copy each file individually if it doesn't already exist OR overwrite = True
+                if not os.path.exists(self.mom_run_dir / file.name):
+                    ## Check whether this file exists in an override directory or not
+                    if (
+                        overwrite_run_dir != False
+                        and (overwrite_run_dir / file.name).exists()
+                    ):
+                        shutil.copy(overwrite_run_dir / file.name, self.mom_run_dir)
+                    else:
+                        shutil.copy(base_run_dir / file, self.mom_run_dir)
+        else:
+            shutil.copytree(base_run_dir, self.mom_run_dir, dirs_exist_ok=True)
+            if overwrite_run_dir != False:
+                shutil.copy(base_run_dir / file, self.mom_run_dir)
+
+        ## Make symlinks between run and input directories
+        inputdir_in_rundir = self.mom_run_dir / "inputdir"
+        rundir_in_inputdir = self.mom_input_dir / "rundir"
+
+        inputdir_in_rundir.unlink(missing_ok=True)
+        inputdir_in_rundir.symlink_to(self.mom_input_dir)
+
+        rundir_in_inputdir.unlink(missing_ok=True)
+        rundir_in_inputdir.symlink_to(self.mom_run_dir)
+
+        # TODO Modify below here to reimplement with separate layout file
+
+        ## Get mask table information
+        mask_table = None
+        for p in self.mom_input_dir.glob("mask_table.*"):
+            if mask_table != None:
+                print(
+                    f"WARNING: Multiple mask tables found. Defaulting to {mask_table}. If this is not what you want, remove it from the run directory and try again."
+                )
+                break
+
+            _, masked, layout = p.name.split(".")
+            mask_table = p.name
+            x, y = (int(v) for v in layout.split("x"))
+            ncpus = (x * y) - int(masked)
+        if mask_table == None:
+            print(
+                "No mask table found! This suggests your domain is mostly water, so there are no `non compute` cells that are entirely land. If this doesn't seem right, ensure you've already run .FRE_tools()."
+            )
+            if not hasattr(self, "layout"):
+                raise AttributeError(
+                    "No layout information found. This suggests you haven't run .FRE_tools() yet. Please do so first so I know how many processors you'd like to use."
+                )
+            ncpus = self.layout[0] * self.layout[1]
+        print("Number of CPUs required: ", ncpus)
+
+        ## Modify the input namelists to give the correct layouts
+        # TODO Re-implement with package that works for this file type? or at least tidy up code
+        with open(self.mom_run_dir / "MOM_layout", "r") as file:
+            lines = file.readlines()
+            for jj in range(len(lines)):
+                if "MASKTABLE" in lines[jj]:
+                    if mask_table != None:
+                        lines[jj] = f'MASKTABLE = "{mask_table}"\n'
+                    else:
+                        lines[jj] = "# MASKTABLE = no mask table"
+                if "LAYOUT =" in lines[jj] and "IO" not in lines[jj]:
+                    lines[jj] = f"LAYOUT = {self.layout[1]},{self.layout[0]}\n"
+
+                if "NIGLOBAL" in lines[jj]:
+                    lines[jj] = f"NIGLOBAL = {self.hgrid.nx.shape[0]//2}\n"
+
+                if "NJGLOBAL" in lines[jj]:
+                    lines[jj] = f"NJGLOBAL = {self.hgrid.ny.shape[0]//2}\n"
+
+        with open(self.mom_run_dir / "MOM_layout", "w") as f:
+            f.writelines(lines)
+
+        ## If using payu to run the model, create a payu configuration file
+        if not using_payu and os.path.exists(f"{self.mom_run_dir}/config.yaml"):
+            os.remove(f"{self.mom_run_dir}/config.yaml")
+
+        else:
+            with open(f"{self.mom_run_dir}/config.yaml", "r") as file:
+                lines = file.readlines()
+
+                inputfile = open(f"{self.mom_run_dir}/config.yaml", "r")
+                lines = inputfile.readlines()
+                inputfile.close()
+                for i in range(len(lines)):
+                    if "ncpus" in lines[i]:
+                        lines[i] = f"ncpus: {str(ncpus)}\n"
+                    if "jobname" in lines[i]:
+                        lines[i] = f"jobname: mom6_{self.mom_input_dir.name}\n"
+
+                    if "input:" in lines[i]:
+                        lines[i + 1] = f"    - {self.mom_input_dir}\n"
+
+            with open(f"{self.mom_run_dir}/config.yaml", "w") as file:
+                file.writelines(lines)
+
+        # Modify input.nml
+        nml = f90nml.read(self.mom_run_dir / "input.nml")
+        nml["coupler_nml"]["current_date"] = [
+            self.daterange[0].year,
+            self.daterange[0].month,
+            self.daterange[0].day,
+            0,
+            0,
+            0,
+        ]
+        nml.write(self.mom_run_dir / "input.nml", force=True)
+        return
+
+    def setup_era5(self, era5_path):
+        """
+        Sets up the ERA5 forcing files for your experiment. This assumes that you'd downloaded all of the ERA5 data in your daterange.
+        You'll need the following fields:
+        2t, 10u, 10v, sp, 2d
+
+
+        Args:
+            era5_path (str): Path to the ERA5 forcing files. Specifically, the single level reanalysis product. Eg `SOMEPATH/era5/single-levels/reanalysis`
+
+        """
+
+        ## Firstly just open all raw data
+        rawdata = {}
+        for fname, vname in zip(
+            ["2t", "10u", "10v", "sp", "2d"], ["t2m", "u10", "v10", "sp", "d2m"]
+        ):
+            ## Load data from all relevant years
+            datasets = []
+            years = [
+                i for i in range(self.daterange[0].year, self.daterange[1].year + 1)
+            ]
+            # Loop through each year and read the corresponding files
+            for year in years:
+                ds = xr.open_mfdataset(
+                    f"{era5_path}/{fname}/{year}/{fname}*",
+                    decode_times=False,
+                    chunks={"longitude": 100, "latitude": 100},
+                )
+                datasets.append(ds)
+
+            combined_ds = xr.concat(datasets, dim="time")
+
+            ## Cut out this variable to our domain size
+            rawdata[fname] = nicer_slicer(
+                combined_ds,
+                self.xextent,
+                "longitude",
+            ).sel(
+                latitude=slice(
+                    self.yextent[1], self.yextent[0]
+                )  ## This is because ERA5 has latitude in decreasing order (??)
+            )
+
+            ## Now fix up the latitude and time dimensions
+
+            rawdata[fname] = (
+                rawdata[fname]
+                .isel(latitude=slice(None, None, -1))  ## Flip latitude
+                .assign_coords(
+                    time=np.arange(
+                        0, rawdata[fname].time.shape[0], dtype=float
+                    )  ## Set the zero date of forcing to start of run
+                )
+            )
+
+            rawdata[fname].time.attrs = {
+                "calendar": "julian",
+                "units": f"hours since {self.daterange[0].strftime('%Y-%m-%d %H:%M:%S')}",
+            }  ## Fix up calendar to match
+
+            if fname == "2d":
+                ## Calculate specific humidity from dewpoint temperature
+                dewpoint = 8.07131 - 1730.63 / (233.426 + rawdata["2d"]["d2m"] - 273.15)
+                humidity = (
+                    (0.622 / rawdata["sp"]["sp"]) * (10**dewpoint) * 101325 / 760
+                )
+                q = xr.Dataset(data_vars={"q": humidity})
+
+                q.q.attrs = {"long_name": "Specific Humidity", "units": "kg/kg"}
+                q.to_netcdf(
+                    f"{self.mom_input_dir}/forcing/q_ERA5.nc",
+                    unlimited_dims="time",
+                    encoding={"q": {"dtype": "double"}},
+                )
+            else:
+                rawdata[fname].to_netcdf(
+                    f"{self.mom_input_dir}/forcing/{fname}_ERA5.nc",
+                    unlimited_dims="time",
+                    encoding={vname: {"dtype": "double"}},
+                )
 
 
 class segment:
@@ -1488,7 +1727,6 @@ class segment:
         segment_out.time.attrs = {
             "calendar": "julian",
             "units": f"{self.time_units} since {self.startdate}",
-            "modulo": " ",
         }
         # Dictionary we built for encoding the netcdf at end
         encoding_dict = {
@@ -1600,10 +1838,11 @@ class segment:
             hgrid_seg.y.data,
         )
 
+        # If repeat year forcing, add modulo coordinate
+        if ryf:
+            segment_out["time"] = segment_out["time"].assign_attrs({"modulo": " "})
+
         with ProgressBar():
-            segment_out["time"] = segment_out["time"].assign_attrs(
-                {"modulo": " "}
-            )  ## Add modulo attribute for MOM6 to treat as repeat forcing
             segment_out.load().to_netcdf(
                 self.outfolder / f"forcing/forcing_obc_{self.seg_name}.nc",
                 encoding=encoding_dict,

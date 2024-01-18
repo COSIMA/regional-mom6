@@ -3,7 +3,7 @@
 	input_filename = 'n',
 	restart_input_dir = 'INPUT',
 	restart_output_dir = 'RESTART',
-	parameter_filename = 'MOM_input', 'MOM_override'
+	parameter_filename = 'MOM_input', 'MOM_layout', 'MOM_override'
 /
 
 &SIS_input_nml
@@ -11,7 +11,7 @@
 	input_filename = 'n',
 	restart_input_dir = 'INPUT',
 	restart_output_dir = 'RESTART',
-	parameter_filename = 'SIS_input'
+	parameter_filename = 'SIS_input','MOM_layout'
 /
 
 &fms_nml
@@ -28,10 +28,10 @@
 
 &coupler_nml
 	months = 0,
-	days = 5,
+	days = 1,
 	hours = 0,
-	current_date = 1991,1,1,0,0,0,
-	calendar = 'NOLEAP',
+	current_date = 2015,1,1,0,0,0,
+	calendar = 'JULIAN',
 	dt_cpld = 3600,
 	dt_atmos = 3600,
 	do_atmos = .false.,
@@ -73,9 +73,10 @@
 /
 
 &surface_flux_nml
-	ncar_ocean_flux = .true.,
-	raoult_sat_vap = .true.
-/
+    ncar_ocean_flux_multilevel = .true.
+    bulk_zu = 10.
+    bulk_zt = 2.
+    bulk_zq = 2.
 
 &xgrid_nml
 	make_exchange_reproduce = .false.,
