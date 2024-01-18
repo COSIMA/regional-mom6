@@ -590,15 +590,11 @@ class experiment:
         ## pull out the initial velocity on MOM5's Bgrid
         ic_raw = xr.open_dataset(path / "ic_unprocessed")
 
-        if 'time' in ic_raw.variables:
-            ic_raw = ic_raw.drop_vars('time')
-        elif varnames["time"] in ic_raw.dims:
+        if varnames["time"] in ic_raw.variables:
+            ic_raw = ic_raw.drop_vars("time")
+        if varnames["time"] in ic_raw.dims:
             ic_raw = ic_raw.isel({varnames["time"]: 0})
-
-
-
-        if varnames["time"] in ic_raw
-
+        print(ic_raw)
         ## Separate out tracers from two velocity fields of IC
         try:
             ic_raw_tracers = ic_raw[
@@ -1454,13 +1450,13 @@ class experiment:
 
                 q.q.attrs = {"long_name": "Specific Humidity", "units": "kg/kg"}
                 q.to_netcdf(
-                    f"{self.mom_input_dir}/forcing/q_ERA5",
+                    f"{self.mom_input_dir}/forcing/q_ERA5.nc",
                     unlimited_dims="time",
                     encoding={"q": {"dtype": "double"}},
                 )
             else:
                 rawdata[fname].to_netcdf(
-                    f"{self.mom_input_dir}/forcing/{fname}_ERA5",
+                    f"{self.mom_input_dir}/forcing/{fname}_ERA5.nc",
                     unlimited_dims="time",
                     encoding={vname: {"dtype": "double"}},
                 )
