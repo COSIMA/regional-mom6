@@ -10,7 +10,9 @@ model: mom6
 input:
     - path_to_input_files
 
-exe: /g/data/v45/ab8992/mom_executables/dec-23-build
+## Executable that Ashley uses on nci. If you're an NCI user hopefully you can access this
+exe: /g/data/v45/ab8992/mom_executables/jan2024-latest-everything
+
 collate: false
 #runlog: true
 storage:
