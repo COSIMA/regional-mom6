@@ -60,7 +60,9 @@ pip install git+https://github.com/COSIMA/regional-mom6.git@061b0ef80c7cbc04de05
 ## MOM6 Configuration and Version Requirements
 The package and demos were written for a coupled SIS2-MOM6 configuration, and may also work for an ocean only MOM6 run but this has not been tested. 
 
-The current release of this package assumes the latest source code of all components needed to run MOM6 as of January 2024. Note that GFDL's `MOM6_examples` repository uses older versions of the Flexible Modelling System (FMS), coupler, SIS2 and other components. [This repository](https://github.com/ashjbarnes/setup-mom6-nci) contains scripts for compiling MOM6, and includes a folder `src` containing submodules linked to the commits known to work with this package and its demos.
+The current release of this package assumes the latest source code of all components needed to run MOM6 as of January 2024. A forked version of the [`setup-mom6-nci`](https://github.com/ashjbarnes/setup-mom6-nci) repository contains scripts for compiling MOM6 and, furthermore, its [`src`](https://github.com/ashjbarnes/setup-mom6-nci/tree/setup-mom6/src) directory lists the particular commits that were used to compile MOM6 and its submodules for this package.
+
+Note that the commits used for MOM6 submodules (e.g., Flexible Modelling System (FMS), coupler, SIS2) are _not_ necessarily those used by the GFDL's [`MOM6_examples`](https://github.com/NOAA-GFDL/MOM6-examples) repository.
 
 ## Getting started
 
