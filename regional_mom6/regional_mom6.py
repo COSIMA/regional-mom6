@@ -1394,7 +1394,8 @@ class experiment:
         ## Firstly just open all raw data
         rawdata = {}
         for fname, vname in zip(
-            ["2t", "10u", "10v", "sp", "2d"], ["t2m", "u10", "v10", "sp", "d2m"]
+            ["2t", "10u", "10v", "sp", "2d", "msdwswrf", "msdwlwrf", "lsrr", "crr"],
+            ["t2m", "u10", "v10", "sp", "d2m", "msdwswrf", "msdwlwrf", "lsrr", "crr"],
         ):
             ## Load data from all relevant years
             datasets = []
@@ -1454,6 +1455,25 @@ class experiment:
                     unlimited_dims="time",
                     encoding={"q": {"dtype": "double"}},
                 )
+            elif fname == "crr":
+                ## Calculate total rain rate from convective and total
+                trr = xr.Dataset(
+                    data_vars={"trr": rawdata["crr"]["crr"] + rawdata["lsrr"]["lsrr"]}
+                )
+
+                trr.trr.attrs = {
+                    "long_name": "Total Rain Rate",
+                    "units": "kg m**-2 s**-1",
+                }
+                trr.to_netcdf(
+                    f"{self.mom_input_dir}/forcing/trr_ERA5.nc",
+                    unlimited_dims="time",
+                    encoding={"trr": {"dtype": "double"}},
+                )
+
+            elif fname == "lsrr":
+                ## This is handled by crr as both are added together to calculate total rain rate.
+                pass
             else:
                 rawdata[fname].to_netcdf(
                     f"{self.mom_input_dir}/forcing/{fname}_ERA5.nc",
