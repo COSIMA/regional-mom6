@@ -580,7 +580,7 @@ class experiment:
         mom_input_dir (str): Path of the MOM6 input directory, to receive the forcing files.
         toolpath (str): Path of FREtools binaries.
         gridtype (Optional[str]): Type of grid to generate, only ``byo'', meaning read in existing hgrid or ``even_spacing`` are supported.
-
+        ryf (Optional[bool]): Whether the experiment runs 'repeat year forcing'. Otherwise assumes inter annual forcing.
     """
 
     def __init__(
@@ -596,6 +596,7 @@ class experiment:
         mom_input_dir,
         toolpath,
         gridtype="even_spacing",
+        ryf = False
     ):
         self.mom_run_dir = Path(mom_run_dir)
         self.mom_input_dir = Path(mom_input_dir)
@@ -617,7 +618,7 @@ class experiment:
         self.hgrid = self._make_hgrid(gridtype)
         self.vgrid = self._make_vgrid()
         self.gridtype = gridtype
-
+        self.ryf = ryf
         # create additional directories and links
         (self.mom_input_dir / "weights").mkdir(exist_ok=True)
         (self.mom_input_dir / "forcing").mkdir(exist_ok=True)
@@ -947,7 +948,7 @@ class experiment:
         self.ic_vels = vel_out
         return
 
-    def setup_rectangular_boundary(self, path_to_bc, varnames, orientation, segment_number,gridtype="A",tidepath=False):
+    def setup_rectangular_boundary(self, path_to_bc, varnames, orientation, segment_number,gridtype="A"):
         """
         Setup a boundary forcing file for a given orientation. Only supports straight boundaries along lat/lon lines
         Args:
@@ -958,7 +959,6 @@ class experiment:
             orientation (str): Orientation of boundary forcing file. i.e east,west,north,south. 
             segment_number (int): Number the segments according to how they'll be specified in MOM_input
             gridtype (Optional[str]): Arakawa grid staggering of input, one of ``A``, ``B`` or ``C``
-            tidepath (Optional[str]): Path to tidal forcing file. If not specified, tidal forcing will not be included.
         """
 
 
@@ -976,7 +976,6 @@ class experiment:
                 orientation,  # orienataion
                 self.daterange[0],
                 gridtype = gridtype,
-                tidepath = tidepath
             )
 
         seg.rectangular_brushcut()
@@ -1642,7 +1641,6 @@ class segment:
         gridtype (Optional[str]): Arakawa staggering of input grid, one of ``A``, ``B`` or ``C``
         time_units (str): The units used by raw forcing file,
             e.g. ``hours``, ``days`` (default)
-        tidepath (Optional[str]): Path to tidal forcing file. If not specified, tidal forcing will not be included.
         tidal_constituants (Optional[int]) The last tidal constituants to include in this list:  m2, s2, n2, k2, k1, o1, p1, q1, mm, mf, m4. Eg, specifying 1 selects only m2, specifying 2 selects m2 and s2, etc.
 
     """
@@ -1658,8 +1656,6 @@ class segment:
         startdate,
         gridtype="A",
         time_units="days",
-        tidepath = False,
-        tidal_constituants = 1
     ):
         ## Store coordinate names
         if gridtype == "A":
@@ -1691,15 +1687,11 @@ class segment:
         self.hgrid = hgrid
         self.seg_name = seg_name
 
-        ## Convert tidal constituants to corresponding indices in TPXO
-
-
-        self.tidal_constituants = range(0,tidal_constituants)
 
 
     def rectangular_brushcut(self):
         """
-        This method assumes that the boundary is a simple N,S,E or Western boundary. Cuts out and interpolates tracers as well as tides if they're provided.
+        This method assumes that the boundary is a simple N,S,E or Western boundary. Cuts out and interpolates tracers.
         """
         if self.orientation == "north":
             self.hgrid_seg = self.hgrid.isel(nyp=[-1])
@@ -1865,8 +1857,7 @@ class segment:
         )
 
 
-        #! This only works for RYF or shorter IAF runs.
-        #  We'd need a better way to split up forcing files into separate chunks if you wanted to run one year at a time.
+
         time = np.arange(
             0,  #! Indexing everything from start of experiment = simple but maybe counterintutive?
             segment_out[self.time].shape[
@@ -1985,17 +1976,10 @@ class segment:
         )
 
         # If repeat year forcing, add modulo coordinate
-        if ryf:
+        if self.ryf:
             segment_out["time"] = segment_out["time"].assign_attrs({"modulo": " "})
 
-        ## Now handle the tides 
-        #! UNFINISHED
-        # if self.tidepath != False:
-        #     ## Regrid the tides to our segment. Adapted from https://github.com/jsimkins2/nwa25
-            
-        #     print("Regridding tidal elevation")
-            
-        #     tidal_amp = xr.open_mfdataset(str(self.tidepath / "h_tpxo*.nc")).rename({'lon_z': 'lon', 'lat_z': 'lat', 'nc': 'constituent'}).isel(constituent=self.tidal_constituants)
+
 
 
         with ProgressBar():
