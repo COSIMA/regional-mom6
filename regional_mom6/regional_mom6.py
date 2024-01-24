@@ -17,7 +17,7 @@ import warnings
 import shutil
 import os
 from .utils import vecdot
-import yaml
+from ruamel.yaml import YAML
 
 warnings.filterwarnings("ignore")
 
@@ -33,6 +33,124 @@ __all__ = [
     "experiment",
     "segment",
 ]
+
+## Borrowed functions 
+
+def ap2ep(uc, vc):
+    """Convert complex tidal u and v to tidal ellipse.
+    Adapted from ap2ep.m for matlab
+    Original copyright notice:
+    %Authorship Copyright:
+    %
+    %    The author retains the copyright of this program, while  you are welcome
+    % to use and distribute it as long as you credit the author properly and respect
+    % the program name itself. Particularly, you are expected to retain the original
+    % author's name in this original version or any of its modified version that
+    % you might make. You are also expected not to essentially change the name of
+    % the programs except for adding possible extension for your own version you
+    % might create, e.g. ap2ep_xx is acceptable.  Any suggestions are welcome and
+    % enjoy my program(s)!
+    %
+    %
+    %Author Info:
+    %_______________________________________________________________________
+    %  Zhigang Xu, Ph.D.
+    %  (pronounced as Tsi Gahng Hsu)
+    %  Research Scientist
+    %  Coastal Circulation
+    %  Bedford Institute of Oceanography
+    %  1 Challenge Dr.
+    %  P.O. Box 1006                    Phone  (902) 426-2307 (o)
+    %  Dartmouth, Nova Scotia           Fax    (902) 426-7827
+    %  CANADA B2Y 4A2                   email xuz@dfo-mpo.gc.ca
+    %_______________________________________________________________________
+    %
+    % Release Date: Nov. 2000, Revised on May. 2002 to adopt Foreman's northern semi
+    % major axis convention.
+
+    Args:
+        uc: complex tidal u velocity
+        vc: complex tidal v velocity
+
+    Returns:
+        (semi-major axis, eccentricity, inclination [radians], phase [radians])
+    """
+    wp = (uc + 1j * vc) / 2.0
+    wm = np.conj(uc - 1j * vc) / 2.0
+
+    Wp = np.abs(wp)
+    Wm = np.abs(wm)
+    THETAp = np.angle(wp)
+    THETAm = np.angle(wm)
+
+    SEMA = Wp + Wm
+    SEMI = Wp - Wm
+    ECC = SEMI / SEMA
+    PHA = (THETAm - THETAp) / 2.0
+    INC = (THETAm + THETAp) / 2.0
+
+    return SEMA, ECC, INC, PHA
+
+
+def ep2ap(SEMA, ECC, INC, PHA):
+    """Convert tidal ellipse to real u and v amplitude and phase.
+    Adapted from ep2ap.m for matlab.
+    Original copyright notice:
+    %Authorship Copyright:
+    %
+    %    The author of this program retains the copyright of this program, while
+    % you are welcome to use and distribute this program as long as you credit
+    % the author properly and respect the program name itself. Particularly,
+    % you are expected to retain the original author's name in this original
+    % version of the program or any of its modified version that you might make.
+    % You are also expected not to essentially change the name of the programs
+    % except for adding possible extension for your own version you might create,
+    % e.g. app2ep_xx is acceptable.  Any suggestions are welcome and enjoy my
+    % program(s)!
+    %
+    %
+    %Author Info:
+    %_______________________________________________________________________
+    %  Zhigang Xu, Ph.D.
+    %  (pronounced as Tsi Gahng Hsu)
+    %  Research Scientist
+    %  Coastal Circulation
+    %  Bedford Institute of Oceanography
+    %  1 Challenge Dr.
+    %  P.O. Box 1006                    Phone  (902) 426-2307 (o)
+    %  Dartmouth, Nova Scotia           Fax    (902) 426-7827
+    %  CANADA B2Y 4A2                   email xuz@dfo-mpo.gc.ca
+    %_______________________________________________________________________
+    %
+    %Release Date: Nov. 2000
+
+    Args:
+        SEMA: semi-major axis
+        ECC: eccentricity
+        INC: inclination [radians]
+        PHA: phase [radians]
+
+    Returns:
+        (u amplitude, u phase [radians], v amplitude, v phase [radians])
+
+    """
+    Wp = (1 + ECC) / 2. * SEMA
+    Wm = (1 - ECC) / 2. * SEMA
+    THETAp = INC - PHA
+    THETAm = INC + PHA
+
+    wp = Wp * np.exp(1j * THETAp)
+    wm = Wm * np.exp(1j * THETAm)
+
+    cu = wp + np.conj(wm)
+    cv = -1j * (wp - np.conj(wm))
+
+    ua = np.abs(cu)
+    va = np.abs(cv)
+    up = -np.angle(cu)
+    vp = -np.angle(cv)
+
+    return ua, va, up, vp
 
 
 def nicer_slicer(data, xextent, xcoords, buffer=2):
@@ -461,7 +579,7 @@ class experiment:
         mom_run_dir (str): Path of the MOM6 control directory.
         mom_input_dir (str): Path of the MOM6 input directory, to receive the forcing files.
         toolpath (str): Path of FREtools binaries.
-        gridtype (Optional[str]): Type of grid to generate, only ``even_spacing`` is supported.
+        gridtype (Optional[str]): Type of grid to generate, only ``byo'', meaning read in existing hgrid or ``even_spacing`` are supported.
 
     """
 
@@ -519,7 +637,15 @@ class experiment:
         Note:
             The intention is for the hgrid generation to be very flexible. For now there is only one implemented horizontal grid included in the package, but you can customise it by simply overwriting the `hgrid.nc` file that's deposited in your `rundir` after initialising an `experiment`. To conserve the metadata, it might be easiest to read the file in, then modify the fields before re-saving.
         """
-
+        if gridtype == "byo":
+            print("Reading in homemade horizintal grid...",end = "\t")
+            try:
+                hgrid = xr.open_dataset(self.mom_input_dir / "hgrid.nc")
+            except:
+                print(f"Error in reading in homemade horizontal grid. Make sure you've got a file called `hgrid.nc` in {self.mom_input_dir}")
+                raise ValueError
+            print("Success.")
+            return hgrid
         if gridtype == "even_spacing":
             # longitudes will just be evenly spaced, based only on resolution and bounds
             nx = int((self.xextent[1] - self.xextent[0]) / (self.res / 2))
@@ -560,18 +686,14 @@ class experiment:
 
         return vcoord
 
-    def ocean_forcing(
-        self, path, varnames, boundaries=None, gridtype="A", vcoord_type="height"
+    def initial_condition(
+        self, ic_path, varnames, gridtype="A", vcoord_type="height"
     ):
         """Reads in the forcing files that force the ocean at
         boundaries (if specified) and for initial condition
 
         Args:
-            path (Union[str, Path]): Path to directory containing the forcing
-                files. Files should be named
-                ``north_segment_unprocessed`` for each boundary (for
-                the cardinal directions) and ``ic_unprocessed`` for the
-                initial conditions.
+            path (Union[str, Path]): Path to initial condition file.
             varnames (Dict[str, str]): Mapping from MOM6
                 variable/coordinate names to the name in the input
                 dataset.
@@ -583,18 +705,16 @@ class experiment:
 
         """
 
-        path = Path(path)
-
         ## Do initial condition
 
         ## pull out the initial velocity on MOM5's Bgrid
-        ic_raw = xr.open_dataset(path / "ic_unprocessed")
 
-        if varnames["time"] in ic_raw.variables:
-            ic_raw = ic_raw.drop_vars("time")
+        ic_raw = xr.open_dataset(ic_path)
         if varnames["time"] in ic_raw.dims:
             ic_raw = ic_raw.isel({varnames["time"]: 0})
-        print(ic_raw)
+        if varnames["time"] in ic_raw.coords:
+            ic_raw = ic_raw.drop(varnames["time"])
+
         ## Separate out tracers from two velocity fields of IC
         try:
             ic_raw_tracers = ic_raw[
@@ -791,14 +911,6 @@ class experiment:
 
         print("Saving outputs... ", end="")
 
-        ## Remove time IF it exists. Users may already have done so for us
-        if "time" in vel_out.dims:
-            vel_out = vel_out.isel(time=0).drop("time")
-        if "time" in tracers_out.dims:
-            tracers_out = tracers_out.isel(time=0).drop("time")
-        if "time" in eta_out.dims:
-            eta_out = eta_out.isel(time=0).drop("time")
-
         vel_out.fillna(0).to_netcdf(
             self.mom_input_dir / "forcing/init_vel.nc",
             mode="w",
@@ -828,36 +940,48 @@ class experiment:
                 "eta_t": {"_FillValue": None},
             },
         )
-        print("done.")
+        print("done setting up initial condition.")
 
         self.ic_eta = eta_out
         self.ic_tracers = tracers_out
         self.ic_vels = vel_out
+        return
 
-        if boundaries is None:
-            return
+    def setup_rectangular_boundary(self, path_to_bc, varnames, orientation, segment_number,gridtype="A",tidepath=False):
+        """
+        Setup a boundary forcing file for a given orientation. Only supports straight boundaries along lat/lon lines
+        Args:
+            path_to_bc (str): Path to boundary forcing file. Ideally this should be a pre cut-out netcdf file containing only the boundary region and 3 extra boundary points either side. You could also provide a large dataset containing your entire domain but this will be slower. 
+            varnames (Dict[str, str]): Mapping from MOM6
+                variable/coordinate names to the name in the input
+                dataset.
+            orientation (str): Orientation of boundary forcing file. i.e east,west,north,south. 
+            segment_number (int): Number the segments according to how they'll be specified in MOM_input
+            gridtype (Optional[str]): Arakawa grid staggering of input, one of ``A``, ``B`` or ``C``
+            tidepath (Optional[str]): Path to tidal forcing file. If not specified, tidal forcing will not be included.
+        """
 
-        print("BRUSHCUT BOUNDARIES")
 
-        ## Generate a rectangular OBC domain. This is the default
-        ## configuration. For fancier domains, need to use the segment
-        ## class manually
-        for i, o in enumerate(boundaries):
-            print(f"Processing {o}...", end="")
-            seg = segment(
+
+
+        print("Processing {} boundary...".format(orientation), end="")
+
+
+        seg = segment(
                 self.hgrid,
-                path / f"{o.lower()}_unprocessed",  # location of raw boundary
+                path_to_bc,  # location of raw boundary
                 self.mom_input_dir,
                 varnames,
-                "segment_{:03d}".format(i + 1),
-                o.lower(),  # orienataion
+                "segment_{:03d}".format(segment_number),
+                orientation,  # orienataion
                 self.daterange[0],
-                gridtype,
-                vcoord_type,
+                gridtype = gridtype,
+                tidepath = tidepath
             )
 
-            seg.brushcut()
-            print("Done.")
+        seg.rectangular_brushcut()
+        print("Done.")
+        return
 
     def bathymetry(
         self,
@@ -998,6 +1122,9 @@ class experiment:
             tgrid.lon.attrs["units"] = "degrees_east"
             tgrid.lon.attrs["_FillValue"] = 1e20
             tgrid.lat.attrs["units"] = "degrees_north"
+            tgrid.lat.attrs["_FillValue"] = 1e20
+            tgrid.elevation.attrs["units"] = "m"
+            tgrid.elevation.attrs["coordinates"] = "lon lat"
             tgrid.to_netcdf(
                 self.mom_input_dir / "topog_raw.nc", mode="w", engine="netcdf4"
             )
@@ -1005,13 +1132,16 @@ class experiment:
 
             ## Replace subprocess run with regular regridder
             print(
-                "Starting to regrid bathymetry. If this process hangs you might be better off calling ESMF directly from a terminal with appropriate computational resources using \n\n mpirun ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\n\nThis is better for larger domains.\n\n"
+                "Starting to regrid bathymetry. If this process hangs your domain might be too big to handle this way. Try calling ESMF directly from a terminal with appropriate computational resources opened in the input directory using \n\n mpirun ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\n\n For details see https://xesmf.readthedocs.io/en/latest/large_problems_on_HPC.html \n\nAftewards, run this method again but set 'maketopog = False' so that python skips the computationally expensive step and just fixes up the metadata.\n\n"
             )
 
             # If we have a domain large enough for chunks, we'll run regridder with parallel=True
             parallel = True
             if len(tgrid.chunks) != 2:
                 parallel = False
+            print(f"Regridding in parallel: {parallel}")
+            bathyout = bathyout.chunk(chunks)
+            # return
             regridder = xe.Regridder(bathyout, tgrid, "bilinear", parallel=parallel)
 
             topog = regridder(bathyout)
@@ -1285,6 +1415,7 @@ class experiment:
             if overwrite_run_dir != False:
                 shutil.copy(base_run_dir / file, self.mom_run_dir)
 
+
         ## Make symlinks between run and input directories
         inputdir_in_rundir = self.mom_run_dir / "inputdir"
         rundir_in_inputdir = self.mom_input_dir / "rundir"
@@ -1377,7 +1508,6 @@ class experiment:
             0,
         ]
         nml.write(self.mom_run_dir / "input.nml", force=True)
-        return
 
     def setup_era5(self, era5_path):
         """
@@ -1492,7 +1622,9 @@ class segment:
 
     Data should be at daily temporal resolution, iterating upwards
     from the provided startdate. Function ignores the time metadata
-    and puts it on Julian calendar.
+    and puts it on Julian calendar. 
+    
+    Only supports z* vertical coordinate! 
 
 
     Args:
@@ -1508,10 +1640,10 @@ class segment:
         orientation (str): Cardinal direction (lowercase) of the boundary segment
         startdate (str): The starting date to use in the segment calendar
         gridtype (Optional[str]): Arakawa staggering of input grid, one of ``A``, ``B`` or ``C``
-        vcoord_type (Optional[str]): Vertical coordinate, either
-            interfacial ``height`` or layer ``thickness``
         time_units (str): The units used by raw forcing file,
             e.g. ``hours``, ``days`` (default)
+        tidepath (Optional[str]): Path to tidal forcing file. If not specified, tidal forcing will not be included.
+        tidal_constituants (Optional[int]) The last tidal constituants to include in this list:  m2, s2, n2, k2, k1, o1, p1, q1, mm, mf, m4. Eg, specifying 1 selects only m2, specifying 2 selects m2 and s2, etc.
 
     """
 
@@ -1525,8 +1657,9 @@ class segment:
         orientation,
         startdate,
         gridtype="A",
-        vcoord_type="height",
         time_units="days",
+        tidepath = False,
+        tidal_constituants = 1
     ):
         ## Store coordinate names
         if gridtype == "A":
@@ -1557,56 +1690,63 @@ class segment:
         self.grid = gridtype
         self.hgrid = hgrid
         self.seg_name = seg_name
-        self.vcoord_type = vcoord_type
 
-    def brushcut(self, ryf=False):
-        ### Implement brushcutter scheme on single segment ###
-        rawseg = xr.open_dataset(self.infile, decode_times=False, engine="netcdf4")
+        ## Convert tidal constituants to corresponding indices in TPXO
 
-        ## Depending on the orientation of the segment, cut out the right bit of the hgrid
-        ## and define which coordinate is along or into the segment
+
+        self.tidal_constituants = range(0,tidal_constituants)
+
+
+    def rectangular_brushcut(self):
+        """
+        This method assumes that the boundary is a simple N,S,E or Western boundary. Cuts out and interpolates tracers as well as tides if they're provided.
+        """
         if self.orientation == "north":
-            hgrid_seg = self.hgrid.isel(nyp=[-1])
-            perpendicular = "ny"
-            parallel = "nx"
+            self.hgrid_seg = self.hgrid.isel(nyp=[-1])
+            self.perpendicular = "ny"
+            self.parallel = "nx"
 
         if self.orientation == "south":
-            hgrid_seg = self.hgrid.isel(nyp=[0])
-            perpendicular = "ny"
-            parallel = "nx"
+            self.hgrid_seg = self.hgrid.isel(nyp=[0])
+            self.perpendicular = "ny"
+            self.parallel = "nx"
 
         if self.orientation == "east":
-            hgrid_seg = self.hgrid.isel(nxp=[-1])
-            perpendicular = "nx"
-            parallel = "ny"
+            self.hgrid_seg = self.hgrid.isel(nxp=[-1])
+            self.perpendicular = "nx"
+            self.parallel = "ny"
 
         if self.orientation == "west":
-            hgrid_seg = self.hgrid.isel(nxp=[0])
-            perpendicular = "nx"
-            parallel = "ny"
+            self.hgrid_seg = self.hgrid.isel(nxp=[0])
+            self.perpendicular = "nx"
+            self.parallel = "ny"
 
         ## Need to keep track of which axis the 'main' coordinate corresponds to for later on when re-adding the 'secondary' axis
-        if perpendicular == "ny":
-            axis1 = 3
-            axis2 = 2
+        if self.perpendicular == "ny":
+            self.axis_to_expand = 2
         else:
-            axis1 = 2
-            axis2 = 3
+            self.axis_to_expand = 3
 
         ## Grid for interpolating our fields
-        interp_grid = xr.Dataset(
+        self.interp_grid = xr.Dataset(
             {
-                "lat": ([f"{parallel}_{self.seg_name}"], hgrid_seg.y.squeeze().data),
-                "lon": ([f"{parallel}_{self.seg_name}"], hgrid_seg.x.squeeze().data),
+                "lat": ([f"{self.parallel}_{self.seg_name}"], self.hgrid_seg.y.squeeze().data),
+                "lon": ([f"{self.parallel}_{self.seg_name}"], self.hgrid_seg.x.squeeze().data),
             }
         ).set_coords(["lat", "lon"])
+
+
+
+        rawseg = xr.open_dataset(self.infile, decode_times=False, engine="netcdf4")
+
+
 
         if self.grid == "A":
             rawseg = rawseg.rename({self.x: "lon", self.y: "lat"})
             ## In this case velocities and tracers all on same points
             regridder = xe.Regridder(
                 rawseg[self.u],
-                interp_grid,
+                self.interp_grid,
                 "bilinear",
                 locstream_out=True,
                 reuse_weights=False,
@@ -1629,7 +1769,7 @@ class segment:
             ## All tracers on one grid, all velocities on another
             regridder_velocity = xe.Regridder(
                 rawseg[self.u].rename({self.xq: "lon", self.yq: "lat"}),
-                interp_grid,
+                self.interp_grid,
                 "bilinear",
                 locstream_out=True,
                 reuse_weights=False,
@@ -1639,7 +1779,7 @@ class segment:
 
             regridder_tracer = xe.Regridder(
                 rawseg[self.tracers["salt"]].rename({self.xh: "lon", self.yh: "lat"}),
-                interp_grid,
+                self.interp_grid,
                 "bilinear",
                 locstream_out=True,
                 reuse_weights=False,
@@ -1666,7 +1806,7 @@ class segment:
             ## All tracers on one grid, all velocities on another
             regridder_uvelocity = xe.Regridder(
                 rawseg[self.u].rename({self.xq: "lon", self.yh: "lat"}),
-                interp_grid,
+                self.interp_grid,
                 "bilinear",
                 locstream_out=True,
                 reuse_weights=False,
@@ -1676,7 +1816,7 @@ class segment:
 
             regridder_vvelocity = xe.Regridder(
                 rawseg[self.v].rename({self.xh: "lon", self.yq: "lat"}),
-                interp_grid,
+                self.interp_grid,
                 "bilinear",
                 locstream_out=True,
                 reuse_weights=False,
@@ -1686,7 +1826,7 @@ class segment:
 
             regridder_tracer = xe.Regridder(
                 rawseg[self.tracers["salt"]].rename({self.xh: "lon", self.yh: "lat"}),
-                interp_grid,
+                self.interp_grid,
                 "bilinear",
                 locstream_out=True,
                 reuse_weights=False,
@@ -1719,18 +1859,11 @@ class segment:
         # fill in NaNs
         segment_out = (
             segment_out.ffill(self.z)
-            .interpolate_na(f"{parallel}_{self.seg_name}")
-            .ffill(f"{parallel}_{self.seg_name}")
-            .bfill(f"{parallel}_{self.seg_name}")
+            .interpolate_na(f"{self.parallel}_{self.seg_name}")
+            .ffill(f"{self.parallel}_{self.seg_name}")
+            .bfill(f"{self.parallel}_{self.seg_name}")
         )
 
-        ##### FIX UP COORDINATE METADATA #####
-        ## OLD: Use 1950 reference
-        # start_jd50 = (self.startdate - dt.datetime.strptime("1950-01-01 00:00:00","%Y-%m-%d %H:%M:%S")).days
-        # time = np.arange(
-        #     start_jd50,
-        #     start_jd50 + rawseg[self.time].shape[0]  ## Time is just range of days from start of window until end in Julian day offset from 1950 epoch
-        # )
 
         #! This only works for RYF or shorter IAF runs.
         #  We'd need a better way to split up forcing files into separate chunks if you wanted to run one year at a time.
@@ -1743,7 +1876,6 @@ class segment:
         )
 
         segment_out = segment_out.assign_coords({"time": time})
-
         segment_out.time.attrs = {
             "calendar": "julian",
             "units": f"{self.time_units} since {self.startdate}",
@@ -1762,15 +1894,9 @@ class segment:
         }
 
         ### Generate our dz variable. This needs to be in layer thicknesses
-        if self.vcoord_type == "height":
-            dz = segment_out[self.z].diff(self.z)
-            dz.name = "dz"
-            dz = xr.concat([dz, dz[-1]], dim=self.z)
-
-        else:
-            dz = segment_out[self.z]
-            dz.name = "dz"
-        del segment_out[self.z]
+        dz = segment_out[self.z].diff(self.z)
+        dz.name = "dz"
+        dz = xr.concat([dz, dz[-1]], dim=self.z)
 
         # Here, keep in mind that 'var' keeps track of the mom6 variable names we want, and self.tracers[var] will return the name of the variable from the original data
 
@@ -1801,7 +1927,7 @@ class segment:
 
             ## Re-add the secondary dimension (even though it represents one value..)
             segment_out[v] = segment_out[v].expand_dims(
-                f"{perpendicular}_{self.seg_name}", axis=axis2
+                f"{self.perpendicular}_{self.seg_name}", axis=self.axis_to_expand
             )
 
             ## Add the layer thicknesses
@@ -1840,27 +1966,37 @@ class segment:
         }
         segment_out[f"eta_{self.seg_name}"] = segment_out[
             f"eta_{self.seg_name}"
-        ].expand_dims(f"{perpendicular}_{self.seg_name}", axis=axis2 - 1)
+        ].expand_dims(f"{self.perpendicular}_{self.seg_name}", axis=self.axis_to_expand - 1)
 
         # Overwrite the actual lat/lon values in the dimensions, replace with incrementing integers
-        segment_out[f"{parallel}_{self.seg_name}"] = np.arange(
-            segment_out[f"{parallel}_{self.seg_name}"].size
+        segment_out[f"{self.parallel}_{self.seg_name}"] = np.arange(
+            segment_out[f"{self.parallel}_{self.seg_name}"].size
         )
-        segment_out[f"{perpendicular}_{self.seg_name}"] = [0]
+        segment_out[f"{self.perpendicular}_{self.seg_name}"] = [0]
 
         # Store actual lat/lon values here as variables rather than coordinates
         segment_out[f"lon_{self.seg_name}"] = (
             [f"ny_{self.seg_name}", f"nx_{self.seg_name}"],
-            hgrid_seg.x.data,
+            self.hgrid_seg.x.data,
         )
         segment_out[f"lat_{self.seg_name}"] = (
             [f"ny_{self.seg_name}", f"nx_{self.seg_name}"],
-            hgrid_seg.y.data,
+            self.hgrid_seg.y.data,
         )
 
         # If repeat year forcing, add modulo coordinate
         if ryf:
             segment_out["time"] = segment_out["time"].assign_attrs({"modulo": " "})
+
+        ## Now handle the tides 
+        #! UNFINISHED
+        # if self.tidepath != False:
+        #     ## Regrid the tides to our segment. Adapted from https://github.com/jsimkins2/nwa25
+            
+        #     print("Regridding tidal elevation")
+            
+        #     tidal_amp = xr.open_mfdataset(str(self.tidepath / "h_tpxo*.nc")).rename({'lon_z': 'lon', 'lat_z': 'lat', 'nc': 'constituent'}).isel(constituent=self.tidal_constituants)
+
 
         with ProgressBar():
             segment_out.load().to_netcdf(
