@@ -1,18 +1,17 @@
-
-"ATM", "p_surf", "", "", "bilinear", 100410.25
-"ATM", "p_bot",  "", "", "bilinear", 100410.25
-"ATM", "t_bot",  "", "", "bilinear", 289.9
-"ATM", "sphum_bot", "", "", "bilinear", 0.0083
-"ATM", "u_bot", "", "", "bicubic", 0.0
-"ATM", "v_bot", "", "", "bicubic", 0.0
+"ATM", "p_surf", "sp", "./INPUT/forcing/sp_ERA5.nc", "bilinear", 1.0
+"ATM", "p_bot",  "sp", "./INPUT/forcing/sp_ERA5.nc", "bilinear", 1.0
+"ATM", "t_bot",  "t2m", "./INPUT/forcing/2t_ERA5.nc", "bilinear", 1.0
+"ATM", "sphum_bot", "q", "./INPUT/forcing/q_ERA5.nc", "bilinear", 1.0
+"ATM", "u_bot", "u10", "./INPUT/forcing/10u_ERA5.nc", "bicubic", 1.0
+"ATM", "v_bot", "v10", "./INPUT/forcing/10v_ERA5.nc", "bicubic", 1.0
 "ATM", "z_bot", "", "", "bilinear", 10.0
 "ATM", "gust", "", "", "bilinear", 1.0e-4
 "ICE", "lw_flux_dn", "", "", "bilinear", 1.0
-"ICE", "sw_flux_vis_dir_dn", "", "", "bilinear", 0.0
-"ICE", "sw_flux_vis_dif_dn", "", "", "bilinear", 0.0
-"ICE", "sw_flux_nir_dir_dn", "", "", "bilinear", 0.0
-"ICE", "sw_flux_nir_dif_dn", "", "", "bilinear", 0.0
-"ICE", "lprec", "", "", "bilinear", 0.0
+"ICE", "sw_flux_vis_dir_dn", "msdwswrf", "./INPUT/forcing/msdwswrf_ERA5.nc", "bilinear", 0.285
+"ICE", "sw_flux_vis_dif_dn", "msdwswrf", "./INPUT/forcing/msdwswrf_ERA5.nc", "bilinear", 0.285
+"ICE", "sw_flux_nir_dir_dn", "msdwlwrf", "./INPUT/forcing/msdwlwrf_ERA5.nc", "bilinear", 0.215
+"ICE", "sw_flux_nir_dif_dn", "msdwlwrf", "./INPUT/forcing/msdwlwrf_ERA5.nc", "bilinear", 0.215
+"ICE", "lprec", "trr", "./INPUT/forcing/trr_ERA5.nc", "bilinear", 1.0
 "ICE", "fprec", "", "", "bilinear", 0.0
 "ICE", "runoff", "", "", "none", 0.0
 "ICE", "dhdt", "", "", "none", 80.0
@@ -20,3 +19,4 @@
 "ICE", "drdt", "", "", "none", 10.0
 "LND", "rough_mom", "", "", "none", 0.01
 "LND", "rough_heat", "", "", "none", 0.1
+

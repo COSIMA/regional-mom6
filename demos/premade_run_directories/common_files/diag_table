@@ -1,19 +1,10 @@
-regional_mom6
-1990 1 1 0 0 0
+mom6-regional
+2003 1 1 0 0 0
 
 "ocean_daily",            1, "days",   1, "days", "time"
-"ocean_month",            1, "months", 1, "days", "time"
-"ocean_month_z",          1, "months", 1, "days", "time"
-# "ocean_month_rho2",       1, "months", 1, "days", "time"
 "ocean_static",          -1, "months", 1, "days", "time" # ocean_static is a protected name. Do not change this line.
-"ice_daily",              1, "days",   1, "days", "time"
-"ice_month",              1, "months", 1, "days", "time"
 
-# Ocean grid-cell volume
-"ocean_model_z", "volcello",     "volcello",         "ocean_month_z",       "all", "mean", "none",2
-# "ocean_model_rho2", "volcello",  "volcello",         "ocean_month_rho2",    "all", "mean", "none",2
-
-# Sea surface height above geoid
+# Sea Surface Height
 "ocean_model",   "zos",          "zos",              "ocean_daily",         "all", "mean", "none",2
 # Sea Surface Temperature
 "ocean_model",   "tos",          "tos",              "ocean_daily",         "all", "mean", "none",2
@@ -27,34 +18,6 @@ regional_mom6
 "ocean_model",   "mlotst",       "mlotst",           "ocean_daily",         "all", "mean", "none",2
 # Sea Surface Speed
 "ocean_model",   "speed",        "speed",            "ocean_daily",         "all", "mean", "none",2
-
-# (umo,vmo)  =net mass transport from residual mean velocity (model resolved + SGS)
-# "ocean_model_rho2","umo",       "umo",              "ocean_month_rho2",   "all", "mean", "none",2
-# "ocean_model_rho2","vmo",       "vmo",              "ocean_month_rho2",   "all", "mean", "none",2
-# "ocean_model_rho2", "h",        "hmo",              "ocean_month_rho2",   "all", "mean", "none", 2
-
-# Zonal/Meridional velocity
-"ocean_model_z","uo",           "uo",               "ocean_month_z",      "all", "mean", "none",2
-"ocean_model_z","vo",           "vo",               "ocean_month_z",      "all", "mean", "none",2
-# Potential Temperature
-"ocean_model_z", "thetao",       "thetao",           "ocean_month_z",       "all", "mean", "none",2  # if use pre-TEOS10
-# Salinity
-"ocean_model_z", "so",           "so",               "ocean_month_z",       "all", "mean", "none",2
-# Potential Density referenced to 2000 dbar
-"ocean_model_z", "rhopot2",      "rhopot2",          "ocean_month_z",      "all", "mean", "none", 2
-
-# Ocean Mass X/Y Transport Vertical Sum
-"ocean_model",  "umo_2d",       "umo_2d",      "ocean_month",         "all", "mean", "none",2
-"ocean_model",  "vmo_2d",       "vmo_2d",      "ocean_month",         "all", "mean", "none",2
-
-# Zonal/Meridional surface stress from ocean interactions with atmos and ice
-"ocean_model",  "tauuo",        "tauuo",            "ocean_month",        "all", "mean", "none",2
-"ocean_model",  "tauvo",        "tauvo",            "ocean_month",        "all", "mean", "none",2
-# Surface ocean heat flux from SW+LW+lat+sens+mass transfer+frazil+restore+seaice_melt_heat or flux adjustments
-"ocean_model",  "hfds",            "hfds",             "ocean_month",        "all", "mean", "none",2
-# Net surface water flux (precip+melt+lrunoff+ice calving-evap)
-"ocean_model",  "wfo",          "wfo",              "ocean_month",        "all", "mean", "none",2
-"ocean_model",  "friver",       "friver",           "ocean_month",        "all", "mean", "none",2
 
 # Surface area of tracer (T) cells
 "ocean_model", "areacello",   "areacello",   "ocean_static", "all", "none", "none", 2
@@ -84,7 +47,3 @@ regional_mom6
 "ocean_model", "areacello_bu","areacello_bu","ocean_static", "all", "none", "none", 2
 
 
-"ice_model", "siconc",     "siconc",       "ice_month", "all", "mean", "none", 2
-"ice_model", "siconc",     "siconc",       "ice_daily", "all", "mean", "none", 2
-"ice_model", "sithick",    "sithick",      "ice_month", "all", "mean", "none", 2
-"ice_model", "sithick",    "sithick",      "ice_daily", "all", "mean", "none", 2

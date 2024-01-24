@@ -1,0 +1,26 @@
+project: x77
+queue: normal
+walltime: 05:00:00
+jobname: jobname
+ncpus: 1234
+jobfs: 10GB
+shortpath: /scratch/nm03
+
+model: mom6
+input:
+    - path_to_input_files
+
+## Executable that Ashley uses on nci. If you're an NCI user hopefully you can access this
+exe: /g/data/v45/ab8992/mom_executables/jan2024-latest-everything
+
+collate: false
+#runlog: true
+storage:
+  gdata:
+    - ua8
+    - x77
+    - ik11
+
+mpi:
+  module: openmpi/4.1.2
+
