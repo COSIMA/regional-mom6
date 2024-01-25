@@ -959,6 +959,7 @@ class experiment:
             orientation (str): Orientation of boundary forcing file. i.e east,west,north,south. 
             segment_number (int): Number the segments according to how they'll be specified in MOM_input
             gridtype (Optional[str]): Arakawa grid staggering of input, one of ``A``, ``B`` or ``C``
+            ryf (Optional[bool]): Whether the experiment runs 'repeat year forcing'. Otherwise assumes inter annual forcing.
         """
 
 
@@ -976,6 +977,7 @@ class experiment:
                 orientation,  # orienataion
                 self.daterange[0],
                 gridtype = gridtype,
+                ryf = self.ryf
             )
 
         seg.rectangular_brushcut()
@@ -1512,7 +1514,7 @@ class experiment:
         """
         Sets up the ERA5 forcing files for your experiment. This assumes that you'd downloaded all of the ERA5 data in your daterange.
         You'll need the following fields:
-        2t, 10u, 10v, sp, 2d
+        2t, 10u, 10v, sp, 2d, "msdwswrf", "msdwlwrf", "lsrr", "crr"
 
 
         Args:
@@ -1527,7 +1529,6 @@ class experiment:
             ["t2m", "u10", "v10", "sp", "d2m", "msdwswrf", "msdwlwrf", "lsrr", "crr"],
         ):
             ## Load data from all relevant years
-            datasets = []
             years = [
                 i for i in range(self.daterange[0].year, self.daterange[1].year + 1)
             ]
@@ -1538,77 +1539,75 @@ class experiment:
                     decode_times=False,
                     chunks={"longitude": 100, "latitude": 100},
                 )
-                datasets.append(ds)
 
-            combined_ds = xr.concat(datasets, dim="time")
 
             ## Cut out this variable to our domain size
-            rawdata[fname] = nicer_slicer(
-                combined_ds,
-                self.xextent,
-                "longitude",
-            ).sel(
-                latitude=slice(
-                    self.yextent[1], self.yextent[0]
-                )  ## This is because ERA5 has latitude in decreasing order (??)
-            )
-
-            ## Now fix up the latitude and time dimensions
-
-            rawdata[fname] = (
-                rawdata[fname]
-                .isel(latitude=slice(None, None, -1))  ## Flip latitude
-                .assign_coords(
-                    time=np.arange(
-                        0, rawdata[fname].time.shape[0], dtype=float
-                    )  ## Set the zero date of forcing to start of run
-                )
-            )
-
-            rawdata[fname].time.attrs = {
-                "calendar": "julian",
-                "units": f"hours since {self.daterange[0].strftime('%Y-%m-%d %H:%M:%S')}",
-            }  ## Fix up calendar to match
-
-            if fname == "2d":
-                ## Calculate specific humidity from dewpoint temperature
-                dewpoint = 8.07131 - 1730.63 / (233.426 + rawdata["2d"]["d2m"] - 273.15)
-                humidity = (
-                    (0.622 / rawdata["sp"]["sp"]) * (10**dewpoint) * 101325 / 760
-                )
-                q = xr.Dataset(data_vars={"q": humidity})
-
-                q.q.attrs = {"long_name": "Specific Humidity", "units": "kg/kg"}
-                q.to_netcdf(
-                    f"{self.mom_input_dir}/forcing/q_ERA5.nc",
-                    unlimited_dims="time",
-                    encoding={"q": {"dtype": "double"}},
-                )
-            elif fname == "crr":
-                ## Calculate total rain rate from convective and total
-                trr = xr.Dataset(
-                    data_vars={"trr": rawdata["crr"]["crr"] + rawdata["lsrr"]["lsrr"]}
+                rawdata[fname] = nicer_slicer(
+                    ds,
+                    self.xextent,
+                    "longitude",
+                ).sel(
+                    latitude=slice(
+                        self.yextent[1], self.yextent[0]
+                    )  ## This is because ERA5 has latitude in decreasing order (??)
                 )
 
-                trr.trr.attrs = {
-                    "long_name": "Total Rain Rate",
-                    "units": "kg m**-2 s**-1",
-                }
-                trr.to_netcdf(
-                    f"{self.mom_input_dir}/forcing/trr_ERA5.nc",
-                    unlimited_dims="time",
-                    encoding={"trr": {"dtype": "double"}},
+                ## Now fix up the latitude and time dimensions
+
+                rawdata[fname] = (
+                    rawdata[fname]
+                    .isel(latitude=slice(None, None, -1))  ## Flip latitude
+                    .assign_coords(
+                        time=np.arange(
+                            0, rawdata[fname].time.shape[0], dtype=float
+                        )  ## Set the zero date of forcing to start of run
+                    )
                 )
 
-            elif fname == "lsrr":
-                ## This is handled by crr as both are added together to calculate total rain rate.
-                pass
-            else:
-                rawdata[fname].to_netcdf(
-                    f"{self.mom_input_dir}/forcing/{fname}_ERA5.nc",
-                    unlimited_dims="time",
-                    encoding={vname: {"dtype": "double"}},
-                )
+                rawdata[fname].time.attrs = {
+                    "calendar": "julian",
+                    "units": f"hours since {self.daterange[0].strftime('%Y-%m-%d %H:%M:%S')}",
+                }  ## Fix up calendar to match
+
+                if fname == "2d":
+                    ## Calculate specific humidity from dewpoint temperature
+                    dewpoint = 8.07131 - 1730.63 / (233.426 + rawdata["2d"]["d2m"] - 273.15)
+                    humidity = (
+                        (0.622 / rawdata["sp"]["sp"]) * (10**dewpoint) * 101325 / 760
+                    )
+                    q = xr.Dataset(data_vars={"q": humidity})
+
+                    q.q.attrs = {"long_name": "Specific Humidity", "units": "kg/kg"}
+                    q.to_netcdf(
+                        f"{self.mom_input_dir}/forcing/q_ERA5.nc",
+                        unlimited_dims="time",
+                        encoding={"q": {"dtype": "double"}},
+                    )
+                elif fname == "crr":
+                    ## Calculate total rain rate from convective and total
+                    trr = xr.Dataset(
+                        data_vars={"trr": rawdata["crr"]["crr"] + rawdata["lsrr"]["lsrr"]}
+                    )
+
+                    trr.trr.attrs = {
+                        "long_name": "Total Rain Rate",
+                        "units": "kg m**-2 s**-1",
+                    }
+                    trr.to_netcdf(
+                        f"{self.mom_input_dir}/forcing/trr_ERA5-{year}.nc",
+                        unlimited_dims="time",
+                        encoding={"trr": {"dtype": "double"}},
+                    )
+
+                elif fname == "lsrr":
+                    ## This is handled by crr as both are added together to calculate total rain rate.
+                    pass
+                else:
+                    rawdata[fname].to_netcdf(
+                        f"{self.mom_input_dir}/forcing/{fname}_ERA5-{year}.nc",
+                        unlimited_dims="time",
+                        encoding={vname: {"dtype": "double"}},
+                    )
 
 
 class segment:
@@ -1642,6 +1641,7 @@ class segment:
         time_units (str): The units used by raw forcing file,
             e.g. ``hours``, ``days`` (default)
         tidal_constituants (Optional[int]) The last tidal constituants to include in this list:  m2, s2, n2, k2, k1, o1, p1, q1, mm, mf, m4. Eg, specifying 1 selects only m2, specifying 2 selects m2 and s2, etc.
+        ryf (Optional[bool]): Whether the experiment runs 'repeat year forcing'. Otherwise assumes inter annual forcing.
 
     """
 
@@ -1656,6 +1656,8 @@ class segment:
         startdate,
         gridtype="A",
         time_units="days",
+        tidal_constituants = None,
+        ryf=False,
     ):
         ## Store coordinate names
         if gridtype == "A":
@@ -1686,8 +1688,8 @@ class segment:
         self.grid = gridtype
         self.hgrid = hgrid
         self.seg_name = seg_name
-
-
+        self.tidal_constituants = tidal_constituants
+        self.ryf = ryf
 
     def rectangular_brushcut(self):
         """
@@ -1974,6 +1976,15 @@ class segment:
             [f"ny_{self.seg_name}", f"nx_{self.seg_name}"],
             self.hgrid_seg.y.data,
         )
+
+        # Add units to the lat / lon to keep the `categorize_axis_from_units` checker happy
+        segment_out[f"lat_{self.seg_name}"].attrs = {
+            "units": "degrees_north",
+        }
+        segment_out[f"lon_{self.seg_name}"].attrs = {
+            "units": "degrees_east",
+        }
+
 
         # If repeat year forcing, add modulo coordinate
         if self.ryf:
