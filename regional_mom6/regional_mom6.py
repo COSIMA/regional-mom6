@@ -975,9 +975,11 @@ class experiment:
         self.ic_vels = vel_out
         return
 
-    def setup_rectangular_boundary(self, path_to_bc, varnames, orientation, segment_number,gridtype="A"):
+
+
+    def rectangular_boundary(self, path_to_bc, varnames, orientation, segment_number,gridtype="A"):
         """
-        Setup a boundary forcing file for a given orientation. Only supports straight boundaries along lat/lon lines
+        Setup a boundary forcing file for a given orientation. Here 'rectangular' means straight boundaries along lat/lon lines.
         Args:
             path_to_bc (str): Path to boundary forcing file. Ideally this should be a pre cut-out netcdf file containing only the boundary region and 3 extra boundary points either side. You could also provide a large dataset containing your entire domain but this will be slower. 
             varnames (Dict[str, str]): Mapping from MOM6
@@ -1008,7 +1010,8 @@ class experiment:
         print("Done.")
         return
 
-    def setup_bathymetry(
+
+    def bathymetry(
         self,
         bathy_path,
         varnames,
@@ -1178,7 +1181,7 @@ class experiment:
 
     def tidy_bathymetry(self, fill_channels=False, minimum_layers=3, positivedown=False):
         """
-        This is an auxillary function to setup_bathymetry. It's used to fix up the metadata and remove inland lakes after regridding the bathymetry.
+        This is an auxillary function to bathymetry. It's used to fix up the metadata and remove inland lakes after regridding the bathymetry.
         The functions are split to allow for the regridding to be done as a separate job, since regridding can be really expensive for large domains.
 
         If you've already regridded the bathymetry and just want to fix up the metadata, you can call this function directly to read in the existing 'topog_raw.nc' file that should be in the input directory.

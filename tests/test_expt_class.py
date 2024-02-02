@@ -34,7 +34,7 @@ import xarray as xr
         ),
     ],
 )
-def test_setup_bathymetry(
+def test_bathymetry(
     xextent,
     yextent,
     daterange,
@@ -80,7 +80,7 @@ def test_setup_bathymetry(
     bathy.close()
 
     # Now use this bathymetry as input in `expt.bathymetry()`
-    expt.setup_bathymetry(
+    expt.bathymetry(
         str(bathy_file),
         {"xh": "lona", "yh": "lata", "elevation": "elevation"},
         minimum_layers=1,
@@ -252,7 +252,7 @@ def test_ocean_forcing(
         ),
     ],
 )
-def test_setup_rectangular_boundary(
+def test_rectangular_boundary(
     xextent,
     yextent,
     daterange,
@@ -349,7 +349,7 @@ def test_setup_rectangular_boundary(
     }
 
 
-    expt.setup_rectangular_boundary(
+    expt.rectangular_boundary(
 
         tmp_path / "east_unprocessed",
         varnames,
