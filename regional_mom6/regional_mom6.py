@@ -17,14 +17,13 @@ import warnings
 import shutil
 import os
 from .utils import vecdot
-from ruamel.yaml import YAML
 
 warnings.filterwarnings("ignore")
 
 __all__ = [
     "nicer_slicer",
     "motu_requests",
-    "dz",
+    "dz_hyperbolictan",
     "angle_between",
     "latlon_to_cartesian",
     "quadrilateral_area",
@@ -34,7 +33,7 @@ __all__ = [
     "segment",
 ]
 
-## Borrowed functions 
+# Borrowed functions for Tides
 
 def ap2ep(uc, vc):
     """Convert complex tidal u and v to tidal ellipse.
@@ -152,10 +151,12 @@ def ep2ap(SEMA, ECC, INC, PHA):
 
     return ua, va, up, vp
 
+## Auxillary functions
 
 def nicer_slicer(data, xextent, xcoords, buffer=2):
     """Slices longitudes, handling periodicity and 'seams' where the
-    data wraps around (commonly either at -180 -> 180 or -270 -> 90)
+    data wraps around (commonly either at -180 -> 180 or -270 -> 90). 
+    Written by Ashley Barnes (github: ashjbarnes)
 
     The algorithm works in five steps:
 
@@ -370,10 +371,14 @@ def motu_requests(
     return script
 
 
-def dz(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
+def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
     """Generate a hyperbolic tangent thickness profile for the
     experiment.  Iterates to find the mininum depth value which gives
-    the target depth within some tolerance
+    the target depth within some tolerance.
+
+    Thickness of layers monatonically increases (or decreases if ratio is negative) from the surface to the bottom of the domain. 
+    Set the ratio to 1 for a uniformly spaced grid.
+
 
     Args:
         npoints (int): Number of vertical points
@@ -400,7 +405,7 @@ def dz(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
 
     err_ratio = target_depth / tot
 
-    return dz(npoints, ratio, target_depth, min_dz * err_ratio)
+    return dz_hyperbolictan(npoints, ratio, target_depth, min_dz * err_ratio)
 
 
 def angle_between(v1, v2, v3):
@@ -475,21 +480,22 @@ def quadrilateral_areas(lat, lon, R=1):
 def rectangular_hgrid(λ, φ):
     """
     Construct a horizontal grid with all the metadata given an array of
-    latitudes (`φ`) and longitudes (`λ`).
+    latitudes (`φ`) and longitudes (`λ`) on the supergrid. Here 'supergrid' refers to both cell edges and centres,
+    meaning that there are twice as many points along each axis than for any individual field.
 
     Caution:
         Here, it is assumed the grid's boundaries are lines of constant latitude and
         longitude. Rotated grids need to be handled in a different manner.
         Also we assume here that the longitude array values are uniformly spaced.
 
-        Make sure both `λ` and `φ` *must* be monotonically increasing.
+        Make sure both `λ` and `φ` are monotonically increasing.
 
     Args:
-        λ (numpy.array): All longitude points on the supergrid.
+        λ (numpy.array): All longitude points on the supergrid. Must be uniformly spaced!
         φ (numpy.array): All latitude points on the supergrid.
 
     Returns:
-        xarray.Dataset: A FMS-compatible *hgrid*, including the required attributes.
+        xarray.Dataset: An FMS-compatible *hgrid*, including the required attributes.
     """
 
     R = 6371e3  # mean radius of the Earth
@@ -568,6 +574,10 @@ class experiment:
     all called via mapping dictionaries from MOM6 variable/coordinate
     name to the name in the input dataset.
 
+    This can be used to generate the grids for a new experiment, or to read in an
+    existing one by setting `read-existing` to `True`. In either case, 
+    the xextent, yextent, daterange and resolution must be specified.
+
     Args:
         xextent (Tuple[float]): Extent of the region in longitude.
         yextent (Tuple[float]): Extent of the region in latitude.
@@ -579,8 +589,9 @@ class experiment:
         mom_run_dir (str): Path of the MOM6 control directory.
         mom_input_dir (str): Path of the MOM6 input directory, to receive the forcing files.
         toolpath (str): Path of FREtools binaries.
-        gridtype (Optional[str]): Type of grid to generate, only ``byo'', meaning read in existing hgrid or ``even_spacing`` are supported.
-        ryf (Optional[bool]): Whether the experiment runs 'repeat year forcing'. Otherwise assumes inter annual forcing.
+        gridtype (Optional[str]): Type of horizontal grid to generate, only ``even_spacing`` is currently supported.
+        ryf (Optional[bool]): Whether the experiment runs 'repeat year forcing'. Otherwise assumes inter-annual forcing.
+        read_existing_grids (Optional[Bool]): Instead of generating them again, reads the grids and ocean mask from the inputdir and rundir. Useful for modifying or troubleshooting experiments.
     """
 
     def __init__(
@@ -596,7 +607,8 @@ class experiment:
         mom_input_dir,
         toolpath,
         gridtype="even_spacing",
-        ryf = False
+        ryf = False,
+        read_existing_grids = False
     ):
         self.mom_run_dir = Path(mom_run_dir)
         self.mom_input_dir = Path(mom_input_dir)
@@ -615,8 +627,17 @@ class experiment:
         self.dz_ratio = dz_ratio
         self.depth = depth
         self.toolpath = Path(toolpath)
-        self.hgrid = self._make_hgrid(gridtype)
-        self.vgrid = self._make_vgrid()
+        self.ocean_mask = None
+        if read_existing_grids:
+            try:
+                self.hgrid = xr.open_dataset(self.mom_input_dir / "hgrid.nc")
+                self.vgrid = xr.open_dataset(self.mom_input_dir / "vcoord.nc")
+            except:
+                print("Error in reading in existing grids. Make sure you've got files called `hgrid.nc` and `vcoord.nc` in {self.mom_input_dir}")
+                raise ValueError
+        else:
+            self.hgrid = self._make_hgrid(gridtype)
+            self.vgrid = self._make_vgrid()
         self.gridtype = gridtype
         self.ryf = ryf
         # create additional directories and links
@@ -630,6 +651,11 @@ class experiment:
         if not input_rundir.exists():
             input_rundir.symlink_to(self.mom_run_dir.resolve())
 
+    def __getattr__(self, name):
+        available_methods = [method for method in dir(self) if not method.startswith("__")]
+        error_message = f"'{name}' method not found. Available methods are: {available_methods}"
+        raise AttributeError(error_message)
+
     def _make_hgrid(self, gridtype):
         """Sets up hgrid based on users specification of
         domain. Default behaviour leaves latitude and longitude evenly
@@ -638,15 +664,7 @@ class experiment:
         Note:
             The intention is for the hgrid generation to be very flexible. For now there is only one implemented horizontal grid included in the package, but you can customise it by simply overwriting the `hgrid.nc` file that's deposited in your `rundir` after initialising an `experiment`. To conserve the metadata, it might be easiest to read the file in, then modify the fields before re-saving.
         """
-        if gridtype == "byo":
-            print("Reading in homemade horizintal grid...",end = "\t")
-            try:
-                hgrid = xr.open_dataset(self.mom_input_dir / "hgrid.nc")
-            except:
-                print(f"Error in reading in homemade horizontal grid. Make sure you've got a file called `hgrid.nc` in {self.mom_input_dir}")
-                raise ValueError
-            print("Success.")
-            return hgrid
+
         if gridtype == "even_spacing":
             # longitudes will just be evenly spaced, based only on resolution and bounds
             nx = int((self.xextent[1] - self.xextent[0]) / (self.res / 2))
@@ -675,7 +693,7 @@ class experiment:
         The vertical profile uses a hyperbolic tangent function to smoothly transition the thickness of cells. If the `dz_ratio` is set to one, the vertical grid will be uniform, for `dz_ratio` = 10, the top layer will be 10 times thicker than the bottom layer, and for negative numbers the bottom layer will be thicker than the top
         """
 
-        thickness = dz(self.vlayers + 1, self.dz_ratio, self.depth)
+        thickness = dz_hyperbolictan(self.vlayers + 1, self.dz_ratio, self.depth)
         vcoord = xr.Dataset(
             {
                 "zi": ("zi", np.cumsum(thickness)),
@@ -687,17 +705,18 @@ class experiment:
 
         return vcoord
 
+
+
     def initial_condition(
         self, ic_path, varnames, gridtype="A", vcoord_type="height"
     ):
-        """Reads in the forcing files that force the ocean at
-        boundaries (if specified) and for initial condition
+        """Reads in initial condition files, interpolates to the model grid fixs up metadata and saves to the input directory. 
 
         Args:
             path (Union[str, Path]): Path to initial condition file.
             varnames (Dict[str, str]): Mapping from MOM6
                 variable/coordinate names to the name in the input
-                dataset.
+                dataset. E.g. ``{'xq':'lonq','yh':'lath','salt':'so' ...}``
             boundaries (List[str]): Cardinal directions of included boundaries, in anticlockwise order
             gridtype (Optional[str]): Arakawa grid staggering of input, one of ``A``, ``B`` or ``C``
             vcoord_type (Optional[str]): The type of vertical
@@ -706,9 +725,7 @@ class experiment:
 
         """
 
-        ## Do initial condition
-
-        ## pull out the initial velocity on MOM5's Bgrid
+        # Remove time dimension if present in the IC. Assume that the first time dim is the intended on if more than one is present
 
         ic_raw = xr.open_dataset(ic_path)
         if varnames["time"] in ic_raw.dims:
@@ -716,55 +733,65 @@ class experiment:
         if varnames["time"] in ic_raw.coords:
             ic_raw = ic_raw.drop(varnames["time"])
 
-        ## Separate out tracers from two velocity fields of IC
+        # Separate out tracers from two velocity fields of IC
         try:
             ic_raw_tracers = ic_raw[
                 [varnames["tracers"][i] for i in varnames["tracers"]]
             ]
         except:
-            print("Error in reading in initial condition tracers. Terminating")
-            raise ValueError
+            raise ValueError("Error in reading in initial condition tracers. Terminating")
         try:
             ic_raw_u = ic_raw[varnames["u"]]
             ic_raw_v = ic_raw[varnames["v"]]
         except:
-            print("Error in reading in initial condition velocities. Terminating")
-            raise ValueError
+            raise ValueError("Error in reading in initial condition tracers. Terminating")
+
         try:
             ic_raw_eta = ic_raw[varnames["eta"]]
         except:
-            print("Error in reading in initial condition tracers. Terminating")
-            raise ValueError
+            raise ValueError("Error in reading in initial condition tracers. Terminating")
 
-        ## Rename all coordinates to cgrid convention
+
+        # Rename all coordinates to have 'lon' and 'lat' to work with the xesmf regridder
         if gridtype == "A":
-            ic_raw_tracers = ic_raw_tracers.rename(
-                {varnames["x"]: "lon", varnames["y"]: "lat"}
-            )
-            ic_raw_u = ic_raw_u.rename({varnames["x"]: "lon", varnames["y"]: "lat"})
-            ic_raw_v = ic_raw_v.rename({varnames["x"]: "lon", varnames["y"]: "lat"})
-            ic_raw_eta = ic_raw_eta.rename({varnames["x"]: "lon", varnames["y"]: "lat"})
+            if "xh" in varnames.keys() and "yh" in varnames.keys(): ## Handle case where user has provided xh and yh rather than x & y
+                # Rename xh with x in dictionary
+                varnames["x"] = varnames["xh"]
+                varnames["y"] = varnames["yh"]
 
+            if "x" in varnames.keys() and "y" in varnames.keys():
+                ic_raw_tracers = ic_raw_tracers.rename(
+                    {varnames["x"]: "lon", varnames["y"]: "lat"}
+                )
+                ic_raw_u = ic_raw_u.rename({varnames["x"]: "lon", varnames["y"]: "lat"})
+                ic_raw_v = ic_raw_v.rename({varnames["x"]: "lon", varnames["y"]: "lat"})
+                ic_raw_eta = ic_raw_eta.rename({varnames["x"]: "lon", varnames["y"]: "lat"})
+            else:
+                raise ValueError("Can't find required coordinates in initial condition. Given that gridtype is 'A' the 'x' and 'y' coordinates should be provided in the varnames dictionary. E.g {'x':'lon','y':'lat' }. Terminating")
         if gridtype == "B":
-            ic_raw_tracers = ic_raw_tracers.rename(
-                {varnames["xh"]: "lon", varnames["yh"]: "lat"}
-            )
-            ic_raw_eta = ic_raw_eta.rename(
-                {varnames["xh"]: "lon", varnames["yh"]: "lat"}
-            )
-            ic_raw_u = ic_raw_u.rename({varnames["xq"]: "lon", varnames["yq"]: "lat"})
-            ic_raw_v = ic_raw_v.rename({varnames["xq"]: "lon", varnames["yq"]: "lat"})
-
+            if "xq" in varnames.keys() and "yq" in varnames.keys() and "xh" in varnames.keys() and "yh" in varnames.keys():
+                ic_raw_tracers = ic_raw_tracers.rename(
+                    {varnames["xh"]: "lon", varnames["yh"]: "lat"}
+                )
+                ic_raw_eta = ic_raw_eta.rename(
+                    {varnames["xh"]: "lon", varnames["yh"]: "lat"}
+                )
+                ic_raw_u = ic_raw_u.rename({varnames["xq"]: "lon", varnames["yq"]: "lat"})
+                ic_raw_v = ic_raw_v.rename({varnames["xq"]: "lon", varnames["yq"]: "lat"})
+            else:
+                raise ValueError("Can't find coordinates in initial condition. Given that gridtype is 'B' the names of the cell centre ('xh' & 'yh') as well as the cell edge ('xq' & 'yq') coordinates should be provided in the varnames dictionary. E.g {'xh':'lonh','yh':'lath' etc }. Terminating")
         if gridtype == "C":
-            ic_raw_tracers = ic_raw_tracers.rename(
-                {varnames["xh"]: "lon", varnames["yh"]: "lat"}
-            )
-            ic_raw_eta = ic_raw_eta.rename(
-                {varnames["xh"]: "lon", varnames["yh"]: "lat"}
-            )
-            ic_raw_u = ic_raw_u.rename({varnames["xq"]: "lon", varnames["yh"]: "lat"})
-            ic_raw_v = ic_raw_v.rename({varnames["xh"]: "lon", varnames["yq"]: "lat"})
-
+            if "xq" in varnames.keys() and "yq" in varnames.keys() and "xh" in varnames.keys() and "yh" in varnames.keys():
+                ic_raw_tracers = ic_raw_tracers.rename(
+                    {varnames["xh"]: "lon", varnames["yh"]: "lat"}
+                )
+                ic_raw_eta = ic_raw_eta.rename(
+                    {varnames["xh"]: "lon", varnames["yh"]: "lat"}
+                )
+                ic_raw_u = ic_raw_u.rename({varnames["xq"]: "lon", varnames["yh"]: "lat"})
+                ic_raw_v = ic_raw_v.rename({varnames["xh"]: "lon", varnames["yq"]: "lat"})
+            else:
+                raise ValueError("Can't find coordinates in initial condition. Given that gridtype is 'C' the names of the cell centre ('xh' & 'yh') as well as the cell edge ('xq' & 'yq') coordinates should be provided in the varnames dictionary. E.g {'xh':'lonh','yh':'lath' etc }. Terminating")
         ## Construct the xq,yh and xh yq grids
         ugrid = (
             self.hgrid[["x", "y"]]
@@ -794,7 +821,7 @@ class experiment:
         )
 
         ### Drop NaNs to be re-added later
-        # NaNs are from the land mask. When we interpolate onto a new grid, need to put in the new land mask. If NaNs left in, land mask stays the same
+        # NaNs might be here from the land mask of the model that the IC has come from. If they're not removed then the coastlines from this other grid will be retained!
         ic_raw_tracers = (
             ic_raw_tracers.interpolate_na("lon", method="linear")
             .ffill("lon")
@@ -874,6 +901,7 @@ class experiment:
             regridder_t(ic_raw_eta).rename({"lon": "xh", "lat": "yh"}).rename("eta_t")
         )  ## eta_t is the name set in MOM_input by default
 
+
         ## Return attributes to arrays
 
         vel_out.u.attrs = ic_raw_u.attrs
@@ -899,9 +927,8 @@ class experiment:
 
         ## Regrid the fields vertically
 
-        ### NEED TO FIX THE HANDLING OF THICKNESS INPUT. will result in smaller number of vertical layers
 
-        if vcoord_type == "thickness":
+        if vcoord_type == "thickness":  ## In this case construct the vertical profile by summing thickness
             tracers_out["zl"] = tracers_out["zl"].diff("zl")
             dz = tracers_out[self.z].diff(self.z)
             dz.name = "dz"
@@ -962,9 +989,6 @@ class experiment:
             ryf (Optional[bool]): Whether the experiment runs 'repeat year forcing'. Otherwise assumes inter annual forcing.
         """
 
-
-
-
         print("Processing {} boundary...".format(orientation), end="")
 
 
@@ -984,7 +1008,7 @@ class experiment:
         print("Done.")
         return
 
-    def bathymetry(
+    def setup_bathymetry(
         self,
         bathy_path,
         varnames,
@@ -1011,9 +1035,7 @@ class experiment:
             minimum layers (Optional[int]): The minimum depth allowed
                 as an integer number of layers. The default of 3
                 layers means that anything shallower than the 3rd
-                layer is deemed land.
-            maketopog (Optional[bool]): Whether to use FREtools to
-                make topography (if true), or read an existing file.
+                layer (as specified by the vcoord) is deemed land.
             positivedown (Optional[bool]): If true, assumes that
                 bathymetry vertical coordinate is positive down.
             chunks (Optional Dict[str, str]): Chunking scheme for bathymetry, eg {"lon": 100, "lat": 100}. Use lat/lon rather than the coordinate names in the input file.
@@ -1149,6 +1171,18 @@ class experiment:
             topog.to_netcdf(
                 self.mom_input_dir / "topog_raw.nc", mode="w", engine="netcdf4"
             )
+            print("Regridding finished. Now excavating inland lakes and fixing up metadata...")
+            self.tidy_bathymetry(
+                fill_channels, minimum_layers, positivedown
+            )
+
+    def tidy_bathymetry(self, fill_channels=False, minimum_layers=3, positivedown=False):
+        """
+        This is an auxillary function to setup_bathymetry. It's used to fix up the metadata and remove inland lakes after regridding the bathymetry.
+        The functions are split to allow for the regridding to be done as a separate job, since regridding can be really expensive for large domains.
+
+        If you've already regridded the bathymetry and just want to fix up the metadata, you can call this function directly to read in the existing 'topog_raw.nc' file that should be in the input directory.
+        """
 
         ## reopen topography to modify
         print("Reading in regridded bathymetry to fix up metadata...", end="")
@@ -1299,9 +1333,9 @@ class experiment:
             changed = np.max(newmask) == 1
             land_mask += newmask
 
-        ocean_mask = np.abs(land_mask - 1)
+        self.ocean_mask = np.abs(land_mask - 1)
 
-        topog["depth"] *= ocean_mask
+        topog["depth"] *= self.ocean_mask
 
         topog["depth"] = topog["depth"].where(topog["depth"] != 0, np.nan)
 
@@ -1315,11 +1349,12 @@ class experiment:
         print("done.")
         self.topog = topog
 
-    def FRE_tools(self, layout):
+    def FRE_tools(self, layout = None):
         """
         Just a wrapper for FRE Tools check_mask, make_solo_mosaic and make_quick_mosaic. User provides processor layout tuple of processing units.
         """
 
+        print("Running GFDL's FRE Tools. The following information is all printed by the FRE tools themselves")
         if not (self.mom_input_dir / "topog.nc").exists():
             print("No topography file! Need to run make_bathymetry first")
             return
@@ -1328,7 +1363,7 @@ class experiment:
             p.unlink()
 
         print(
-            "MAKE SOLO MOSAIC",
+            "OUTPUT FROM MAKE SOLO MOSAIC:",
             subprocess.run(
                 str(self.toolpath / "make_solo_mosaic/make_solo_mosaic")
                 + " --num_tiles 1 --dir . --mosaic_name ocean_mosaic --tile_file hgrid.nc",
@@ -1339,7 +1374,7 @@ class experiment:
         )
 
         print(
-            "QUICK MOSAIC",
+            "OUTPUT FROM QUICK QUICK MOSAIC:",
             subprocess.run(
                 str(self.toolpath / "make_quick_mosaic/make_quick_mosaic")
                 + " --input_mosaic ocean_mosaic.nc --mosaic_name grid_spec --ocean_topog topog.nc",
@@ -1349,8 +1384,18 @@ class experiment:
             sep="\n\n",
         )
 
+        if layout != None:
+            self.cpu_layout(layout)
+
+        
+
+    def cpu_layout(self, layout):
+        """
+        Wrapper for the check_mask function of GFDL's FRE Tools. User provides processor layout tuple of processing units.
+        """
+
         print(
-            "CHECK MASK",
+            "OUTPUT FROM CHECK MASK:\n\n",
             subprocess.run(
                 str(self.toolpath / "check_mask/check_mask")
                 + f" --grid_file ocean_mosaic.nc --ocean_topog topog.nc --layout {layout[0]},{layout[1]} --halo 4",
@@ -1359,6 +1404,7 @@ class experiment:
             ),
         )
         self.layout = layout
+        return
 
     def setup_run_directory(
         self, surface_forcing=False, using_payu=False, overwrite=False
@@ -1427,7 +1473,6 @@ class experiment:
         rundir_in_inputdir.unlink(missing_ok=True)
         rundir_in_inputdir.symlink_to(self.mom_run_dir)
 
-        # TODO Modify below here to reimplement with separate layout file
 
         ## Get mask table information
         mask_table = None
