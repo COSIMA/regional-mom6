@@ -35,6 +35,7 @@ __all__ = [
 
 # Borrowed functions for Tides
 
+
 def ap2ep(uc, vc):
     """Convert complex tidal u and v to tidal ellipse.
     Adapted from ap2ep.m for matlab
@@ -133,8 +134,8 @@ def ep2ap(SEMA, ECC, INC, PHA):
         (u amplitude, u phase [radians], v amplitude, v phase [radians])
 
     """
-    Wp = (1 + ECC) / 2. * SEMA
-    Wm = (1 - ECC) / 2. * SEMA
+    Wp = (1 + ECC) / 2.0 * SEMA
+    Wm = (1 - ECC) / 2.0 * SEMA
     THETAp = INC - PHA
     THETAm = INC + PHA
 
@@ -151,11 +152,13 @@ def ep2ap(SEMA, ECC, INC, PHA):
 
     return ua, va, up, vp
 
+
 ## Auxillary functions
+
 
 def nicer_slicer(data, xextent, xcoords, buffer=2):
     """Slices longitudes, handling periodicity and 'seams' where the
-    data wraps around (commonly either at -180 -> 180 or -270 -> 90). 
+    data wraps around (commonly either at -180 -> 180 or -270 -> 90).
     Written by Ashley Barnes (github: ashjbarnes)
 
     The algorithm works in five steps:
@@ -376,7 +379,7 @@ def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
     experiment.  Iterates to find the mininum depth value which gives
     the target depth within some tolerance.
 
-    Thickness of layers monatonically increases (or decreases if ratio is negative) from the surface to the bottom of the domain. 
+    Thickness of layers monatonically increases (or decreases if ratio is negative) from the surface to the bottom of the domain.
     Set the ratio to 1 for a uniformly spaced grid.
 
 
@@ -575,7 +578,7 @@ class experiment:
     name to the name in the input dataset.
 
     This can be used to generate the grids for a new experiment, or to read in an
-    existing one by setting `read-existing` to `True`. In either case, 
+    existing one by setting `read-existing` to `True`. In either case,
     the xextent, yextent, daterange and resolution must be specified.
 
     Args:
@@ -607,8 +610,8 @@ class experiment:
         mom_input_dir,
         toolpath,
         gridtype="even_spacing",
-        ryf = False,
-        read_existing_grids = False
+        ryf=False,
+        read_existing_grids=False,
     ):
         self.mom_run_dir = Path(mom_run_dir)
         self.mom_input_dir = Path(mom_input_dir)
@@ -633,7 +636,9 @@ class experiment:
                 self.hgrid = xr.open_dataset(self.mom_input_dir / "hgrid.nc")
                 self.vgrid = xr.open_dataset(self.mom_input_dir / "vcoord.nc")
             except:
-                print("Error in reading in existing grids. Make sure you've got files called `hgrid.nc` and `vcoord.nc` in {self.mom_input_dir}")
+                print(
+                    "Error in reading in existing grids. Make sure you've got files called `hgrid.nc` and `vcoord.nc` in {self.mom_input_dir}"
+                )
                 raise ValueError
         else:
             self.hgrid = self._make_hgrid(gridtype)
@@ -652,8 +657,12 @@ class experiment:
             input_rundir.symlink_to(self.mom_run_dir.resolve())
 
     def __getattr__(self, name):
-        available_methods = [method for method in dir(self) if not method.startswith("__")]
-        error_message = f"'{name}' method not found. Available methods are: {available_methods}"
+        available_methods = [
+            method for method in dir(self) if not method.startswith("__")
+        ]
+        error_message = (
+            f"'{name}' method not found. Available methods are: {available_methods}"
+        )
         raise AttributeError(error_message)
 
     def _make_hgrid(self, gridtype):
@@ -705,12 +714,8 @@ class experiment:
 
         return vcoord
 
-
-
-    def initial_condition(
-        self, ic_path, varnames, gridtype="A", vcoord_type="height"
-    ):
-        """Reads in initial condition files, interpolates to the model grid fixs up metadata and saves to the input directory. 
+    def initial_condition(self, ic_path, varnames, gridtype="A", vcoord_type="height"):
+        """Reads in initial condition files, interpolates to the model grid fixs up metadata and saves to the input directory.
 
         Args:
             path (Union[str, Path]): Path to initial condition file.
@@ -739,22 +744,29 @@ class experiment:
                 [varnames["tracers"][i] for i in varnames["tracers"]]
             ]
         except:
-            raise ValueError("Error in reading in initial condition tracers. Terminating")
+            raise ValueError(
+                "Error in reading in initial condition tracers. Terminating"
+            )
         try:
             ic_raw_u = ic_raw[varnames["u"]]
             ic_raw_v = ic_raw[varnames["v"]]
         except:
-            raise ValueError("Error in reading in initial condition tracers. Terminating")
+            raise ValueError(
+                "Error in reading in initial condition tracers. Terminating"
+            )
 
         try:
             ic_raw_eta = ic_raw[varnames["eta"]]
         except:
-            raise ValueError("Error in reading in initial condition tracers. Terminating")
-
+            raise ValueError(
+                "Error in reading in initial condition tracers. Terminating"
+            )
 
         # Rename all coordinates to have 'lon' and 'lat' to work with the xesmf regridder
         if gridtype == "A":
-            if "xh" in varnames.keys() and "yh" in varnames.keys(): ## Handle case where user has provided xh and yh rather than x & y
+            if (
+                "xh" in varnames.keys() and "yh" in varnames.keys()
+            ):  ## Handle case where user has provided xh and yh rather than x & y
                 # Rename xh with x in dictionary
                 varnames["x"] = varnames["xh"]
                 varnames["y"] = varnames["yh"]
@@ -765,33 +777,59 @@ class experiment:
                 )
                 ic_raw_u = ic_raw_u.rename({varnames["x"]: "lon", varnames["y"]: "lat"})
                 ic_raw_v = ic_raw_v.rename({varnames["x"]: "lon", varnames["y"]: "lat"})
-                ic_raw_eta = ic_raw_eta.rename({varnames["x"]: "lon", varnames["y"]: "lat"})
+                ic_raw_eta = ic_raw_eta.rename(
+                    {varnames["x"]: "lon", varnames["y"]: "lat"}
+                )
             else:
-                raise ValueError("Can't find required coordinates in initial condition. Given that gridtype is 'A' the 'x' and 'y' coordinates should be provided in the varnames dictionary. E.g {'x':'lon','y':'lat' }. Terminating")
+                raise ValueError(
+                    "Can't find required coordinates in initial condition. Given that gridtype is 'A' the 'x' and 'y' coordinates should be provided in the varnames dictionary. E.g {'x':'lon','y':'lat' }. Terminating"
+                )
         if gridtype == "B":
-            if "xq" in varnames.keys() and "yq" in varnames.keys() and "xh" in varnames.keys() and "yh" in varnames.keys():
+            if (
+                "xq" in varnames.keys()
+                and "yq" in varnames.keys()
+                and "xh" in varnames.keys()
+                and "yh" in varnames.keys()
+            ):
                 ic_raw_tracers = ic_raw_tracers.rename(
                     {varnames["xh"]: "lon", varnames["yh"]: "lat"}
                 )
                 ic_raw_eta = ic_raw_eta.rename(
                     {varnames["xh"]: "lon", varnames["yh"]: "lat"}
                 )
-                ic_raw_u = ic_raw_u.rename({varnames["xq"]: "lon", varnames["yq"]: "lat"})
-                ic_raw_v = ic_raw_v.rename({varnames["xq"]: "lon", varnames["yq"]: "lat"})
+                ic_raw_u = ic_raw_u.rename(
+                    {varnames["xq"]: "lon", varnames["yq"]: "lat"}
+                )
+                ic_raw_v = ic_raw_v.rename(
+                    {varnames["xq"]: "lon", varnames["yq"]: "lat"}
+                )
             else:
-                raise ValueError("Can't find coordinates in initial condition. Given that gridtype is 'B' the names of the cell centre ('xh' & 'yh') as well as the cell edge ('xq' & 'yq') coordinates should be provided in the varnames dictionary. E.g {'xh':'lonh','yh':'lath' etc }. Terminating")
+                raise ValueError(
+                    "Can't find coordinates in initial condition. Given that gridtype is 'B' the names of the cell centre ('xh' & 'yh') as well as the cell edge ('xq' & 'yq') coordinates should be provided in the varnames dictionary. E.g {'xh':'lonh','yh':'lath' etc }. Terminating"
+                )
         if gridtype == "C":
-            if "xq" in varnames.keys() and "yq" in varnames.keys() and "xh" in varnames.keys() and "yh" in varnames.keys():
+            if (
+                "xq" in varnames.keys()
+                and "yq" in varnames.keys()
+                and "xh" in varnames.keys()
+                and "yh" in varnames.keys()
+            ):
                 ic_raw_tracers = ic_raw_tracers.rename(
                     {varnames["xh"]: "lon", varnames["yh"]: "lat"}
                 )
                 ic_raw_eta = ic_raw_eta.rename(
                     {varnames["xh"]: "lon", varnames["yh"]: "lat"}
                 )
-                ic_raw_u = ic_raw_u.rename({varnames["xq"]: "lon", varnames["yh"]: "lat"})
-                ic_raw_v = ic_raw_v.rename({varnames["xh"]: "lon", varnames["yq"]: "lat"})
+                ic_raw_u = ic_raw_u.rename(
+                    {varnames["xq"]: "lon", varnames["yh"]: "lat"}
+                )
+                ic_raw_v = ic_raw_v.rename(
+                    {varnames["xh"]: "lon", varnames["yq"]: "lat"}
+                )
             else:
-                raise ValueError("Can't find coordinates in initial condition. Given that gridtype is 'C' the names of the cell centre ('xh' & 'yh') as well as the cell edge ('xq' & 'yq') coordinates should be provided in the varnames dictionary. E.g {'xh':'lonh','yh':'lath' etc }. Terminating")
+                raise ValueError(
+                    "Can't find coordinates in initial condition. Given that gridtype is 'C' the names of the cell centre ('xh' & 'yh') as well as the cell edge ('xq' & 'yq') coordinates should be provided in the varnames dictionary. E.g {'xh':'lonh','yh':'lath' etc }. Terminating"
+                )
         ## Construct the xq,yh and xh yq grids
         ugrid = (
             self.hgrid[["x", "y"]]
@@ -901,7 +939,6 @@ class experiment:
             regridder_t(ic_raw_eta).rename({"lon": "xh", "lat": "yh"}).rename("eta_t")
         )  ## eta_t is the name set in MOM_input by default
 
-
         ## Return attributes to arrays
 
         vel_out.u.attrs = ic_raw_u.attrs
@@ -927,8 +964,9 @@ class experiment:
 
         ## Regrid the fields vertically
 
-
-        if vcoord_type == "thickness":  ## In this case construct the vertical profile by summing thickness
+        if (
+            vcoord_type == "thickness"
+        ):  ## In this case construct the vertical profile by summing thickness
             tracers_out["zl"] = tracers_out["zl"].diff("zl")
             dz = tracers_out[self.z].diff(self.z)
             dz.name = "dz"
@@ -975,17 +1013,17 @@ class experiment:
         self.ic_vels = vel_out
         return
 
-
-
-    def rectangular_boundary(self, path_to_bc, varnames, orientation, segment_number,gridtype="A"):
+    def rectangular_boundary(
+        self, path_to_bc, varnames, orientation, segment_number, gridtype="A"
+    ):
         """
         Setup a boundary forcing file for a given orientation. Here 'rectangular' means straight boundaries along lat/lon lines.
         Args:
-            path_to_bc (str): Path to boundary forcing file. Ideally this should be a pre cut-out netcdf file containing only the boundary region and 3 extra boundary points either side. You could also provide a large dataset containing your entire domain but this will be slower. 
+            path_to_bc (str): Path to boundary forcing file. Ideally this should be a pre cut-out netcdf file containing only the boundary region and 3 extra boundary points either side. You could also provide a large dataset containing your entire domain but this will be slower.
             varnames (Dict[str, str]): Mapping from MOM6
                 variable/coordinate names to the name in the input
                 dataset.
-            orientation (str): Orientation of boundary forcing file. i.e east,west,north,south. 
+            orientation (str): Orientation of boundary forcing file. i.e east,west,north,south.
             segment_number (int): Number the segments according to how they'll be specified in MOM_input
             gridtype (Optional[str]): Arakawa grid staggering of input, one of ``A``, ``B`` or ``C``
             ryf (Optional[bool]): Whether the experiment runs 'repeat year forcing'. Otherwise assumes inter annual forcing.
@@ -993,23 +1031,21 @@ class experiment:
 
         print("Processing {} boundary...".format(orientation), end="")
 
-
         seg = segment(
-                self.hgrid,
-                path_to_bc,  # location of raw boundary
-                self.mom_input_dir,
-                varnames,
-                "segment_{:03d}".format(segment_number),
-                orientation,  # orienataion
-                self.daterange[0],
-                gridtype = gridtype,
-                ryf = self.ryf
-            )
+            self.hgrid,
+            path_to_bc,  # location of raw boundary
+            self.mom_input_dir,
+            varnames,
+            "segment_{:03d}".format(segment_number),
+            orientation,  # orienataion
+            self.daterange[0],
+            gridtype=gridtype,
+            ryf=self.ryf,
+        )
 
         seg.rectangular_brushcut()
         print("Done.")
         return
-
 
     def bathymetry(
         self,
@@ -1085,9 +1121,9 @@ class experiment:
                     }  #! Hardcoded 1 degree buffer around bathymetry selection. TODO: automatically select buffer
                 )
 
-            bathy.attrs[
-                "missing_value"
-            ] = -1e20  # This is what FRE tools expects I guess?
+            bathy.attrs["missing_value"] = (
+                -1e20
+            )  # This is what FRE tools expects I guess?
             bathyout = xr.Dataset({"elevation": bathy})
             bathy.close()
 
@@ -1096,9 +1132,9 @@ class experiment:
             bathyout.lat.attrs["units"] = "degrees_north"
             bathyout.elevation.attrs["_FillValue"] = -1e20
             bathyout.elevation.attrs["units"] = "m"
-            bathyout.elevation.attrs[
-                "standard_name"
-            ] = "height_above_reference_ellipsoid"
+            bathyout.elevation.attrs["standard_name"] = (
+                "height_above_reference_ellipsoid"
+            )
             bathyout.elevation.attrs["long_name"] = "Elevation relative to sea level"
             bathyout.elevation.attrs["coordinates"] = "lon lat"
             bathyout.to_netcdf(
@@ -1174,12 +1210,14 @@ class experiment:
             topog.to_netcdf(
                 self.mom_input_dir / "topog_raw.nc", mode="w", engine="netcdf4"
             )
-            print("Regridding finished. Now excavating inland lakes and fixing up metadata...")
-            self.tidy_bathymetry(
-                fill_channels, minimum_layers, positivedown
+            print(
+                "Regridding finished. Now excavating inland lakes and fixing up metadata..."
             )
+            self.tidy_bathymetry(fill_channels, minimum_layers, positivedown)
 
-    def tidy_bathymetry(self, fill_channels=False, minimum_layers=3, positivedown=False):
+    def tidy_bathymetry(
+        self, fill_channels=False, minimum_layers=3, positivedown=False
+    ):
         """
         This is an auxillary function to bathymetry. It's used to fix up the metadata and remove inland lakes after regridding the bathymetry.
         The functions are split to allow for the regridding to be done as a separate job, since regridding can be really expensive for large domains.
@@ -1352,12 +1390,14 @@ class experiment:
         print("done.")
         self.topog = topog
 
-    def FRE_tools(self, layout = None):
+    def FRE_tools(self, layout=None):
         """
         Just a wrapper for FRE Tools check_mask, make_solo_mosaic and make_quick_mosaic. User provides processor layout tuple of processing units.
         """
 
-        print("Running GFDL's FRE Tools. The following information is all printed by the FRE tools themselves")
+        print(
+            "Running GFDL's FRE Tools. The following information is all printed by the FRE tools themselves"
+        )
         if not (self.mom_input_dir / "topog.nc").exists():
             print("No topography file! Need to run make_bathymetry first")
             return
@@ -1389,8 +1429,6 @@ class experiment:
 
         if layout != None:
             self.cpu_layout(layout)
-
-        
 
     def cpu_layout(self, layout):
         """
@@ -1465,7 +1503,6 @@ class experiment:
             if overwrite_run_dir != False:
                 shutil.copy(base_run_dir / file, self.mom_run_dir)
 
-
         ## Make symlinks between run and input directories
         inputdir_in_rundir = self.mom_run_dir / "inputdir"
         rundir_in_inputdir = self.mom_input_dir / "rundir"
@@ -1475,7 +1512,6 @@ class experiment:
 
         rundir_in_inputdir.unlink(missing_ok=True)
         rundir_in_inputdir.symlink_to(self.mom_run_dir)
-
 
         ## Get mask table information
         mask_table = None
@@ -1588,8 +1624,7 @@ class experiment:
                     chunks={"longitude": 100, "latitude": 100},
                 )
 
-
-            ## Cut out this variable to our domain size
+                ## Cut out this variable to our domain size
                 rawdata[fname] = nicer_slicer(
                     ds,
                     self.xextent,
@@ -1619,7 +1654,9 @@ class experiment:
 
                 if fname == "2d":
                     ## Calculate specific humidity from dewpoint temperature
-                    dewpoint = 8.07131 - 1730.63 / (233.426 + rawdata["2d"]["d2m"] - 273.15)
+                    dewpoint = 8.07131 - 1730.63 / (
+                        233.426 + rawdata["2d"]["d2m"] - 273.15
+                    )
                     humidity = (
                         (0.622 / rawdata["sp"]["sp"]) * (10**dewpoint) * 101325 / 760
                     )
@@ -1634,7 +1671,9 @@ class experiment:
                 elif fname == "crr":
                     ## Calculate total rain rate from convective and total
                     trr = xr.Dataset(
-                        data_vars={"trr": rawdata["crr"]["crr"] + rawdata["lsrr"]["lsrr"]}
+                        data_vars={
+                            "trr": rawdata["crr"]["crr"] + rawdata["lsrr"]["lsrr"]
+                        }
                     )
 
                     trr.trr.attrs = {
@@ -1668,9 +1707,9 @@ class segment:
 
     Data should be at daily temporal resolution, iterating upwards
     from the provided startdate. Function ignores the time metadata
-    and puts it on Julian calendar. 
-    
-    Only supports z* vertical coordinate! 
+    and puts it on Julian calendar.
+
+    Only supports z* vertical coordinate!
 
 
     Args:
@@ -1704,7 +1743,7 @@ class segment:
         startdate,
         gridtype="A",
         time_units="days",
-        tidal_constituants = None,
+        tidal_constituants=None,
         ryf=False,
     ):
         ## Store coordinate names
@@ -1772,16 +1811,18 @@ class segment:
         ## Grid for interpolating our fields
         self.interp_grid = xr.Dataset(
             {
-                "lat": ([f"{self.parallel}_{self.seg_name}"], self.hgrid_seg.y.squeeze().data),
-                "lon": ([f"{self.parallel}_{self.seg_name}"], self.hgrid_seg.x.squeeze().data),
+                "lat": (
+                    [f"{self.parallel}_{self.seg_name}"],
+                    self.hgrid_seg.y.squeeze().data,
+                ),
+                "lon": (
+                    [f"{self.parallel}_{self.seg_name}"],
+                    self.hgrid_seg.x.squeeze().data,
+                ),
             }
         ).set_coords(["lat", "lon"])
 
-
-
         rawseg = xr.open_dataset(self.infile, decode_times=False, engine="netcdf4")
-
-
 
         if self.grid == "A":
             rawseg = rawseg.rename({self.x: "lon", self.y: "lat"})
@@ -1906,8 +1947,6 @@ class segment:
             .bfill(f"{self.parallel}_{self.seg_name}")
         )
 
-
-
         time = np.arange(
             0,  #! Indexing everything from start of experiment = simple but maybe counterintutive?
             segment_out[self.time].shape[
@@ -2007,7 +2046,9 @@ class segment:
         }
         segment_out[f"eta_{self.seg_name}"] = segment_out[
             f"eta_{self.seg_name}"
-        ].expand_dims(f"{self.perpendicular}_{self.seg_name}", axis=self.axis_to_expand - 1)
+        ].expand_dims(
+            f"{self.perpendicular}_{self.seg_name}", axis=self.axis_to_expand - 1
+        )
 
         # Overwrite the actual lat/lon values in the dimensions, replace with incrementing integers
         segment_out[f"{self.parallel}_{self.seg_name}"] = np.arange(
@@ -2033,13 +2074,9 @@ class segment:
             "units": "degrees_east",
         }
 
-
         # If repeat year forcing, add modulo coordinate
         if self.ryf:
             segment_out["time"] = segment_out["time"].assign_attrs({"modulo": " "})
-
-
-
 
         with ProgressBar():
             segment_out.load().to_netcdf(

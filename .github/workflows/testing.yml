@@ -16,7 +16,7 @@ jobs:
 
   testing:
     needs: formatting
-    runs-on: ubuntu-latest
+    runs-on: ghcr.io/cosima/regional-test-env:latest
     defaults:
       run:
         shell: bash -el {0}

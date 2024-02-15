@@ -202,25 +202,25 @@ def test_ocean_forcing(
 
     # Generate boundary forcing
 
-
     initial_cond.to_netcdf(tmp_path / "ic_unprocessed")
     initial_cond.close()
     varnames = {
-            "x": "lona",
-            "y": "lata",
-            "time": "time",
-            "eta": "eta",
-            "zl": "deepness",
-            "u": "u",
-            "v": "v",
-            "tracers": {"temp": "temp", "salt": "salt"},
-        }
+        "x": "lona",
+        "y": "lata",
+        "time": "time",
+        "eta": "eta",
+        "zl": "deepness",
+        "u": "u",
+        "v": "v",
+        "tracers": {"temp": "temp", "salt": "salt"},
+    }
 
     expt.initial_condition(
         tmp_path / "ic_unprocessed",
         varnames,
         gridtype="A",
     )
+
 
 @pytest.mark.parametrize(
     (
@@ -348,11 +348,4 @@ def test_rectangular_boundary(
         "tracers": {"temp": "temp", "salt": "salt"},
     }
 
-
-    expt.rectangular_boundary(
-
-        tmp_path / "east_unprocessed",
-        varnames,
-        "east",
-        1
-    )
+    expt.rectangular_boundary(tmp_path / "east_unprocessed", varnames, "east", 1)
