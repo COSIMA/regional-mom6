@@ -1448,11 +1448,12 @@ class experiment:
         return
 
     def setup_run_directory(
-        self, surface_forcing=False, using_payu=False, overwrite=False
+        self, regional_mom6_path = ".",surface_forcing=False, using_payu=False, overwrite=False
     ):
         """Sets up the run directory for MOM6. Either copies a pre-made set of files, or modifies existing files in the `rundir` directory for the experiment.
 
         Args:
+            regional_mom6_path (str): Path to the regional MOM6 source code that was cloned from github
             surface_forcing (Optional[str,bool]): Specify the choice of surface forcing, one of `jra` or `era5`. If left blank, constant fluxes will be used.
             using_payu (Optional[bool]): Whether or not to use payu to run the model. If True, a payu configuration file will be created.
             overwrite (Optional[bool]): Whether or not to overwrite existing files in the run directory. If False, will only modify the `MOM_layout` file and not re-copy across the rest of the default files.
@@ -1460,14 +1461,14 @@ class experiment:
 
         # Define the locations of the directories we'll copy files across from. Base contains most of the files, and overwrite replaces files in the base directory.
         base_run_dir = (
-            Path(__file__).parent.parent  ## Path to where the demos are stored
+            Path(regional_mom6_path)  ## Path to where the demos are stored
             / "demos"
             / "premade_run_directories"
             / "common_files"
         )
         if surface_forcing != False:
             overwrite_run_dir = (
-                Path(__file__).parent.parent
+                Path(regional_mom6_path)
                 / "demos"
                 / "premade_run_directories"
                 / f"{surface_forcing}_surface"
