@@ -625,9 +625,13 @@ class experiment:
         mom_run_dir (str): Path of the MOM6 control directory.
         mom_input_dir (str): Path of the MOM6 input directory, to receive the forcing files.
         toolpath (str): Path of FREtools binaries.
-        gridtype (Optional[str]): Type of horizontal grid to generate, only ``even_spacing`` is currently supported.
-        ryf (Optional[bool]): Whether the experiment runs 'repeat year forcing'. Otherwise assumes inter-annual forcing.
-        read_existing_grids (Optional[Bool]): Instead of generating them again, reads the grids and ocean mask from the inputdir and rundir. Useful for modifying or troubleshooting experiments.
+        gridtype (Optional[str]): Type of horizontal grid to generate.
+            Currently, only ``even_spacing`` is supported.
+        ryf (Optional[bool]): When ``True`` the experiment runs with 'repeat-year forcing'.
+            When ``False`` (default) inter-annual forcing is used.
+        read_existing_grids (Optional[Bool]): When ``True``, instead of generating the grids,
+            reads the grids and ocean mask from the 'inputdir' and 'rundir'. Useful for modifying or
+            troubleshooting experiments. Default: ``False``.
     """
 
     def __init__(
@@ -1065,13 +1069,13 @@ class experiment:
         self, path_to_bc, varnames, orientation, segment_number, gridtype="A"
     ):
         """
-        Setup a boundary forcing file for a given orientation. Here 'rectangular' means straight
-        boundaries along latitude/longitude lines.
+        Setup a boundary forcing file for a given orientation. Here the term 'rectangular'
+        implies boundaries along lines of constant latitude or longitude.
 
         Args:
             path_to_bc (str): Path to boundary forcing file. Ideally this should be a pre cut-out
-                netcdf file containing only the boundary region and 3 extra boundary points either
-                side. You could also provide a large dataset containing your entire domain but this
+                netCDF file containing only the boundary region and 3 extra boundary points on either
+                side. Users can also provide a large dataset containing their entire domain but this
                 will be slower.
             varnames (Dict[str, str]): Mapping from MOM6 variable/coordinate names to the name in the
                 input dataset.
@@ -1081,8 +1085,8 @@ class experiment:
                 the ``MOM_input``
             gridtype (Optional[str]): Arakawa grid staggering of input; either ``'A'``, ``'B'``,
                 or ``'C'``
-            ryf (Optional[bool]): Whether the experiment runs 'repeat year forcing'. Otherwise
-                assumes inter-annual forcing.
+            ryf (Optional[bool]): When ``True`` the experiment runs with  'repeat-year forcing';
+                when ``False``, inter-annual forcing is used.
         """
 
         print("Processing {} boundary...".format(orientation), end="")
@@ -1113,11 +1117,12 @@ class experiment:
         positivedown=False,
         chunks="auto",
     ):
-        """Cuts out and interpolates chosen bathymetry, then fills
+        """
+        Cut out and interpolates chosen bathymetry, then fills
         inland lakes.
 
         It's also possible to optionally fill narrow channels, although this
-        is less of an issue for models on a C-grid, like MOM6. Output
+        is less of an issue for models on a C-grid, like MOM6. Output is
         saved to the input folder for your experiment.
 
         Args:
@@ -1126,15 +1131,16 @@ class experiment:
                 variable names between the input and output.
             fill_channels (Optional[bool]): Whether or not to fill in
                 diagonal channels. This removes more narrow inlets,
-                but can also connect extra islands to land.
-            minimum layers (Optional[int]): The minimum depth allowed
+                but can also connect extra islands to land. Default: ``False``
+            minimum_layers (Optional[int]): The minimum depth allowed
                 as an integer number of layers. The default value of ``3``
                 layers means that anything shallower than the 3rd
                 layer (as specified by the ``vcoord``) is deemed land.
             positivedown (Optional[bool]): If ``True``, it assumes that
-                bathymetry vertical coordinate is positive down.
-            chunks (Optional Dict[str, str]): Chunking scheme for bathymetry, e.g. ``{"lon": 100, "lat": 100}``.
-                Use lat/lon rather than the coordinate names in the input file.
+                bathymetry vertical coordinate is positive down.  Default: ``False``
+            chunks (Optional Dict[str, str]): Chunking scheme for bathymetry, e.g.,
+                ``{"lon": 100, "lat": 100}``. Use lat/lon rather than the coordinate
+                names in the input file.
         """
 
         if maketopog == True:
@@ -1306,6 +1312,7 @@ class experiment:
 
         ocean_mask = topog.copy(deep=True).depth.where(topog.depth <= min_depth, 1)
         land_mask = np.abs(ocean_mask - 1)
+
         changed = True  ## keeps track of whether solution has converged or not
 
         forward = True  ## only useful for iterating through diagonal channel removal. Means iteration goes SW -> NE
@@ -1450,8 +1457,8 @@ class experiment:
         self.topog = topog
 
     def FRE_tools(self, layout=None):
-        """A wrapper for FRE Tools check_mask, make_solo_mosaic and make_quick_mosaic. User provides processor
-        layout tuple of processing units.
+        """A wrapper for FRE Tools check_mask, make_solo_mosaic and make_quick_mosaic.
+        User provides processor ``layout`` tuple of processing units.
         """
 
         print(
@@ -1515,11 +1522,11 @@ class experiment:
     ):
         """
         Setup the run directory for MOM6. Either copies a pre-made set of files, or modifies
-        existing files in the `rundir` directory for the experiment.
+        existing files in the 'rundir' directory for the experiment.
 
         Args:
             regional_mom6_path (str): Path to the regional MOM6 source code that was cloned
-                from GitHub 
+                from GitHub
             surface_forcing (Optional[str, bool]): Specify the choice of surface forcing, one
                 of: ``'jra'`` or ``'era5'``. If left blank, constant fluxes will be used.
             using_payu (Optional[bool]): Whether or not to use payu (https://github.com/payu-org/payu)
@@ -1667,14 +1674,14 @@ class experiment:
 
     def setup_era5(self, era5_path):
         """
-        Setup the ERA5 forcing files for your experiment. This assumes that you
-        downloaded all of the ERA5 data in your daterange. You'll need the following
-        fields: "2t", "10u", "10v", "sp", "2d", "msdwswrf", "msdwlwrf", "lsrr", "crr".
+        Setup the ERA5 forcing files for your experiment. This assumes that
+        all of the ERA5 data in the prescribed date range are downloaded.
+        We need the following fields: "2t", "10u", "10v", "sp", "2d", "msdwswrf",
+        "msdwlwrf", "lsrr", and "crr".
 
         Args:
             era5_path (str): Path to the ERA5 forcing files. Specifically, the single-level
                 reanalysis product. For example, ``'SOMEPATH/era5/single-levels/reanalysis'``
-
         """
 
         ## Firstly just open all raw data
@@ -1789,8 +1796,8 @@ class segment:
         outfolder (Union[str, Path]): Path to folder where the model inputs will be stored
         varnames (Dict[str, str]): Mapping between the
             variable/dimension names and standard naming convension of
-            this pipeline, e.g. ``{"xq":"longitude, "yh":"latitude",
-            "salt":"salinity...}``. Key "tracers" points to nested
+            this pipeline, e.g. ``{"xq": "longitude, "yh": "latitude",
+            "salt": "salinity...}``. Key "tracers" points to nested
             dictionary of tracers to include in boundary
         seg_name (str): Name of the segment. Something like ``segment_001``
         orientation (str): Cardinal direction (lowercase) of the boundary segment
@@ -1800,9 +1807,8 @@ class segment:
         tidal_constituants (Optional[int]) The last tidal constituants to include in this list:
             m2, s2, n2, k2, k1, o1, p1, q1, mm, mf, m4. For example, specifying 1 only includes m2;
             specifying 2 selects m2 and s2, etc.
-        ryf (Optional[bool]): Whether the experiment runs 'repeat year forcing'; otherwise assumes
-            inter-annual forcing.
-
+        ryf (Optional[bool]): When ``True`` the experiment runs with 'repeat-year forcing'.
+            When ``False`` (default) inter-annual forcing is used.
     """
 
     def __init__(
@@ -2150,7 +2156,7 @@ class segment:
             "units": "degrees_east",
         }
 
-        # If repeat year forcing, add modulo coordinate
+        # If repeat-year forcing, add modulo coordinate
         if self.ryf:
             segment_out["time"] = segment_out["time"].assign_attrs({"modulo": " "})
 
