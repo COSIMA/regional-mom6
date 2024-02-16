@@ -157,22 +157,21 @@ def ep2ap(SEMA, ECC, INC, PHA):
 
 
 def nicer_slicer(data, xextent, xcoords, buffer=2):
-    """Slices longitudes, handling periodicity and 'seams' where the
-    data wraps around (commonly either at -180 -> 180 or -270 -> 90).
-    Written by Ashley Barnes (github: ashjbarnes)
+    """Slice longitudes, handling periodicity and 'seams' where the
+    data wraps around (commonly either at in domains [-180, 180) or [-270, 90]).
 
     The algorithm works in five steps:
 
     - Determine whether we need to add or subtract 360 to get the
-      middle of the xextent to lie within data's lonitude range
-      (hereby oldx)
+      middle of the ``xextent`` to lie within data's longitude range
+      (hereby ``oldx``)
 
     - Shift the dataset so that its midpoint matches the midpoint of
-      xextent (up to a muptiple of 360). Now, the modified oldx
+      ``xextent`` (up to a muptiple of 360). Now, the modified ``oldx``
       doesn't increase monotonically W to E since the 'seam' has
       moved.
 
-    - Fix oldx to make it monotonically increasing again. This uses
+    - Fix ``oldx`` to make it monotonically increasing again. This uses
       the information we have about the way the dataset was
       shifted/rolled
 
@@ -278,14 +277,14 @@ def motu_requests(
     reanalysis dataset.
 
     Args:
-        xextent (List[float]): Extreme values of longitude coordinates for rectangular domain
-        yextent (List[float]): Extreme values of latitude coordinates for rectangular domain
+        xextent (List[float]): Extreme values of longitude coordinates for rectangular domain (in degrees)
+        yextent (List[float]): Extreme values of latitude coordinates for rectangular domain (in degrees)
         daterange (Tuple[str]): Start and end dates of boundary forcing window. Format: ``%Y-%m-%d %H:%M:%S``
         outfolder (str): Directory in which to receive the downloaded files
         usr (str): MOTU authentication username
         pwd (str): MOTU authentication password
         segs (List[str]): List of the cardinal directions for your boundary forcing
-        url (Optional[str]): MOTU server for the request (defaults to CMEMS)
+        url (Optional[str]): MOTU server for the request (defaults to ``'CMEMS'``)
         serviceid (Optional[str]): Service containing the desired dataset
         productid (Optional[str]): Data product within the chosen service.
 
@@ -376,24 +375,24 @@ def motu_requests(
 
 def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
     """Generate a hyperbolic tangent thickness profile for the
-        experiment.  Iterates to find the mininum depth value which gives
-        the target depth within some tolerance.
+    experiment.  Iterates to find the mininum depth value which gives
+    the target depth within some tolerance.
 
-        Thickness of layers nonatonically increases (or decreases if ratio is
-        negative) from the surface to the bottom of the domain. Set the ratio
-        to 1 for a uniformly spaced grid.
-    σ
-        Args:
-            npoints (int): Number of vertical points
-            ratio (float): Ratio of largest to smallest layer
-                thickness. Negative values mean higher resolution is at
-                bottom rather than top of the column.
-            target_depth (float): Maximum depth of a layer
-            min_dz (float): Starting layer thickness for iteration
-            tolerance (float): Tolerance to the target depth.
+    Thickness of layers monotonically increases (or decreases if ``ratio`` is
+    negative) from the surface to the bottom of the domain. Set the ``ratio=1``
+    for a uniformly-spaced grid.
 
-        Return:
-            numpy.array: An array containing the thickness profile.
+    Args:
+        npoints (int): Number of vertical points
+        ratio (float): Ratio of largest to smallest layer
+            thickness. Negative values mean higher resolution is at
+            bottom rather than top of the column.
+        target_depth (float): Maximum depth of a layer
+        min_dz (float): Starting layer thickness for iteration
+        tolerance (float): Tolerance to the target depth.
+
+    Return:
+        numpy.array: An array containing the thickness profile.
     """
 
     profile = min_dz + 0.5 * (np.abs(ratio) * min_dz - min_dz) * (
@@ -426,9 +425,9 @@ def angle_between(v1, v2, v3):
 
 def quadrilateral_area(v1, v2, v3, v4):
     """Return the  area of a spherical quadrilateral on the unit sphere
-    that has vertices on 3-vectors `v1`, `v2`, `v3`, `v4` (counter-clockwise
-    orientation is implied). The area is computed via the excess of the
-    sum of the spherical angles of the quadrilateral from 2π."""
+    that has vertices on 3-vectors ``v1``, ``v2``, ``v3``, ``v4``
+    (counter-clockwise orientation is implied). The area is computed via
+    the excess of the sum of the spherical angles of the quadrilateral from 2π."""
 
     if not (
         np.all(np.isclose(vecdot(v1, v1), vecdot(v2, v2)))
@@ -449,8 +448,8 @@ def quadrilateral_area(v1, v2, v3, v4):
 
 
 def latlon_to_cartesian(lat, lon, R=1):
-    """Convert latitude-longitude (in degrees) to Cartesian coordinates on a sphere of radius `R`.
-    By default `R = 1`."""
+    """Convert latitude-longitude (in degrees) to Cartesian coordinates on a sphere of
+    radius ``R``. By default ``R = 1``."""
 
     x = R * np.cos(np.deg2rad(lat)) * np.cos(np.deg2rad(lon))
     y = R * np.cos(np.deg2rad(lat)) * np.sin(np.deg2rad(lon))
@@ -460,16 +459,16 @@ def latlon_to_cartesian(lat, lon, R=1):
 
 
 def quadrilateral_areas(lat, lon, R=1):
-    """Return the area of spherical quadrilaterals on a sphere of radius `R`.
-    By default, `R = 1`. The quadrilaterals are formed by constant latitude and longitude
-    lines on the `lat`-`lon` grid provided.
+    """Return the area of spherical quadrilaterals on a sphere of radius ``R``.
+    By default, ``R = 1``. The quadrilaterals are formed by constant latitude and longitude
+    lines on the ``lat``-``lon`` grid provided.
 
     Args:
         lat (numpy.array): Array of latitude points (in degrees)
         lon (numpy.array): Array of longitude points (in degrees)
 
     Return:
-        (numpy.array): Array with the areas of the quadrilaterals defined by the `lat`-`lon` grid provided. If the `lat`-`lon` are `m x n` then `areas` is `(m-1) x (n-1)`.
+        (numpy.array): Array with the areas of the quadrilaterals defined by the ``lat``-``lon`` grid provided. If the ``lat``-``lon`` are m x n then ``areas`` is (m-1) x (n-1).
     """
 
     coords = np.dstack(latlon_to_cartesian(lat, lon, R))
@@ -482,7 +481,7 @@ def quadrilateral_areas(lat, lon, R=1):
 def rectangular_hgrid(λ, φ):
     """
     Construct a horizontal grid with all the metadata given an array of
-    latitudes (`φ`) and longitudes (`λ`) on the supergrid. Here, 'supergrid'
+    longitudes (``λ``) and latitudes (``φ``) on the supergrid. Here, 'supergrid'
     refers to both cell edges and centres, meaning that there are twice as many
     points along each axis than for any individual field.
 
@@ -491,14 +490,14 @@ def rectangular_hgrid(λ, φ):
         longitude. Rotated grids need to be handled differently.
         It is also assumed here that the longitude array values are uniformly spaced.
 
-        Ensure both `λ` and `φ` are monotonically increasing.
+        Ensure both ``λ`` and ``φ`` are monotonically increasing.
 
     Args:
-        `λ` (numpy.array): All longitude points on the supergrid. Must be uniformly spaced!
-        `φ` (numpy.array): All latitude points on the supergrid.
+        λ (numpy.array): All longitude points on the supergrid. Must be uniformly spaced!
+        φ (numpy.array): All latitude points on the supergrid.
 
     Return:
-        xarray.Dataset: An FMS-compatible `hgrid` that includes all required attributes.
+        xarray.Dataset: An FMS-compatible ``hgrid`` that includes all required attributes.
     """
 
     R = 6371e3  # mean radius of the Earth; https://en.wikipedia.org/wiki/Earth_radius
@@ -581,23 +580,23 @@ class experiment:
     name to the name in the input dataset.
 
     This can be used to generate the grids for a new experiment, or to read in
-    an existing one by setting `read-existing` to `True`. In either case,
-    the `xextent`, `yextent`, `daterange`, and `resolution` must be specified.
+    an existing one by setting read-existing to True. In either case,
+    the xextent, yextent, daterange, and resolution must be specified.
 
     Args:
-        `xextent` (Tuple[float]): Extent of the region in longitude in degrees.
-        `yextent` (Tuple[float]): Extent of the region in latitude in degrees.
-        `daterange` (Tuple[str]): Start and end dates of the boundary forcing window.
-        `resolution` (float): Lateral resolution of the domain, in degrees.
-        `vlayers` (int): Number of vertical layers.
-        `dz_ratio` (float): Ratio of largest to smallest layer thickness, used in :func:`~dz`.
-        `depth` (float): Depth of the domain.
-        `mom_run_dir` (str): Path of the MOM6 control directory.
-        `mom_input_dir` (str): Path of the MOM6 input directory, to receive the forcing files.
-        `toolpath` (str): Path of FREtools binaries.
-        `gridtype` (Optional[str]): Type of horizontal grid to generate, only ``even_spacing`` is currently supported.
-        `ryf` (Optional[bool]): Whether the experiment runs 'repeat year forcing'. Otherwise assumes inter-annual forcing.
-        `read_existing_grids` (Optional[Bool]): Instead of generating them again, reads the grids and ocean mask from the inputdir and rundir. Useful for modifying or troubleshooting experiments.
+        xextent (Tuple[float]): Extent of the region in longitude in degrees.
+        yextent (Tuple[float]): Extent of the region in latitude in degrees.
+        daterange (Tuple[str]): Start and end dates of the boundary forcing window.
+        resolution (float): Lateral resolution of the domain, in degrees.
+        vlayers (int): Number of vertical layers.
+        dz_ratio (float): Ratio of largest to smallest layer thickness, used in :func:`~dz`.
+        depth (float): Depth of the domain.
+        mom_run_dir (str): Path of the MOM6 control directory.
+        mom_input_dir (str): Path of the MOM6 input directory, to receive the forcing files.
+        toolpath (str): Path of FREtools binaries.
+        gridtype (Optional[str]): Type of horizontal grid to generate, only ``even_spacing`` is currently supported.
+        ryf (Optional[bool]): Whether the experiment runs 'repeat year forcing'. Otherwise assumes inter-annual forcing.
+        read_existing_grids (Optional[Bool]): Instead of generating them again, reads the grids and ocean mask from the inputdir and rundir. Useful for modifying or troubleshooting experiments.
     """
 
     def __init__(
@@ -674,10 +673,10 @@ class experiment:
         spaced. This is very simple but suitable for small domains.
 
         Note:
-            The intention is for the horizontal grid (hgrid) generation to be very flexible.
+            The intention is for the horizontal grid (``hgrid``) generation to be very flexible.
             For now, there is only one implemented horizontal grid included in the package,
-            but you can customise it by simply overwriting the `hgrid.nc` file in your `rundir`
-            after initialising an `experiment`. To conserve the metadata, it might be easiest
+            but you can customise it by simply overwriting the ``hgrid.nc`` file in your ``rundir``
+            after initialising an ``experiment``. To conserve the metadata, it might be easiest
             to read the file in, then modify the fields before re-saving.
         """
 
@@ -717,7 +716,11 @@ class experiment:
         """Generates a vertical grid based on the number of layers
         and vertical ratio specified at the class level.
 
-        The vertical profile uses a hyperbolic tangent function to smoothly transition the thickness of cells. If the `dz_ratio` is set to one, the vertical grid will be uniform, for `dz_ratio` = 10, the top layer will be 10 times thicker than the bottom layer, and for negative numbers the bottom layer will be thicker than the top
+        The vertical profile uses a hyperbolic tangent function to smoothly
+        transition the thickness of cells. If the ``dz_ratio`` is set to one,
+        the vertical grid will be uniform, for ``dz_ratio = 10``, the top layer
+        will be 10 times thicker than the bottom layer, and for negative numbers
+        the bottom layer will be thicker than the top
         """
 
         thickness = dz_hyperbolictan(self.vlayers + 1, self.dz_ratio, self.depth)
@@ -733,18 +736,20 @@ class experiment:
         return vcoord
 
     def initial_condition(self, ic_path, varnames, gridtype="A", vcoord_type="height"):
-        """Reads in initial condition files, interpolates to the model grid fixs up metadata and saves to the input directory.
+        """Reads in initial condition files, interpolates to the model grid fixs
+        up metadata and saves to the input directory.
 
         Args:
             path (Union[str, Path]): Path to initial condition file.
             varnames (Dict[str, str]): Mapping from MOM6
                 variable/coordinate names to the name in the input
                 dataset. E.g. ``{'xq':'lonq','yh':'lath','salt':'so' ...}``
-            boundaries (List[str]): Cardinal directions of included boundaries, in anticlockwise order
-            gridtype (Optional[str]): Arakawa grid staggering of input, one of ``A``, ``B`` or ``C``
-            vcoord_type (Optional[str]): The type of vertical
-                coordinate used in the forcing files. Either
-                ``height`` or ``thickness``.
+            boundaries (List[str]): Cardinal directions of included boundaries, in
+                anticlockwise order
+            gridtype (Optional[str]): Arakawa grid staggering of input, one of
+                ``'A'``, ``'B'``, or ``'C'``
+            vcoord_type (Optional[str]): The type of vertical coordinate used in
+            the forcing files. Either ``height`` or ``thickness``.
 
         """
 
@@ -1034,15 +1039,22 @@ class experiment:
     def rectangular_boundary(
         self, path_to_bc, varnames, orientation, segment_number, gridtype="A"
     ):
-        """
-        Setup a boundary forcing file for a given orientation. Here 'rectangular' means straight boundaries along lat/lon lines.
+        """Setup a boundary forcing file for a given orientation. Here 'rectangular' means straight
+        boundaries along lat/lon lines.
+
         Args:
-            path_to_bc (str): Path to boundary forcing file. Ideally this should be a pre cut-out netcdf file containing only the boundary region and 3 extra boundary points either side. You could also provide a large dataset containing your entire domain but this will be slower.
-            varnames (Dict[str, str]): Mapping from MOM6 variable/coordinate names to the name in the input dataset.
-            orientation (str): Orientation of boundary forcing file. i.e east,west,north,south.
-            segment_number (int): Number the segments according to how they'll be specified in MOM_input
-            gridtype (Optional[str]): Arakawa grid staggering of input, one of ``A``, ``B`` or ``C``
-            ryf (Optional[bool]): Whether the experiment runs 'repeat year forcing'. Otherwise assumes inter annual forcing.
+            path_to_bc (str): Path to boundary forcing file. Ideally this should be a pre cut-out
+                netcdf file containing only the boundary region and 3 extra boundary points either
+                side. You could also provide a large dataset containing your entire domain but this
+                will be slower.
+            varnames (Dict[str, str]): Mapping from MOM6 variable/coordinate names to the name in the
+                input dataset.
+            orientation (str): Orientation of boundary forcing file, i.e., ``'east'``, ``'west'``,
+                ``'north'``, or ``'south'``.
+            segment_number (int): Number the segments according to how they'll be specified in ``MOM_input``
+            gridtype (Optional[str]): Arakawa grid staggering of input, one of ``'A'``, ``'B'``, or ``'C'``
+            ryf (Optional[bool]): Whether the experiment runs 'repeat year forcing'. Otherwise
+                assumes inter-annual forcing.
         """
 
         print("Processing {} boundary...".format(orientation), end="")
@@ -1088,14 +1100,13 @@ class experiment:
                 diagonal channels. This removes more narrow inlets,
                 but can also connect extra islands to land.
             minimum layers (Optional[int]): The minimum depth allowed
-                as an integer number of layers. The default of 3
+                as an integer number of layers. The default value of ``3``
                 layers means that anything shallower than the 3rd
-                layer (as specified by the vcoord) is deemed land.
-            positivedown (Optional[bool]): If true, assumes that
+                layer (as specified by the ``vcoord``) is deemed land.
+            positivedown (Optional[bool]): If ``True``, it assumes that
                 bathymetry vertical coordinate is positive down.
-            chunks (Optional Dict[str, str]): Chunking scheme for bathymetry, eg {"lon": 100, "lat": 100}. Use lat/lon rather than the coordinate names in the input file.
-
-
+            chunks (Optional Dict[str, str]): Chunking scheme for bathymetry, e.g. ``{"lon": 100, "lat": 100}``.
+                Use lat/lon rather than the coordinate names in the input file.
         """
 
         if maketopog == True:
@@ -1234,11 +1245,12 @@ class experiment:
     def tidy_bathymetry(
         self, fill_channels=False, minimum_layers=3, positivedown=False
     ):
-        """
-        This is an auxillary function to bathymetry. It's used to fix up the metadata and remove inland lakes after regridding the bathymetry.
-        The functions are split to allow for the regridding to be done as a separate job, since regridding can be really expensive for large domains.
+        """An auxillary function to bathymetry. It's used to fix up the metadata and remove inland lakes
+        after regridding the bathymetry. The functions are split to allow for the regridding to be done
+        as a separate job, since regridding can be really expensive for large domains.
 
-        If you've already regridded the bathymetry and just want to fix up the metadata, you can call this function directly to read in the existing 'topog_raw.nc' file that should be in the input directory.
+        If you've already regridded the bathymetry and just want to fix up the metadata, you can call
+        this function directly to read in the existing 'topog_raw.nc' file that should be in the input directory.
         """
 
         ## reopen topography to modify
@@ -1407,8 +1419,8 @@ class experiment:
         self.topog = topog
 
     def FRE_tools(self, layout=None):
-        """
-        Just a wrapper for FRE Tools check_mask, make_solo_mosaic and make_quick_mosaic. User provides processor layout tuple of processing units.
+        """A wrapper for FRE Tools check_mask, make_solo_mosaic and make_quick_mosaic. User provides processor
+        layout tuple of processing units.
         """
 
         print(
@@ -1470,13 +1482,19 @@ class experiment:
         using_payu=False,
         overwrite=False,
     ):
-        """Sets up the run directory for MOM6. Either copies a pre-made set of files, or modifies existing files in the `rundir` directory for the experiment.
+        """Set up the run directory for MOM6. Either copies a pre-made set of files, or modifies
+        existing files in the `rundir` directory for the experiment.
 
         Args:
-            regional_mom6_path (str): Path to the regional MOM6 source code that was cloned from github
-            surface_forcing (Optional[str,bool]): Specify the choice of surface forcing, one of `jra` or `era5`. If left blank, constant fluxes will be used.
-            using_payu (Optional[bool]): Whether or not to use payu to run the model. If True, a payu configuration file will be created.
-            overwrite (Optional[bool]): Whether or not to overwrite existing files in the run directory. If False, will only modify the `MOM_layout` file and not re-copy across the rest of the default files.
+            regional_mom6_path (str): Path to the regional MOM6 source code that was cloned
+            from GitHub
+            surface_forcing (Optional[str, bool]): Specify the choice of surface forcing, one
+                of: ``'jra'`` or ``'era5'``. If left blank, constant fluxes will be used.
+            using_payu (Optional[bool]): Whether or not to use payu to run the model.
+                If ``True``, a payu configuration file will be created.
+            overwrite (Optional[bool]): Whether or not to overwrite existing files in the
+                run directory. If ``False``, will only modify the ``MOM_layout`` file and will not
+                re-copy across the rest of the default files.
         """
 
         # Define the locations of the directories we'll copy files across from. Base contains most of the files, and overwrite replaces files in the base directory.
@@ -1616,14 +1634,14 @@ class experiment:
         nml.write(self.mom_run_dir / "input.nml", force=True)
 
     def setup_era5(self, era5_path):
-        """
-        Sets up the ERA5 forcing files for your experiment. This assumes that you'd downloaded all of the ERA5 data in your daterange.
-        You'll need the following fields:
-        2t, 10u, 10v, sp, 2d, "msdwswrf", "msdwlwrf", "lsrr", "crr"
+        """Set up the ERA5 forcing files for your experiment. This assumes that you'd downloaded all of the ERA5
+        data in your daterange. You'll need the following fields: "2t", "10u", "10v", "sp", "2d", "msdwswrf",
+        "msdwlwrf", "lsrr", "crr"
 
 
         Args:
-            era5_path (str): Path to the ERA5 forcing files. Specifically, the single level reanalysis product. Eg `SOMEPATH/era5/single-levels/reanalysis`
+            era5_path (str): Path to the ERA5 forcing files. Specifically, the single-level reanalysis product.
+                For example, ``SOMEPATH/era5/single-levels/reanalysis``
 
         """
 
@@ -1730,8 +1748,7 @@ class segment:
     from the provided startdate. Function ignores the time metadata
     and puts it on Julian calendar.
 
-    Only supports z* vertical coordinate!
-
+    Only supports z-star (z*) vertical coordinate!
 
     Args:
         hgrid (xarray.Dataset): The horizontal grid used for domain
@@ -1745,11 +1762,13 @@ class segment:
         seg_name (str): Name of the segment. Something like ``segment_001``
         orientation (str): Cardinal direction (lowercase) of the boundary segment
         startdate (str): The starting date to use in the segment calendar
-        gridtype (Optional[str]): Arakawa staggering of input grid, one of ``A``, ``B`` or ``C``
-        time_units (str): The units used by raw forcing file,
-            e.g. ``hours``, ``days`` (default)
-        tidal_constituants (Optional[int]) The last tidal constituants to include in this list:  m2, s2, n2, k2, k1, o1, p1, q1, mm, mf, m4. Eg, specifying 1 selects only m2, specifying 2 selects m2 and s2, etc.
-        ryf (Optional[bool]): Whether the experiment runs 'repeat year forcing'. Otherwise assumes inter annual forcing.
+        gridtype (Optional[str]): Arakawa staggering of input grid, one of ``'A'``, ``'B'``, or ``'C'``
+        time_units (str): The units used by the raw forcing files, e.g., ``hours``, ``days`` (default)
+        tidal_constituants (Optional[int]) The last tidal constituants to include in this list:
+            m2, s2, n2, k2, k1, o1, p1, q1, mm, mf, m4. For example, specifying 1 only includes m2;
+            specifying 2 selects m2 and s2, etc.
+        ryf (Optional[bool]): Whether the experiment runs 'repeat year forcing'; otherwise assumes
+            inter-annual forcing.
 
     """
 
