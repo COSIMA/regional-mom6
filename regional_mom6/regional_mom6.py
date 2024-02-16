@@ -1448,7 +1448,11 @@ class experiment:
         return
 
     def setup_run_directory(
-        self, regional_mom6_path = ".",surface_forcing=False, using_payu=False, overwrite=False
+        self,
+        regional_mom6_path=".",
+        surface_forcing=False,
+        using_payu=False,
+        overwrite=False,
     ):
         """Sets up the run directory for MOM6. Either copies a pre-made set of files, or modifies existing files in the `rundir` directory for the experiment.
 
