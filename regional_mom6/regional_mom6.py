@@ -72,7 +72,7 @@ def ap2ep(uc, vc):
         uc: complex tidal u velocity
         vc: complex tidal v velocity
 
-    Returns:
+    Return:
         (semi-major axis, eccentricity, inclination [radians], phase [radians])
     """
     wp = (uc + 1j * vc) / 2.0
@@ -130,7 +130,7 @@ def ep2ap(SEMA, ECC, INC, PHA):
         INC: inclination [radians]
         PHA: phase [radians]
 
-    Returns:
+    Return:
         (u amplitude, u phase [radians], v amplitude, v phase [radians])
 
     """
@@ -192,7 +192,7 @@ def nicer_slicer(data, xextent, xcoords, buffer=2):
         xcoords (Union[str, List[str]): The name of the longitude
             dimension in your xarray or list of names
 
-    Returns:
+    Return:
         xarray.Dataset: The data after the slicing has been performed.
 
     """
@@ -289,7 +289,7 @@ def motu_requests(
         serviceid (Optional[str]): Service containing the desired dataset
         productid (Optional[str]): Data product within the chosen service.
 
-    Returns:
+    Return:
         str: A bash script which will call ``motuclient`` to invoke the data requests.
 
     """
@@ -376,24 +376,24 @@ def motu_requests(
 
 def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
     """Generate a hyperbolic tangent thickness profile for the
-    experiment.  Iterates to find the mininum depth value which gives
-    the target depth within some tolerance.
+        experiment.  Iterates to find the mininum depth value which gives
+        the target depth within some tolerance.
 
-    Thickness of layers monatonically increases (or decreases if ratio is negative) from the surface to the bottom of the domain.
-    Set the ratio to 1 for a uniformly spaced grid.
+        Thickness of layers nonatonically increases (or decreases if ratio is
+        negative) from the surface to the bottom of the domain. Set the ratio
+        to 1 for a uniformly spaced grid.
+    σ
+        Args:
+            npoints (int): Number of vertical points
+            ratio (float): Ratio of largest to smallest layer
+                thickness. Negative values mean higher resolution is at
+                bottom rather than top of the column.
+            target_depth (float): Maximum depth of a layer
+            min_dz (float): Starting layer thickness for iteration
+            tolerance (float): Tolerance to the target depth.
 
-
-    Args:
-        npoints (int): Number of vertical points
-        ratio (float): Ratio of largest to smallest layer
-            thickness. Negative values mean higher resolution is at
-            bottom rather than top of the column.
-        target_depth (float): Maximum depth of a layer
-        min_dz (float): Starting layer thickness for iteration
-        tolerance (float): Tolerance to the target depth.
-
-    Returns:
-        numpy.array: An array containing the thickness profile.
+        Return:
+            numpy.array: An array containing the thickness profile.
     """
 
     profile = min_dz + 0.5 * (np.abs(ratio) * min_dz - min_dz) * (
@@ -412,7 +412,7 @@ def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
 
 
 def angle_between(v1, v2, v3):
-    """Returns the angle v2-v1-v3 (in radians). That is the angle between vectors v1-v2 and v1-v3."""
+    """Return the angle v2-v1-v3 (in radians). That is the angle between vectors v1-v2 and v1-v3."""
 
     v1xv2 = np.cross(v1, v2)
     v1xv3 = np.cross(v1, v3)
@@ -425,8 +425,8 @@ def angle_between(v1, v2, v3):
 
 
 def quadrilateral_area(v1, v2, v3, v4):
-    """Returns area of a spherical quadrilateral on the unit sphere that
-    has vertices on 3-vectors `v1`, `v2`, `v3`, `v4` (counter-clockwise
+    """Return the  area of a spherical quadrilateral on the unit sphere
+    that has vertices on 3-vectors `v1`, `v2`, `v3`, `v4` (counter-clockwise
     orientation is implied). The area is computed via the excess of the
     sum of the spherical angles of the quadrilateral from 2π."""
 
@@ -460,17 +460,16 @@ def latlon_to_cartesian(lat, lon, R=1):
 
 
 def quadrilateral_areas(lat, lon, R=1):
-    """Returns area of spherical quadrilaterals on a sphere of radius `R`. By default, `R = 1`.
-    The quadrilaterals are formed by constant latitude and longitude lines on the `lat`-`lon` grid provided.
+    """Return the area of spherical quadrilaterals on a sphere of radius `R`.
+    By default, `R = 1`. The quadrilaterals are formed by constant latitude and longitude
+    lines on the `lat`-`lon` grid provided.
 
     Args:
-        lat (array): Array of latitude points (in degrees)
-        lon (array): Array of longitude points (in degrees)
+        lat (numpy.array): Array of latitude points (in degrees)
+        lon (numpy.array): Array of longitude points (in degrees)
 
-    Returns:
-        areas (array): Array with the areas of the quadrilaterals defined by the
-                       `lat`-`lon` grid provided. If the `lat`-`lon` are `m x n`
-                       then `areas` is `(m-1) x (n-1)`.
+    Return:
+        (numpy.array): Array with the areas of the quadrilaterals defined by the `lat`-`lon` grid provided. If the `lat`-`lon` are `m x n` then `areas` is `(m-1) x (n-1)`.
     """
 
     coords = np.dstack(latlon_to_cartesian(lat, lon, R))
@@ -498,7 +497,7 @@ def rectangular_hgrid(λ, φ):
         `λ` (numpy.array): All longitude points on the supergrid. Must be uniformly spaced!
         `φ` (numpy.array): All latitude points on the supergrid.
 
-    Returns:
+    Return:
         xarray.Dataset: An FMS-compatible `hgrid` that includes all required attributes.
     """
 
@@ -573,7 +572,7 @@ class experiment:
     """The main class for setting up a regional experiment.
 
     Everything about your regional experiment.
-    
+
     Methods in this class will generate the various input files needed
     to generate a MOM6 experiment forced with open boundary conditions
     (OBCs). The code is agnostic to your choice of boundary forcing,
@@ -690,17 +689,24 @@ class experiment:
 
             x = np.linspace(
                 self.xextent[0], self.xextent[1], nx
-            ) # longitudes in degrees
+            )  # longitudes in degrees
 
             # Latitudes evenly spaced by dx * cos(central_latitude)
-            central_latitude = np.mean(self.yextent) # degrees
-            latitudinal_resolution = self.resolution * np.cos(np.deg2rad(central_latitude))
+            central_latitude = np.mean(self.yextent)  # degrees
+            latitudinal_resolution = self.resolution * np.cos(
+                np.deg2rad(central_latitude)
+            )
 
-            ny = int((self.yextent[1] - self.yextent[0]) / (latitudinal_resolution / 2)) + 1
+            ny = (
+                int((self.yextent[1] - self.yextent[0]) / (latitudinal_resolution / 2))
+                + 1
+            )
             if ny % 2 != 1:
                 ny += 1
 
-            y = np.linspace(self.yextent[0], self.yextent[1], ny) # latitudes in degrees
+            y = np.linspace(
+                self.yextent[0], self.yextent[1], ny
+            )  # latitudes in degrees
 
             hgrid = rectangular_hgrid(x, y)
             hgrid.to_netcdf(self.mom_input_dir / "hgrid.nc")
@@ -1032,9 +1038,7 @@ class experiment:
         Setup a boundary forcing file for a given orientation. Here 'rectangular' means straight boundaries along lat/lon lines.
         Args:
             path_to_bc (str): Path to boundary forcing file. Ideally this should be a pre cut-out netcdf file containing only the boundary region and 3 extra boundary points either side. You could also provide a large dataset containing your entire domain but this will be slower.
-            varnames (Dict[str, str]): Mapping from MOM6
-                variable/coordinate names to the name in the input
-                dataset.
+            varnames (Dict[str, str]): Mapping from MOM6 variable/coordinate names to the name in the input dataset.
             orientation (str): Orientation of boundary forcing file. i.e east,west,north,south.
             segment_number (int): Number the segments according to how they'll be specified in MOM_input
             gridtype (Optional[str]): Arakawa grid staggering of input, one of ``A``, ``B`` or ``C``
