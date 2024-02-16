@@ -671,25 +671,30 @@ class experiment:
         spaced. This is very simple but suitable for small domains.
 
         Note:
-            The intention is for the hgrid generation to be very flexible. For now there is only one implemented horizontal grid included in the package, but you can customise it by simply overwriting the `hgrid.nc` file that's deposited in your `rundir` after initialising an `experiment`. To conserve the metadata, it might be easiest to read the file in, then modify the fields before re-saving.
+            The intention is for the horizontal grid (hgrid) generation to be very flexible.
+            For now, there is only one implemented horizontal grid included in the package,
+            but you can customise it by simply overwriting the `hgrid.nc` file in your `rundir`
+            after initialising an `experiment`. To conserve the metadata, it might be easiest
+            to read the file in, then modify the fields before re-saving.
         """
 
         if gridtype == "even_spacing":
-            # longitudes will just be evenly spaced, based only on resolution and bounds
+            # longitudes are evenly spaced based on resolution and bounds
             nx = int((self.xextent[1] - self.xextent[0]) / (self.res / 2))
             if nx % 2 != 1:
                 nx += 1
 
-            x = np.linspace(self.xextent[0], self.xextent[1], nx)
+            x = np.linspace(self.xextent[0], self.xextent[1], nx) # longitudes in degrees
 
             # Latitudes evenly spaced by dx * cos(mean_lat)
-            res_y = self.res * np.cos(np.mean(self.yextent) * np.pi / 180)
+            res_y = self.res * np.cos(np.deg2rad(np.mean(self.yextent)))
 
             ny = int((self.yextent[1] - self.yextent[0]) / (res_y / 2)) + 1
             if ny % 2 != 1:
                 ny += 1
 
             y = np.linspace(self.yextent[0], self.yextent[1], ny)
+
             hgrid = rectangular_hgrid(x, y)
             hgrid.to_netcdf(self.mom_input_dir / "hgrid.nc")
 
