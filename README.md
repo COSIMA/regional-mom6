@@ -24,38 +24,29 @@ Check out the the [documentation](https://regional-mom6.readthedocs.io/en/latest
 
 ## Installation
 
-At the moment you can install the package via `pip` from
-GitHub. Before this, the binary `esmpy` dependency is required. This
-is easiest to install using Conda. To do so, first create a custom
-Conda environment, or activate an existing environment into which you
-want to install `esmpy` and `regional_mom6`. Then install `emspy`:
+We can install `regional_mom6` via `pip` from GitHub. A prerequisite of is that the binary `esmpy`
+dependency is first installed. The easiest way to install `esmpy` is using Conda.
+To do so, first we create a custom Conda environment, or activate an existing environment
+into which we will install `esmpy` and `regional_mom6`. Then install `emspy` via:
 
 ```bash
 conda install -c conda-forge esmpy
 ```
 
-Alternatively, it's possible to follow the [Installing ESMPy from
-Source](https://earthsystemmodeling.org/esmpy_doc/release/latest/html/install.html#installing-esmpy-from-source)
-instructions to do this in a Conda-free way. With `esmpy` available, you can then install
-`regional_mom6` via pip. If your environment doesn't yet have pip, then `conda install pip` should do the job.
+Alternatively, to install `esmpy` in a Conda-free way, follow the instructions for [installing ESMPy from
+source](https://earthsystemmodeling.org/esmpy_doc/release/latest/html/install.html#installing-esmpy-from-source).
+With `esmpy` available, we can then install `regional_mom6` via pip. (If we don't have have pip, then
+`conda install pip` should do the job.)
 
-It's recommended that you get started with the example notebooks. In this case you'll want to clone this entire repo so that you have access to the `demo` folder. This contains some template configuration files for MOM6, and example notebooks that walk you through the package. 
-
-```bash 
-git clone git@github.com:COSIMA/regional-mom6.git
-pip install .
-```
-
-Alternatively you can install the python package only. Some functionality will be missing in this case, namely the `setup_run_directory` function as it relies on copying across and modifying the template files. 
-
-```bash
+```{code-block} bash
 pip install git+https://github.com/COSIMA/regional-mom6.git
 ```
 
-This installs the latest version of `regional_mom6` plus any required dependencies.
-`esmpy` won't be installed as a dependency and that's why need to install it separately.
+The above installs the version of `regional_mom6` (plus any required dependencies) that corresponds
+to the latest commit in GitHub. `esmpy` won't be installed as a dependency and that's why need to
+install it separately.
 
-Alternatively, you can also install a particular tag or git commit using, e.g.,
+We can also install `regional_mom6` from a particular tag or git commit using, e.g.,
 
 ```bash
 pip install git+https://github.com/COSIMA/regional-mom6.git@v0.X.X
@@ -66,18 +57,37 @@ or
 ```bash
 pip install git+https://github.com/COSIMA/regional-mom6.git@061b0ef80c7cbc04de0566df329c4ea472002f7e
 ```
+
+It's recommended that you get started with the example notebooks. In this case you'll want to clone this
+entire repo so that you have access to the `demo` folder. This contains some template configuration files
+for MOM6, and example notebooks that walk you through the package. 
+
+```bash 
+git clone git@github.com:COSIMA/regional-mom6.git
+pip install .
+```
+
+
 ## MOM6 Configuration and Version Requirements
-The package and demos were written for a coupled SIS2-MOM6 configuration, and may also work for an ocean only MOM6 run but this has not been tested. 
+The package and demos assume a coupled SIS2-MOM6 configuration. They may also work for an ocean only
+MOM6 run but this has not been tested. 
 
-The current release of this package assumes the latest source code of all components needed to run MOM6 as of January 2024. A forked version of the [`setup-mom6-nci`](https://github.com/ashjbarnes/setup-mom6-nci) repository contains scripts for compiling MOM6 and, furthermore, its [`src`](https://github.com/ashjbarnes/setup-mom6-nci/tree/setup-mom6/src) directory lists the particular commits that were used to compile MOM6 and its submodules for this package.
+The current release of this package assumes the latest source code of all components needed to run MOM6 as of
+January 2024. A forked version of the [`setup-mom6-nci`](https://github.com/ashjbarnes/setup-mom6-nci) repository
+contains scripts for compiling MOM6 and, furthermore, its [`src`](https://github.com/ashjbarnes/setup-mom6-nci/tree/setup-mom6/src)
+directory lists the particular commits that were used to compile MOM6 and its submodules for this package.
 
-Note that the commits used for MOM6 submodules (e.g., Flexible Modelling System (FMS), coupler, SIS2) are _not_ necessarily those used by the GFDL's [`MOM6_examples`](https://github.com/NOAA-GFDL/MOM6-examples) repository.
+Note that the commits used for MOM6 submodules (e.g., Flexible Modelling System (FMS), coupler, SIS2) are _not_
+necessarily those used by the GFDL's [`MOM6_examples`](https://github.com/NOAA-GFDL/MOM6-examples) repository.
 
 ## Getting started
 
-The [example notebooks](https://regional-mom6.readthedocs.io/en/latest/demos.html) walk you through how to use the package using two different sets of input datasets.
-Make sure that you can get at least one of these working on your setup with your MOM6 executable, and then try to modify them to apply to your domain with your bathymethry, forcing, and boundary conditions.
+The [example notebooks](https://regional-mom6.readthedocs.io/en/latest/demos.html) walk you through how to use
+the package using two different sets of input datasets. Please ensure that you can get at least one of these working
+on your setup with your MOM6 executable before trying modify the example to suit your domain with your bathymethry,
+forcing, and boundary conditions.
 
-The `xesmf` the package attempts to regrid in parallel, and if it's not able to do so, it throws a warning and run in serial.
-You also get a print out of the relevant `mpirun` command which you could use as a backup.
-Depending on your setup of your machine, you may need to write scripts that implement the package to access more computational resources than might be available, e.g., on the HPC machine of you are working on.
+The `xesmf` the package attempts to regrid in parallel, and if it's not able to do so, it throws a warning and
+runs in serial. You also get a print out of the relevant `mpirun` command which you could use as a backup.
+Depending on your setup of your machine, you may need to write scripts that implement the package to access more
+computational resources than might be available, e.g., on the HPC machine of you are working on.
