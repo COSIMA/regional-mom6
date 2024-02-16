@@ -1502,7 +1502,7 @@ class experiment:
                     ):
                         shutil.copy(overwrite_run_dir / file.name, self.mom_run_dir)
                     else:
-                        shutil.copy(base_run_dir / file, self.mom_run_dir)
+                        shutil.copy(base_run_dir / file.name, self.mom_run_dir)
         else:
             shutil.copytree(base_run_dir, self.mom_run_dir, dirs_exist_ok=True)
             if overwrite_run_dir != False:
