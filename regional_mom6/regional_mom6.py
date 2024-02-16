@@ -42,7 +42,7 @@ def ap2ep(uc, vc):
 
     Adapted from ap2ep.m for matlab
     Original copyright notice:
-    
+
     %Authorship Copyright:
     %
     %    The author retains the copyright of this program, while  you are welcome
@@ -98,10 +98,10 @@ def ap2ep(uc, vc):
 def ep2ap(SEMA, ECC, INC, PHA):
     """
     Convert tidal ellipse to real u and v amplitude and phase.
-    
+
     Adapted from ep2ap.m for matlab.
     Original copyright notice:
-    
+
     %Authorship Copyright:
     %
     %    The author of this program retains the copyright of this program, while
@@ -160,6 +160,7 @@ def ep2ap(SEMA, ECC, INC, PHA):
 
 ## Auxiliary functions
 
+
 def nicer_slicer(data, xextent, xcoords, buffer=2):
     """
     Slice longitudes, handling periodicity and 'seams' where the
@@ -169,7 +170,7 @@ def nicer_slicer(data, xextent, xcoords, buffer=2):
 
     - Determine whether we need to add or subtract 360 to get the
       middle of the ``xextent`` to lie within ``data``'s longitude range
-      (hereby ``oldx``)
+      (hereby ``oldx``).
 
     - Shift the dataset so that its midpoint matches the midpoint of
       ``xextent`` (up to a muptiple of 360). Now, the modified ``oldx``
@@ -178,7 +179,7 @@ def nicer_slicer(data, xextent, xcoords, buffer=2):
 
     - Fix ``oldx`` to make it monotonically increasing again. This uses
       the information we have about the way the dataset was
-      shifted/rolled
+      shifted/rolled.
 
     - Slice the ``data`` index-wise. We know that ``|xextent| / 360``
       multiplied by the number of discrete longitude points will give
@@ -190,12 +191,12 @@ def nicer_slicer(data, xextent, xcoords, buffer=2):
       the target.
 
     Args:
-        data (xarray.Dataset): The global data you want to slice in longitude
-        xextent (Tuple[float, float]): The target longitudes you want to slice
-            to. This must be either start negative and progress to
-            positive, or be entirely positive
-        xcoords (Union[str, List[str]): The name of the longitude
-            dimension in your xarray or list of names
+        data (xarray.Dataset): The global data you want to slice in longitude.
+        xextent (Tuple[float, float]): The target longitudes (in degrees) we would
+            like to slice to. This must be either start negative and progress to
+            positive, or be entirely positive.
+        xcoords (Union[str, List[str]): The name or list of names of the longitude
+            dimension in `data`.
 
     Return:
         xarray.Dataset: The ``data`` after the slicing has been performed.
@@ -278,27 +279,29 @@ def motu_requests(
     buffer=0.3,
 ):
     """
-    Generates MOTU data request for each specified boundary, as well as for
+    Generate MOTU data request for each specified boundary, as well as for
     the initial condition. By default pulls the GLORYS reanalysis dataset.
 
     Args:
         xextent (List[float]): Extreme values of longitude coordinates for
-            rectangular domain (in degrees)
+            rectangular domain (in degrees).
         yextent (List[float]): Extreme values of latitude coordinates for
-            rectangular domain (in degrees)
+            rectangular domain (in degrees).
         daterange (Tuple[str]): Start and end dates of boundary forcing window.
-            Format: ``%Y-%m-%d %H:%M:%S``
-        outfolder (str): Directory in which to receive the downloaded files
+            Format: ``%Y-%m-%d %H:%M:%S``.
+        outfolder (str): Directory the files are downloaded.
         usr (str): MOTU authentication username
         pwd (str): MOTU authentication password
         segs (List[str]): List of the cardinal directions for your boundary forcing
-        url (Optional[str]): MOTU server for the request (defaults to ``'CMEMS'``)
-        serviceid (Optional[str]): Service containing the desired dataset
-        productid (Optional[str]): Data product within the chosen service.
+        url (Optional[str]): MOTU server for the request. Defaults to the CMEMS,
+            i.e. ``"https://my.cmems-du.eu/motu-web/Motu"``.
+        serviceid (Optional[str]): Service containing the desired dataset. Default:
+            ``"GLOBAL_MULTIYEAR_PHY_001_030-TDS"``.
+        productid (Optional[str]): Data product within the chosen service. Default:
+            ``"cmems_mod_glo_phy_my_0.083_P1D-m"``.
 
     Return:
         str: A bash script which will call ``motuclient`` to invoke the data requests.
-
     """
 
     if type(segs) == str:
@@ -384,7 +387,7 @@ def motu_requests(
 def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1.0):
     """
     Generate a hyperbolic tangent thickness profile for the experiment.
-    The algorithm iterates to find the mininum depth value that gives the
+    The algorithm iterates to find the minimum depth value that gives the
     target depth (``target_depth``) within some ``tolerance``.
 
     Thickness of layers monotonically increases (or decreases if ``ratio`` is
@@ -394,12 +397,12 @@ def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1.0)
     bottom-most layer is thicker than the top one.
 
     Args:
-        npoints (int): Number of vertical points
+        npoints (int): Number of vertical points.
         ratio (float): Ratio of largest to smallest layer
             thickness. Negative values mean higher resolution is at
             bottom rather than top of the column.
         target_depth (float): Maximum depth of a layer
-        min_dz (float): Starting layer thickness for iteration
+        min_dz (float): Starting layer thickness for iteration.
         tolerance (float): Tolerance to the target depth.
 
     Return:
@@ -468,10 +471,10 @@ def latlon_to_cartesian(lat, lon, R=1):
     """
     Convert latitude-longitude (in degrees) to Cartesian coordinates on
     a sphere of radius ``R``. By default ``R = 1``.
-    
+
     Args:
-        lat (float): latitude (in degrees)
-        lon (float): longitude (in degrees)
+        lat (float): Latitude (in degrees).
+        lon (float): Longitude (in degrees).
         R (float): The radius of the sphere; default: 1.
 
     Return:
@@ -492,13 +495,13 @@ def quadrilateral_areas(lat, lon, R=1):
     lines on the ``lat``-``lon`` grid provided.
 
     Args:
-        lat (numpy.array): Array of latitude points (in degrees)
-        lon (numpy.array): Array of longitude points (in degrees)
+        lat (numpy.array): Array of latitude points (in degrees).
+        lon (numpy.array): Array of longitude points (in degrees).
         R (float): The radius of the sphere; default: 1.
 
     Return:
         (numpy.array): Array with the areas of the quadrilaterals defined by the ``lat``-``lon`` grid
-        provided. If the provided ``lat``, ``lon`` arrays are of dimension m x n then return 
+        provided. If the provided ``lat``, ``lon`` arrays are of dimension m x n then return
         areas array is of dimension (m-1) x (n-1).
     """
 
@@ -773,13 +776,12 @@ class experiment:
 
         Args:
             ic_path (Union[str, Path]): Path to initial condition file.
-            varnames (Dict[str, str]): Mapping from MOM6
-                variable/coordinate names to the name in the input
-                dataset. E.g. ``{'xq':'lonq','yh':'lath','salt':'so' ...}``
-            gridtype (Optional[str]): Arakawa grid staggering of input; either
-                ``'A'``, ``'B'``, or ``'C'``
-            vcoord_type (Optional[str]): The type of vertical coordinate used in
-            the forcing files. Either ``height`` or ``thickness``.
+            varnames (Dict[str, str]): Mapping from MOM6 variable/coordinate names to the names
+                in the input dataset. For example, ``{'xq':'lonq','yh':'lath','salt':'so' ...}``.
+            gridtype (Optional[str]): Arakawa grid staggering of input; either ``'A'``, ``'B'``,
+                or ``'C'``.
+            vcoord_type (Optional[str]): The type of vertical coordinate used in yhe forcing files.
+                Either ``height`` or ``thickness``.
         """
 
         # Remove time dimension if present in the IC. Assume that the first time dim is the intended on if more than one is present
@@ -1082,9 +1084,9 @@ class experiment:
             orientation (str): Orientation of boundary forcing file, i.e., ``'east'``, ``'west'``,
                 ``'north'``, or ``'south'``.
             segment_number (int): Number the segments according to how they'll be specified in
-                the ``MOM_input``
+                the ``MOM_input``.
             gridtype (Optional[str]): Arakawa grid staggering of input; either ``'A'``, ``'B'``,
-                or ``'C'``
+                or ``'C'``.
             ryf (Optional[bool]): When ``True`` the experiment runs with  'repeat-year forcing';
                 when ``False``, inter-annual forcing is used.
         """
@@ -1126,18 +1128,18 @@ class experiment:
         saved to the input folder for your experiment.
 
         Args:
-            bathy_path (str): Path to chosen bathymetry file netCDF file
+            bathy_path (str): Path to chosen bathymetry file netCDF file.
             varnames (Dict[str, str]): Mapping of coordinate and
                 variable names between the input and output.
             fill_channels (Optional[bool]): Whether or not to fill in
                 diagonal channels. This removes more narrow inlets,
-                but can also connect extra islands to land. Default: ``False``
+                but can also connect extra islands to land. Default: ``False``.
             minimum_layers (Optional[int]): The minimum depth allowed
                 as an integer number of layers. The default value of ``3``
                 layers means that anything shallower than the 3rd
                 layer (as specified by the ``vcoord``) is deemed land.
             positivedown (Optional[bool]): If ``True``, it assumes that
-                bathymetry vertical coordinate is positive down.  Default: ``False``
+                bathymetry vertical coordinate is positive down.  Default: ``False``.
             chunks (Optional Dict[str, str]): Chunking scheme for bathymetry, e.g.,
                 ``{"lon": 100, "lat": 100}``. Use lat/lon rather than the coordinate
                 names in the input file.
@@ -1526,7 +1528,7 @@ class experiment:
 
         Args:
             regional_mom6_path (str): Path to the regional MOM6 source code that was cloned
-                from GitHub
+                from GitHub.
             surface_forcing (Optional[str, bool]): Specify the choice of surface forcing, one
                 of: ``'jra'`` or ``'era5'``. If left blank, constant fluxes will be used.
             using_payu (Optional[bool]): Whether or not to use payu (https://github.com/payu-org/payu)
@@ -1791,22 +1793,24 @@ class segment:
     Only supports z-star (z*) vertical coordinate!
 
     Args:
-        hgrid (xarray.Dataset): The horizontal grid used for domain
-        infile (Union[str, Path]): Path to the raw, unprocessed boundary segment
-        outfolder (Union[str, Path]): Path to folder where the model inputs will be stored
-        varnames (Dict[str, str]): Mapping between the
-            variable/dimension names and standard naming convension of
-            this pipeline, e.g. ``{"xq": "longitude, "yh": "latitude",
-            "salt": "salinity...}``. Key "tracers" points to nested
-            dictionary of tracers to include in boundary
-        seg_name (str): Name of the segment. Something like ``segment_001``
-        orientation (str): Cardinal direction (lowercase) of the boundary segment
-        startdate (str): The starting date to use in the segment calendar
-        gridtype (Optional[str]): Arakawa staggering of input grid, one of ``'A'``, ``'B'``, or ``'C'``
-        time_units (str): The units used by the raw forcing files, e.g., ``hours``, ``days`` (default)
-        tidal_constituants (Optional[int]) The last tidal constituants to include in this list:
-            m2, s2, n2, k2, k1, o1, p1, q1, mm, mf, m4. For example, specifying 1 only includes m2;
-            specifying 2 selects m2 and s2, etc.
+        hgrid (xarray.Dataset): The horizontal grid used for domain.
+        infile (Union[str, Path]): Path to the raw, unprocessed boundary segment.
+        outfolder (Union[str, Path]): Path to folder where the model inputs will
+            be stored.
+        varnames (Dict[str, str]): Mapping between the variable/dimension names and
+            standard naming convension of this pipeline, e.g., ``{"xq": "longitude,
+            "yh": "latitude", "salt": "salinity...}``. Key "tracers" points to nested
+            dictionary of tracers to include in boundary.
+        seg_name (str): Name of the segment, e.g., ``'segment_001'``.
+        orientation (str): Cardinal direction (lowercase) of the boundary segment.
+        startdate (str): The starting date to use in the segment calendar.
+        gridtype (Optional[str]): Arakawa staggering of input grid, one of ``'A'``, ``'B'``,
+            or ``'C'``
+        time_units (str): The units used by the raw forcing files, e.g., ``hours``,
+            ``days`` (default)
+        tidal_constituants (Optional[int]) The last tidal constituants to include from
+            the list: m2, s2, n2, k2, k1, o1, p1, q1, mm, mf, m4. For example, specifying
+            ``1`` only includes m2; specifying ``2`` selects m2 and s2, etc.
         ryf (Optional[bool]): When ``True`` the experiment runs with 'repeat-year forcing'.
             When ``False`` (default) inter-annual forcing is used.
     """
