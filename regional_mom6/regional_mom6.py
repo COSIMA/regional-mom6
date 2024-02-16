@@ -376,11 +376,60 @@ def motu_requests(
 
 def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
     """Generate a hyperbolic tangent thickness profile for the
-    experiment.  Iterates to find the mininum depth value which gives
-    the target depth within some tolerance.
+    experiment.  Iterates to find the mininum depth value (`minimum_depth`) that gives
+    the target depth (`target_depth`) within some ``tolerance``.
 
-    Thickness of layers monatonically increases (or decreases if ratio is negative) from the surface to the bottom of the domain.
-    Set the ratio to 1 for a uniformly spaced grid.
+    Parameter ``ratio`` prescribes (approximately) tha ratio of the thickness of the
+    bottom-most layer to the top-most layer. We say "approximately" because
+    the final value ends up a bit different from what we prescribe in ``ratio``
+    depending on the ``tolerance``.
+
+    Examples
+    ========
+
+    The spacings for a vertical grid with 20 layers, with maximum depth 1000 m,
+    and for which the top-most layer is about 4 times thinner than the bottom-most
+    one.
+
+    >>> import regional_mom6
+    >>> npoints, target_depth = 20, 1000
+    >>> ratio = 4
+    >>> dz = regional_mom6.dz_hyperbolictan(npoints, ratio, target_depth)
+    >>> dz
+    array([20.73146305, 20.8319216 , 21.0193486 , 21.36761868, 22.00991155,
+           23.17818323, 25.25066629, 28.76909747, 34.31893056, 42.13278575,
+           51.54044931, 60.94811288, 68.76196807, 74.31180116, 77.83023233,
+           79.90271539, 81.07098708, 81.71327995, 82.06155002, 82.24897703])
+    >>> dz.sum()
+    1000.0
+    >>> dz[-1] / dz[0]
+    3.967350343285277
+
+    If we want the top layer to be thicker we need to prescribe a ``ratio < 1``
+
+    >>> import regional_mom6
+    >>> npoints, target_depth = 20, 1000
+    >>> ratio = 1/4
+    >>> dz = regional_mom6.dz_hyperbolictan(npoints, ratio, target_depth)
+    >>> dz
+    array([77.56974515, 77.47511737, 77.29856893, 76.97051299, 76.36549981,
+           75.26503645, 73.31284355, 69.99862764, 64.77091557, 57.41058879,
+           48.54896078, 39.68733277, 32.32700599, 27.09929392, 23.78507801,
+           21.83288512, 20.73242176, 20.12740857, 19.79935264, 19.62280419])
+    >>> dz.sum()
+    1000.0000000000001
+    >>> dz[-1] / dz[0]
+    0.2529698163693782
+
+    Now how about the same grid as above but with equally spaced.
+
+    >>> import regional_mom6
+    >>> npoints, target_depth = 20, 1000
+    >>> ratio = 1
+    >>> dz = regional_mom6.dz_hyperbolictan(npoints, ratio, target_depth)
+    >>> dz
+    array([50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50.,
+           50., 50., 50., 50., 50., 50., 50.])
 
 
     Args:
@@ -396,17 +445,18 @@ def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
         numpy.array: An array containing the thickness profile.
     """
 
-    profile = min_dz + 0.5 * (np.abs(ratio) * min_dz - min_dz) * (
+    assert ratio > 0
+
+    profile = min_dz + 0.5 * (ratio * min_dz - min_dz) * (
         1 + np.tanh(2 * np.pi * (np.arange(npoints) - npoints // 2) / npoints)
     )
-    tot = np.sum(profile)
-    if np.abs(tot - target_depth) < tolerance:
-        if ratio > 0:
-            return profile
 
-        return profile[::-1]
+    total_depth = np.sum(profile)
 
-    err_ratio = target_depth / tot
+    if np.abs(total_depth - target_depth) < tolerance:
+        return profile
+
+    err_ratio = target_depth / total_depth
 
     return dz_hyperbolictan(npoints, ratio, target_depth, min_dz * err_ratio)
 
