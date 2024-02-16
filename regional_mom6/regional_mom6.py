@@ -376,8 +376,12 @@ def motu_requests(
 
 def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
     """Generate a hyperbolic tangent thickness profile for the
-    experiment.  Iterates to find the mininum depth value (`minimum_depth`) that gives
-    the target depth (`target_depth`) within some ``tolerance``.
+    experiment. The thickness profile transitions from the top-layer
+    thickness to the bottom-layer thickness via a hyperbolic tangent
+    proportional to ``tanh(2π * (k / npoints - 1 / 2))``, where
+    ``k = 0, 1, ..., npoints-1`` the layer index. The function iterates
+    to find the mininum depth value (`minimum_depth`) that gives the target
+    depth (`target_depth`) within some ``tolerance``.
 
     Parameter ``ratio`` prescribes (approximately) tha ratio of the thickness of the
     bottom-most layer to the top-most layer. We say "approximately" because
@@ -387,7 +391,7 @@ def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
     Examples
     ========
 
-    The spacings for a vertical grid with 20 layers, with maximum depth 1000 m,
+    The spacings for a vertical grid with 20 layers, with maximum depth 1000 meters,
     and for which the top-most layer is about 4 times thinner than the bottom-most
     one.
 
@@ -405,7 +409,7 @@ def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
     >>> dz[-1] / dz[0]
     3.967350343285277
 
-    If we want the top layer to be thicker we need to prescribe a ``ratio < 1``
+    If we want the top layer to be thicker then we need to prescribe ``ratio < 1``.
 
     >>> import regional_mom6
     >>> npoints, target_depth = 20, 1000
