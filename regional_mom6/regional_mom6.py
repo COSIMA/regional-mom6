@@ -381,13 +381,29 @@ def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
     proportional to ``tanh(2π * (k / (npoints - 1) - 1 / 2))``, where
     ``k = 0, 1, ..., npoints-1`` is the layer index.
 
-    The function iterates to find the mininum depth value (`minimum_depth`)
-    that gives the target depth (`target_depth`) within some ``tolerance``.
+    The function iterates to find the mininum depth value (``minimum_depth``)
+    that gives the target depth (``target_depth``) within some ``tolerance``,
+    that is when ``|total_depth - target_depth| < tolerance``.
 
     Parameter ``ratio`` prescribes (approximately) tha ratio of the thickness of the
     bottom-most layer to the top-most layer. We say "approximately" because
     the final value ends up a bit different from what we prescribe in ``ratio``
     depending on the ``tolerance``.
+
+    Args:
+        npoints (int): Number of vertical points.
+        ratio (float): Ratio of largest to smallest layer.
+            thickness. Negative values mean higher resolution is at
+            bottom rather than top of the column.
+        target_depth (float): The total depth of grid, that is the sum
+            of all thicknesses.
+        min_dz (Optional[float]): Starting layer thickness for iteration. Default: 0.0001
+        .
+        tolerance (Optional[float]): Tolerance to the target depth. Default: 1.
+
+    Returns:
+        numpy.array: An array containing the thickness profile.
+
 
     Examples
     ========
@@ -436,18 +452,6 @@ def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
     array([50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50.,
            50., 50., 50., 50., 50., 50., 50.])
 
-
-    Args:
-        npoints (int): Number of vertical points
-        ratio (float): Ratio of largest to smallest layer
-            thickness. Negative values mean higher resolution is at
-            bottom rather than top of the column.
-        target_depth (float): Maximum depth of a layer
-        min_dz (float): Starting layer thickness for iteration
-        tolerance (float): Tolerance to the target depth.
-
-    Returns:
-        numpy.array: An array containing the thickness profile.
     """
 
     assert ratio > 0
