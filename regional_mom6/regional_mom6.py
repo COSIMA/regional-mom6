@@ -37,9 +37,12 @@ __all__ = [
 
 
 def ap2ep(uc, vc):
-    """Convert complex tidal u and v to tidal ellipse.
+    """
+    Convert complex tidal ``u`` and ``v`` to tidal ellipse.
+
     Adapted from ap2ep.m for matlab
     Original copyright notice:
+    
     %Authorship Copyright:
     %
     %    The author retains the copyright of this program, while  you are welcome
@@ -93,9 +96,12 @@ def ap2ep(uc, vc):
 
 
 def ep2ap(SEMA, ECC, INC, PHA):
-    """Convert tidal ellipse to real u and v amplitude and phase.
+    """
+    Convert tidal ellipse to real u and v amplitude and phase.
+    
     Adapted from ep2ap.m for matlab.
     Original copyright notice:
+    
     %Authorship Copyright:
     %
     %    The author of this program retains the copyright of this program, while
@@ -132,7 +138,6 @@ def ep2ap(SEMA, ECC, INC, PHA):
 
     Return:
         (u amplitude, u phase [radians], v amplitude, v phase [radians])
-
     """
     Wp = (1 + ECC) / 2.0 * SEMA
     Wm = (1 - ECC) / 2.0 * SEMA
@@ -153,17 +158,17 @@ def ep2ap(SEMA, ECC, INC, PHA):
     return ua, va, up, vp
 
 
-## Auxillary functions
-
+## Auxiliary functions
 
 def nicer_slicer(data, xextent, xcoords, buffer=2):
-    """Slice longitudes, handling periodicity and 'seams' where the
-    data wraps around (commonly either at in domains [-180, 180) or [-270, 90]).
+    """
+    Slice longitudes, handling periodicity and 'seams' where the
+    data wraps around (commonly either in domain [-180, 180] or in [-270, 90]).
 
     The algorithm works in five steps:
 
     - Determine whether we need to add or subtract 360 to get the
-      middle of the ``xextent`` to lie within data's longitude range
+      middle of the ``xextent`` to lie within ``data``'s longitude range
       (hereby ``oldx``)
 
     - Shift the dataset so that its midpoint matches the midpoint of
@@ -175,13 +180,14 @@ def nicer_slicer(data, xextent, xcoords, buffer=2):
       the information we have about the way the dataset was
       shifted/rolled
 
-    - Slice the data index-wise. We know that ``|xextent| / 360``
+    - Slice the ``data`` index-wise. We know that ``|xextent| / 360``
       multiplied by the number of discrete longitude points will give
       the total width of our slice, and we've already set the midpoint
-      to be the middle of the target domain. Here we add a buffer
+      to be the middle of the target domain. Here we add a ``buffer``
       region on either side if we need it for interpolation.
 
-    - Finally re-add the right multiple of 360 so the whole domain matches the target.
+    - Finally re-add the right multiple of 360 so the whole domain matches
+      the target.
 
     Args:
         data (xarray.Dataset): The global data you want to slice in longitude
@@ -192,8 +198,7 @@ def nicer_slicer(data, xextent, xcoords, buffer=2):
             dimension in your xarray or list of names
 
     Return:
-        xarray.Dataset: The data after the slicing has been performed.
-
+        xarray.Dataset: The ``data`` after the slicing has been performed.
     """
 
     if isinstance(xcoords, str):
@@ -272,14 +277,17 @@ def motu_requests(
     productid="cmems_mod_glo_phy_my_0.083_P1D-m",
     buffer=0.3,
 ):
-    """Generates MOTU data request for each specified boundary, as
-    well as for the initial condition. By default pulls the GLORYS
-    reanalysis dataset.
+    """
+    Generates MOTU data request for each specified boundary, as well as for
+    the initial condition. By default pulls the GLORYS reanalysis dataset.
 
     Args:
-        xextent (List[float]): Extreme values of longitude coordinates for rectangular domain (in degrees)
-        yextent (List[float]): Extreme values of latitude coordinates for rectangular domain (in degrees)
-        daterange (Tuple[str]): Start and end dates of boundary forcing window. Format: ``%Y-%m-%d %H:%M:%S``
+        xextent (List[float]): Extreme values of longitude coordinates for
+            rectangular domain (in degrees)
+        yextent (List[float]): Extreme values of latitude coordinates for
+            rectangular domain (in degrees)
+        daterange (Tuple[str]): Start and end dates of boundary forcing window.
+            Format: ``%Y-%m-%d %H:%M:%S``
         outfolder (str): Directory in which to receive the downloaded files
         usr (str): MOTU authentication username
         pwd (str): MOTU authentication password
@@ -373,14 +381,17 @@ def motu_requests(
     return script
 
 
-def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
-    """Generate a hyperbolic tangent thickness profile for the
-    experiment.  Iterates to find the mininum depth value which gives
-    the target depth within some tolerance.
+def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1.0):
+    """
+    Generate a hyperbolic tangent thickness profile for the experiment.
+    The algorithm iterates to find the mininum depth value that gives the
+    target depth (``target_depth``) within some ``tolerance``.
 
     Thickness of layers monotonically increases (or decreases if ``ratio`` is
-    negative) from the surface to the bottom of the domain. Set the ``ratio=1``
-    for a uniformly-spaced grid.
+    negative) from the surface to the bottom of the domain. For example, ``ratio = 10``
+    implies that the top-most layer is 10 times thicker than the bottom-most layer.
+    Set ``ratio=1`` for a uniformly-spaced grid. Negative ``ratio`` implies that the
+    bottom-most layer is thicker than the top one.
 
     Args:
         npoints (int): Number of vertical points
@@ -411,7 +422,11 @@ def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
 
 
 def angle_between(v1, v2, v3):
-    """Return the angle v2-v1-v3 (in radians). That is the angle between vectors v1-v2 and v1-v3."""
+    """
+    Return the angle ``v2``-``v1``-``v3`` (in radians), where
+    ``v1``, ``v2``, ``v3`` are 3-vectors. That is, the angle that
+    is formed between vectors ``v2 - v1`` and vector ``v3 - v1``.
+    """
 
     v1xv2 = np.cross(v1, v2)
     v1xv3 = np.cross(v1, v3)
@@ -424,10 +439,12 @@ def angle_between(v1, v2, v3):
 
 
 def quadrilateral_area(v1, v2, v3, v4):
-    """Return the  area of a spherical quadrilateral on the unit sphere
-    that has vertices on 3-vectors ``v1``, ``v2``, ``v3``, ``v4``
+    """
+    Return the area of a spherical quadrilateral on the unit sphere that
+    has vertices on the 3-vectors ``v1``, ``v2``, ``v3``, ``v4``
     (counter-clockwise orientation is implied). The area is computed via
-    the excess of the sum of the spherical angles of the quadrilateral from 2π."""
+    the excess of the sum of the spherical angles of the quadrilateral from 2π.
+    """
 
     if not (
         np.all(np.isclose(vecdot(v1, v1), vecdot(v2, v2)))
@@ -448,8 +465,18 @@ def quadrilateral_area(v1, v2, v3, v4):
 
 
 def latlon_to_cartesian(lat, lon, R=1):
-    """Convert latitude-longitude (in degrees) to Cartesian coordinates on a sphere of
-    radius ``R``. By default ``R = 1``."""
+    """
+    Convert latitude-longitude (in degrees) to Cartesian coordinates on
+    a sphere of radius ``R``. By default ``R = 1``.
+    
+    Args:
+        lat (float): latitude (in degrees)
+        lon (float): longitude (in degrees)
+        R (float): The radius of the sphere; default: 1.
+
+    Return:
+        (tuple): Tuple with the Cartesian coordinates ``x, y, z``
+    """
 
     x = R * np.cos(np.deg2rad(lat)) * np.cos(np.deg2rad(lon))
     y = R * np.cos(np.deg2rad(lat)) * np.sin(np.deg2rad(lon))
@@ -459,16 +486,20 @@ def latlon_to_cartesian(lat, lon, R=1):
 
 
 def quadrilateral_areas(lat, lon, R=1):
-    """Return the area of spherical quadrilaterals on a sphere of radius ``R``.
+    """
+    Return the area of spherical quadrilaterals on a sphere of radius ``R``.
     By default, ``R = 1``. The quadrilaterals are formed by constant latitude and longitude
     lines on the ``lat``-``lon`` grid provided.
 
     Args:
         lat (numpy.array): Array of latitude points (in degrees)
         lon (numpy.array): Array of longitude points (in degrees)
+        R (float): The radius of the sphere; default: 1.
 
     Return:
-        (numpy.array): Array with the areas of the quadrilaterals defined by the ``lat``-``lon`` grid provided. If the ``lat``-``lon`` are m x n then ``areas`` is (m-1) x (n-1).
+        (numpy.array): Array with the areas of the quadrilaterals defined by the ``lat``-``lon`` grid
+        provided. If the provided ``lat``, ``lon`` arrays are of dimension m x n then return 
+        areas array is of dimension (m-1) x (n-1).
     """
 
     coords = np.dstack(latlon_to_cartesian(lat, lon, R))
@@ -581,7 +612,7 @@ class experiment:
 
     This can be used to generate the grids for a new experiment, or to read in
     an existing one by setting read-existing to True. In either case,
-    the xextent, yextent, daterange, and resolution must be specified.
+    the ``xextent``, ``yextent``, ``daterange``, and ``resolution`` must be specified.
 
     Args:
         xextent (Tuple[float]): Extent of the region in longitude in degrees.
@@ -668,9 +699,10 @@ class experiment:
         raise AttributeError(error_message)
 
     def _make_hgrid(self, gridtype):
-        """Sets up hgrid based on users specification of
-        domain. Default behaviour leaves latitude and longitude evenly
-        spaced. This is very simple but suitable for small domains.
+        """
+        Set up hgrid based on users specification of domain. Default behaviour
+        leaves latitude and longitude evenly spaced.
+        This is very simple but suitable for small domains.
 
         Note:
             The intention is for the horizontal grid (``hgrid``) generation to be very flexible.
@@ -713,14 +745,9 @@ class experiment:
             return hgrid
 
     def _make_vgrid(self):
-        """Generates a vertical grid based on the number of layers
-        and vertical ratio specified at the class level.
-
-        The vertical profile uses a hyperbolic tangent function to smoothly
-        transition the thickness of cells. If the ``dz_ratio`` is set to one,
-        the vertical grid will be uniform, for ``dz_ratio = 10``, the top layer
-        will be 10 times thicker than the bottom layer, and for negative numbers
-        the bottom layer will be thicker than the top
+        """
+        Generate a vertical grid based on the number of layers and vertical ratio
+        specified at the class level.
         """
 
         thickness = dz_hyperbolictan(self.vlayers + 1, self.dz_ratio, self.depth)
@@ -736,21 +763,19 @@ class experiment:
         return vcoord
 
     def initial_condition(self, ic_path, varnames, gridtype="A", vcoord_type="height"):
-        """Reads in initial condition files, interpolates to the model grid fixs
+        """
+        Read the initial condition files, interpolates to the model grid fixes
         up metadata and saves to the input directory.
 
         Args:
-            path (Union[str, Path]): Path to initial condition file.
+            ic_path (Union[str, Path]): Path to initial condition file.
             varnames (Dict[str, str]): Mapping from MOM6
                 variable/coordinate names to the name in the input
                 dataset. E.g. ``{'xq':'lonq','yh':'lath','salt':'so' ...}``
-            boundaries (List[str]): Cardinal directions of included boundaries, in
-                anticlockwise order
-            gridtype (Optional[str]): Arakawa grid staggering of input, one of
+            gridtype (Optional[str]): Arakawa grid staggering of input; either
                 ``'A'``, ``'B'``, or ``'C'``
             vcoord_type (Optional[str]): The type of vertical coordinate used in
             the forcing files. Either ``height`` or ``thickness``.
-
         """
 
         # Remove time dimension if present in the IC. Assume that the first time dim is the intended on if more than one is present
@@ -1039,8 +1064,9 @@ class experiment:
     def rectangular_boundary(
         self, path_to_bc, varnames, orientation, segment_number, gridtype="A"
     ):
-        """Setup a boundary forcing file for a given orientation. Here 'rectangular' means straight
-        boundaries along lat/lon lines.
+        """
+        Setup a boundary forcing file for a given orientation. Here 'rectangular' means straight
+        boundaries along latitude/longitude lines.
 
         Args:
             path_to_bc (str): Path to boundary forcing file. Ideally this should be a pre cut-out
@@ -1051,8 +1077,10 @@ class experiment:
                 input dataset.
             orientation (str): Orientation of boundary forcing file, i.e., ``'east'``, ``'west'``,
                 ``'north'``, or ``'south'``.
-            segment_number (int): Number the segments according to how they'll be specified in ``MOM_input``
-            gridtype (Optional[str]): Arakawa grid staggering of input, one of ``'A'``, ``'B'``, or ``'C'``
+            segment_number (int): Number the segments according to how they'll be specified in
+                the ``MOM_input``
+            gridtype (Optional[str]): Arakawa grid staggering of input; either ``'A'``, ``'B'``,
+                or ``'C'``
             ryf (Optional[bool]): Whether the experiment runs 'repeat year forcing'. Otherwise
                 assumes inter-annual forcing.
         """
@@ -1245,12 +1273,15 @@ class experiment:
     def tidy_bathymetry(
         self, fill_channels=False, minimum_layers=3, positivedown=False
     ):
-        """An auxillary function to bathymetry. It's used to fix up the metadata and remove inland lakes
-        after regridding the bathymetry. The functions are split to allow for the regridding to be done
-        as a separate job, since regridding can be really expensive for large domains.
+        """
+        An auxillary function to bathymetry. It's used to fix up the metadata and
+        remove inland lakes after regridding the bathymetry. The functions are split
+        to allow for the regridding to be done as a separate job, since regridding can
+        be really expensive for large domains.
 
-        If you've already regridded the bathymetry and just want to fix up the metadata, you can call
-        this function directly to read in the existing 'topog_raw.nc' file that should be in the input directory.
+        If you've already regridded the bathymetry and just want to fix up the metadata,
+        you can call this function directly to read in the existing ``topog_raw.nc`` file
+        that should be in the input directory.
         """
 
         ## reopen topography to modify
@@ -1482,16 +1513,17 @@ class experiment:
         using_payu=False,
         overwrite=False,
     ):
-        """Set up the run directory for MOM6. Either copies a pre-made set of files, or modifies
+        """
+        Setup the run directory for MOM6. Either copies a pre-made set of files, or modifies
         existing files in the `rundir` directory for the experiment.
 
         Args:
             regional_mom6_path (str): Path to the regional MOM6 source code that was cloned
-            from GitHub
+                from GitHub 
             surface_forcing (Optional[str, bool]): Specify the choice of surface forcing, one
                 of: ``'jra'`` or ``'era5'``. If left blank, constant fluxes will be used.
-            using_payu (Optional[bool]): Whether or not to use payu to run the model.
-                If ``True``, a payu configuration file will be created.
+            using_payu (Optional[bool]): Whether or not to use payu (https://github.com/payu-org/payu)
+                to run the model. If ``True``, a payu configuration file will be created.
             overwrite (Optional[bool]): Whether or not to overwrite existing files in the
                 run directory. If ``False``, will only modify the ``MOM_layout`` file and will not
                 re-copy across the rest of the default files.
@@ -1634,14 +1666,14 @@ class experiment:
         nml.write(self.mom_run_dir / "input.nml", force=True)
 
     def setup_era5(self, era5_path):
-        """Set up the ERA5 forcing files for your experiment. This assumes that you'd downloaded all of the ERA5
-        data in your daterange. You'll need the following fields: "2t", "10u", "10v", "sp", "2d", "msdwswrf",
-        "msdwlwrf", "lsrr", "crr"
-
+        """
+        Setup the ERA5 forcing files for your experiment. This assumes that you
+        downloaded all of the ERA5 data in your daterange. You'll need the following
+        fields: "2t", "10u", "10v", "sp", "2d", "msdwswrf", "msdwlwrf", "lsrr", "crr".
 
         Args:
-            era5_path (str): Path to the ERA5 forcing files. Specifically, the single-level reanalysis product.
-                For example, ``SOMEPATH/era5/single-levels/reanalysis``
+            era5_path (str): Path to the ERA5 forcing files. Specifically, the single-level
+                reanalysis product. For example, ``'SOMEPATH/era5/single-levels/reanalysis'``
 
         """
 
@@ -1737,7 +1769,8 @@ class experiment:
 
 
 class segment:
-    """Class to turn raw boundary segment data into MOM6 boundary
+    """
+    Class to turn raw boundary segment data into MOM6 boundary
     segments.
 
     Boundary segments should only contain the necessary data for that
@@ -1804,6 +1837,7 @@ class segment:
         self.eta = varnames["eta"]
         self.time = varnames["time"]
         self.startdate = startdate
+
         ## Store tracer names
         self.tracers = varnames["tracers"]
         self.time_units = time_units
@@ -1820,7 +1854,9 @@ class segment:
 
     def rectangular_brushcut(self):
         """
-        This method assumes that the boundary is a simple N,S,E or Western boundary. Cuts out and interpolates tracers.
+        Cuts out and interpolates tracers. This method assumes that the boundary
+        is a simple Northern, Southern, Eastern, or Western boundary. Cuts out
+        and interpolates tracers.
         """
         if self.orientation == "north":
             self.hgrid_seg = self.hgrid.isel(nyp=[-1])
