@@ -684,7 +684,9 @@ class experiment:
             if nx % 2 != 1:
                 nx += 1
 
-            x = np.linspace(self.xextent[0], self.xextent[1], nx) # longitudes in degrees
+            x = np.linspace(
+                self.xextent[0], self.xextent[1], nx
+            )  # longitudes in degrees
 
             # Latitudes evenly spaced by dx * cos(mean_lat)
             res_y = self.res * np.cos(np.deg2rad(np.mean(self.yextent)))
@@ -1126,9 +1128,9 @@ class experiment:
                     }  #! Hardcoded 1 degree buffer around bathymetry selection. TODO: automatically select buffer
                 )
 
-            bathy.attrs["missing_value"] = (
-                -1e20
-            )  # This is what FRE tools expects I guess?
+            bathy.attrs[
+                "missing_value"
+            ] = -1e20  # This is what FRE tools expects I guess?
             bathyout = xr.Dataset({"elevation": bathy})
             bathy.close()
 
@@ -1137,9 +1139,9 @@ class experiment:
             bathyout.lat.attrs["units"] = "degrees_north"
             bathyout.elevation.attrs["_FillValue"] = -1e20
             bathyout.elevation.attrs["units"] = "m"
-            bathyout.elevation.attrs["standard_name"] = (
-                "height_above_reference_ellipsoid"
-            )
+            bathyout.elevation.attrs[
+                "standard_name"
+            ] = "height_above_reference_ellipsoid"
             bathyout.elevation.attrs["long_name"] = "Elevation relative to sea level"
             bathyout.elevation.attrs["coordinates"] = "lon lat"
             bathyout.to_netcdf(
