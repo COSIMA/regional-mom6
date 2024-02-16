@@ -378,7 +378,7 @@ def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
     """Generate a hyperbolic tangent thickness profile for the
     experiment. The thickness profile transitions from the top-layer
     thickness to the bottom-layer thickness via a hyperbolic tangent
-    proportional to ``tanh(2π * (k / npoints - 1 / 2))``, where
+    proportional to ``tanh(2π * (k / (npoints - 1) - 1 / 2))``, where
     ``k = 0, 1, ..., npoints-1`` the layer index. The function iterates
     to find the mininum depth value (`minimum_depth`) that gives the target
     depth (`target_depth`) within some ``tolerance``.
@@ -400,14 +400,14 @@ def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
     >>> ratio = 4
     >>> dz = regional_mom6.dz_hyperbolictan(npoints, ratio, target_depth)
     >>> dz
-    array([20.73146305, 20.8319216 , 21.0193486 , 21.36761868, 22.00991155,
-           23.17818323, 25.25066629, 28.76909747, 34.31893056, 42.13278575,
-           51.54044931, 60.94811288, 68.76196807, 74.31180116, 77.83023233,
-           79.90271539, 81.07098708, 81.71327995, 82.06155002, 82.24897703])
+    array([20.11183771, 20.2163053 , 20.41767549, 20.80399084, 21.53839043,
+           22.91063751, 25.3939941 , 29.6384327 , 36.23006369, 45.08430684,
+           54.91569316, 63.76993631, 70.3615673 , 74.6060059 , 77.08936249,
+           78.46160957, 79.19600916, 79.58232451, 79.7836947 , 79.88816229])
     >>> dz.sum()
     1000.0
     >>> dz[-1] / dz[0]
-    3.967350343285277
+    3.9721960481753706
 
     If we want the top layer to be thicker then we need to prescribe ``ratio < 1``.
 
@@ -416,14 +416,14 @@ def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
     >>> ratio = 1/4
     >>> dz = regional_mom6.dz_hyperbolictan(npoints, ratio, target_depth)
     >>> dz
-    array([77.56974515, 77.47511737, 77.29856893, 76.97051299, 76.36549981,
-           75.26503645, 73.31284355, 69.99862764, 64.77091557, 57.41058879,
-           48.54896078, 39.68733277, 32.32700599, 27.09929392, 23.78507801,
-           21.83288512, 20.73242176, 20.12740857, 19.79935264, 19.62280419])
+    array([79.88816229, 79.7836947 , 79.58232451, 79.19600916, 78.46160957,
+           77.08936249, 74.6060059 , 70.3615673 , 63.76993631, 54.91569316,
+           45.08430684, 36.23006369, 29.6384327 , 25.3939941 , 22.91063751,
+           21.53839043, 20.80399084, 20.41767549, 20.2163053 , 20.11183771])
     >>> dz.sum()
     1000.0000000000001
     >>> dz[-1] / dz[0]
-    0.2529698163693782
+    0.25174991059652
 
     Now how about the same grid as above but with equally spaced.
 
@@ -452,7 +452,7 @@ def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
     assert ratio > 0
 
     profile = min_dz + 0.5 * (ratio * min_dz - min_dz) * (
-        1 + np.tanh(2 * np.pi * (np.arange(npoints) - npoints // 2) / npoints)
+        1 + np.tanh(2 * np.pi * (np.arange(npoints) / (npoints - 1) - 1 / 2))
     )
 
     total_depth = np.sum(profile)
