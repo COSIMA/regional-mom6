@@ -483,22 +483,23 @@ def quadrilateral_areas(lat, lon, R=1):
 def rectangular_hgrid(λ, φ):
     """
     Construct a horizontal grid with all the metadata given an array of
-    latitudes (`φ`) and longitudes (`λ`) on the supergrid. Here 'supergrid' refers to both cell edges and centres,
-    meaning that there are twice as many points along each axis than for any individual field.
+    latitudes (`φ`) and longitudes (`λ`) on the supergrid. Here, 'supergrid'
+    refers to both cell edges and centres, meaning that there are twice as many
+    points along each axis than for any individual field.
 
     Caution:
-        Here, it is assumed the grid's boundaries are lines of constant latitude and
-        longitude. Rotated grids need to be handled in a different manner.
-        Also we assume here that the longitude array values are uniformly spaced.
+        It is assumed the grid's boundaries are lines of constant latitude and
+        longitude. Rotated grids need to be handled differently.
+        It is also assumed here that the longitude array values are uniformly spaced.
 
-        Make sure both `λ` and `φ` are monotonically increasing.
+        Ensure both `λ` and `φ` are monotonically increasing.
 
     Args:
-        λ (numpy.array): All longitude points on the supergrid. Must be uniformly spaced!
-        φ (numpy.array): All latitude points on the supergrid.
+        `λ` (numpy.array): All longitude points on the supergrid. Must be uniformly spaced!
+        `φ` (numpy.array): All latitude points on the supergrid.
 
     Returns:
-        xarray.Dataset: An FMS-compatible *hgrid*, including the required attributes.
+        xarray.Dataset: An FMS-compatible `hgrid` that includes all required attributes.
     """
 
     R = 6371e3  # mean radius of the Earth
@@ -569,32 +570,33 @@ def rectangular_hgrid(λ, φ):
 class experiment:
     """The main class for setting up a regional experiment.
 
-    Knows everything about your regional experiment! Methods in this
-    class will generate the various input files you need to generate a
-    MOM6 experiment forced with open boundary conditions (OBCs). It's
-    written agnostic to your choice of boundary forcing, topography
-    and surface forcing - you need to tell it what your variables are
-    all called via mapping dictionaries from MOM6 variable/coordinate
+    Everything about your regional experiment.
+    
+    Methods in this class will generate the various input files needed
+    to generate a MOM6 experiment forced with open boundary conditions
+    (OBCs). The code is agnostic to your choice of boundary forcing,
+    topography and surface forcing - you need to tell it what your variables
+    are all called via mapping dictionaries from MOM6 variable/coordinate
     name to the name in the input dataset.
 
-    This can be used to generate the grids for a new experiment, or to read in an
-    existing one by setting `read-existing` to `True`. In either case,
-    the xextent, yextent, daterange and resolution must be specified.
+    This can be used to generate the grids for a new experiment, or to read in
+    an existing one by setting `read-existing` to `True`. In either case,
+    the `xextent`, `yextent`, `daterange`, and `resolution` must be specified.
 
     Args:
-        xextent (Tuple[float]): Extent of the region in longitude.
-        yextent (Tuple[float]): Extent of the region in latitude.
-        daterange (Tuple[str]): Start and end dates of the boundary forcing window.
-        resolution (float): Lateral resolution of the domain, in degrees.
-        vlayers (int): Number of vertical layers.
-        dz_ratio (float): Ratio of largest to smallest layer thickness, used in :func:`~dz`.
-        depth (float): Depth of the domain.
-        mom_run_dir (str): Path of the MOM6 control directory.
-        mom_input_dir (str): Path of the MOM6 input directory, to receive the forcing files.
-        toolpath (str): Path of FREtools binaries.
-        gridtype (Optional[str]): Type of horizontal grid to generate, only ``even_spacing`` is currently supported.
-        ryf (Optional[bool]): Whether the experiment runs 'repeat year forcing'. Otherwise assumes inter-annual forcing.
-        read_existing_grids (Optional[Bool]): Instead of generating them again, reads the grids and ocean mask from the inputdir and rundir. Useful for modifying or troubleshooting experiments.
+        `xextent` (Tuple[float]): Extent of the region in longitude in degrees.
+        `yextent` (Tuple[float]): Extent of the region in latitude in degrees.
+        `daterange` (Tuple[str]): Start and end dates of the boundary forcing window.
+        `resolution` (float): Lateral resolution of the domain, in degrees.
+        `vlayers` (int): Number of vertical layers.
+        `dz_ratio` (float): Ratio of largest to smallest layer thickness, used in :func:`~dz`.
+        `depth` (float): Depth of the domain.
+        `mom_run_dir` (str): Path of the MOM6 control directory.
+        `mom_input_dir` (str): Path of the MOM6 input directory, to receive the forcing files.
+        `toolpath` (str): Path of FREtools binaries.
+        `gridtype` (Optional[str]): Type of horizontal grid to generate, only ``even_spacing`` is currently supported.
+        `ryf` (Optional[bool]): Whether the experiment runs 'repeat year forcing'. Otherwise assumes inter-annual forcing.
+        `read_existing_grids` (Optional[Bool]): Instead of generating them again, reads the grids and ocean mask from the inputdir and rundir. Useful for modifying or troubleshooting experiments.
     """
 
     def __init__(
@@ -625,7 +627,7 @@ class experiment:
             dt.datetime.strptime(daterange[0], "%Y-%m-%d %H:%M:%S"),
             dt.datetime.strptime(daterange[1], "%Y-%m-%d %H:%M:%S"),
         ]
-        self.res = resolution
+        self.resolution = resolution
         self.vlayers = vlayers
         self.dz_ratio = dz_ratio
         self.depth = depth
@@ -680,22 +682,23 @@ class experiment:
 
         if gridtype == "even_spacing":
             # longitudes are evenly spaced based on resolution and bounds
-            nx = int((self.xextent[1] - self.xextent[0]) / (self.res / 2))
+            nx = int((self.xextent[1] - self.xextent[0]) / (self.resolution / 2))
             if nx % 2 != 1:
                 nx += 1
 
             x = np.linspace(
                 self.xextent[0], self.xextent[1], nx
-            )  # longitudes in degrees
+            ) # longitudes in degrees
 
-            # Latitudes evenly spaced by dx * cos(mean_lat)
-            res_y = self.res * np.cos(np.deg2rad(np.mean(self.yextent)))
+            # Latitudes evenly spaced by dx * cos(central_latitude)
+            central_latitude = np.mean(self.yextent) # degrees
+            latitudinal_resolution = self.resolution * np.cos(np.deg2rad(central_latitude))
 
-            ny = int((self.yextent[1] - self.yextent[0]) / (res_y / 2)) + 1
+            ny = int((self.yextent[1] - self.yextent[0]) / (latitudinal_resolution / 2)) + 1
             if ny % 2 != 1:
                 ny += 1
 
-            y = np.linspace(self.yextent[0], self.yextent[1], ny)
+            y = np.linspace(self.yextent[0], self.yextent[1], ny) # latitudes in degrees
 
             hgrid = rectangular_hgrid(x, y)
             hgrid.to_netcdf(self.mom_input_dir / "hgrid.nc")
