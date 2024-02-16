@@ -502,7 +502,7 @@ def rectangular_hgrid(λ, φ):
         xarray.Dataset: An FMS-compatible `hgrid` that includes all required attributes.
     """
 
-    R = 6371e3  # mean radius of the Earth
+    R = 6371e3  # mean radius of the Earth; https://en.wikipedia.org/wiki/Earth_radius
 
     # compute longitude spacing and ensure that longitudes are uniformly spaced
     dλ = λ[1] - λ[0]
