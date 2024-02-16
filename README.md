@@ -39,6 +39,15 @@ Source](https://earthsystemmodeling.org/esmpy_doc/release/latest/html/install.ht
 instructions to do this in a Conda-free way. With `esmpy` available, you can then install
 `regional_mom6` via pip. If your environment doesn't yet have pip, then `conda install pip` should do the job.
 
+It's recommended that you get started with the example notebooks. In this case you'll want to clone this entire repo so that you have access to the `demo` folder. This contains some template configuration files for MOM6, and example notebooks that walk you through the package. 
+
+```bash 
+git clone git@github.com:COSIMA/regional-mom6.git
+pip install .
+```
+
+Alternatively you can install the python package only. Some functionality will be missing in this case, namely the `setup_run_directory` function as it relies on copying across and modifying the template files. 
+
 ```bash
 pip install git+https://github.com/COSIMA/regional-mom6.git
 ```
