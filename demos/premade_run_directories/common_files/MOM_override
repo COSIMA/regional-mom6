@@ -1,9 +1,4 @@
 ## Add override files here
 
-!#override OBC_SEGMENT_001 = "J=0,I=0:N,ORLANSKI" !
-!#override OBC_SEGMENT_002 = "J=0,I=0:N,ORLANSKI" !
-!#override OBC_SEGMENT_003 = "J=0,I=0:N,ORLANSKI" !
-!#override OBC_SEGMENT_004 = "J=0,I=0:N,ORLANSKI" !
-
 #override DT=50
 #override DT_THERM=300

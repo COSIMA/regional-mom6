@@ -7,3 +7,4 @@ regional_mom6.egg-info
 .pytest_cache
 .env
 env
+docker

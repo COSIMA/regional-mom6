@@ -202,6 +202,71 @@ def test_ocean_forcing(
 
     # Generate boundary forcing
 
+    initial_cond.to_netcdf(tmp_path / "ic_unprocessed")
+    initial_cond.close()
+    varnames = {
+        "x": "lona",
+        "y": "lata",
+        "time": "time",
+        "eta": "eta",
+        "zl": "deepness",
+        "u": "u",
+        "v": "v",
+        "tracers": {"temp": "temp", "salt": "salt"},
+    }
+
+    expt.initial_condition(
+        tmp_path / "ic_unprocessed",
+        varnames,
+        gridtype="A",
+    )
+
+
+@pytest.mark.parametrize(
+    (
+        "xextent",
+        "yextent",
+        "daterange",
+        "resolution",
+        "vlayers",
+        "dz_ratio",
+        "depth",
+        "mom_run_dir",
+        "mom_input_dir",
+        "toolpath",
+        "gridtype",
+    ),
+    [
+        (
+            [-5, 5],
+            [0, 10],
+            ["2003-01-01 00:00:00", "2003-01-01 00:00:00"],
+            0.1,
+            5,
+            1,
+            1000,
+            "rundir/",
+            "inputdir/",
+            "toolpath",
+            "even_spacing",
+        ),
+    ],
+)
+def test_rectangular_boundary(
+    xextent,
+    yextent,
+    daterange,
+    resolution,
+    vlayers,
+    dz_ratio,
+    depth,
+    mom_run_dir,
+    mom_input_dir,
+    toolpath,
+    gridtype,
+    tmp_path,
+):
+
     eastern_boundary = xr.Dataset(
         {
             "temp": xr.DataArray(
@@ -255,24 +320,32 @@ def test_ocean_forcing(
             ),
         }
     )
-
     eastern_boundary.to_netcdf(tmp_path / "east_unprocessed")
-    initial_cond.to_netcdf(tmp_path / "ic_unprocessed")
     eastern_boundary.close()
-    initial_cond.close()
 
-    expt.ocean_forcing(
-        str(tmp_path),
-        {
-            "x": "lona",
-            "y": "lata",
-            "time": "time",
-            "eta": "eta",
-            "zl": "deepness",
-            "u": "u",
-            "v": "v",
-            "tracers": {"temp": "temp", "salt": "salt"},
-        },
-        boundaries=["east"],
-        gridtype="A",
+    expt = experiment(
+        xextent,
+        yextent,
+        daterange,
+        resolution,
+        vlayers,
+        dz_ratio,
+        depth,
+        mom_run_dir,
+        mom_input_dir,
+        toolpath,
+        gridtype,
     )
+
+    varnames = {
+        "x": "lona",
+        "y": "lata",
+        "time": "time",
+        "eta": "eta",
+        "zl": "deepness",
+        "u": "u",
+        "v": "v",
+        "tracers": {"temp": "temp", "salt": "salt"},
+    }
+
+    expt.rectangular_boundary(tmp_path / "east_unprocessed", varnames, "east", 1)
