@@ -384,28 +384,23 @@ def motu_requests(
     return script
 
 
-def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1.0):
-    """
-    Generate a hyperbolic tangent thickness profile for the experiment.
-    The algorithm iterates to find the minimum depth value that gives the
-    target depth (``target_depth``) within some ``tolerance``.
-
-    Thickness of layers monotonically increases (or decreases if ``ratio`` is
-    negative) from the surface to the bottom of the domain. For example, ``ratio = 10``
-    implies that the top-most layer is 10 times thicker than the bottom-most layer.
-    Set ``ratio=1`` for a uniformly-spaced grid. Negative ``ratio`` implies that the
-    bottom-most layer is thicker than the top one.
+def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
+    """Generate a hyperbolic tangent thickness profile for the
+    experiment.  Iterates to find the mininum depth value which gives
+    the target depth within some tolerance.
+    Thickness of layers monatonically increases (or decreases if ratio is negative) from the surface to the bottom of the domain.
+    Set the ratio to 1 for a uniformly spaced grid.
 
     Args:
-        npoints (int): Number of vertical points.
+        npoints (int): Number of vertical points
         ratio (float): Ratio of largest to smallest layer
             thickness. Negative values mean higher resolution is at
             bottom rather than top of the column.
         target_depth (float): Maximum depth of a layer
-        min_dz (float): Starting layer thickness for iteration.
+        min_dz (float): Starting layer thickness for iteration
         tolerance (float): Tolerance to the target depth.
 
-    Return:
+    Returns:
         numpy.array: An array containing the thickness profile.
     """
 
