@@ -399,14 +399,14 @@ def dz_hyperbolictan(nlayers, ratio, target_depth, top_layer_thickness=1):
 
     Args:
         nlayers (int): Number of vertical layers.
-        ratio (float): Ratio of largest to smallest layer.
-            thickness. Negative values mean higher resolution is at
-            bottom rather than top of the column.
+        ratio (float): Ratio of bottom-most to the top-most layer
+            thickness.
         target_depth (float): The total depth of grid, that is the sum
             of all thicknesses.
-        top_layer_thickness (Optional[float]): The starting value for the
-            top-layer thickness. Default: 1.
-        tolerance (Optional[float]): Tolerance to the target depth. Default: 1.
+        top_layer_thickness (Optional[float]): The desired value for the
+            top-layer thickness. Default: 1. Note that the final
+            value of the top-layer thickness ends up scaled by factor
+            ``(1 + tanh(π)) / 2 + ratio * (1 - tanh(π)) / 2 ≈ 0.9981 + 0.0019 * ratio``.
 
     Returns:
         numpy.array: An array containing the thickness profile.
