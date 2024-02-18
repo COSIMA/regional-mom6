@@ -399,8 +399,10 @@ def dz_hyperbolictan(nlayers, ratio, target_depth, top_layer_thickness=1):
 
     Args:
         nlayers (int): Number of vertical layers.
-        ratio (float): Ratio of bottom-most to the top-most layer
-            thickness.
+        ratio (float): The desired value of the ratio of bottom-most to
+            the top-most layer thickness. Note that the final value of
+            the ratio of bottom-most to the top-most layer thickness
+            ends up ``(1 + ratio * exp(2π)) / (ratio + exp(2π))``.
         target_depth (float): The total depth of grid, that is the sum
             of all thicknesses.
         top_layer_thickness (Optional[float]): The desired value for the
