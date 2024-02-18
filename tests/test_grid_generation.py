@@ -22,12 +22,25 @@ import xarray as xr
         (50, 2, 3000),
     ],
 )
-def test_dz_hyperbolictan(nlayers, ratio, target_depth):
+def test_dz_hyperbolictan_symmetric(nlayers, ratio, target_depth):
     assert np.isclose(
         dz_hyperbolictan(nlayers, ratio, target_depth),
         np.flip(dz_hyperbolictan(nlayers, 1 / ratio, target_depth)),
     ).all()
 
+@pytest.mark.parametrize(
+    ("nlayers", "target_depth"),
+    [
+        (23, 2000),
+        (50, 1000),
+        (50, 3000),
+    ],
+)
+def test_dz_hyperbolictan_equispaced(nlayers, target_depth):
+    assert np.isclose(
+        dz_hyperbolictan(nlayers, 1, target_depth),
+        np.ones(nlayers) * target_depth / nlayers,
+    ).all()
 
 @pytest.mark.parametrize(
     ("lat", "lon", "true_xyz"),
