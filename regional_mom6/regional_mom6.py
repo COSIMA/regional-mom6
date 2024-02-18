@@ -375,7 +375,7 @@ def motu_requests(
 
 
 def dz_hyperbolictan(
-    nlayers, ratio, target_depth, minimum_thickness=0.0001, tolerance=1
+    nlayers, ratio, target_depth, top_layer_thickness=1, tolerance=1
 ):
     """
     Generate a hyperbolic tangent thickness profile. The thickness profile
@@ -399,8 +399,8 @@ def dz_hyperbolictan(
             bottom rather than top of the column.
         target_depth (float): The total depth of grid, that is the sum
             of all thicknesses.
-        minimum_thickness (Optional[float]): The starting minimum layer thickness
-            for the iteration. Default: 0.0001.
+        top_layer_thickness (Optional[float]): The starting value for the
+            top-layer thickness. Default: 1.
         tolerance (Optional[float]): Tolerance to the target depth. Default: 1.
 
     Returns:
@@ -457,10 +457,10 @@ def dz_hyperbolictan(
 
     assert ratio > 0
 
-    maximum_thickness = ratio * minimum_thickness
+    bottom_layer_thickness = ratio * top_layer_thickness
 
-    layer_thicknesses = minimum_thickness + 0.5 * (
-        maximum_thickness - minimum_thickness
+    layer_thicknesses = top_layer_thickness + 0.5 * (
+        bottom_layer_thickness - top_layer_thickness
     ) * (1 + np.tanh(2 * np.pi * (np.arange(nlayers) / (nlayers - 1) - 1 / 2)))
 
     total_depth = np.sum(layer_thicknesses)
@@ -468,9 +468,9 @@ def dz_hyperbolictan(
     if np.abs(total_depth - target_depth) < tolerance:
         return layer_thicknesses
 
-    err_ratio = target_depth / total_depth
+    new_top_layer_thickness = target_depth / total_depth
 
-    return dz_hyperbolictan(nlayers, ratio, target_depth, minimum_thickness * err_ratio)
+    return dz_hyperbolictan(nlayers, ratio, target_depth, new_top_layer_thickness)
 
 
 def angle_between(v1, v2, v3):
