@@ -1,10 +1,5 @@
 import regional_mom6
 
-nlayers, target_depth = 10, 0.4
-ratio = 4
-dz = regional_mom6.hyperbolictan_thickness_profile(nlayers, ratio, target_depth)
-dz
-
 import numpy as np
 import pytest
 from regional_mom6 import hyperbolictan_thickness_profile
