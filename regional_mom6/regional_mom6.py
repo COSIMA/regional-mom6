@@ -453,7 +453,7 @@ def hyperbolictan_thickness_profile(
     >>> dz[-1] / dz[0]
     0.25174991059652
 
-    Now how about the same grid as above but with equally spaced.
+    Now how about the same grid as above but with equally spaced layers.
 
     >>> import regional_mom6
     >>> nlayers, target_depth = 20, 1000
