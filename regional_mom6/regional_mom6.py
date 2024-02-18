@@ -385,9 +385,9 @@ def dz_hyperbolictan(nlayers, ratio, target_depth, min_dz=0.0001, tolerance=1):
     depth (``target_depth``), i.e., the sum of all vertical layer thicknesses,
     within some ``tolerance``, that is when ``|total_depth - target_depth| < tolerance``.
 
-    Parameter ``ratio`` prescribes (approximately) tha ratio of the thickness of the
-    bottom-most layer to the top-most layer. We say "approximately" because
-    the final value ends up a bit different from what we prescribe in ``ratio``
+    Parameter ``ratio`` (≥0) prescribes (approximately) the ratio of the thickness
+    of the bottom-most layer to the top-most layer. We say "approximately" because
+    the final value ends up a bit different from the prescribed value of ``ratio``
     depending on the ``tolerance``.
 
     Args:
