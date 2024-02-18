@@ -374,16 +374,16 @@ def motu_requests(
     return script
 
 
-def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
-    """Generate a hyperbolic tangent thickness profile for the
-    experiment. The thickness profile transitions from the top-layer
-    thickness to the bottom-layer thickness via a hyperbolic tangent
-    proportional to ``tanh(2π * (k / (npoints - 1) - 1 / 2))``, where
-    ``k = 0, 1, ..., npoints-1`` is the layer index.
+def dz_hyperbolictan(nlayers, ratio, target_depth, min_dz=0.0001, tolerance=1):
+    """
+    Generate a hyperbolic tangent thickness profile. The thickness profile
+    transitions from the top-layer thickness to the bottom-layer thickness
+    via a hyperbolic tangent proportional to ``tanh(2π * (k / (nlayers - 1) - 1 / 2))``,
+    where ``k = 0, 1, ..., nlayers-1`` is the layer index.
 
-    The function iterates to find the mininum depth value (``minimum_depth``)
-    that gives the target depth (``target_depth``) within some ``tolerance``,
-    that is when ``|total_depth - target_depth| < tolerance``.
+    The function iterates to find the mininum depth value that gives the target
+    depth (``target_depth``), i.e., the sum of all vertical layer thicknesses,
+    within some ``tolerance``, that is when ``|total_depth - target_depth| < tolerance``.
 
     Parameter ``ratio`` prescribes (approximately) tha ratio of the thickness of the
     bottom-most layer to the top-most layer. We say "approximately" because
@@ -391,7 +391,7 @@ def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
     depending on the ``tolerance``.
 
     Args:
-        npoints (int): Number of vertical points.
+        nlayers (int): Number of vertical layers.
         ratio (float): Ratio of largest to smallest layer.
             thickness. Negative values mean higher resolution is at
             bottom rather than top of the column.
@@ -413,9 +413,9 @@ def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
     one.
 
     >>> import regional_mom6
-    >>> npoints, target_depth = 20, 1000
+    >>> nlayers, target_depth = 20, 1000
     >>> ratio = 4
-    >>> dz = regional_mom6.dz_hyperbolictan(npoints, ratio, target_depth)
+    >>> dz = regional_mom6.dz_hyperbolictan(nlayers, ratio, target_depth)
     >>> dz
     array([20.11183771, 20.2163053 , 20.41767549, 20.80399084, 21.53839043,
            22.91063751, 25.3939941 , 29.6384327 , 36.23006369, 45.08430684,
@@ -429,9 +429,9 @@ def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
     If we want the top layer to be thicker then we need to prescribe ``ratio < 1``.
 
     >>> import regional_mom6
-    >>> npoints, target_depth = 20, 1000
+    >>> nlayers, target_depth = 20, 1000
     >>> ratio = 1/4
-    >>> dz = regional_mom6.dz_hyperbolictan(npoints, ratio, target_depth)
+    >>> dz = regional_mom6.dz_hyperbolictan(nlayers, ratio, target_depth)
     >>> dz
     array([79.88816229, 79.7836947 , 79.58232451, 79.19600916, 78.46160957,
            77.08936249, 74.6060059 , 70.3615673 , 63.76993631, 54.91569316,
@@ -445,9 +445,9 @@ def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
     Now how about the same grid as above but with equally spaced.
 
     >>> import regional_mom6
-    >>> npoints, target_depth = 20, 1000
+    >>> nlayers, target_depth = 20, 1000
     >>> ratio = 1
-    >>> dz = regional_mom6.dz_hyperbolictan(npoints, ratio, target_depth)
+    >>> dz = regional_mom6.dz_hyperbolictan(nlayers, ratio, target_depth)
     >>> dz
     array([50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50.,
            50., 50., 50., 50., 50., 50., 50.])
@@ -457,7 +457,7 @@ def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
     assert ratio > 0
 
     profile = min_dz + 0.5 * (ratio * min_dz - min_dz) * (
-        1 + np.tanh(2 * np.pi * (np.arange(npoints) / (npoints - 1) - 1 / 2))
+        1 + np.tanh(2 * np.pi * (np.arange(nlayers) / (nlayers - 1) - 1 / 2))
     )
 
     total_depth = np.sum(profile)
@@ -467,7 +467,7 @@ def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
 
     err_ratio = target_depth / total_depth
 
-    return dz_hyperbolictan(npoints, ratio, target_depth, min_dz * err_ratio)
+    return dz_hyperbolictan(nlayers, ratio, target_depth, min_dz * err_ratio)
 
 
 def angle_between(v1, v2, v3):
