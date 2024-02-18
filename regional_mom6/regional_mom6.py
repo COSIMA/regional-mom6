@@ -409,7 +409,7 @@ def dz_hyperbolictan(nlayers, ratio, target_depth, top_layer_thickness=1):
             ``(1 + tanh(π)) / 2 + ratio * (1 - tanh(π)) / 2 ≈ 0.9981 + 0.0019 * ratio``.
 
     Returns:
-        numpy.array: An array containing the thickness profile.
+        numpy.array: An array containing the layer thicknesses.
 
 
     Examples
@@ -471,7 +471,7 @@ def dz_hyperbolictan(nlayers, ratio, target_depth, top_layer_thickness=1):
 
     total_depth = np.sum(layer_thicknesses)
 
-    assert total_depth == (bottom_layer_thickness + top_layer_thickness) * nlayers / 2
+    assert total_depth == nlayers * (bottom_layer_thickness + top_layer_thickness) / 2
 
     if total_depth == target_depth:
         return layer_thicknesses
