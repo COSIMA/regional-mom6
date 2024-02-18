@@ -374,23 +374,28 @@ def motu_requests(
     return script
 
 
-def dz_hyperbolictan(
-    nlayers, ratio, target_depth, top_layer_thickness=1, tolerance=1
-):
+def dz_hyperbolictan(nlayers, ratio, target_depth, top_layer_thickness=1):
     """
     Generate a hyperbolic tangent thickness profile. The thickness profile
     transitions from the top-layer thickness to the bottom-layer thickness
     via a hyperbolic tangent proportional to ``tanh(2π * (k / (nlayers - 1) - 1 / 2))``,
-    where ``k = 0, 1, ..., nlayers-1`` is the layer index.
-
-    The function iterates to find the minimum depth value that gives the target
-    depth (``target_depth``), i.e., the sum of all vertical layer thicknesses,
-    within some ``tolerance``, that is when ``|total_depth - target_depth| < tolerance``.
+    where ``k = 0, 1, ..., nlayers-1`` is the layer index. The function
+    ensures that the sum of all vertical layer thicknesses is equal to the
+    `target_depth`.
 
     Parameter ``ratio`` (≥0) prescribes (approximately) the ratio of the thickness
-    of the bottom-most layer to the top-most layer. We say "approximately" because
-    the final value ends up a bit different from the prescribed value of ``ratio``
-    depending on the ``tolerance``.
+    of the bottom-most layer to the top-most layer. The ``top_layer_thickness``
+    parameter prescribes (again approximately) the desired thickness of the top layer.
+    Both the final top-layer thickness and the final ratio of the bottom-most layer
+    to the top-most layer end up a bit different from the prescribed values.
+    In particular, from the hyperbolic tangent profile used here, the top-layer thickness
+    ends up being scaled by ``(1 + tanh(π)) / 2 + ratio * (1 - tanh(π)) / 2`` compared
+    to the prescribed ``top_layer_thickness`` value. The bottom-layer thickness ends up
+    ``(1 - tanh(π)) / 2 + ratio * (1 +  tanh(π)) / 2`` times the `top_layer_thickness``.
+    These slight departures of the ``ratio`` and ``top_layer_thickness`` values
+    come about because ``tanh(π)`` is approximately 0.9963 and not 1. Thus the actual
+    ratio of the bottom over the top layer thickness ends up being
+    ``(1 + ratio * exp(2π)) / (ratio + exp(2π))``.
 
     Args:
         nlayers (int): Number of vertical layers.
@@ -466,12 +471,15 @@ def dz_hyperbolictan(
 
     total_depth = np.sum(layer_thicknesses)
 
-    if np.abs(total_depth - target_depth) < tolerance:
+    assert total_depth == (bottom_layer_thickness + top_layer_thickness) * nlayers / 2
+
+    if total_depth == target_depth:
         return layer_thicknesses
+    else:
+        # rescaled top_layer_thickness so that total_depth == target_depth
+        new_top_layer_thickness = top_layer_thickness * target_depth / total_depth
+        return dz_hyperbolictan(nlayers, ratio, target_depth, new_top_layer_thickness)
 
-    new_top_layer_thickness = top_layer_thickness * target_depth / total_depth
-
-    return dz_hyperbolictan(nlayers, ratio, target_depth, new_top_layer_thickness)
 
 def angle_between(v1, v2, v3):
     """Returns the angle v2-v1-v3 (in radians). That is the angle between vectors v1-v2 and v1-v3."""
