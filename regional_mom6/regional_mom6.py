@@ -479,7 +479,7 @@ def hyperbolictan_thickness_profile(
 
     assert np.isclose(total_depth, nlayers * (bottom_layer_thickness + top_layer_thickness) / 2, atol=atol)
 
-    if total_depth == target_depth:
+    if np.isclose(total_depth, target_depth, atol=atol):
         return layer_thicknesses
     else:
         # rescaled top_layer_thickness so that total_depth == target_depth
