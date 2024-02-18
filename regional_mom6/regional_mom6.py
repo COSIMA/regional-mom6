@@ -772,7 +772,7 @@ class experiment:
         Args:
             ic_path (Union[str, Path]): Path to initial condition file.
             varnames (Dict[str, str]): Mapping from MOM6 variable/coordinate names to the names
-                in the input dataset. For example, ``{'xq':'lonq','yh':'lath','salt':'so' ...}``.
+                in the input dataset. For example, ``{'xq': 'lonq', 'yh': 'lath', 'salt': 'so', ...}``.
             gridtype (Optional[str]): Arakawa grid staggering of input; either ``'A'``, ``'B'``,
                 or ``'C'``.
             vcoord_type (Optional[str]): The type of vertical coordinate used in yhe forcing files.
