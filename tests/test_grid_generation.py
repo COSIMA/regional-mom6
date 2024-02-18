@@ -1,6 +1,8 @@
+import regional_mom6; nlayers, target_depth = 10, 0.4; ratio = 4; dz = regional_mom6.hyperbolictan_thickness_profile(nlayers, ratio, target_depth); dz
+
 import numpy as np
 import pytest
-from regional_mom6 import dz_hyperbolictan
+from regional_mom6 import hyperbolictan_thickness_profile
 from regional_mom6 import angle_between
 from regional_mom6 import latlon_to_cartesian
 from regional_mom6 import quadrilateral_area
@@ -22,10 +24,10 @@ import xarray as xr
         (50, 2, 3000),
     ],
 )
-def test_dz_hyperbolictan_symmetric(nlayers, ratio, target_depth):
+def test_hyperbolictan_thickness_profile_symmetric(nlayers, ratio, target_depth):
     assert np.isclose(
-        dz_hyperbolictan(nlayers, ratio, target_depth),
-        np.flip(dz_hyperbolictan(nlayers, 1 / ratio, target_depth)),
+        hyperbolictan_thickness_profile(nlayers, ratio, target_depth),
+        np.flip(hyperbolictan_thickness_profile(nlayers, 1 / ratio, target_depth)),
     ).all()
 
 @pytest.mark.parametrize(
@@ -36,9 +38,9 @@ def test_dz_hyperbolictan_symmetric(nlayers, ratio, target_depth):
         (50, 3000),
     ],
 )
-def test_dz_hyperbolictan_equispaced(nlayers, target_depth):
+def test_hyperbolictan_thickness_profile_equispaced(nlayers, target_depth):
     assert np.isclose(
-        dz_hyperbolictan(nlayers, 1, target_depth),
+        hyperbolictan_thickness_profile(nlayers, 1, target_depth),
         np.ones(nlayers) * target_depth / nlayers,
     ).all()
 

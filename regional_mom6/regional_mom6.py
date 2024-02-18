@@ -23,7 +23,7 @@ warnings.filterwarnings("ignore")
 __all__ = [
     "nicer_slicer",
     "motu_requests",
-    "dz_hyperbolictan",
+    "hyperbolictan_thickness_profile",
     "angle_between",
     "latlon_to_cartesian",
     "quadrilateral_area",
@@ -374,7 +374,7 @@ def motu_requests(
     return script
 
 
-def dz_hyperbolictan(nlayers, ratio, target_depth, top_layer_thickness=1):
+def hyperbolictan_thickness_profile(nlayers, ratio, target_depth, top_layer_thickness=1):
     """
     Generate a hyperbolic tangent thickness profile. The thickness profile
     transitions from the top-layer thickness to the bottom-layer thickness
@@ -424,7 +424,7 @@ def dz_hyperbolictan(nlayers, ratio, target_depth, top_layer_thickness=1):
     >>> import regional_mom6
     >>> nlayers, target_depth = 20, 1000
     >>> ratio = 4
-    >>> dz = regional_mom6.dz_hyperbolictan(nlayers, ratio, target_depth)
+    >>> dz = regional_mom6.hyperbolictan_thickness_profile(nlayers, ratio, target_depth)
     >>> dz
     array([20.11183771, 20.2163053 , 20.41767549, 20.80399084, 21.53839043,
            22.91063751, 25.3939941 , 29.6384327 , 36.23006369, 45.08430684,
@@ -440,7 +440,7 @@ def dz_hyperbolictan(nlayers, ratio, target_depth, top_layer_thickness=1):
     >>> import regional_mom6
     >>> nlayers, target_depth = 20, 1000
     >>> ratio = 1/4
-    >>> dz = regional_mom6.dz_hyperbolictan(nlayers, ratio, target_depth)
+    >>> dz = regional_mom6.hyperbolictan_thickness_profile(nlayers, ratio, target_depth)
     >>> dz
     array([79.88816229, 79.7836947 , 79.58232451, 79.19600916, 78.46160957,
            77.08936249, 74.6060059 , 70.3615673 , 63.76993631, 54.91569316,
@@ -456,7 +456,7 @@ def dz_hyperbolictan(nlayers, ratio, target_depth, top_layer_thickness=1):
     >>> import regional_mom6
     >>> nlayers, target_depth = 20, 1000
     >>> ratio = 1
-    >>> dz = regional_mom6.dz_hyperbolictan(nlayers, ratio, target_depth)
+    >>> dz = regional_mom6.hyperbolictan_thickness_profile(nlayers, ratio, target_depth)
     >>> dz
     array([50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50.,
            50., 50., 50., 50., 50., 50., 50.])
@@ -480,7 +480,7 @@ def dz_hyperbolictan(nlayers, ratio, target_depth, top_layer_thickness=1):
     else:
         # rescaled top_layer_thickness so that total_depth == target_depth
         new_top_layer_thickness = top_layer_thickness * target_depth / total_depth
-        return dz_hyperbolictan(nlayers, ratio, target_depth, new_top_layer_thickness)
+        return hyperbolictan_thickness_profile(nlayers, ratio, target_depth, new_top_layer_thickness)
 
 
 def angle_between(v1, v2, v3):
@@ -774,7 +774,7 @@ class experiment:
         The vertical profile uses a hyperbolic tangent function to smoothly transition the thickness of cells. If the `dz_ratio` is set to one, the vertical grid will be uniform, for `dz_ratio` = 10, the top layer will be 10 times thicker than the bottom layer, and for negative numbers the bottom layer will be thicker than the top
         """
 
-        thickness = dz_hyperbolictan(self.vlayers + 1, self.dz_ratio, self.depth)
+        thickness = hyperbolictan_thickness_profile(self.vlayers + 1, self.dz_ratio, self.depth)
         vcoord = xr.Dataset(
             {
                 "zi": ("zi", np.cumsum(thickness)),
