@@ -669,7 +669,8 @@ class experiment:
         daterange (Tuple[str]): Start and end dates of the boundary forcing window.
         resolution (float): Lateral resolution of the domain, in degrees.
         vlayers (int): Number of vertical layers.
-        dz_ratio (float): Ratio of largest to smallest layer thickness, used in :func:`~dz`.
+        dz_ratio (float): Ratio of largest to smallest layer thickness; used as input in
+            :func:`~hyperbolictan_thickness_profile`.
         depth (float): Depth of the domain.
         mom_run_dir (str): Path of the MOM6 control directory.
         mom_input_dir (str): Path of the MOM6 input directory, to receive the forcing files.
