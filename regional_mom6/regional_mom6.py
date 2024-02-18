@@ -390,14 +390,14 @@ def hyperbolictan_thickness_profile(
     parameter prescribes (again approximately) the desired thickness of the top layer.
     Both the final top-layer thickness and the final ratio of the bottom-most layer
     to the top-most layer end up a bit different from the prescribed values.
-    In particular, from the hyperbolic tangent profile used here, the top-layer thickness
+    In particular, due the hyperbolic tangent profile used here, the top-layer thickness
     ends up being scaled by ``(1 + tanh(π)) / 2 + ratio * (1 - tanh(π)) / 2`` compared
-    to the prescribed ``top_layer_thickness`` value. The bottom-layer thickness ends up
-    ``(1 - tanh(π)) / 2 + ratio * (1 +  tanh(π)) / 2`` times the ``top_layer_thickness``.
-    These slight departures of the ``ratio`` and ``top_layer_thickness`` values
-    come about because ``tanh(π)`` is approximately 0.9963 and not 1. Thus the actual
-    ratio of the bottom over the top layer thickness ends up being
-    ``(1 + ratio * exp(2π)) / (ratio + exp(2π))``.
+    to the prescribed ``top_layer_thickness`` value while the bottom-layer thickness
+    is ``(1 - tanh(π)) / 2 + ratio * (1 +  tanh(π)) / 2`` times the ``top_layer_thickness``.
+    From the above-mentioned values we get that the actual ratio of the bottom
+    over the top layer thickness ends up being ``(1 + ratio * exp(2π)) / (ratio + exp(2π))``.
+    These slight departures come about because ``tanh(π)`` is approximately 0.9963 and
+    not 1.
 
     Args:
         nlayers (int): Number of vertical layers.
