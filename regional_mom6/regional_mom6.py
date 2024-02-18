@@ -391,7 +391,7 @@ def dz_hyperbolictan(nlayers, ratio, target_depth, top_layer_thickness=1):
     In particular, from the hyperbolic tangent profile used here, the top-layer thickness
     ends up being scaled by ``(1 + tanh(π)) / 2 + ratio * (1 - tanh(π)) / 2`` compared
     to the prescribed ``top_layer_thickness`` value. The bottom-layer thickness ends up
-    ``(1 - tanh(π)) / 2 + ratio * (1 +  tanh(π)) / 2`` times the `top_layer_thickness``.
+    ``(1 - tanh(π)) / 2 + ratio * (1 +  tanh(π)) / 2`` times the ``top_layer_thickness``.
     These slight departures of the ``ratio`` and ``top_layer_thickness`` values
     come about because ``tanh(π)`` is approximately 0.9963 and not 1. Thus the actual
     ratio of the bottom over the top layer thickness ends up being
