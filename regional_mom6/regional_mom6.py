@@ -1183,9 +1183,9 @@ class experiment:
                     }  #! Hardcoded 1 degree buffer around bathymetry selection. TODO: automatically select buffer
                 )
 
-            bathy.attrs[
-                "missing_value"
-            ] = -1e20  # This is what FRE tools expects I guess?
+            bathy.attrs["missing_value"] = (
+                -1e20
+            )  # This is what FRE tools expects I guess?
             bathyout = xr.Dataset({"elevation": bathy})
             bathy.close()
 
@@ -1194,9 +1194,9 @@ class experiment:
             bathyout.lat.attrs["units"] = "degrees_north"
             bathyout.elevation.attrs["_FillValue"] = -1e20
             bathyout.elevation.attrs["units"] = "m"
-            bathyout.elevation.attrs[
-                "standard_name"
-            ] = "height_above_reference_ellipsoid"
+            bathyout.elevation.attrs["standard_name"] = (
+                "height_above_reference_ellipsoid"
+            )
             bathyout.elevation.attrs["long_name"] = "Elevation relative to sea level"
             bathyout.elevation.attrs["coordinates"] = "lon lat"
             bathyout.to_netcdf(
