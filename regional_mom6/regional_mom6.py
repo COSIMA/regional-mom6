@@ -374,7 +374,9 @@ def motu_requests(
     return script
 
 
-def dz_hyperbolictan(nlayers, ratio, target_depth, minimum_thickness=0.0001, tolerance=1):
+def dz_hyperbolictan(
+    nlayers, ratio, target_depth, minimum_thickness=0.0001, tolerance=1
+):
     """
     Generate a hyperbolic tangent thickness profile. The thickness profile
     transitions from the top-layer thickness to the bottom-layer thickness
@@ -457,9 +459,9 @@ def dz_hyperbolictan(nlayers, ratio, target_depth, minimum_thickness=0.0001, tol
 
     maximum_thickness = ratio * minimum_thickness
 
-    layer_thicknesses = minimum_thickness + 0.5 * (maximum_thickness - minimum_thickness) * (
-        1 + np.tanh(2 * np.pi * (np.arange(nlayers) / (nlayers - 1) - 1 / 2))
-    )
+    layer_thicknesses = minimum_thickness + 0.5 * (
+        maximum_thickness - minimum_thickness
+    ) * (1 + np.tanh(2 * np.pi * (np.arange(nlayers) / (nlayers - 1) - 1 / 2)))
 
     total_depth = np.sum(layer_thicknesses)
 
@@ -1181,9 +1183,9 @@ class experiment:
                     }  #! Hardcoded 1 degree buffer around bathymetry selection. TODO: automatically select buffer
                 )
 
-            bathy.attrs["missing_value"] = (
-                -1e20
-            )  # This is what FRE tools expects I guess?
+            bathy.attrs[
+                "missing_value"
+            ] = -1e20  # This is what FRE tools expects I guess?
             bathyout = xr.Dataset({"elevation": bathy})
             bathy.close()
 
@@ -1192,9 +1194,9 @@ class experiment:
             bathyout.lat.attrs["units"] = "degrees_north"
             bathyout.elevation.attrs["_FillValue"] = -1e20
             bathyout.elevation.attrs["units"] = "m"
-            bathyout.elevation.attrs["standard_name"] = (
-                "height_above_reference_ellipsoid"
-            )
+            bathyout.elevation.attrs[
+                "standard_name"
+            ] = "height_above_reference_ellipsoid"
             bathyout.elevation.attrs["long_name"] = "Elevation relative to sea level"
             bathyout.elevation.attrs["coordinates"] = "lon lat"
             bathyout.to_netcdf(

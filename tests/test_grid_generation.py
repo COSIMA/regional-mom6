@@ -12,19 +12,22 @@ import xarray as xr
 @pytest.mark.parametrize(
     ("nlayers", "ratio", "target_depth"),
     [
-        (20, 1/3, 1000),
+        (20, 1 / 3, 1000),
         (20, 2, 1000),
         (20, 10, 1000),
         (20, 2, 3000),
-        (50, 1/3, 1000),
+        (50, 1 / 3, 1000),
         (50, 2, 1000),
         (50, 10, 1000),
         (50, 2, 3000),
     ],
 )
 def test_dz_hyperbolictan(nlayers, ratio, target_depth):
-    assert np.isclose(dz_hyperbolictan(nlayers, ratio, target_depth),
-                      np.flip(dz_hyperbolictan(nlayers, 1 / ratio, target_depth))).all()
+    assert np.isclose(
+        dz_hyperbolictan(nlayers, ratio, target_depth),
+        np.flip(dz_hyperbolictan(nlayers, 1 / ratio, target_depth)),
+    ).all()
+
 
 @pytest.mark.parametrize(
     ("lat", "lon", "true_xyz"),
