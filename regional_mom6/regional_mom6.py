@@ -383,7 +383,7 @@ def dz_hyperbolictan(
     via a hyperbolic tangent proportional to ``tanh(2π * (k / (nlayers - 1) - 1 / 2))``,
     where ``k = 0, 1, ..., nlayers-1`` is the layer index.
 
-    The function iterates to find the mininum depth value that gives the target
+    The function iterates to find the minimum depth value that gives the target
     depth (``target_depth``), i.e., the sum of all vertical layer thicknesses,
     within some ``tolerance``, that is when ``|total_depth - target_depth| < tolerance``.
 
@@ -455,6 +455,7 @@ def dz_hyperbolictan(
            50., 50., 50., 50., 50., 50., 50.])
     """
 
+    assert nlayers > 1
     assert ratio > 0
 
     bottom_layer_thickness = ratio * top_layer_thickness
@@ -468,10 +469,9 @@ def dz_hyperbolictan(
     if np.abs(total_depth - target_depth) < tolerance:
         return layer_thicknesses
 
-    new_top_layer_thickness = target_depth / total_depth
+    new_top_layer_thickness = top_layer_thickness * target_depth / total_depth
 
     return dz_hyperbolictan(nlayers, ratio, target_depth, new_top_layer_thickness)
-
 
 def angle_between(v1, v2, v3):
     """Returns the angle v2-v1-v3 (in radians). That is the angle between vectors v1-v2 and v1-v3."""
