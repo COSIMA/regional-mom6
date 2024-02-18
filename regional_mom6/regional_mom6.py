@@ -374,7 +374,9 @@ def motu_requests(
     return script
 
 
-def hyperbolictan_thickness_profile(nlayers, ratio, target_depth, top_layer_thickness=1):
+def hyperbolictan_thickness_profile(
+    nlayers, ratio, target_depth, top_layer_thickness=1
+):
     """
     Generate a hyperbolic tangent thickness profile. The thickness profile
     transitions from the top-layer thickness to the bottom-layer thickness
@@ -480,7 +482,9 @@ def hyperbolictan_thickness_profile(nlayers, ratio, target_depth, top_layer_thic
     else:
         # rescaled top_layer_thickness so that total_depth == target_depth
         new_top_layer_thickness = top_layer_thickness * target_depth / total_depth
-        return hyperbolictan_thickness_profile(nlayers, ratio, target_depth, new_top_layer_thickness)
+        return hyperbolictan_thickness_profile(
+            nlayers, ratio, target_depth, new_top_layer_thickness
+        )
 
 
 def angle_between(v1, v2, v3):
@@ -774,7 +778,9 @@ class experiment:
         The vertical profile uses a hyperbolic tangent function to smoothly transition the thickness of cells. If the `dz_ratio` is set to one, the vertical grid will be uniform, for `dz_ratio` = 10, the top layer will be 10 times thicker than the bottom layer, and for negative numbers the bottom layer will be thicker than the top
         """
 
-        thickness = hyperbolictan_thickness_profile(self.vlayers + 1, self.dz_ratio, self.depth)
+        thickness = hyperbolictan_thickness_profile(
+            self.vlayers + 1, self.dz_ratio, self.depth
+        )
         vcoord = xr.Dataset(
             {
                 "zi": ("zi", np.cumsum(thickness)),
