@@ -618,15 +618,16 @@ class experiment:
         daterange (Tuple[str]): Start and end dates of the boundary forcing window.
         resolution (float): Lateral resolution of the domain, in degrees.
         vlayers (int): Number of vertical layers.
-        dz_ratio (float): Ratio of largest to smallest layer thickness, used in :func:`~dz`.
+        dz_ratio (float): Ratio of largest to smallest layer thickness, used
+            as input in :func:`~dz_hyperbolictan`.
         depth (float): Depth of the domain.
         mom_run_dir (str): Path of the MOM6 control directory.
         mom_input_dir (str): Path of the MOM6 input directory, to receive the forcing files.
-        toolpath (str): Path of FREtools binaries.
+        toolpath (str): Path of GFDL's FRE tools (https://github.com/NOAA-GFDL/FRE-NCtools) binaries.
         gridtype (Optional[str]): Type of horizontal grid to generate.
             Currently, only ``even_spacing`` is supported.
         ryf (Optional[bool]): When ``True`` the experiment runs with 'repeat-year forcing'.
-            When ``False`` (default) inter-annual forcing is used.
+            When ``False`` (default) then inter-annual forcing is used.
         read_existing_grids (Optional[Bool]): When ``True``, instead of generating the grids,
             reads the grids and ocean mask from the 'inputdir' and 'rundir'. Useful for modifying or
             troubleshooting experiments. Default: ``False``.
@@ -1803,12 +1804,14 @@ class segment:
         gridtype (Optional[str]): Arakawa staggering of input grid, one of ``'A'``, ``'B'``,
             or ``'C'``
         time_units (str): The units used by the raw forcing files, e.g., ``hours``,
-            ``days`` (default)
-        tidal_constituants (Optional[int]) The last tidal constituants to include from
-            the list: m2, s2, n2, k2, k1, o1, p1, q1, mm, mf, m4. For example, specifying
-            ``1`` only includes m2; specifying ``2`` selects m2 and s2, etc.
+            ``days`` (default).
+        tidal_constituents (Optional[int]): An integer determining the number of tidal
+            constituents to be included from the list: :math:`M_2`, :math:`S_2`, :math:`N_2`,
+            :math:`K_2`, :math:`K_1`, :math:`O_2`, :math:`P_1`, :math:`Q_1`, :math:`Mm`,
+            :math:`Mf`, and :math:`M_4`. For example, specifying ``1`` only includes :math:`M_2`;
+            specifying ``2`` includes :math:`M_2` and :math:`S_2`, etc. Default: ``None``.
         ryf (Optional[bool]): When ``True`` the experiment runs with 'repeat-year forcing'.
-            When ``False`` (default) inter-annual forcing is used.
+            When ``False`` (default) then inter-annual forcing is used.
     """
 
     def __init__(
@@ -1822,7 +1825,7 @@ class segment:
         startdate,
         gridtype="A",
         time_units="days",
-        tidal_constituants=None,
+        tidal_constituents=None,
         ryf=False,
     ):
         ## Store coordinate names
@@ -1855,12 +1858,12 @@ class segment:
         self.grid = gridtype
         self.hgrid = hgrid
         self.seg_name = seg_name
-        self.tidal_constituants = tidal_constituants
+        self.tidal_constituents = tidal_constituents
         self.ryf = ryf
 
     def rectangular_brushcut(self):
         """
-        Cuts out and interpolates tracers. This method assumes that the boundary
+        Cut out and interpolates tracers. This method assumes that the boundary
         is a simple Northern, Southern, Eastern, or Western boundary. Cuts out
         and interpolates tracers.
         """
