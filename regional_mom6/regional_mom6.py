@@ -532,7 +532,10 @@ def rectangular_hgrid(λ, φ):
 
     # compute longitude spacing and ensure that longitudes are uniformly spaced
     dλ = λ[1] - λ[0]
-    assert np.max(np.diff(λ) - dλ) < 1e-14
+
+    assert (
+        np.max(np.diff(λ) - dλ) < 1e-14
+    ), "provided longitudes array must be uniformly spaced"
 
     # dx = R * cos(φ) * np.deg2rad(dλ) / 2
     # Note: division by 2 because we're on the supergrid
