@@ -383,7 +383,7 @@ def hyperbolictan_thickness_profile(nlayers, ratio, target_depth):
     is the layer index with ``k = 0`` corresponding to the top-most layer. The
     sum of all vertical layer thicknesses is equal to the ``target_depth``.
 
-    Parameter ``ratio`` (≥0) prescribes (approximately) the ratio of the thickness
+    Positive parameter ``ratio`` prescribes (approximately) the ratio of the thickness
     of the bottom-most layer to the top-most layer. The final ratio of the bottom-most
     layer to the top-most layer ends up a bit different from the prescribed values.
     In particular, the actual ratio of the bottom over the top-most layer thickness ends
@@ -399,7 +399,8 @@ def hyperbolictan_thickness_profile(nlayers, ratio, target_depth):
         ratio (float): The desired value of the ratio of bottom-most to
             the top-most layer thickness. Note that the final value of
             the ratio of bottom-most to the top-most layer thickness
-            ends up ``(1 + ratio * exp(2π)) / (ratio + exp(2π))``.
+            ends up ``(1 + ratio * exp(2π)) / (ratio + exp(2π))``. Must
+            be positive.
         target_depth (float): The total depth of grid, i.e., the sum
             of all thicknesses.
 
