@@ -456,8 +456,11 @@ def hyperbolictan_thickness_profile(nlayers, ratio, target_depth):
            50., 50., 50., 50., 50., 50., 50.])
     """
 
-    assert nlayers > 1
-    assert ratio > 0
+    assert (
+        type(nlayers) == int and nlayers > 1
+    ), "nlayers must be an integer greater than 1"
+
+    assert ratio > 0, "ratio must be > 0"
 
     # with the hyberbolic tangent profile used, total depth is
     # nlayers * (top_layer_thickness + bottom_layer_thickness) / 2
