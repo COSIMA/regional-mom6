@@ -1454,7 +1454,7 @@ class experiment:
         self.topog = topog
 
     def FRE_tools(self, layout=None):
-        """ A wrapper for FRE Tools ``check_mask``, ``make_solo_mosaic``, and ``make_quick_mosaic``.
+        """A wrapper for FRE Tools ``check_mask``, ``make_solo_mosaic``, and ``make_quick_mosaic``.
         User provides processor ``layout`` tuple of processing units.
         """
 
