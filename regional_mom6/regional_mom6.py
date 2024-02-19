@@ -174,8 +174,8 @@ def nicer_slicer(data, xextent, xcoords, buffer=2):
 
     - Shift the dataset so that its midpoint matches the midpoint of
       ``xextent`` (up to a muptiple of 360). Now, the modified ``oldx``
-      doesn't increase monotonically W to E since the 'seam' has
-      moved.
+      does not increase monotonically from West to East  since the
+      'seam' has moved.
 
     - Fix ``oldx`` to make it monotonically increasing again. This uses
       the information we have about the way the dataset was
@@ -193,13 +193,12 @@ def nicer_slicer(data, xextent, xcoords, buffer=2):
     Args:
         data (xarray.Dataset): The global data you want to slice in longitude.
         xextent (Tuple[float, float]): The target longitudes (in degrees) we would
-            like to slice to. This must be either start negative and progress to
-            positive, or be entirely positive.
+            like to slice to. Must be in increasing order.
         xcoords (Union[str, List[str]): The name or list of names of the longitude
-            dimension in `data`.
+            dimension in ``data``.
 
     Return:
-        xarray.Dataset: The ``data`` after the slicing has been performed.
+        xarray.Dataset: The sliced ``data``.
     """
 
     if isinstance(xcoords, str):
@@ -1116,12 +1115,12 @@ class experiment:
         chunks="auto",
     ):
         """
-        Cut out and interpolates chosen bathymetry, then fills
-        inland lakes.
+        Cut out and interpolate the chosen bathymetry, then fill inland lakes.
 
-        It's also possible to optionally fill narrow channels, although this
-        is less of an issue for models on a C-grid, like MOM6. Output is
-        saved to the input folder for your experiment.
+        It's also possible to optionally fill narrow channels (see ``fill_channels``
+        below), although this is less of an issue for models on a C-grid, like MOM6.
+
+        Output is saved to the input folder for your experiment.
 
         Args:
             bathy_path (str): Path to chosen bathymetry file netCDF file.
@@ -1135,7 +1134,7 @@ class experiment:
                 layers means that anything shallower than the 3rd
                 layer (as specified by the ``vcoord``) is deemed land.
             positivedown (Optional[bool]): If ``True``, it assumes that
-                bathymetry vertical coordinate is positive down.  Default: ``False``.
+                bathymetry vertical coordinate is positive down. Default: ``False``.
             chunks (Optional Dict[str, str]): Chunking scheme for bathymetry, e.g.,
                 ``{"lon": 100, "lat": 100}``. Use lat/lon rather than the coordinate
                 names in the input file.
@@ -1278,7 +1277,7 @@ class experiment:
         self, fill_channels=False, minimum_layers=3, positivedown=False
     ):
         """
-        An auxillary function to bathymetry. It's used to fix up the metadata and
+        An auxillary function for bathymetry. It's used to fix up the metadata and
         remove inland lakes after regridding the bathymetry. The functions are split
         to allow for the regridding to be done as a separate job, since regridding can
         be really expensive for large domains.
@@ -1455,7 +1454,8 @@ class experiment:
         self.topog = topog
 
     def FRE_tools(self, layout=None):
-        """A wrapper for FRE Tools ``check_mask``, make_solo_mosaic and make_quick_mosaic.
+        """
+        A wrapper for FRE Tools ``check_mask``, ``make_solo_mosaic``, and ``make_quick_mosaic``.
         User provides processor ``layout`` tuple of processing units.
         """
 
@@ -1520,19 +1520,20 @@ class experiment:
         overwrite=False,
     ):
         """
-        Setup the run directory for MOM6. Either copies a pre-made set of files, or modifies
+        Setup the run directory for MOM6. Either copy a pre-made set of files, or modify
         existing files in the 'rundir' directory for the experiment.
 
         Args:
             regional_mom6_path (str): Path to the regional MOM6 source code that was cloned
-                from GitHub.
+                from GitHub. Default is current path, ``'.'``.
             surface_forcing (Optional[str, bool]): Specify the choice of surface forcing, one
                 of: ``'jra'`` or ``'era5'``. If left blank, constant fluxes will be used.
             using_payu (Optional[bool]): Whether or not to use payu (https://github.com/payu-org/payu)
                 to run the model. If ``True``, a payu configuration file will be created.
+                Default: ``False``.
             overwrite (Optional[bool]): Whether or not to overwrite existing files in the
-                run directory. If ``False``, will only modify the ``MOM_layout`` file and will not
-                re-copy across the rest of the default files.
+                run directory. If ``False`` (default), will only modify the ``MOM_layout`` file and will
+                not re-copy across the rest of the default files.
         """
 
         # Define the locations of the directories we'll copy files across from. Base contains most of the files, and overwrite replaces files in the base directory.
