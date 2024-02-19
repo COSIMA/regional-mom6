@@ -44,9 +44,9 @@ jobs:
       - name: Test with pytest
         run: |
           if [[ "${{ matrix.python-version }}" == "3.10" ]]; then
-            python -m pytest --cov=regional_mom6 --cov-report=xml tests/
+            python -m pytest --doctest-modules --cov=regional_mom6 --cov-report=xml tests/ regional_mom6/
           else
-            python -m pytest tests/
+            python -m pytest --doctest-modules tests/ regional_mom6/
           fi
       - name: Test the example notebook
         run: |
