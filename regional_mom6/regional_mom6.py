@@ -472,7 +472,7 @@ def latlon_to_cartesian(lat, lon, R=1):
         R (float): The radius of the sphere; default: 1.
 
     Return:
-        (tuple): Tuple with the Cartesian coordinates ``x, y, z``
+        tuple: Tuple with the Cartesian coordinates ``x, y, z``
     """
 
     x = R * np.cos(np.deg2rad(lat)) * np.cos(np.deg2rad(lon))
@@ -494,9 +494,9 @@ def quadrilateral_areas(lat, lon, R=1):
         R (float): The radius of the sphere; default: 1.
 
     Return:
-        (numpy.array): Array with the areas of the quadrilaterals defined by the ``lat``-``lon`` grid
-        provided. If the provided ``lat``, ``lon`` arrays are of dimension m x n then return
-        areas array is of dimension (m-1) x (n-1).
+        numpy.array: Array with the areas of the quadrilaterals defined by the ``lat``-``lon`` grid
+        provided. If the provided ``lat``, ``lon`` arrays are of dimension *m* :math:`\\times` *n*
+        then return areas array is of dimension (*m-1*) :math:`\\times` (*n-1*).
     """
 
     coords = np.dstack(latlon_to_cartesian(lat, lon, R))
@@ -1797,7 +1797,7 @@ class segment:
             be stored.
         varnames (Dict[str, str]): Mapping between the variable/dimension names and
             standard naming convension of this pipeline, e.g., ``{"xq": "longitude,
-            "yh": "latitude", "salt": "salinity...}``. Key "tracers" points to nested
+            "yh": "latitude", "salt": "salinity", ...}``. Key "tracers" points to nested
             dictionary of tracers to include in boundary.
         seg_name (str): Name of the segment, e.g., ``'segment_001'``.
         orientation (str): Cardinal direction (lowercase) of the boundary segment.
@@ -1807,10 +1807,10 @@ class segment:
         time_units (str): The units used by the raw forcing files, e.g., ``hours``,
             ``days`` (default).
         tidal_constituents (Optional[int]): An integer determining the number of tidal
-            constituents to be included from the list: :math:`M_2`, :math:`S_2`, :math:`N_2`,
-            :math:`K_2`, :math:`K_1`, :math:`O_2`, :math:`P_1`, :math:`Q_1`, :math:`Mm`,
-            :math:`Mf`, and :math:`M_4`. For example, specifying ``1`` only includes :math:`M_2`;
-            specifying ``2`` includes :math:`M_2` and :math:`S_2`, etc. Default: ``None``.
+            constituents to be included from the list: *M*\ :sub:`2`, *S*\ :sub:`2`, *N*\ :sub:`2`,
+            *K*\ :sub:`2`, *K*\ :sub:`1`, *O*\ :sub:`2`, *P*\ :sub:`1`, *Q*\ :sub:`1`, *Mm*,
+            *Mf*, and *M*\ :sub:`4`. For example, specifying ``1`` only includes *M*\ :sub:`2`;
+            specifying ``2`` includes *M*\ :sub:`2` and *S*\ :sub:`2`, etc. Default: ``None``.
         ryf (Optional[bool]): When ``True`` the experiment runs with 'repeat-year forcing'.
             When ``False`` (default) then inter-annual forcing is used.
     """
