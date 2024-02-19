@@ -389,7 +389,10 @@ def hyperbolictan_thickness_profile(nlayers, ratio, target_depth):
     In particular, the actual ratio of the bottom over the top-most layer thickness ends
     up ``(1 + ratio * exp(2π)) / (ratio + exp(2π))``. The slight departure comes about
     because values of the hyperbolic tangent profile at the end points is ``tanh(π)``,
-    which is approximately 0.9963 and not 1.
+    which is approximately 0.9963 and not 1. Note that because ``exp(2π)`` is much greater
+    than 1, the value of the actual ratio does not vary that much, e.g., for ``ratio``
+    values between 1/100 to 100 the "actual ratio" departs from the prescribed ``ratio``
+    only by a factor between 1.19 and 0.84.
 
     Args:
         nlayers (int): Number of vertical layers.
