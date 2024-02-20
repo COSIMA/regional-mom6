@@ -468,8 +468,8 @@ def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
     #
     # nlayers * (top_layer_thickness + bottom_layer_thickness) / 2
     #
-    # So we choose the top_layer_thickness appropriately to ensure that
-    # the sum of all layer thicknesses is the prescribed total_depth
+    # By choosing the top_layer_thickness appropriately we ensure that
+    # the sum of all layer thicknesses is the prescribed total_depth.
     top_layer_thickness = 2 * total_depth / (nlayers * (1 + ratio))
 
     bottom_layer_thickness = ratio * top_layer_thickness
