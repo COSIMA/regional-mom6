@@ -443,9 +443,9 @@ def quadrilateral_area(v1, v2, v3, v4):
 
     Example:
 
-        Calculate the area that corresponds to half the Northen hemisphere
-        of a sphere of radius *R*. The answer should be 1/4 of the sphere's
-        total area, that is π *R*:sup:`2`.
+        Calculate the area that corresponds to half the Northern hemisphere
+        of a sphere of radius *R*. This should be 1/4 of the sphere's total area,
+        that is π *R*:sup:`2`.
 
         >>> from regional_mom6 import quadrilateral_area, latlon_to_cartesian
         >>> R = 434.3
