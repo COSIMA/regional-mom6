@@ -444,7 +444,7 @@ def quadrilateral_area(v1, v2, v3, v4):
 
         Calculate the area that corresponds to half the Northen hemisphere
         of a sphere of radius *R*. The answer should be 1/4 of the sphere's
-        total area, that is π *R*\ :sup:`2`.
+        total area, that is π *R*:sup:`2`.
 
         >>> from regional_mom6 import quadrilateral_area, latlon_to_cartesian
         >>> import numpy as np
@@ -548,7 +548,7 @@ def quadrilateral_areas(lat, lon, R=1):
                 4.56284230e+13, 4.56284230e+13],
                [1.96911611e+13, 1.96911611e+13, 1.96911611e+13, 1.96911611e+13,
                 1.96911611e+13, 1.96911611e+13]])
-        >>> areas.sum() == 4 * np.pi * R**2
+        >>> np.isclose(areas.sum(), 4 * np.pi * R**2)
         True
     """
 
