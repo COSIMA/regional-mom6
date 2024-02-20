@@ -72,7 +72,7 @@ def ap2ep(uc, vc):
         uc: complex tidal u velocity
         vc: complex tidal v velocity
 
-    Return:
+    Returns:
         (semi-major axis, eccentricity, inclination [radians], phase [radians])
     """
     wp = (uc + 1j * vc) / 2.0
@@ -133,7 +133,7 @@ def ep2ap(SEMA, ECC, INC, PHA):
         INC: inclination [radians]
         PHA: phase [radians]
 
-    Return:
+    Returns:
         (u amplitude, u phase [radians], v amplitude, v phase [radians])
     """
     Wp = (1 + ECC) / 2.0 * SEMA
@@ -194,7 +194,7 @@ def nicer_slicer(data, xextent, xcoords, buffer=2):
         xcoords (Union[str, List[str]): The name or list of names of the longitude
             dimension in ``data``.
 
-    Return:
+    Returns:
         xarray.Dataset: The sliced ``data``.
     """
 
@@ -296,7 +296,7 @@ def motu_requests(
         productid (Optional[str]): Data product within the chosen service. Default:
             ``"cmems_mod_glo_phy_my_0.083_P1D-m"``.
 
-    Return:
+    Returns:
         str: A bash script which will call ``motuclient`` to invoke the data requests.
     """
 
@@ -468,7 +468,7 @@ def latlon_to_cartesian(lat, lon, R=1):
         lon (float): Longitude (in degrees).
         R (float): The radius of the sphere; default: 1.
 
-    Return:
+    Returns:
         tuple: Tuple with the Cartesian coordinates ``x, y, z``
     """
 
@@ -490,7 +490,7 @@ def quadrilateral_areas(lat, lon, R=1):
         lon (numpy.array): Array of longitude points (in degrees).
         R (float): The radius of the sphere; default: 1.
 
-    Return:
+    Returns:
         numpy.array: Array with the areas of the quadrilaterals defined by the ``lat``-``lon`` grid
         provided. If the provided ``lat``, ``lon`` arrays are of dimension *m* :math:`\\times` *n*
         then return areas array is of dimension (*m-1*) :math:`\\times` (*n-1*).
@@ -521,7 +521,7 @@ def rectangular_hgrid(λ, φ):
         λ (numpy.array): All longitude points on the supergrid. Must be uniformly spaced!
         φ (numpy.array): All latitude points on the supergrid.
 
-    Return:
+    Returns:
         xarray.Dataset: An FMS-compatible ``hgrid`` that includes all required attributes.
     """
 
