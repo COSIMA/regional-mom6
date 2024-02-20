@@ -496,7 +496,7 @@ def latlon_to_cartesian(lat, lon, R=1):
         >>> R = 6371e3
         >>> latlon_to_cartesian(0, 0, R)
         (6371000.0, 0.0, 0.0)
-"""
+    """
 
     x = R * np.cos(np.deg2rad(lat)) * np.cos(np.deg2rad(lon))
     y = R * np.cos(np.deg2rad(lat)) * np.sin(np.deg2rad(lon))
