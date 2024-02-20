@@ -11,7 +11,7 @@ import xarray as xr
 
 
 @pytest.mark.parametrize(
-    ("nlayers", "ratio", "target_depth"),
+    ("nlayers", "ratio", "total_depth"),
     [
         (20, 1 / 3, 1000),
         (20, 2, 1000),
@@ -23,25 +23,25 @@ import xarray as xr
         (50, 2, 3000),
     ],
 )
-def test_hyperbolictan_thickness_profile_symmetric(nlayers, ratio, target_depth):
+def test_hyperbolictan_thickness_profile_symmetric(nlayers, ratio, total_depth):
     assert np.isclose(
-        hyperbolictan_thickness_profile(nlayers, ratio, target_depth),
-        np.flip(hyperbolictan_thickness_profile(nlayers, 1 / ratio, target_depth)),
+        hyperbolictan_thickness_profile(nlayers, ratio, total_depth),
+        np.flip(hyperbolictan_thickness_profile(nlayers, 1 / ratio, total_depth)),
     ).all()
 
 
 @pytest.mark.parametrize(
-    ("nlayers", "target_depth"),
+    ("nlayers", "total_depth"),
     [
         (23, 2000),
         (50, 1000),
         (50, 3000),
     ],
 )
-def test_hyperbolictan_thickness_profile_equispaced(nlayers, target_depth):
+def test_hyperbolictan_thickness_profile_equispaced(nlayers, total_depth):
     assert np.isclose(
-        hyperbolictan_thickness_profile(nlayers, 1, target_depth),
-        np.ones(nlayers) * target_depth / nlayers,
+        hyperbolictan_thickness_profile(nlayers, 1, total_depth),
+        np.ones(nlayers) * total_depth / nlayers,
     ).all()
 
 
