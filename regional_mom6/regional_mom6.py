@@ -414,12 +414,12 @@ def angle_between(v1, v2, v3):
     Example:
 
         >>> from regional_mom6 import angle_between
-        >>> import numpy as np
-        >>> v1 = np.array([0, 0, 1])
-        >>> v2 = np.array([1, 0, 0])
-        >>> v3 = np.array([0, 1, 0])
+        >>> v1 = (0, 0, 1)
+        >>> v2 = (1, 0, 0)
+        >>> v3 = (0, 1, 0)
         >>> angle_between(v1, v2, v3)
         1.5707963267948966
+        >>> import numpy as np
         >>> np.rad2deg(angle_between(v1, v2, v3))
         90.0
     """
@@ -427,9 +427,10 @@ def angle_between(v1, v2, v3):
     v1xv2 = np.cross(v1, v2)
     v1xv3 = np.cross(v1, v3)
 
-    cosangle = vecdot(v1xv2, v1xv3) / np.sqrt(
-        vecdot(v1xv2, v1xv2) * vecdot(v1xv3, v1xv3)
-    )
+    norm_v1xv2 = np.sqrt(vecdot(v1xv2, v1xv2))
+    norm_v1xv3 = np.sqrt(vecdot(v1xv3, v1xv3))
+
+    cosangle = vecdot(v1xv2, v1xv3) / (norm_v1xv2 * norm_v1xv3)
 
     return np.arccos(cosangle)
 
@@ -447,17 +448,22 @@ def quadrilateral_area(v1, v2, v3, v4):
         total area, that is π *R*:sup:`2`.
 
         >>> from regional_mom6 import quadrilateral_area, latlon_to_cartesian
-        >>> import numpy as np
         >>> R = 434.3
-        >>> v1 = np.array(latlon_to_cartesian(0, 0, R))
-        >>> v2 = np.array(latlon_to_cartesian(0, 90, R))
-        >>> v3 = np.array(latlon_to_cartesian(90, 0, R))
-        >>> v4 = np.array(latlon_to_cartesian(0, -90, R))
+        >>> v1 = latlon_to_cartesian(0, 0, R)
+        >>> v2 = latlon_to_cartesian(0, 90, R)
+        >>> v3 = latlon_to_cartesian(90, 0, R)
+        >>> v4 = latlon_to_cartesian(0, -90, R)
         >>> quadrilateral_area(v1, v2, v3, v4)
         592556.1793298927
+        >>> import numpy as np
         >>> quadrilateral_area(v1, v2, v3, v4) == np.pi * R**2
         True
     """
+
+    v1 = np.array(v1)
+    v2 = np.array(v2)
+    v3 = np.array(v3)
+    v4 = np.array(v4)
 
     if not (
         np.all(np.isclose(vecdot(v1, v1), vecdot(v2, v2)))
@@ -548,7 +554,7 @@ def quadrilateral_areas(lat, lon, R=1):
                 4.56284230e+13, 4.56284230e+13],
                [1.96911611e+13, 1.96911611e+13, 1.96911611e+13, 1.96911611e+13,
                 1.96911611e+13, 1.96911611e+13]])
-        >>> np.isclose(areas.sum(), 4 * np.pi * R**2)
+        >>> np.isclose(areas.sum(), 4 * np.pi * R**2, atol=np.finfo(areas.dtype).eps)
         True
     """
 
