@@ -300,7 +300,7 @@ def motu_requests(
         str: A bash script which will call ``motuclient`` to invoke the data requests.
     """
 
-    if isinstance(sets, str)
+    if isinstance(sets, str):
         return f"\nprintf 'processing {segs} segment' \npython -m motuclient --motu {url} --service-id {serviceid} --product-id {productid} --longitude-min {xextent[0]} --longitude-max {xextent[1]} --latitude-min {yextent[0]} --latitude-max {yextent[1]} --date-min {daterange[0]} --date-max {daterange[1]} --depth-min 0.49 --depth-max 6000 --variable so --variable thetao --variable vo --variable zos --variable uo --out-dir {outfolder} --out-name {segs}_unprocessed --user '{usr}' --pwd '{pwd}'\n"
 
     ## Buffer pads out our boundaries a small amount to allow for interpolation
