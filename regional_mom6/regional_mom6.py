@@ -409,7 +409,20 @@ def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
 
 
 def angle_between(v1, v2, v3):
-    """Returns the angle v2-v1-v3 (in radians). That is the angle between vectors v1-v2 and v1-v3."""
+    """Returns the angle v2-v1-v3 (in radians). That is the angle between vectors v1-v2 and v1-v3.
+
+    Example:
+
+        >>> from regional_mom6 import angle_between
+        >>> import numpy as np
+        >>> v1 = np.array([0, 0, 1])
+        >>> v2 = np.array([1, 0, 0])
+        >>> v3 = np.array([0, 1, 0])
+        >>> angle_between(v1, v2, v3)
+        1.5707963267948966
+        >>> np.rad2deg(angle_between(v1, v2, v3))
+        90.0
+    """
 
     v1xv2 = np.cross(v1, v2)
     v1xv3 = np.cross(v1, v3)
@@ -425,7 +438,26 @@ def quadrilateral_area(v1, v2, v3, v4):
     """Returns area of a spherical quadrilateral on the unit sphere that
     has vertices on 3-vectors `v1`, `v2`, `v3`, `v4` (counter-clockwise
     orientation is implied). The area is computed via the excess of the
-    sum of the spherical angles of the quadrilateral from 2π."""
+    sum of the spherical angles of the quadrilateral from 2π.
+
+    Example:
+
+        Calculate the area that corresponds to half the Northen hemisphere
+        of a sphere of radius *R*. The answer should be 1/4 of the sphere's
+        total area, that is π *R*\ :sup:`2`.
+
+        >>> from regional_mom6 import quadrilateral_area, latlon_to_cartesian
+        >>> import numpy as np
+        >>> R = 434.3
+        >>> v1 = np.array(latlon_to_cartesian(0, 0, R))
+        >>> v2 = np.array(latlon_to_cartesian(0, 90, R))
+        >>> v3 = np.array(latlon_to_cartesian(90, 0, R))
+        >>> v4 = np.array(latlon_to_cartesian(0, -90, R))
+        >>> quadrilateral_area(v1, v2, v3, v4)
+        592556.1793298927
+        >>> quadrilateral_area(v1, v2, v3, v4) == np.pi * R**2
+        True
+    """
 
     if not (
         np.all(np.isclose(vecdot(v1, v1), vecdot(v2, v2)))
@@ -446,8 +478,25 @@ def quadrilateral_area(v1, v2, v3, v4):
 
 
 def latlon_to_cartesian(lat, lon, R=1):
-    """Convert latitude-longitude (in degrees) to Cartesian coordinates on a sphere of radius `R`.
-    By default `R = 1`."""
+    """Convert latitude-longitude (in degrees) to Cartesian coordinates on a
+    sphere of radius `R`. By default `R = 1`.
+
+    Examples:
+
+        Find the Cartesian coordinates that correspond to point with
+        ``(lat, lon) = (0, 0)`` on a sphere with unit radius.
+
+        >>> from regional_mom6 import latlon_to_cartesian
+        >>> latlon_to_cartesian(0, 0)
+        (1.0, 0.0, 0.0)
+
+        Now let's do the same on a sphere with Earth's radius
+
+        >>> from regional_mom6 import latlon_to_cartesian
+        >>> R = 6371e3
+        >>> latlon_to_cartesian(0, 0, R)
+        (6371000.0, 0.0, 0.0)
+"""
 
     x = R * np.cos(np.deg2rad(lat)) * np.cos(np.deg2rad(lon))
     y = R * np.cos(np.deg2rad(lat)) * np.sin(np.deg2rad(lon))
