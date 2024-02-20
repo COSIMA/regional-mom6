@@ -517,6 +517,39 @@ def quadrilateral_areas(lat, lon, R=1):
         areas (array): Array with the areas of the quadrilaterals defined by the
                        `lat`-`lon` grid provided. If the `lat`-`lon` are `m x n`
                        then `areas` is `(m-1) x (n-1)`.
+
+    Example:
+
+        Let's construct a lat-lon grid on the sphere with 60 degree spacing.
+        Then we compute the areas of each grid cell and confirm that the
+        sum of the areas gives us the total area of the sphere.
+
+        >>> from regional_mom6 import quadrilateral_areas
+        >>> import numpy as np
+        >>> λ = np.linspace(0, 360, 7)
+        >>> φ = np.linspace(-90, 90, 4)
+        >>> lon, lat = np.meshgrid(λ, φ)
+        >>> lon
+        array([[  0.,  60., 120., 180., 240., 300., 360.],
+               [  0.,  60., 120., 180., 240., 300., 360.],
+               [  0.,  60., 120., 180., 240., 300., 360.],
+               [  0.,  60., 120., 180., 240., 300., 360.]])
+        >>> lat
+        array([[-90., -90., -90., -90., -90., -90., -90.],
+               [-30., -30., -30., -30., -30., -30., -30.],
+               [ 30.,  30.,  30.,  30.,  30.,  30.,  30.],
+               [ 90.,  90.,  90.,  90.,  90.,  90.,  90.]])
+        >>> R = 6371e3
+        >>> areas = quadrilateral_areas(lat, lon, R)
+        >>> areas
+        array([[1.96911611e+13, 1.96911611e+13, 1.96911611e+13, 1.96911611e+13,
+                1.96911611e+13, 1.96911611e+13],
+               [4.56284230e+13, 4.56284230e+13, 4.56284230e+13, 4.56284230e+13,
+                4.56284230e+13, 4.56284230e+13],
+               [1.96911611e+13, 1.96911611e+13, 1.96911611e+13, 1.96911611e+13,
+                1.96911611e+13, 1.96911611e+13]])
+        >>> areas.sum() == 4 * np.pi * R**2
+        True
     """
 
     coords = np.dstack(latlon_to_cartesian(lat, lon, R))
