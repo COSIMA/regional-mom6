@@ -454,7 +454,7 @@ def hyperbolictan_thickness_profile(nlayers, ratio, target_depth):
     """
 
     assert (
-        type(nlayers) == int and nlayers > 1
+        isinstance(nlayers, int) and nlayers > 1
     ), "nlayers must be an integer greater than 1"
 
     assert ratio > 0, "ratio must be > 0"
