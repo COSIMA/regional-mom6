@@ -608,7 +608,7 @@ class experiment:
     name to the name in the input dataset.
 
     This can be used to generate the grids for a new experiment, or to read in
-    an existing one by setting read-existing to True. In either case,
+    an existing one by setting ``read_existing_grids`` to ``True``. In either case,
     the ``xextent``, ``yextent``, ``daterange``, and ``resolution`` must be specified.
 
     Args:
@@ -616,20 +616,21 @@ class experiment:
         yextent (Tuple[float]): Extent of the region in latitude in degrees.
         daterange (Tuple[str]): Start and end dates of the boundary forcing window.
         resolution (float): Lateral resolution of the domain, in degrees.
-        vlayers (int): Number of vertical layers.
+        nlayers (int): Number of vertical layers.
         dz_ratio (float): Ratio of largest to smallest layer thickness, used
             as input in :func:`~dz_hyperbolictan`.
         depth (float): Depth of the domain.
         mom_run_dir (str): Path of the MOM6 control directory.
         mom_input_dir (str): Path of the MOM6 input directory, to receive the forcing files.
-        toolpath (str): Path of GFDL's FRE tools (https://github.com/NOAA-GFDL/FRE-NCtools) binaries.
+        toolpath (str): Path of GFDL's FRE tools (https://github.com/NOAA-GFDL/FRE-NCtools)
+            binaries.
         gridtype (Optional[str]): Type of horizontal grid to generate.
             Currently, only ``even_spacing`` is supported.
         ryf (Optional[bool]): When ``True`` the experiment runs with 'repeat-year forcing'.
             When ``False`` (default) then inter-annual forcing is used.
         read_existing_grids (Optional[Bool]): When ``True``, instead of generating the grids,
-            reads the grids and ocean mask from the 'inputdir' and 'rundir'. Useful for modifying or
-            troubleshooting experiments. Default: ``False``.
+            reads the grids and ocean mask from the 'inputdir' and 'rundir'. Useful for
+            modifying or troubleshooting experiments. Default: ``False``.
     """
 
     def __init__(
@@ -638,7 +639,7 @@ class experiment:
         yextent,
         daterange,
         resolution,
-        vlayers,
+        nlayers,
         dz_ratio,
         depth,
         mom_run_dir,
@@ -661,7 +662,7 @@ class experiment:
             dt.datetime.strptime(daterange[1], "%Y-%m-%d %H:%M:%S"),
         ]
         self.resolution = resolution
-        self.vlayers = vlayers
+        self.nlayers = nlayers
         self.dz_ratio = dz_ratio
         self.depth = depth
         self.toolpath = Path(toolpath)
@@ -702,9 +703,17 @@ class experiment:
 
     def _make_hgrid(self, gridtype):
         """
-        Set up hgrid based on users specification of domain. Default behaviour
-        leaves latitude and longitude evenly spaced.
-        This is very simple but suitable for small domains.
+        Set up a horizontal grid based on user's specification of the domain.
+        The default behaviour provides with a grid evenly spaced both in
+        longitude and in latitude.
+
+        The latitudinal resolution is scaled with the cosine of the cental latitude of
+        the domain, i.e., ``Δφ = cos(φ_central) * Δλ``, where ``Δλ`` is the longitudinal
+        spacing. This way, and given that the domain is small enough, the linear
+        distances between grid points are nearly identical: ``Δx = R * cos(φ) * Δλ``
+        and ``Δy = R * Δφ = R * cos(φ_central) * Δλ``. That is, given that the domain is
+        small enough so that so that ``cos(φ_North_Side)`` is not much different from
+        ``cos(φ_South_Side)`` then ``Δx`` and ``Δy`` are similar.
 
         Note:
             The intention is for the horizontal grid (``hgrid``) generation to be very flexible.
@@ -715,12 +724,13 @@ class experiment:
         """
 
         if gridtype == "even_spacing":
+
             # longitudes are evenly spaced based on resolution and bounds
             nx = int((self.xextent[1] - self.xextent[0]) / (self.resolution / 2))
             if nx % 2 != 1:
                 nx += 1
 
-            x = np.linspace(
+            λ = np.linspace(
                 self.xextent[0], self.xextent[1], nx
             )  # longitudes in degrees
 
@@ -734,25 +744,27 @@ class experiment:
                 int((self.yextent[1] - self.yextent[0]) / (latitudinal_resolution / 2))
                 + 1
             )
+
             if ny % 2 != 1:
                 ny += 1
 
-            y = np.linspace(
+            φ = np.linspace(
                 self.yextent[0], self.yextent[1], ny
             )  # latitudes in degrees
 
-            hgrid = rectangular_hgrid(x, y)
+            hgrid = rectangular_hgrid(λ, φ)
             hgrid.to_netcdf(self.mom_input_dir / "hgrid.nc")
 
             return hgrid
 
     def _make_vgrid(self):
         """
-        Generate a vertical grid based on the number of layers and vertical ratio
+        Generate a vertical grid based on the number of layers ``nlayers`` and
+        the prescribed ratio of the vertical layer thicknesses ``dz_ratio``
         specified at the class level.
         """
 
-        thickness = dz_hyperbolictan(self.vlayers + 1, self.dz_ratio, self.depth)
+        thickness = dz_hyperbolictan(self.nlayers + 1, self.dz_ratio, self.depth)
         vcoord = xr.Dataset(
             {
                 "zi": ("zi", np.cumsum(thickness)),
