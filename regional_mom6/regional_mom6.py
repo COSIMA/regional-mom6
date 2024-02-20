@@ -373,7 +373,8 @@ def motu_requests(
 
 def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
     """Generate a hyperbolic tangent thickness profile with ``nlayers`` vertical
-    layers and total depth of ``total_depth``.
+    layers and total depth of ``total_depth`` whose bottom layer is (about) `ratio`
+    times larger than the top layer.
 
     The thickness profile transitions from the top-layer thickness to
     the bottom-layer thickness via a hyperbolic tangent proportional to
@@ -444,7 +445,8 @@ def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
         >>> dz[-1] / dz[0]
         0.25174991059652
 
-        Now how about the same grid as above but with equally spaced layers.
+        Now how about a grid with the same total depth as above but with equally-spaced
+        layers.
 
         >>> from regional_mom6 import hyperbolictan_thickness_profile
         >>> nlayers, total_depth = 20, 1000
