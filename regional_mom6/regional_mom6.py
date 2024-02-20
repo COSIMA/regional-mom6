@@ -385,15 +385,15 @@ def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
 
     Positive parameter ``ratio`` prescribes (approximately) the ratio of the thickness
     of the bottom-most layer to the top-most layer. The final ratio of the bottom-most
-    layer to the top-most layer ends up a bit different from the prescribed values.
-    In particular, the actual ratio of the bottom over the top-most layer thickness is
-    ``(1 + ratio * exp(2π)) / (ratio + exp(2π))``. The slight departure comes about
-    because values of the hyperbolic tangent profile at the end-points is ``tanh(π)``,
+    layer to the top-most layer ends up a bit different from the prescribed ``ratio``.
+    In particular, the final ratio of the bottom over the top-most layer thickness is
+    ``(1 + ratio * exp(2π)) / (ratio + exp(2π))``. This slight departure comes about
+    because of the value of the hyperbolic tangent profile at the end-points ``tanh(π)``,
     which is approximately 0.9963 and not 1. Note that because ``exp(2π)`` is much greater
     than 1, the value of the actual ratio is not that different from prescribed value
-    ``ratio``, e.g., for ``ratio`` values across 4 orders of magnitude between 1/100 and 100
-    the ratio of the bottom-most layer to the top-most layer only departs from the
-    prescribed ``ratio`` by ±20%.
+    ``ratio``, e.g., for ``ratio`` values between 1/100 and 100 the final ratio of the
+    bottom-most layer to the top-most layer only departs from the prescribed ``ratio``
+    by ±20%.
 
     Args:
         nlayers (int): Number of vertical layers.
@@ -407,7 +407,6 @@ def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
 
     Returns:
         numpy.array: An array containing the layer thicknesses.
-
 
     Examples:
 
