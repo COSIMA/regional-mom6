@@ -419,8 +419,8 @@ def angle_between(v1, v2, v3):
         >>> v3 = (0, 1, 0)
         >>> angle_between(v1, v2, v3)
         1.5707963267948966
-        >>> import numpy as np
-        >>> np.rad2deg(angle_between(v1, v2, v3))
+        >>> from numpy import rad2deg
+        >>> rad2deg(angle_between(v1, v2, v3))
         90.0
     """
 
@@ -455,8 +455,8 @@ def quadrilateral_area(v1, v2, v3, v4):
         >>> v4 = latlon_to_cartesian(0, -90, R)
         >>> quadrilateral_area(v1, v2, v3, v4)
         592556.1793298927
-        >>> import numpy as np
-        >>> quadrilateral_area(v1, v2, v3, v4) == np.pi * R**2
+        >>> from numpy import pi
+        >>> quadrilateral_area(v1, v2, v3, v4) == pi * R**2
         True
     """
 
