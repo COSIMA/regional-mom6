@@ -1,7 +1,6 @@
-import regional_mom6
-
 import numpy as np
 import pytest
+
 from regional_mom6 import hyperbolictan_thickness_profile
 from regional_mom6 import angle_between
 from regional_mom6 import latlon_to_cartesian
