@@ -371,25 +371,28 @@ def motu_requests(
     return script
 
 
-def hyperbolictan_thickness_profile(nlayers, ratio, target_depth):
-    """
-    Generate a hyperbolic tangent thickness profile with ``nlayers`` vertical
-    layers. The thickness profile transitions from the top-layer thickness to
+def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
+    """Generate a hyperbolic tangent thickness profile with ``nlayers`` vertical
+    layers and total depth of ``total_depth``.
+
+    The thickness profile transitions from the top-layer thickness to
     the bottom-layer thickness via a hyperbolic tangent proportional to
-    ``tanh(2π * (k / (nlayers - 1) - 1 / 2))``, where ``k = 0, 1, ..., nlayers-1``
-    is the layer index with ``k = 0`` corresponding to the top-most layer. The
-    sum of all vertical layer thicknesses is equal to the ``target_depth``.
+    ``tanh(2π * (k / (nlayers - 1) - 1 / 2))``, where ``k = 0, 1, ..., nlayers - 1``
+    is the layer index with ``k = 0`` corresponding to the top-most layer.
+
+    The sum of all layer thicknesses is ``total_depth``.
 
     Positive parameter ``ratio`` prescribes (approximately) the ratio of the thickness
     of the bottom-most layer to the top-most layer. The final ratio of the bottom-most
     layer to the top-most layer ends up a bit different from the prescribed values.
-    In particular, the actual ratio of the bottom over the top-most layer thickness ends
-    up ``(1 + ratio * exp(2π)) / (ratio + exp(2π))``. The slight departure comes about
-    because values of the hyperbolic tangent profile at the end points is ``tanh(π)``,
+    In particular, the actual ratio of the bottom over the top-most layer thickness is
+    ``(1 + ratio * exp(2π)) / (ratio + exp(2π))``. The slight departure comes about
+    because values of the hyperbolic tangent profile at the end-points is ``tanh(π)``,
     which is approximately 0.9963 and not 1. Note that because ``exp(2π)`` is much greater
-    than 1, the value of the actual ratio does not vary that much, e.g., for ``ratio``
-    values between 1/100 to 100 the "actual ratio" departs from the prescribed ``ratio``
-    only by a factor between 1.19 and 0.84.
+    than 1, the value of the actual ratio is not that different from prescribed value
+    ``ratio``, e.g., for ``ratio`` values across 4 orders of magnitude between 1/100 and 100
+    the ratio of the bottom-most layer to the top-most layer only departs from the
+    prescribed ``ratio`` by ±20%.
 
     Args:
         nlayers (int): Number of vertical layers.
@@ -398,7 +401,7 @@ def hyperbolictan_thickness_profile(nlayers, ratio, target_depth):
             the ratio of bottom-most to the top-most layer thickness
             ends up ``(1 + ratio * exp(2π)) / (ratio + exp(2π))``. Must
             be positive.
-        target_depth (float): The total depth of grid, i.e., the sum
+        total_depth (float): The total depth of grid, i.e., the sum
             of all thicknesses.
 
     Returns:
@@ -412,9 +415,9 @@ def hyperbolictan_thickness_profile(nlayers, ratio, target_depth):
         one.
 
         >>> from regional_mom6 import hyperbolictan_thickness_profile
-        >>> nlayers, target_depth = 20, 1000
+        >>> nlayers, total_depth = 20, 1000
         >>> ratio = 4
-        >>> dz = hyperbolictan_thickness_profile(nlayers, ratio, target_depth)
+        >>> dz = hyperbolictan_thickness_profile(nlayers, ratio, total_depth)
         >>> dz
         array([20.11183771, 20.2163053 , 20.41767549, 20.80399084, 21.53839043,
                22.91063751, 25.3939941 , 29.6384327 , 36.23006369, 45.08430684,
@@ -428,9 +431,9 @@ def hyperbolictan_thickness_profile(nlayers, ratio, target_depth):
         If we want the top layer to be thicker then we need to prescribe ``ratio < 1``.
 
         >>> from regional_mom6 import hyperbolictan_thickness_profile
-        >>> nlayers, target_depth = 20, 1000
+        >>> nlayers, total_depth = 20, 1000
         >>> ratio = 1/4
-        >>> dz = hyperbolictan_thickness_profile(nlayers, ratio, target_depth)
+        >>> dz = hyperbolictan_thickness_profile(nlayers, ratio, total_depth)
         >>> dz
         array([79.88816229, 79.7836947 , 79.58232451, 79.19600916, 78.46160957,
                77.08936249, 74.6060059 , 70.3615673 , 63.76993631, 54.91569316,
@@ -444,49 +447,42 @@ def hyperbolictan_thickness_profile(nlayers, ratio, target_depth):
         Now how about the same grid as above but with equally spaced layers.
 
         >>> from regional_mom6 import hyperbolictan_thickness_profile
-        >>> nlayers, target_depth = 20, 1000
+        >>> nlayers, total_depth = 20, 1000
         >>> ratio = 1
-        >>> dz = hyperbolictan_thickness_profile(nlayers, ratio, target_depth)
+        >>> dz = hyperbolictan_thickness_profile(nlayers, ratio, total_depth)
         >>> dz
         array([50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50.,
                50., 50., 50., 50., 50., 50., 50.])
     """
+    assert isinstance(nlayers, int), "nlayers must be an integer"
 
-    assert (
-        isinstance(nlayers, int) and nlayers > 1
-    ), "nlayers must be an integer greater than 1"
+    if nlayers == 1:
+        return np.array([float(total_depth)])
 
     assert ratio > 0, "ratio must be > 0"
 
-    # with the hyberbolic tangent profile used, total depth is
+    # The hyberbolic tangent profile below implies that the sum of
+    # all layer thicknesses is:
+    #
     # nlayers * (top_layer_thickness + bottom_layer_thickness) / 2
-    # we choose here initial value for top_layer_thickness such
-    # that the above is satisfied
-    top_layer_thickness = 2 * target_depth / (nlayers * (1 + ratio))
+    #
+    # So we choose the top_layer_thickness appropriataly we ensure that
+    # the sum of all layer thicknesses is the prescribed total_depth
+    top_layer_thickness = 2 * total_depth / (nlayers * (1 + ratio))
+
     bottom_layer_thickness = ratio * top_layer_thickness
 
     layer_thicknesses = top_layer_thickness + 0.5 * (
         bottom_layer_thickness - top_layer_thickness
     ) * (1 + np.tanh(2 * np.pi * (np.arange(nlayers) / (nlayers - 1) - 1 / 2)))
 
-    total_depth = np.sum(layer_thicknesses)
+    sum_of_thicknesses = np.sum(layer_thicknesses)
 
-    atol = np.finfo(type(total_depth)).eps
+    atol = np.finfo(type(sum_of_thicknesses)).eps
 
-    assert np.isclose(
-        total_depth,
-        nlayers * (bottom_layer_thickness + top_layer_thickness) / 2,
-        atol=atol,
-    )
+    assert np.isclose(total_depth, sum_of_thicknesses, atol=atol)  # just checking ;)
 
-    if np.isclose(total_depth, target_depth, atol=atol):
-        return layer_thicknesses
-    else:
-        # rescaled top_layer_thickness so that total_depth == target_depth
-        new_top_layer_thickness = top_layer_thickness * target_depth / total_depth
-        return hyperbolictan_thickness_profile(
-            nlayers, ratio, target_depth, new_top_layer_thickness
-        )
+    return layer_thicknesses
 
 
 def angle_between(v1, v2, v3):
