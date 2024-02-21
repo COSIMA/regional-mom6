@@ -764,7 +764,7 @@ class experiment:
         specified at the class level.
         """
 
-        thickness = dz_hyperbolictan(self.vlayers + 1, self.dz_ratio, self.depth)
+        thickness = dz_hyperbolictan(self.nlayers + 1, self.dz_ratio, self.depth)
         vcoord = xr.Dataset(
             {
                 "zi": ("zi", np.cumsum(thickness)),
