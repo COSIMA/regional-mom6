@@ -730,7 +730,7 @@ class experiment:
             if nx % 2 != 1:
                 nx += 1
 
-            λ = np.linspace(
+            x = np.linspace(
                 self.xextent[0], self.xextent[1], nx
             )  # longitudes in degrees
 
@@ -748,11 +748,11 @@ class experiment:
             if ny % 2 != 1:
                 ny += 1
 
-            φ = np.linspace(
+            y = np.linspace(
                 self.yextent[0], self.yextent[1], ny
             )  # latitudes in degrees
 
-            hgrid = rectangular_hgrid(λ, φ)
+            hgrid = rectangular_hgrid(x, y)
             hgrid.to_netcdf(self.mom_input_dir / "hgrid.nc")
 
             return hgrid
