@@ -616,7 +616,7 @@ class experiment:
         yextent (Tuple[float]): Extent of the region in latitude in degrees.
         daterange (Tuple[str]): Start and end dates of the boundary forcing window.
         resolution (float): Lateral resolution of the domain, in degrees.
-        vlayers (int): Number of vertical layers.
+        nlayers (int): Number of vertical layers.
         dz_ratio (float): Ratio of largest to smallest layer thickness, used
             as input in :func:`~dz_hyperbolictan`.
         depth (float): Depth of the domain.
@@ -662,7 +662,7 @@ class experiment:
             dt.datetime.strptime(daterange[1], "%Y-%m-%d %H:%M:%S"),
         ]
         self.resolution = resolution
-        self.vlayers = vlayers
+        self.nlayers = nlayers
         self.dz_ratio = dz_ratio
         self.depth = depth
         self.toolpath = Path(toolpath)
@@ -730,7 +730,7 @@ class experiment:
             if nx % 2 != 1:
                 nx += 1
 
-            x = np.linspace(
+            λ = np.linspace(
                 self.xextent[0], self.xextent[1], nx
             )  # longitudes in degrees
 
@@ -748,18 +748,18 @@ class experiment:
             if ny % 2 != 1:
                 ny += 1
 
-            y = np.linspace(
+            φ = np.linspace(
                 self.yextent[0], self.yextent[1], ny
             )  # latitudes in degrees
 
-            hgrid = rectangular_hgrid(x, y)
+            hgrid = rectangular_hgrid(λ, φ)
             hgrid.to_netcdf(self.mom_input_dir / "hgrid.nc")
 
             return hgrid
 
     def _make_vgrid(self):
         """
-        Generate a vertical grid based on the number of layers ``vlayers`` and
+        Generate a vertical grid based on the number of layers ``nlayers`` and
         the prescribed ratio of the vertical layer thicknesses ``dz_ratio``
         specified at the class level.
         """
