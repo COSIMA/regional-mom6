@@ -843,7 +843,7 @@ class experiment:
                 )
             else:
                 raise ValueError(
-                    "Can't find required coordinates in initial condition. Given that gridtype is 'A' the 'x' and 'y' coordinates should be provided in the varnames dictionary. E.g {'x':'lon','y':'lat' }. Terminating"
+                    "Can't find required coordinates in initial condition. Given that gridtype is 'A' the 'x' and 'y' coordinates should be provided in the varnames dictionary. E.g., {'x': 'lon','y': 'lat' }. Terminating"
                 )
         if gridtype == "B":
             if (
