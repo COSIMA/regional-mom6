@@ -1818,10 +1818,10 @@ class segment:
         time_units (str): The units used by the raw forcing files, e.g., ``hours``,
             ``days`` (default).
         tidal_constituents (Optional[int]): An integer determining the number of tidal
-            constituents to be included from the list: *M*\ :sub:`2`, *S*\ :sub:`2`, *N*\ :sub:`2`,
-            *K*\ :sub:`2`, *K*\ :sub:`1`, *O*\ :sub:`2`, *P*\ :sub:`1`, *Q*\ :sub:`1`, *Mm*,
-            *Mf*, and *M*\ :sub:`4`. For example, specifying ``1`` only includes *M*\ :sub:`2`;
-            specifying ``2`` includes *M*\ :sub:`2` and *S*\ :sub:`2`, etc. Default: ``None``.
+            constituents to be included from the list: *M*:sub:`2`, *S*:sub:`2`, *N*:sub:`2`,
+            *K*:sub:`2`, *K*:sub:`1`, *O*:sub:`2`, *P*:sub:`1`, *Q*:sub:`1`, *Mm*,
+            *Mf*, and *M*:sub:`4`. For example, specifying ``1`` only includes *M*:sub:`2`;
+            specifying ``2`` includes *M*:sub:`2` and *S*:sub:`2`, etc. Default: ``None``.
         ryf (Optional[bool]): When ``True`` the experiment runs with 'repeat-year forcing'.
             When ``False`` (default) then inter-annual forcing is used.
     """
