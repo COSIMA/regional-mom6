@@ -40,7 +40,7 @@ jobs:
           python -m pip install .
       - name: Install pytest
         run: |
-          python -m pip install pytest pytest-cov nbval
+          python -m pip install pytest pytest-cov nbval nbconvert
       - name: Test with pytest
         run: |
           if [[ "${{ matrix.python-version }}" == "3.10" ]]; then
