@@ -88,7 +88,7 @@ def quadrilateral_area(v1, v2, v3, v4):
 
 
 def latlon_to_cartesian(lat, lon, R=1):
-    """    Convert latitude-longitude (in degrees) to Cartesian coordinates on
+    """Convert latitude-longitude (in degrees) to Cartesian coordinates on
     a sphere of radius ``R``. By default ``R = 1``.
 
     Args:
