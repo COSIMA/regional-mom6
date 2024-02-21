@@ -13,7 +13,8 @@ import warnings
 import shutil
 import os
 
-from .utils import vecdot
+from .utils import quadrilateral_areas
+
 
 warnings.filterwarnings("ignore")
 
@@ -21,10 +22,6 @@ __all__ = [
     "nicer_slicer",
     "motu_requests",
     "hyperbolictan_thickness_profile",
-    "angle_between",
-    "latlon_to_cartesian",
-    "quadrilateral_area",
-    "quadrilateral_areas",
     "rectangular_hgrid",
     "experiment",
     "segment",
@@ -494,94 +491,6 @@ def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
     assert np.isclose(total_depth, sum_of_thicknesses, atol=atol)  # just checking ;)
 
     return layer_thicknesses
-
-
-def angle_between(v1, v2, v3):
-    """
-    Return the angle ``v2``-``v1``-``v3`` (in radians), where
-    ``v1``, ``v2``, ``v3`` are 3-vectors. That is, the angle that
-    is formed between vectors ``v2 - v1`` and vector ``v3 - v1``.
-    """
-
-    v1xv2 = np.cross(v1, v2)
-    v1xv3 = np.cross(v1, v3)
-
-    cosangle = vecdot(v1xv2, v1xv3) / np.sqrt(
-        vecdot(v1xv2, v1xv2) * vecdot(v1xv3, v1xv3)
-    )
-
-    return np.arccos(cosangle)
-
-
-def quadrilateral_area(v1, v2, v3, v4):
-    """
-    Return the area of a spherical quadrilateral on the unit sphere that
-    has vertices on the 3-vectors ``v1``, ``v2``, ``v3``, ``v4``
-    (counter-clockwise orientation is implied). The area is computed via
-    the excess of the sum of the spherical angles of the quadrilateral from 2π.
-    """
-
-    if not (
-        np.all(np.isclose(vecdot(v1, v1), vecdot(v2, v2)))
-        & np.all(np.isclose(vecdot(v1, v1), vecdot(v2, v2)))
-        & np.all(np.isclose(vecdot(v1, v1), vecdot(v3, v3)))
-        & np.all(np.isclose(vecdot(v1, v1), vecdot(v4, v4)))
-    ):
-        raise ValueError("vectors provided must have the same length")
-
-    R = np.sqrt(vecdot(v1, v1))
-
-    a1 = angle_between(v1, v2, v4)
-    a2 = angle_between(v2, v3, v1)
-    a3 = angle_between(v3, v4, v2)
-    a4 = angle_between(v4, v1, v3)
-
-    return (a1 + a2 + a3 + a4 - 2 * np.pi) * R**2
-
-
-def latlon_to_cartesian(lat, lon, R=1):
-    """
-    Convert latitude-longitude (in degrees) to Cartesian coordinates on
-    a sphere of radius ``R``. By default ``R = 1``.
-
-    Args:
-        lat (float): Latitude (in degrees).
-        lon (float): Longitude (in degrees).
-        R (float): The radius of the sphere; default: 1.
-
-    Returns:
-        tuple: Tuple with the Cartesian coordinates ``x, y, z``
-    """
-
-    x = R * np.cos(np.deg2rad(lat)) * np.cos(np.deg2rad(lon))
-    y = R * np.cos(np.deg2rad(lat)) * np.sin(np.deg2rad(lon))
-    z = R * np.sin(np.deg2rad(lat))
-
-    return x, y, z
-
-
-def quadrilateral_areas(lat, lon, R=1):
-    """
-    Return the area of spherical quadrilaterals on a sphere of radius ``R``.
-    By default, ``R = 1``. The quadrilaterals are formed by constant latitude and longitude
-    lines on the ``lat``-``lon`` grid provided.
-
-    Args:
-        lat (numpy.array): Array of latitude points (in degrees).
-        lon (numpy.array): Array of longitude points (in degrees).
-        R (float): The radius of the sphere; default: 1.
-
-    Returns:
-        numpy.array: Array with the areas of the quadrilaterals defined by the ``lat``-``lon`` grid
-        provided. If the provided ``lat``, ``lon`` arrays are of dimension *m* :math:`\\times` *n*
-        then return areas array is of dimension (*m-1*) :math:`\\times` (*n-1*).
-    """
-
-    coords = np.dstack(latlon_to_cartesian(lat, lon, R))
-
-    return quadrilateral_area(
-        coords[:-1, :-1, :], coords[:-1, 1:, :], coords[1:, 1:, :], coords[1:, :-1, :]
-    )
 
 
 def rectangular_hgrid(λ, φ):
