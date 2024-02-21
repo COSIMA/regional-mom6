@@ -14,7 +14,7 @@ dependencies = [
   "numpy>=1.17.0",
   "scipy>=1.2.0",
   "xarray<2024.02.0",
-  "xesmf>=0.8",
+  "xesmf==0.8.2",
   "f90nml>=1.4.1",
 ]
 
