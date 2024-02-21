@@ -11,11 +11,11 @@ dependencies = [
   "dask[array]",
   "dask[distributed]",
   "netCDF4",
-  "numpy>=1.17.0",
-  "scipy>=1.2.0",
-  "xarray<2024.02.0",
-  "xesmf>=0.8",
-  "f90nml>=1.4.1",
+  "numpy >= 1.17.0",
+  "scipy >= 1.2.0",
+  "xarray < 2024.02.0",
+  "xesmf >= 0.8, <0.8.3",
+  "f90nml >= 1.4.1",
 ]
 
 [build-system]
