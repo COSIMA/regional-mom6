@@ -70,6 +70,7 @@ jobs:
         if: ${{ matrix.python-version == '3.10' }}
         id: evaluate-notebooks
         run: |
+          rm -rf demos/mom6_input_directories demos/mom6_run_directories
           python3 -m jupyter nbconvert --to notebook --execute --output-dir=docs/demo_notebooks demos/reanalysis-forced.ipynb
 
       - uses: actions/upload-artifact@v4
