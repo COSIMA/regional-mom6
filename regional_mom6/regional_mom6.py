@@ -639,7 +639,7 @@ class experiment:
         yextent,
         daterange,
         resolution,
-        vlayers,
+        nlayers,
         dz_ratio,
         depth,
         mom_run_dir,
