@@ -855,7 +855,7 @@ class experiment:
         vcoord = xr.Dataset(
             {
                 "zi": ("zi", zi),
-                "zl": ("zl", zi[0:-1] + thicknesses/2),
+                "zl": ("zl", zi[0:-1] + thicknesses / 2),
             }
         )
 
