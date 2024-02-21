@@ -71,7 +71,7 @@ jobs:
         id: evaluate-notebooks
         run: |
           rm -rf demos/mom6_input_directories demos/mom6_run_directories
-          python3 -m jupyter nbconvert --to notebook --execute --output-dir=docs/demo_notebooks demos/reanalysis-forced.ipynb
+          python3 -m jupyter nbconvert --to notebook --execute --output-dir=docs/demo_notebooks --ExecutePreprocessor.kernel_name=python3 demos/reanalysis-forced.ipynb
 
       - uses: actions/upload-artifact@v4
         if: ${{ steps.evaluate-notebooks.conclusion != 'skipped' }}
