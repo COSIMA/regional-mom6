@@ -11,17 +11,17 @@ for i in np.arange(2):
     for j in np.arange(4):
         sum = 0
         for k in np.arange(3):
-            V1[i, j, k] = -1.0 * np.array(2*i - 3*j + 2*k)
-            V2[i, j, k] =  1.0 * np.array(i + j + k + 1)
-            sum += -(2*i - 3*j + 2*k) * (i + j + k + 1)
+            V1[i, j, k] = -1.0 * np.array(2 * i - 3 * j + 2 * k)
+            V2[i, j, k] = 1.0 * np.array(i + j + k + 1)
+            sum += -(2 * i - 3 * j + 2 * k) * (i + j + k + 1)
             true_V1dotV2[i, j] = float(sum)
+
 
 @pytest.mark.parametrize(
     ("v1", "v2", "true_v1dotv2"),
     [
         (np.array((1.0, 2.0, 3.0)), np.array((-2.0, -3.0, 4.0)), 4.0),
-        (V1, V2, true_V1dotV2)
-        ,
+        (V1, V2, true_V1dotV2),
     ],
 )
 def test_vecdot(v1, v2, true_v1dotv2):
