@@ -65,3 +65,15 @@ jobs:
           env_vars: OS,PYTHON
           files: ./coverage.xml
           name: codecov-umbrella
+
+      - name: Evaluate notebooks for documentation
+        if: ${{ matrix.python-version == '3.10' }}
+        id: evaluate-notebooks
+        run: |
+          python3 -m jupyter nbconvert --to notebook --execute --output-dir=docs/demo_notebooks demos/reanalysis-forced.ipynb
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ steps.evaluate-notebooks.conclusion != 'skipped' }}
+        with:
+          name: notebooks-for-${{ github.sha }}
+          path: docs/demo_notebooks
