@@ -11,7 +11,9 @@ def vecdot(v1, v2):
 
 
 def angle_between(v1, v2, v3):
-    """Returns the angle v2-v1-v3 (in radians). That is the angle between vectors v1-v2 and v1-v3.
+    """Return the angle ``v2``-``v1``-``v3`` (in radians), where
+    ``v1``, ``v2``, ``v3`` are 3-vectors. That is, the angle that
+    is formed between vectors ``v2 - v1`` and vector ``v3 - v1``.
 
     Example:
 
@@ -38,10 +40,10 @@ def angle_between(v1, v2, v3):
 
 
 def quadrilateral_area(v1, v2, v3, v4):
-    """Returns area of a spherical quadrilateral on the unit sphere that
-    has vertices on 3-vectors `v1`, `v2`, `v3`, `v4` (counter-clockwise
-    orientation is implied). The area is computed via the excess of the
-    sum of the spherical angles of the quadrilateral from 2π.
+    """Return the area of a spherical quadrilateral on the unit sphere that
+    has vertices on the 3-vectors ``v1``, ``v2``, ``v3``, ``v4``
+    (counter-clockwise orientation is implied). The area is computed via
+    the excess of the sum of the spherical angles of the quadrilateral from 2π.
 
     Example:
 
@@ -86,8 +88,16 @@ def quadrilateral_area(v1, v2, v3, v4):
 
 
 def latlon_to_cartesian(lat, lon, R=1):
-    """Convert latitude-longitude (in degrees) to Cartesian coordinates on a
-    sphere of radius `R`. By default `R = 1`.
+    """    Convert latitude-longitude (in degrees) to Cartesian coordinates on
+    a sphere of radius ``R``. By default ``R = 1``.
+
+    Args:
+        lat (float): Latitude (in degrees).
+        lon (float): Longitude (in degrees).
+        R (float): The radius of the sphere; default: 1.
+
+    Returns:
+        tuple: Tuple with the Cartesian coordinates ``x, y, z``
 
     Examples:
 
@@ -114,17 +124,19 @@ def latlon_to_cartesian(lat, lon, R=1):
 
 
 def quadrilateral_areas(lat, lon, R=1):
-    """Returns area of spherical quadrilaterals on a sphere of radius `R`. By default, `R = 1`.
-    The quadrilaterals are formed by constant latitude and longitude lines on the `lat`-`lon` grid provided.
+    """Return the area of spherical quadrilaterals on a sphere of radius ``R``.
+    By default, ``R = 1``. The quadrilaterals are formed by constant latitude and
+    longitude lines on the ``lat``-``lon`` grid provided.
 
     Args:
-        lat (array): Array of latitude points (in degrees)
-        lon (array): Array of longitude points (in degrees)
+        lat (numpy.array): Array of latitude points (in degrees).
+        lon (numpy.array): Array of longitude points (in degrees).
+        R (float): The radius of the sphere; default: 1.
 
     Returns:
-        areas (array): Array with the areas of the quadrilaterals defined by the
-                       `lat`-`lon` grid provided. If the `lat`-`lon` are `m x n`
-                       then `areas` is `(m-1) x (n-1)`.
+        numpy.array: Array with the areas of the quadrilaterals defined by the ``lat``-``lon`` grid
+        provided. If the provided ``lat``, ``lon`` arrays are of dimension *m* :math:`\\times` *n*
+        then return areas array is of dimension (*m-1*) :math:`\\times` (*n-1*).
 
     Example:
 
