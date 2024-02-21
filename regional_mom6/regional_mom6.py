@@ -697,15 +697,9 @@ class experiment:
         yextent (Tuple[float]): Extent of the region in latitude in degrees.
         daterange (Tuple[str]): Start and end dates of the boundary forcing window.
         resolution (float): Lateral resolution of the domain, in degrees.
-<<<<<<< HEAD
-        vlayers (int): Number of vertical layers.
+        nlayers (int): Number of vertical layers.
         dz_ratio (float): Ratio of largest to smallest layer thickness; used as input in
             :func:`~hyperbolictan_thickness_profile`.
-=======
-        nlayers (int): Number of vertical layers.
-        dz_ratio (float): Ratio of largest to smallest layer thickness, used
-            as input in :func:`~dz_hyperbolictan`.
->>>>>>> main
         depth (float): Depth of the domain.
         mom_run_dir (str): Path of the MOM6 control directory.
         mom_input_dir (str): Path of the MOM6 input directory, to receive the forcing files.
@@ -851,13 +845,10 @@ class experiment:
         specified at the class level.
         """
 
-<<<<<<< HEAD
         thickness = hyperbolictan_thickness_profile(
-            self.vlayers + 1, self.dz_ratio, self.depth
+            self.nlayers + 1, self.dz_ratio, self.depth
         )
-=======
-        thickness = dz_hyperbolictan(self.nlayers + 1, self.dz_ratio, self.depth)
->>>>>>> main
+
         vcoord = xr.Dataset(
             {
                 "zi": ("zi", np.cumsum(thickness)),
