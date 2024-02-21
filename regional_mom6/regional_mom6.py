@@ -845,16 +845,20 @@ class experiment:
         specified at the class level.
         """
 
-        thickness = hyperbolictan_thickness_profile(
-            self.nlayers + 1, self.dz_ratio, self.depth
+        thicknesses = hyperbolictan_thickness_profile(
+            self.nlayers, self.dz_ratio, self.depth
         )
+
+        zi = np.cumsum(thicknesses)
+        zi = np.insert(zi, 0, 0.0)
 
         vcoord = xr.Dataset(
             {
-                "zi": ("zi", np.cumsum(thickness)),
-                "zl": ("zl", (np.cumsum(thickness) + 0.5 * thickness)[0:-1]),
+                "zi": ("zi", zi),
+                "zl": ("zl", zi[0:-1] + thicknesses/2),
             }
         )
+
         vcoord["zi"].attrs = {"units": "meters"}
         vcoord.to_netcdf(self.mom_input_dir / "vcoord.nc")
 
