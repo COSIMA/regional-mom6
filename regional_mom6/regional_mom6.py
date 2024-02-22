@@ -626,7 +626,7 @@ class experiment:
         self.vlayers = vlayers
         self.dz_ratio = dz_ratio
         self.depth = depth
-        self.toolpath = Path(toolpath)
+        self.toolpath = Path(toolpath).absolute()
         self.ocean_mask = None
         if read_existing_grids:
             try:
