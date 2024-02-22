@@ -79,3 +79,10 @@ jobs:
         with:
           name: notebooks-for-${{ github.sha }}
           path: docs/demo_notebooks
+
+      - uses: dfm/rtds-action@main
+        if: ${{ steps.evaluate-notebooks.conclusion != 'skipped' }}
+        with:
+          webhook_url: ${{ secrets.RTDS_WEBHOOK_URL }}
+          webhook_token: ${{ secrets.RTDS_WEBHOOK_TOKEN }}
+          commit_ref: ${{ github.ref }}
