@@ -521,60 +521,64 @@ class experiment:
     the ``xextent``, ``yextent``, ``daterange``, and ``resolution`` must be specified.
 
     Args:
-        xextent (Tuple[float]): Extent of the region in longitude in degrees.
-        yextent (Tuple[float]): Extent of the region in latitude in degrees.
-        daterange (Tuple[str]): Start and end dates of the boundary forcing window.
+        longitude_extent (Tuple[float]): Extent of the region in longitude in degrees.
+        latitude_extent (Tuple[float]): Extent of the region in latitude in degrees.
+        date_range (Tuple[str]): Start and end dates of the boundary forcing window.
         resolution (float): Lateral resolution of the domain, in degrees.
-        nlayers (int): Number of vertical layers.
-        dz_ratio (float): Ratio of largest to smallest layer thickness, used
+        number_vertical_layers (int): Number of vertical layers.
+        layer_thickness_ratio (float): Ratio of largest to smallest layer thickness, used
             as input in :func:`~dz_hyperbolictan`.
         depth (float): Depth of the domain.
         mom_run_dir (str): Path of the MOM6 control directory.
         mom_input_dir (str): Path of the MOM6 input directory, to receive the forcing files.
-        toolpath (str): Path of GFDL's FRE tools (https://github.com/NOAA-GFDL/FRE-NCtools)
+        toolpath_dir (str): Path of GFDL's FRE tools (https://github.com/NOAA-GFDL/FRE-NCtools)
             binaries.
-        gridtype (Optional[str]): Type of horizontal grid to generate.
+        grid_type (Optional[str]): Type of horizontal grid to generate.
             Currently, only ``even_spacing`` is supported.
-        ryf (Optional[bool]): When ``True`` the experiment runs with 'repeat-year forcing'.
-            When ``False`` (default) then inter-annual forcing is used.
+        repeat_year_forcing (Optional[bool]): When ``True`` the experiment runs with
+            'repeat-year forcing'. When ``False`` (default) then inter-annual forcing is used.
         read_existing_grids (Optional[Bool]): When ``True``, instead of generating the grids,
-            reads the grids and ocean mask from the 'inputdir' and 'rundir'. Useful for
-            modifying or troubleshooting experiments. Default: ``False``.
+            reads the grids and ocean mask from ``mom_input_dir`` and ``mom_run_dir``. Useful
+            for modifying or troubleshooting experiments. Default: ``False``.
     """
 
     def __init__(
         self,
-        xextent,
-        yextent,
-        daterange,
+        *,
+        longitude_extent,
+        latitude_extent,
+        date_range,
         resolution,
-        nlayers,
-        dz_ratio,
+        number_vertical_layers,
+        layer_thickness_ratio,
         depth,
         mom_run_dir,
         mom_input_dir,
-        toolpath,
-        gridtype="even_spacing",
-        ryf=False,
+        toolpath_dir,
+        grid_type="even_spacing",
+        repeat_year_forcing=False,
         read_existing_grids=False,
     ):
+        ## in case list was given, convert to tuples
+        self.longitude_extent = tuple(longitude_extent)
+        self.latitude_extent = tuple(latitude_extent)
+        self.date_range = tuple(date_range)
+
         self.mom_run_dir = Path(mom_run_dir)
         self.mom_input_dir = Path(mom_input_dir)
 
         self.mom_run_dir.mkdir(exist_ok=True)
         self.mom_input_dir.mkdir(exist_ok=True)
 
-        self.xextent = xextent
-        self.yextent = yextent
-        self.daterange = [
-            dt.datetime.strptime(daterange[0], "%Y-%m-%d %H:%M:%S"),
-            dt.datetime.strptime(daterange[1], "%Y-%m-%d %H:%M:%S"),
+        self.date_range = [
+            dt.datetime.strptime(date_range[0], "%Y-%m-%d %H:%M:%S"),
+            dt.datetime.strptime(date_range[1], "%Y-%m-%d %H:%M:%S"),
         ]
         self.resolution = resolution
-        self.nlayers = nlayers
-        self.dz_ratio = dz_ratio
+        self.number_vertical_layers = number_vertical_layers
+        self.layer_thickness_ratio = layer_thickness_ratio
         self.depth = depth
-        self.toolpath = Path(toolpath)
+        self.toolpath_dir = Path(toolpath_dir)
         self.ocean_mask = None
         if read_existing_grids:
             try:
@@ -586,10 +590,10 @@ class experiment:
                 )
                 raise ValueError
         else:
-            self.hgrid = self._make_hgrid(gridtype)
+            self.hgrid = self._make_hgrid(grid_type)
             self.vgrid = self._make_vgrid()
-        self.gridtype = gridtype
-        self.ryf = ryf
+        self.grid_type = grid_type
+        self.repeat_year_forcing = repeat_year_forcing
         # create additional directories and links
         (self.mom_input_dir / "weights").mkdir(exist_ok=True)
         (self.mom_input_dir / "forcing").mkdir(exist_ok=True)
@@ -635,22 +639,28 @@ class experiment:
         if gridtype == "even_spacing":
 
             # longitudes are evenly spaced based on resolution and bounds
-            nx = int((self.xextent[1] - self.xextent[0]) / (self.resolution / 2))
+            nx = int(
+                (self.longitude_extent[1] - self.longitude_extent[0])
+                / (self.resolution / 2)
+            )
             if nx % 2 != 1:
                 nx += 1
 
             λ = np.linspace(
-                self.xextent[0], self.xextent[1], nx
+                self.longitude_extent[0], self.longitude_extent[1], nx
             )  # longitudes in degrees
 
             # Latitudes evenly spaced by dx * cos(central_latitude)
-            central_latitude = np.mean(self.yextent)  # degrees
+            central_latitude = np.mean(self.latitude_extent)  # degrees
             latitudinal_resolution = self.resolution * np.cos(
                 np.deg2rad(central_latitude)
             )
 
             ny = (
-                int((self.yextent[1] - self.yextent[0]) / (latitudinal_resolution / 2))
+                int(
+                    (self.latitude_extent[1] - self.latitude_extent[0])
+                    / (latitudinal_resolution / 2)
+                )
                 + 1
             )
 
@@ -658,7 +668,7 @@ class experiment:
                 ny += 1
 
             φ = np.linspace(
-                self.yextent[0], self.yextent[1], ny
+                self.latitude_extent[0], self.latitude_extent[1], ny
             )  # latitudes in degrees
 
             hgrid = rectangular_hgrid(λ, φ)
@@ -673,7 +683,9 @@ class experiment:
         specified at the class level.
         """
 
-        thickness = dz_hyperbolictan(self.nlayers + 1, self.dz_ratio, self.depth)
+        thickness = dz_hyperbolictan(
+            self.number_vertical_layers + 1, self.layer_thickness_ratio, self.depth
+        )
         vcoord = xr.Dataset(
             {
                 "zi": ("zi", np.cumsum(thickness)),
