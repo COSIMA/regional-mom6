@@ -210,8 +210,8 @@ def nicer_slicer(data, xextent, xcoords, buffer=2):
                 _central_longitude = (
                     central_longitude + 360 * i
                 )  ## Shifted version of target midpoint; e.g;, could be -90 vs 270
-                   ## integer i keeps track of what how many multiples of 360 we need to shift entire
-                   ## grid by to match central_longitude
+                ## integer i keeps track of what how many multiples of 360 we need to shift entire
+                ## grid by to match central_longitude
 
                 mp_data = data[x][data[x].shape[0] // 2].values  ## Midpoint of the data
 
@@ -248,7 +248,8 @@ def nicer_slicer(data, xextent, xcoords, buffer=2):
                 ## Choose the number of x points to take from the middle, including a buffer. Use this to index the new global dataset
 
                 num_xpoints = (
-                    int(data[x].shape[0] * (central_longitude - xextent[0])) // 360 + buffer * 2
+                    int(data[x].shape[0] * (central_longitude - xextent[0])) // 360
+                    + buffer * 2
                 )
 
         data = new_data.isel(
