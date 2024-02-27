@@ -135,17 +135,17 @@ def test_ocean_forcing(
     tmp_path,
 ):
     expt = experiment(
-        xextent,
-        yextent,
-        daterange,
-        resolution,
-        nlayers,
-        dz_ratio,
-        depth,
-        mom_run_dir,
-        mom_input_dir,
-        toolpath,
-        gridtype,
+        longitude_extent = xextent,
+        latitude_extent = yextent,
+        date_range = daterange,
+        resolution = resolution,
+        number_vertical_layers = nlayers,
+        layer_thickness_ratio = dz_ratio,
+        depth = depth,
+        mom_run_dir = mom_run_dir,
+        mom_input_dir = mom_input_dir,
+        toolpath_dir = toolpath,
+        grid_type = gridtype,
     )
 
     ## Generate some initial condition to test on
@@ -324,17 +324,17 @@ def test_rectangular_boundary(
     eastern_boundary.close()
 
     expt = experiment(
-        xextent,
-        yextent,
-        daterange,
-        resolution,
-        nlayers,
-        dz_ratio,
-        depth,
-        mom_run_dir,
-        mom_input_dir,
-        toolpath,
-        gridtype,
+        longitude_extent = xextent,
+        latitude_extent = yextent,
+        date_range = daterange,
+        resolution = resolution,
+        number_vertical_layers = nlayers,
+        layer_thickness_ratio = dz_ratio,
+        depth = depth,
+        mom_run_dir = mom_run_dir,
+        mom_input_dir = mom_input_dir,
+        toolpath_dir = toolpath,
+        grid_type = gridtype,
     )
 
     varnames = {
