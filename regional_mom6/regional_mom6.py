@@ -759,18 +759,15 @@ class experiment:
         )
 
         zi = np.cumsum(thicknesses)
-        zi = np.insert(zi, 0, 0.0) # add zi = 0.0 as first interface
+        zi = np.insert(zi, 0, 0.0)  # add zi = 0.0 as first interface
 
-        zl = zi[0:-1] + thicknesses / 2 # the mid-points between zi
+        zl = zi[0:-1] + thicknesses / 2  # the mid-points between interfaces zi
 
-        vcoord = xr.Dataset(
-            {
-                "zi": ("zi", zi),
-                "zl": ("zl", zl),
-            }
-        )
+        vcoord = xr.Dataset({"zi": ("zi", zi), "zl": ("zl", zl)})
 
         vcoord["zi"].attrs = {"units": "meters"}
+        vcoord["zl"].attrs = {"units": "meters"}
+
         vcoord.to_netcdf(self.mom_input_dir / "vcoord.nc")
 
         return vcoord
