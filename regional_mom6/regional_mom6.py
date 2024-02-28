@@ -1409,7 +1409,7 @@ class experiment:
         print(
             "OUTPUT FROM MAKE SOLO MOSAIC:",
             subprocess.run(
-                str(self.toolpath / "make_solo_mosaic/make_solo_mosaic")
+                str(self.toolpath_dir / "make_solo_mosaic/make_solo_mosaic")
                 + " --num_tiles 1 --dir . --mosaic_name ocean_mosaic --tile_file hgrid.nc",
                 shell=True,
                 cwd=self.mom_input_dir,
@@ -1420,7 +1420,7 @@ class experiment:
         print(
             "OUTPUT FROM QUICK QUICK MOSAIC:",
             subprocess.run(
-                str(self.toolpath / "make_quick_mosaic/make_quick_mosaic")
+                str(self.toolpath_dir / "make_quick_mosaic/make_quick_mosaic")
                 + " --input_mosaic ocean_mosaic.nc --mosaic_name grid_spec --ocean_topog topog.nc",
                 shell=True,
                 cwd=self.mom_input_dir,
@@ -1440,7 +1440,7 @@ class experiment:
         print(
             "OUTPUT FROM CHECK MASK:\n\n",
             subprocess.run(
-                str(self.toolpath / "check_mask/check_mask")
+                str(self.toolpath_dir / "check_mask/check_mask")
                 + f" --grid_file ocean_mosaic.nc --ocean_topog topog.nc --layout {layout[0]},{layout[1]} --halo 4",
                 shell=True,
                 cwd=self.mom_input_dir,
