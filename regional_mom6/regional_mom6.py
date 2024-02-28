@@ -1182,7 +1182,7 @@ class experiment:
             ## Replace subprocess run with regular regridder
             print(
                 "Begin regridding bathymetry...\n\n"
-                + "If this process hangs your domain might be too big to handle this way. "
+                + "If this process hangs it means that the chosen domain might be too big to handle this way. "
                 + "After ensuring access to appropriate computational resources, try calling ESMF "
                 + "directly from a terminal in the input directory via\n\n"
                 + "mpirun ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\n\n"
