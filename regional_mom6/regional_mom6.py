@@ -1084,7 +1084,7 @@ class experiment:
 
             bathy = bathy.sel(
                 {
-                    varnames["yh"]: slice(self.yextent[0] - 1, self.yextent[1] + 1)
+                    varnames["yh"]: slice(self.latitude_extent[0] - 1, self.latitude_extent[1] + 1)
                 }  #! Hardcoded 1 degree buffer around bathymetry selection. TODO: automatically select buffer
             ).astype("float")
 
@@ -1101,7 +1101,7 @@ class experiment:
                 ## Assume that we're dealing with a global grid, in which case we use nicer slicer
                 bathy = nicer_slicer(
                     bathy,
-                    np.array(self.xextent)
+                    np.array(self.longitude_extent)
                     + np.array(
                         [-0.1, 0.1]
                     ),  #! Hardcoded 0.1 degree buffer around bathymetry selection. TODO: automatically select buffer
@@ -1640,11 +1640,11 @@ class experiment:
                 ## Cut out this variable to our domain size
                 rawdata[fname] = nicer_slicer(
                     ds,
-                    self.xextent,
+                    self.longitude_extent,
                     "longitude",
                 ).sel(
                     latitude=slice(
-                        self.yextent[1], self.yextent[0]
+                        self.longitude_extent[1], self.longitude_extent[0]
                     )  ## This is because ERA5 has latitude in decreasing order (??)
                 )
 
