@@ -579,6 +579,8 @@ class experiment:
         self.layer_thickness_ratio = layer_thickness_ratio
         self.depth = depth
         self.toolpath_dir = Path(toolpath_dir)
+        self.grid_type = grid_type
+        self.repeat_year_forcing = repeat_year_forcing
         self.ocean_mask = None
         if read_existing_grids:
             try:
@@ -590,10 +592,8 @@ class experiment:
                 )
                 raise ValueError
         else:
-            self.hgrid = self._make_hgrid(grid_type)
+            self.hgrid = self._make_hgrid()
             self.vgrid = self._make_vgrid()
-        self.grid_type = grid_type
-        self.repeat_year_forcing = repeat_year_forcing
         # create additional directories and links
         (self.mom_input_dir / "weights").mkdir(exist_ok=True)
         (self.mom_input_dir / "forcing").mkdir(exist_ok=True)
@@ -614,7 +614,7 @@ class experiment:
         )
         raise AttributeError(error_message)
 
-    def _make_hgrid(self, gridtype):
+    def _make_hgrid(self):
         """
         Set up a horizontal grid based on user's specification of the domain.
         The default behaviour provides with a grid evenly spaced both in
@@ -636,7 +636,11 @@ class experiment:
             to read the file in, then modify the fields before re-saving.
         """
 
-        if gridtype == "even_spacing":
+        assert (
+            self.grid_type == "even_spacing"
+        ), "only even_spacing grid type is implemented"
+
+        if self.grid_type == "even_spacing":
 
             # longitudes are evenly spaced based on resolution and bounds
             nx = int(
