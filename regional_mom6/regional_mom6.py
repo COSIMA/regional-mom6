@@ -1031,7 +1031,7 @@ class experiment:
             varnames,
             "segment_{:03d}".format(segment_number),
             orientation,  # orienataion
-            self.daterange[0],
+            self.date_range[0],
             gridtype=gridtype,
             ryf=self.ryf,
         )
@@ -1598,9 +1598,9 @@ class experiment:
         # Modify input.nml
         nml = f90nml.read(self.mom_run_dir / "input.nml")
         nml["coupler_nml"]["current_date"] = [
-            self.daterange[0].year,
-            self.daterange[0].month,
-            self.daterange[0].day,
+            self.date_range[0].year,
+            self.date_range[0].month,
+            self.date_range[0].day,
             0,
             0,
             0,
@@ -1627,7 +1627,7 @@ class experiment:
         ):
             ## Load data from all relevant years
             years = [
-                i for i in range(self.daterange[0].year, self.daterange[1].year + 1)
+                i for i in range(self.date_range[0].year, self.date_range[1].year + 1)
             ]
             # Loop through each year and read the corresponding files
             for year in years:
@@ -1662,7 +1662,7 @@ class experiment:
 
                 rawdata[fname].time.attrs = {
                     "calendar": "julian",
-                    "units": f"hours since {self.daterange[0].strftime('%Y-%m-%d %H:%M:%S')}",
+                    "units": f"hours since {self.date_range[0].strftime('%Y-%m-%d %H:%M:%S')}",
                 }  ## Fix up calendar to match
 
                 if fname == "2d":
