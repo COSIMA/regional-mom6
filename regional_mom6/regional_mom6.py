@@ -283,9 +283,9 @@ def motu_requests(
         daterange (Tuple[str]): Start and end dates of boundary forcing window.
             Format: ``%Y-%m-%d %H:%M:%S``.
         outfolder (str): Directory the files are downloaded.
-        usr (str): MOTU authentication username
-        pwd (str): MOTU authentication password
-        segs (List[str]): List of the cardinal directions for your boundary forcing
+        usr (str): MOTU authentication username.
+        pwd (str): MOTU authentication password.
+        segs (List[str]): List of the cardinal directions for the boundary forcing.
         url (Optional[str]): MOTU server for the request. Defaults to the CMEMS,
             i.e. ``"https://my.cmems-du.eu/motu-web/Motu"``.
         serviceid (Optional[str]): Service containing the desired dataset. Default:
@@ -507,12 +507,12 @@ def rectangular_hgrid(λ, φ):
 class experiment:
     """The main class for setting up a regional experiment.
 
-    Everything about your regional experiment.
+    Everything about the regional experiment.
 
     Methods in this class will generate the various input files needed
     to generate a MOM6 experiment forced with open boundary conditions
-    (OBCs). The code is agnostic to your choice of boundary forcing,
-    topography and surface forcing - you need to tell it what your variables
+    (OBCs). The code is agnostic to the user's choice of boundary forcing,
+    topography and surface forcing; users need to prescribe what variables
     are all called via mapping dictionaries from MOM6 variable/coordinate
     name to the name in the input dataset.
 
@@ -632,7 +632,7 @@ class experiment:
         Note:
             The intention is for the horizontal grid (``hgrid``) generation to be very flexible.
             For now, there is only one implemented horizontal grid included in the package,
-            but you can customise it by simply overwriting the ``hgrid.nc`` file in your ``rundir``
+            but you can customise it by simply overwriting the ``hgrid.nc`` file in the ``rundir``
             after initialising an ``experiment``. To conserve the metadata, it might be easiest
             to read the file in, then modify the fields before re-saving.
         """
@@ -1058,7 +1058,7 @@ class experiment:
         It's also possible to optionally fill narrow channels (see ``fill_channels``
         below), although this is less of an issue for models on a C-grid, like MOM6.
 
-        Output is saved to the input folder for your experiment.
+        Output is saved to the input folder for the experiment.
 
         Args:
             bathy_path (str): Path to chosen bathymetry file netCDF file.
@@ -1190,7 +1190,7 @@ class experiment:
 
             ## Replace subprocess run with regular regridder
             print(
-                "Starting to regrid bathymetry. If this process hangs your domain might be too big to handle this way. Try calling ESMF directly from a terminal with appropriate computational resources opened in the input directory using \n\n mpirun ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\n\n For details see https://xesmf.readthedocs.io/en/latest/large_problems_on_HPC.html \n\nAftewards, run this method again but set 'maketopog = False' so that python skips the computationally expensive step and just fixes up the metadata.\n\n"
+                "Starting to regrid bathymetry. If this process hangs the domain might be too big to handle this way. Try calling ESMF directly from a terminal with appropriate computational resources opened in the input directory using \n\n mpirun ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\n\n For details see https://xesmf.readthedocs.io/en/latest/large_problems_on_HPC.html \n\nAftewards, run this method again but set 'maketopog = False' so that python skips the computationally expensive step and just fixes up the metadata.\n\n"
             )
 
             # If we have a domain large enough for chunks, we'll run regridder with parallel=True
@@ -1543,7 +1543,7 @@ class experiment:
             ncpus = (x * y) - int(masked)
         if mask_table == None:
             print(
-                "No mask table found! This suggests your domain is mostly water, so there are no `non compute` cells that are entirely land. If this doesn't seem right, ensure you've already run .FRE_tools()."
+                "No mask table found! This suggests the domain is mostly water, so there are no `non compute` cells that are entirely land. If this doesn't seem right, ensure you've already run .FRE_tools()."
             )
             if not hasattr(self, "layout"):
                 raise AttributeError(
@@ -1611,7 +1611,7 @@ class experiment:
 
     def setup_era5(self, era5_path):
         """
-        Setup the ERA5 forcing files for your experiment. This assumes that
+        Setup the ERA5 forcing files for the experiment. This assumes that
         all of the ERA5 data in the prescribed date range are downloaded.
         We need the following fields: "2t", "10u", "10v", "sp", "2d", "msdwswrf",
         "msdwlwrf", "lsrr", and "crr".
