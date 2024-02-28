@@ -155,7 +155,7 @@ def ep2ap(SEMA, ECC, INC, PHA):
 ## Auxiliary functions
 
 
-def nicer_slicer(data, xextent, xcoords, buffer=2):
+def longitude_slicer(data, xextent, xcoords, buffer=2):
     """
     Slice longitudes, handling periodicity and 'seams' where the
     data wraps around (commonly either in domain [-180, 180] or in [-270, 90]).
@@ -1092,7 +1092,7 @@ class experiment:
 
             if np.isclose(horizontal_extent, 360):
                 ## Assume that we're dealing with a global grid, in which case we use nicer slicer
-                bathy = nicer_slicer(
+                bathy = longitude_slicer(
                     bathy,
                     np.array(self.xextent)
                     + np.array(
@@ -1631,7 +1631,7 @@ class experiment:
                 )
 
                 ## Cut out this variable to our domain size
-                rawdata[fname] = nicer_slicer(
+                rawdata[fname] = longitude_slicer(
                     ds,
                     self.xextent,
                     "longitude",
