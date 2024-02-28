@@ -157,8 +157,12 @@ def test_ocean_forcing(
                 np.random.random((100, 100, 10)),
                 dims=["lata", "lona", "deepness"],
                 coords={
-                    "lata": np.linspace(latitude_extent[0] - 5, latitude_extent[1] + 5, 100),
-                    "lona": np.linspace(longitude_extent[0] - 5, longitude_extent[1] + 5, 100),
+                    "lata": np.linspace(
+                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
+                    ),
+                    "lona": np.linspace(
+                        longitude_extent[0] - 5, longitude_extent[1] + 5, 100
+                    ),
                     "deepness": np.linspace(0, 1000, 10),
                 },
             ),
@@ -166,16 +170,24 @@ def test_ocean_forcing(
                 np.random.random((100, 100)),
                 dims=["lata", "lona"],
                 coords={
-                    "lata": np.linspace(latitude_extent[0] - 5, latitude_extent[1] + 5, 100),
-                    "lona": np.linspace(longitude_extent[0] - 5, longitude_extent[1] + 5, 100),
+                    "lata": np.linspace(
+                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
+                    ),
+                    "lona": np.linspace(
+                        longitude_extent[0] - 5, longitude_extent[1] + 5, 100
+                    ),
                 },
             ),
             "salt": xr.DataArray(
                 np.random.random((100, 100, 10)),
                 dims=["lata", "lona", "deepness"],
                 coords={
-                    "lata": np.linspace(latitude_extent[0] - 5, latitude_extent[1] + 5, 100),
-                    "lona": np.linspace(longitude_extent[0] - 5, longitude_extent[1] + 5, 100),
+                    "lata": np.linspace(
+                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
+                    ),
+                    "lona": np.linspace(
+                        longitude_extent[0] - 5, longitude_extent[1] + 5, 100
+                    ),
                     "deepness": np.linspace(0, 1000, 10),
                 },
             ),
@@ -183,8 +195,12 @@ def test_ocean_forcing(
                 np.random.random((100, 100, 10)),
                 dims=["lata", "lona", "deepness"],
                 coords={
-                    "lata": np.linspace(latitude_extent[0] - 5, latitude_extent[1] + 5, 100),
-                    "lona": np.linspace(longitude_extent[0] - 5, longitude_extent[1] + 5, 100),
+                    "lata": np.linspace(
+                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
+                    ),
+                    "lona": np.linspace(
+                        longitude_extent[0] - 5, longitude_extent[1] + 5, 100
+                    ),
                     "deepness": np.linspace(0, 1000, 10),
                 },
             ),
@@ -192,8 +208,12 @@ def test_ocean_forcing(
                 np.random.random((100, 100, 10)),
                 dims=["lata", "lona", "deepness"],
                 coords={
-                    "lata": np.linspace(latitude_extent[0] - 5, latitude_extent[1] + 5, 100),
-                    "lona": np.linspace(longitude_extent[0] - 5, longitude_extent[1] + 5, 100),
+                    "lata": np.linspace(
+                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
+                    ),
+                    "lona": np.linspace(
+                        longitude_extent[0] - 5, longitude_extent[1] + 5, 100
+                    ),
                     "deepness": np.linspace(0, 1000, 10),
                 },
             ),
@@ -273,8 +293,12 @@ def test_rectangular_boundary(
                 np.random.random((100, 5, 10, 10)),
                 dims=["lata", "lona", "deepness", "time"],
                 coords={
-                    "lata": np.linspace(latitude_extent[0] - 5, latitude_extent[1] + 5, 100),
-                    "lona": np.linspace(longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5),
+                    "lata": np.linspace(
+                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
+                    ),
+                    "lona": np.linspace(
+                        longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5
+                    ),
                     "deepness": np.linspace(0, 1000, 10),
                     "time": np.linspace(0, 1000, 10),
                 },
@@ -283,8 +307,12 @@ def test_rectangular_boundary(
                 np.random.random((100, 5, 10)),
                 dims=["lata", "lona", "time"],
                 coords={
-                    "lata": np.linspace(latitude_extent[0] - 5, latitude_extent[1] + 5, 100),
-                    "lona": np.linspace(longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5),
+                    "lata": np.linspace(
+                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
+                    ),
+                    "lona": np.linspace(
+                        longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5
+                    ),
                     "time": np.linspace(0, 1000, 10),
                 },
             ),
@@ -292,8 +320,12 @@ def test_rectangular_boundary(
                 np.random.random((100, 5, 10, 10)),
                 dims=["lata", "lona", "deepness", "time"],
                 coords={
-                    "lata": np.linspace(latitude_extent[0] - 5, latitude_extent[1] + 5, 100),
-                    "lona": np.linspace(longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5),
+                    "lata": np.linspace(
+                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
+                    ),
+                    "lona": np.linspace(
+                        longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5
+                    ),
                     "deepness": np.linspace(0, 1000, 10),
                     "time": np.linspace(0, 1000, 10),
                 },
@@ -302,8 +334,12 @@ def test_rectangular_boundary(
                 np.random.random((100, 5, 10, 10)),
                 dims=["lata", "lona", "deepness", "time"],
                 coords={
-                    "lata": np.linspace(latitude_extent[0] - 5, latitude_extent[1] + 5, 100),
-                    "lona": np.linspace(longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5),
+                    "lata": np.linspace(
+                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
+                    ),
+                    "lona": np.linspace(
+                        longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5
+                    ),
                     "deepness": np.linspace(0, 1000, 10),
                     "time": np.linspace(0, 1000, 10),
                 },
@@ -312,8 +348,12 @@ def test_rectangular_boundary(
                 np.random.random((100, 5, 10, 10)),
                 dims=["lata", "lona", "deepness", "time"],
                 coords={
-                    "lata": np.linspace(latitude_extent[0] - 5, latitude_extent[1] + 5, 100),
-                    "lona": np.linspace(longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5),
+                    "lata": np.linspace(
+                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
+                    ),
+                    "lona": np.linspace(
+                        longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5
+                    ),
                     "deepness": np.linspace(0, 1000, 10),
                     "time": np.linspace(0, 1000, 10),
                 },
