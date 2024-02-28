@@ -516,10 +516,8 @@ class experiment:
     are all called via mapping dictionaries from MOM6 variable/coordinate
     name to the name in the input dataset.
 
-    This can be used to generate the grids for a new experiment, or to read in
-    an existing one by setting ``read_existing_grids`` to ``True``. In either case,
-    the ``longitude_extent``, ``latitude_extent``, ``date_range``, and ``resolution``
-    must be specified.
+    The class can be used to generate the grids for a new experiment, or to read in
+    an existing one by providing with ``read_existing_grids=True``.
 
     Args:
         longitude_extent (Tuple[float]): Extent of the region in longitude in degrees.
