@@ -999,7 +999,7 @@ class experiment:
         return
 
     def rectangular_boundary(
-        self, path_to_bc, varnames, orientation, segment_number, gridtype="A"
+        self, path_to_bc, varnames, orientation, segment_number, arakawa_grid="A"
     ):
         """
         Setup a boundary forcing file for a given orientation. Here the term 'rectangular'
@@ -1016,10 +1016,8 @@ class experiment:
                 ``'north'``, or ``'south'``.
             segment_number (int): Number the segments according to how they'll be specified in
                 the ``MOM_input``.
-            gridtype (Optional[str]): Arakawa grid staggering of input; either ``'A'``, ``'B'``,
+            arakawa_grid (Optional[str]): Arakawa grid staggering of input; either ``'A'``, ``'B'``,
                 or ``'C'``.
-            ryf (Optional[bool]): When ``True`` the experiment runs with  'repeat-year forcing';
-                when ``False``, inter-annual forcing is used.
         """
 
         print("Processing {} boundary...".format(orientation), end="")
@@ -1032,8 +1030,8 @@ class experiment:
             "segment_{:03d}".format(segment_number),
             orientation,  # orienataion
             self.date_range[0],
-            gridtype=gridtype,
-            ryf=self.ryf,
+            gridtype=arakawa_grid,
+            repeat_year_forcing=self.repeat_year_forcing,
         )
 
         seg.rectangular_brushcut()
@@ -1750,8 +1748,8 @@ class segment:
             *K*:sub:`2`, *K*:sub:`1`, *O*:sub:`2`, *P*:sub:`1`, *Q*:sub:`1`, *Mm*,
             *Mf*, and *M*:sub:`4`. For example, specifying ``1`` only includes *M*:sub:`2`;
             specifying ``2`` includes *M*:sub:`2` and *S*:sub:`2`, etc. Default: ``None``.
-        ryf (Optional[bool]): When ``True`` the experiment runs with 'repeat-year forcing'.
-            When ``False`` (default) then inter-annual forcing is used.
+        repeat_year_forcing (Optional[bool]): When ``True`` the experiment runs with 'repeat-year
+            forcing'. When ``False`` (default) then inter-annual forcing is used.
     """
 
     def __init__(
@@ -1766,7 +1764,7 @@ class segment:
         gridtype="A",
         time_units="days",
         tidal_constituents=None,
-        ryf=False,
+        repeat_year_forcing=False,
     ):
         ## Store coordinate names
         if gridtype == "A":
@@ -1799,7 +1797,7 @@ class segment:
         self.hgrid = hgrid
         self.seg_name = seg_name
         self.tidal_constituents = tidal_constituents
-        self.ryf = ryf
+        self.repeat_year_forcing = repeat_year_forcing
 
     def rectangular_brushcut(self):
         """
@@ -2100,7 +2098,7 @@ class segment:
         }
 
         # If repeat-year forcing, add modulo coordinate
-        if self.ryf:
+        if self.repeat_year_forcing:
             segment_out["time"] = segment_out["time"].assign_attrs({"modulo": " "})
 
         with ProgressBar():
