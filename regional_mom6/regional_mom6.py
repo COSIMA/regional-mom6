@@ -1113,7 +1113,7 @@ class experiment:
                 ## Otherwise just slice normally
                 bathy = bathy.sel(
                     {
-                        varnames["xh"]: slice(self.xextent[0] - 1, self.xextent[1] + 1)
+                        varnames["xh"]: slice(self.longitude_extent[0] - 1, self.longitude_extent[1] + 1)
                     }  #! Hardcoded 1 degree buffer around bathymetry selection. TODO: automatically select buffer
                 )
 
