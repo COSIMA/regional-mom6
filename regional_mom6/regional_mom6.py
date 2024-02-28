@@ -518,7 +518,8 @@ class experiment:
 
     This can be used to generate the grids for a new experiment, or to read in
     an existing one by setting ``read_existing_grids`` to ``True``. In either case,
-    the ``xextent``, ``yextent``, ``daterange``, and ``resolution`` must be specified.
+    the ``longitude_extent``, ``latitude_extent``, ``date_range``, and ``resolution``
+    must be specified.
 
     Args:
         longitude_extent (Tuple[float]): Extent of the region in longitude in degrees.
