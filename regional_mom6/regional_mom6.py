@@ -1180,15 +1180,16 @@ class experiment:
             tgrid.close()
 
             ## Replace subprocess run with regular regridder
-            print("Begin regridding bathymetry...\n\n" + \
-                  "If this process hangs your domain might be too big to handle this way. " + \
-                  "After ensuring access to appropriate computational resources, try calling ESMF " + \
-                  "directly from a terminal in the input directory via\n\n" + \
-                  "mpirun ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\n\n" + \
-                  "For details see https://xesmf.readthedocs.io/en/latest/large_problems_on_HPC.html\n\n" + \
-                  "Aftewards, run the bathymetry method again but set 'maketopog = False' so the " + \
-                  "computationally expensive step is skiped and instead the method ensures that only the " + \
-                  "metadata are fixed."
+            print(
+                "Begin regridding bathymetry...\n\n"
+                + "If this process hangs your domain might be too big to handle this way. "
+                + "After ensuring access to appropriate computational resources, try calling ESMF "
+                + "directly from a terminal in the input directory via\n\n"
+                + "mpirun ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\n\n"
+                + "For details see https://xesmf.readthedocs.io/en/latest/large_problems_on_HPC.html\n\n"
+                + "Aftewards, run the bathymetry method again but set 'maketopog = False' so the "
+                + "computationally expensive step is skiped and instead the method ensures that only the "
+                + "metadata are fixed."
             )
 
             # If we have a domain large enough for chunks, we'll run regridder with parallel=True
