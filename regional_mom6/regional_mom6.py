@@ -19,7 +19,7 @@ from .utils import quadrilateral_areas
 warnings.filterwarnings("ignore")
 
 __all__ = [
-    "nicer_slicer",
+    "longitude_slicer",
     "motu_requests",
     "dz_hyperbolictan",
     "rectangular_hgrid",
@@ -1081,7 +1081,7 @@ class experiment:
                 }  #! Hardcoded 1 degree buffer around bathymetry selection. TODO: automatically select buffer
             ).astype("float")
 
-            ## Here need to make a decision as to whether to slice 'normally' or with nicer slicer for 360 degree domain.
+            ## Here need to make a decision as to whether to slice 'normally' or with the longitude_slicer for 360 degree domain.
 
             horizontal_resolution = bathy[varnames["xh"]][1] - bathy[varnames["xh"]][0]
             horizontal_extent = (
@@ -1091,7 +1091,7 @@ class experiment:
             )
 
             if np.isclose(horizontal_extent, 360):
-                ## Assume that we're dealing with a global grid, in which case we use nicer slicer
+                ## Assume that we're dealing with a global grid, in which case we use longitude_slicer
                 bathy = longitude_slicer(
                     bathy,
                     np.array(self.xextent)
