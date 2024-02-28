@@ -1084,7 +1084,9 @@ class experiment:
 
             bathy = bathy.sel(
                 {
-                    varnames["yh"]: slice(self.latitude_extent[0] - 1, self.latitude_extent[1] + 1)
+                    varnames["yh"]: slice(
+                        self.latitude_extent[0] - 1, self.latitude_extent[1] + 1
+                    )
                 }  #! Hardcoded 1 degree buffer around bathymetry selection. TODO: automatically select buffer
             ).astype("float")
 
