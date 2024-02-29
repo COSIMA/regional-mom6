@@ -205,7 +205,7 @@ def longitude_slicer(data, xextent, xcoords, buffer=2):
 
         ## Find a corresponding value for the intended domain midpoint in our data.
         ## It's assumed that data has equally-spaced longitude values that span 360 degrees.
-        λ = data[x] # longitudes
+        λ = data[x]  # longitudes
         dλ = λ[1] - λ[0]
 
         print(dλ)
