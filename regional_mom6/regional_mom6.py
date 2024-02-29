@@ -155,19 +155,19 @@ def ep2ap(SEMA, ECC, INC, PHA):
 ## Auxiliary functions
 
 
-def nicer_slicer(data, xextent, xcoords, buffer=2):
+def nicer_slicer(data, longitude_extent, longitude_coords, buffer=2):
     """
     Slice longitudes, handling periodicity and 'seams' where the
     data wraps around (commonly either in domain [-180, 180] or in [-270, 90]).
 
     The algorithm works in five steps:
 
-    - Determine whether we need to add or subtract 360 to get the
-      middle of the ``xextent`` to lie within ``data``'s longitude range
+    - Determine whether we need to add or subtract 360 to get the middle
+      of the ``longitude_extent`` to lie within ``data``'s longitude range
       (hereby ``oldx``).
 
     - Shift the dataset so that its midpoint matches the midpoint of
-      ``xextent`` (up to a muptiple of 360). Now, the modified ``oldx``
+      ``longitude_extent`` (up to a muptiple of 360). Now, the modified ``oldx``
       does not increase monotonically from West to East  since the
       'seam' has moved.
 
@@ -175,9 +175,9 @@ def nicer_slicer(data, xextent, xcoords, buffer=2):
       the information we have about the way the dataset was
       shifted/rolled.
 
-    - Slice the ``data`` index-wise. We know that ``|xextent| / 360``
-      multiplied by the number of discrete longitude points will give
-      the total width of our slice, and we've already set the midpoint
+    - Slice the ``data`` index-wise. We know that ``|longitude_extent| / 360``
+      multiplied by the number of discrete longitude points gives the
+      total width of our slice, and we have already set the midpoint
       to be the middle of the target domain. Here we add a ``buffer``
       region on either side if we need it for interpolation.
 
@@ -186,31 +186,33 @@ def nicer_slicer(data, xextent, xcoords, buffer=2):
 
     Args:
         data (xarray.Dataset): The global data you want to slice in longitude.
-        xextent (Tuple[float, float]): The target longitudes (in degrees) we would
-            like to slice to. Must be in increasing order.
-        xcoords (Union[str, List[str]): The name or list of names of the longitude
-            dimension in ``data``.
+        longitude_extent (Tuple[float, float]): The target longitudes (in degrees) we
+            want to slice to. Must be in increasing order.
+        longitude_coords (Union[str, list[str]): The name or a list of names of the
+            longitude dimension(s) in ``data``.
+        buffer (float): Buffer region (in degrees) added on each side of the longitude
+            domain for interpolation purposes.
 
     Returns:
         xarray.Dataset: The sliced ``data``.
     """
 
-    if isinstance(xcoords, str):
-        xcoords = [xcoords]
+    if isinstance(longitude_coords, str):
+        longitude_coords = [longitude_coords]  # convert to list
 
-    for x in xcoords:
-        mp_target = np.mean(xextent)  ## Midpoint of target domain
+    for x in longitude_coords:
+        cental_longitude = np.mean(longitude_extent)  ## Midpoint of target domain
 
         ## Find a corresponding value for the intended domain midpint in our data. Assuming here that data has equally spaced longitude values spanning 360deg
         for i in range(-1, 2, 1):
-            if data[x][0] <= mp_target + 360 * i <= data[x][-1]:
-                _mp_target = (
-                    mp_target + 360 * i
+            if data[x][0] <= cental_longitude + 360 * i <= data[x][-1]:
+                _cental_longitude = (
+                    cental_longitude + 360 * i
                 )  ## Shifted version of target midpoint. eg, could be -90 vs 270. i keeps track of what multiple of 360 we need to shift entire grid by to match midpoint
 
                 mp_data = data[x][data[x].shape[0] // 2].values  ## Midpoint of the data
 
-                shift = -1 * (data[x].shape[0] * (_mp_target - mp_data)) // 360
+                shift = -1 * (data[x].shape[0] * (_cental_longitude - mp_data)) // 360
                 shift = int(
                     shift
                 )  ## This is the number of indices between the data midpoint, and the target midpoint. Sign indicates direction needed to shift
@@ -243,7 +245,9 @@ def nicer_slicer(data, xextent, xcoords, buffer=2):
                 ## Choose the number of x points to take from the middle, including a buffer. Use this to index the new global dataset
 
                 num_xpoints = (
-                    int(data[x].shape[0] * (mp_target - xextent[0])) // 360 + buffer * 2
+                    int(data[x].shape[0] * (cental_longitude - longitude_extent[0]))
+                    // 360
+                    + buffer * 2
                 )
 
         data = new_data.isel(
