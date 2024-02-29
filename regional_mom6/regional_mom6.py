@@ -155,19 +155,18 @@ def ep2ap(SEMA, ECC, INC, PHA):
 ## Auxiliary functions
 
 
-def longitude_slicer(data, xextent, xcoords, buffer=2):
+def longitude_slicer(data, longitude_extent, longitude_coords, buffer=2):
     """
     Slice longitudes, handling periodicity and 'seams' where the
     data wraps around (commonly either in domain [-180, 180] or in [-270, 90]).
 
     The algorithm works in five steps:
 
-    - Determine whether we need to add or subtract 360 to get the
-      middle of the ``xextent`` to lie within ``data``'s longitude range
-      (hereby ``oldx``).
+    - Determine whether we need to add or subtract 360 to get the middle of the
+      ``longitude_extent`` to lie within ``data``'s longitude range (hereby ``oldx``).
 
     - Shift the dataset so that its midpoint matches the midpoint of
-      ``xextent`` (up to a multiple of 360). Now, the modified ``oldx``
+      ``longitude_extent`` (up to a multiple of 360). Now, the modified ``oldx``
       does not increase monotonically from West to East  since the
       'seam' has moved.
 
@@ -175,7 +174,7 @@ def longitude_slicer(data, xextent, xcoords, buffer=2):
       the information we have about the way the dataset was
       shifted/rolled.
 
-    - Slice the ``data`` index-wise. We know that ``|xextent| / 360``
+    - Slice the ``data`` index-wise. We know that ``|longitude_extent| / 360``
       multiplied by the number of discrete longitude points will give
       the total width of our slice, and we've already set the midpoint
       to be the middle of the target domain. Here we add a ``buffer``
@@ -186,10 +185,10 @@ def longitude_slicer(data, xextent, xcoords, buffer=2):
 
     Args:
         data (xarray.Dataset): The global data you want to slice in longitude.
-        xextent (Tuple[float, float]): The target longitudes (in degrees) we would
+        longitude_extent (Tuple[float, float]): The target longitudes (in degrees) we would
             like to slice to. Must be in increasing order.
-        xcoords (Union[str, List[str]): The name or list of names of the longitude
-            dimension in ``data``.
+        longitude_coords (Union[str, list[str]): The name or list of names of the longitude
+            coordinates(s) in ``data``.
         buffer (float): A ``buffer`` region (in degrees) on either side of the domain
             reserved for interpolation purposes near the edges of the regional domain.
 
@@ -197,27 +196,27 @@ def longitude_slicer(data, xextent, xcoords, buffer=2):
         xarray.Dataset: The sliced ``data``.
     """
 
-    if isinstance(xcoords, str):
-        xcoords = [xcoords]
+    if isinstance(longitude_coords, str):
+        longitude_coords = [longitude_coords]
 
-    for x in xcoords:
-        central_longitude = np.mean(xextent)  ## Midpoint of target domain
+    for lon in longitude_coords:
+        central_longitude = np.mean(longitude_extent)  ## Midpoint of target domain
 
         ## Find a corresponding value for the intended domain midpoint in our data.
         ## It's assumed that data has equally-spaced longitude values that span 360 degrees.
 
-        dλ = data[x][1] - data[x][0]
+        dλ = data[lon][1] - data[lon][0]
 
         assert (
-            np.max(np.diff(data[x]) - dλ) < 1e-14
+            np.max(np.abs(np.diff(data[lon]) - dλ)) < 1e-14
         ), "provided array of longitudes must be uniformly spaced"
 
         assert np.isclose(
-            data[x][-1] - data[x][0], 360
+            data[lon][-1] - data[lon][0], 360
         ), "longitude values must span 360 degrees"
 
         for i in range(-1, 2, 1):
-            if data[x][0] <= central_longitude + 360 * i <= data[x][-1]:
+            if data[lon][0] <= central_longitude + 360 * i <= data[lon][-1]:
 
                 ## Shifted version of target midpoint; e.g., could be -90 vs 270
                 ## integer i keeps track of what how many multiples of 360 we need to shift entire
@@ -225,21 +224,21 @@ def longitude_slicer(data, xextent, xcoords, buffer=2):
                 _central_longitude = central_longitude + 360 * i
 
                 ## Midpoint of the data
-                central_data = data[x][data[x].shape[0] // 2].values
+                central_data = data[lon][data[lon].shape[0] // 2].values
 
                 ## Number of indices between the data midpoint and the target midpoint.
                 ## Sign indicates direction needed to shift.
                 shift = int(
-                    -1 * (data[x].shape[0] * (_central_longitude - central_data)) // 360
+                    -(data[lon].shape[0] * (_central_longitude - central_data)) // 360
                 )
 
                 ## Shift data so that the midpoint of the target domain is the middle of
                 ## the data for easy slicing.
-                new_data = data.roll({x: 1 * shift}, roll_coords=True)
+                new_data = data.roll({lon: 1 * shift}, roll_coords=True)
 
                 ## Create a new longitude coordinate.
                 ## We'll modify this to remove any seams (i.e., jumps like -270 -> 90)
-                new_x = new_data[x].values
+                new_x = new_data[lon].values
 
                 ## Take the 'seam' of the data, and either backfill or forward fill based on
                 ## whether the data was shifted F or west
@@ -249,27 +248,28 @@ def longitude_slicer(data, xextent, xcoords, buffer=2):
                     new_x[0:new_seam_index] -= 360
 
                 if shift < 0:
-                    new_seam_index = data[x].shape[0] + shift
+                    new_seam_index = data[lon].shape[0] + shift
 
-                    new_x[new_seam_index:] += 360
+                    new_lon[new_seam_index:] += 360
 
                 ## new_x is used to recentre the midpoint to match that of target domain
-                new_x -= i * 360
+                new_lon -= i * 360
 
-                new_data = new_data.assign_coords({x: new_x})
+                new_data = new_data.assign_coords({lon: new_lon})
 
-                ## Choose the number of x points to take from the middle, including a buffer.
+                ## Choose the number of lon points to take from the middle, including a buffer.
                 ## Use this to index the new global dataset
-                num_xpoints = (
-                    int(data[x].shape[0] * (central_longitude - xextent[0])) // 360
+                num_lonpoints = (
+                    int(data[lon].shape[0] * (central_longitude - longitude_extent[0]))
+                    // 360
                     + buffer * 2
                 )
 
         data = new_data.isel(
             {
-                x: slice(
-                    data[x].shape[0] // 2 - num_xpoints,
-                    data[x].shape[0] // 2 + num_xpoints,
+                lon: slice(
+                    data[lon].shape[0] // 2 - num_lonpoints,
+                    data[lon].shape[0] // 2 + num_lonpoints,
                 )
             }
         )
