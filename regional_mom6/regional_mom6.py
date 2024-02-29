@@ -163,16 +163,15 @@ def longitude_slicer(data, longitude_extent, longitude_coords, buffer=2):
     The algorithm works in five steps:
 
     - Determine whether we need to add or subtract 360 to get the middle of the
-      ``longitude_extent`` to lie within ``data``'s longitude range (hereby ``oldx``).
+      ``longitude_extent`` to lie within ``data``'s longitude range (hereby ``old_lon``).
 
     - Shift the dataset so that its midpoint matches the midpoint of
-      ``longitude_extent`` (up to a multiple of 360). Now, the modified ``oldx``
-      does not increase monotonically from West to East  since the
-      'seam' has moved.
+      ``longitude_extent`` (up to a multiple of 360). Now, the modified ``old_lon``
+      does not increase monotonically from West to East since the 'seam'
+      has moved.
 
-    - Fix ``oldx`` to make it monotonically increasing again. This uses
-      the information we have about the way the dataset was
-      shifted/rolled.
+    - Fix ``old_lon`` to make it monotonically increasing again. This uses
+      the information we have about the way the dataset was shifted/rolled.
 
     - Slice the ``data`` index-wise. We know that ``|longitude_extent| / 360``
       multiplied by the number of discrete longitude points will give
@@ -185,10 +184,10 @@ def longitude_slicer(data, longitude_extent, longitude_coords, buffer=2):
 
     Args:
         data (xarray.Dataset): The global data you want to slice in longitude.
-        longitude_extent (Tuple[float, float]): The target longitudes (in degrees) we would
-            like to slice to. Must be in increasing order.
-        longitude_coords (Union[str, list[str]): The name or list of names of the longitude
-            coordinates(s) in ``data``.
+        longitude_extent (Tuple[float, float]): The target longitudes (in degrees)
+            we want to slice to. Must be in increasing order.
+        longitude_coords (Union[str, list[str]): The name or list of names of the
+            longitude coordinates(s) in ``data``.
         buffer (float): A ``buffer`` region (in degrees) on either side of the domain
             reserved for interpolation purposes near the edges of the regional domain.
 
