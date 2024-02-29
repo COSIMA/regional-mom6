@@ -23,7 +23,13 @@ requires = ["setuptools", "setuptools_scm[toml]"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["regional_mom6"]
+packages = ["regional_mom6", "regional_mom6.demos.premade_run_directories"]
+
+[tool.setuptools.package-dir]
+"regional_mom6.demos" = "demos"
+
+[tool.setuptools.package-data]
+"regional_mom6.demos.premade_run_directories" = ["*"]
 
 [tool.setuptools_scm]
 write_to = "regional_mom6/_version.py"
