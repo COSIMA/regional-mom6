@@ -167,7 +167,7 @@ def longitude_slicer(data, xextent, xcoords, buffer=2):
       (hereby ``oldx``).
 
     - Shift the dataset so that its midpoint matches the midpoint of
-      ``xextent`` (up to a muptiple of 360). Now, the modified ``oldx``
+      ``xextent`` (up to a multiple of 360). Now, the modified ``oldx``
       does not increase monotonically from West to East  since the
       'seam' has moved.
 
@@ -205,6 +205,18 @@ def longitude_slicer(data, xextent, xcoords, buffer=2):
 
         ## Find a corresponding value for the intended domain midpoint in our data.
         ## It's assumed that data has equally-spaced longitude values that span 360 degrees.
+        λ = data[x] # longitudes
+        dλ = λ[1] - λ[0]
+
+        print(dλ)
+        print(np.max(np.diff(λ) - dλ))
+        assert (
+            np.max(np.diff(λ) - dλ) < 1e-14
+        ), "provided array of longitudes must be uniformly spaced"
+
+        print(λ[-1] - λ[0])
+        assert np.isclose(λ[-1] - λ[0], 360), "longitude values must span 360 degrees"
+
         for i in range(-1, 2, 1):
             if data[x][0] <= central_longitude + 360 * i <= data[x][-1]:
 
