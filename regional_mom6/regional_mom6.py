@@ -440,7 +440,7 @@ def rectangular_hgrid(λ, φ):
     dλ = λ[1] - λ[0]
 
     assert (
-        np.max(np.diff(λ) - dλ) < 1e-14
+        np.max(np.diff(λ) - dλ) < 1e-10
     ), "provided array of longitudes must be uniformly spaced"
 
     # dx = R * cos(φ) * np.deg2rad(dλ) / 2
