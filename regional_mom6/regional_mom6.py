@@ -19,7 +19,7 @@ from .utils import quadrilateral_areas
 warnings.filterwarnings("ignore")
 
 __all__ = [
-    "nicer_slicer",
+    "longitude_slicer",
     "motu_requests",
     "hyperbolictan_thickness_profile",
     "rectangular_hgrid",
@@ -155,27 +155,25 @@ def ep2ap(SEMA, ECC, INC, PHA):
 ## Auxiliary functions
 
 
-def nicer_slicer(data, xextent, xcoords, buffer=2):
+def longitude_slicer(data, longitude_extent, longitude_coords, buffer=2):
     """
     Slice longitudes, handling periodicity and 'seams' where the
-    data wraps around (commonly either in domain [-180, 180] or in [-270, 90]).
+    data wraps around (commonly either in domain [0, 360], [-180, 180], or [-270, 90]).
 
     The algorithm works in five steps:
 
-    - Determine whether we need to add or subtract 360 to get the
-      middle of the ``xextent`` to lie within ``data``'s longitude range
-      (hereby ``oldx``).
+    - Determine whether we need to add or subtract 360 to get the middle of the
+      ``longitude_extent`` to lie within ``data``'s longitude range (hereby ``old_lon``).
 
     - Shift the dataset so that its midpoint matches the midpoint of
-      ``xextent`` (up to a muptiple of 360). Now, the modified ``oldx``
-      does not increase monotonically from West to East  since the
-      'seam' has moved.
+      ``longitude_extent`` (up to a multiple of 360). Now, the modified ``old_lon``
+      does not increase monotonically from West to East since the 'seam'
+      has moved.
 
-    - Fix ``oldx`` to make it monotonically increasing again. This uses
-      the information we have about the way the dataset was
-      shifted/rolled.
+    - Fix ``old_lon`` to make it monotonically increasing again. This uses
+      the information we have about the way the dataset was shifted/rolled.
 
-    - Slice the ``data`` index-wise. We know that ``|xextent| / 360``
+    - Slice the ``data`` index-wise. We know that ``|longitude_extent[1] - longitude_extent[0]| / 360``
       multiplied by the number of discrete longitude points will give
       the total width of our slice, and we've already set the midpoint
       to be the middle of the target domain. Here we add a ``buffer``
@@ -186,71 +184,91 @@ def nicer_slicer(data, xextent, xcoords, buffer=2):
 
     Args:
         data (xarray.Dataset): The global data you want to slice in longitude.
-        xextent (Tuple[float, float]): The target longitudes (in degrees) we would
-            like to slice to. Must be in increasing order.
-        xcoords (Union[str, List[str]): The name or list of names of the longitude
-            dimension in ``data``.
+        longitude_extent (Tuple[float, float]): The target longitudes (in degrees)
+            we want to slice to. Must be in increasing order.
+        longitude_coords (Union[str, list[str]): The name or list of names of the
+            longitude coordinates(s) in ``data``.
+        buffer (float): A ``buffer`` region (in degrees) on either side of the domain
+            reserved for interpolation purposes near the edges of the regional domain.
 
     Returns:
         xarray.Dataset: The sliced ``data``.
     """
 
-    if isinstance(xcoords, str):
-        xcoords = [xcoords]
+    if isinstance(longitude_coords, str):
+        longitude_coords = [longitude_coords]
 
-    for x in xcoords:
-        mp_target = np.mean(xextent)  ## Midpoint of target domain
+    for lon in longitude_coords:
+        central_longitude = np.mean(longitude_extent)  ## Midpoint of target domain
 
-        ## Find a corresponding value for the intended domain midpint in our data. Assuming here that data has equally spaced longitude values spanning 360deg
+        ## Find a corresponding value for the intended domain midpoint in our data.
+        ## It's assumed that data has equally-spaced longitude values that span 360 degrees.
+
+        dλ = data[lon][1] - data[lon][0]
+
+        assert (
+            np.max(np.abs(np.diff(data[lon]) - dλ)) < 1e-14
+        ), "provided longitude coordinate must be uniformly spaced"
+
+        assert np.isclose(
+            data[lon][-1] - data[lon][0], 360
+        ), "longitude values must span 360 degrees"
+
         for i in range(-1, 2, 1):
-            if data[x][0] <= mp_target + 360 * i <= data[x][-1]:
-                _mp_target = (
-                    mp_target + 360 * i
-                )  ## Shifted version of target midpoint. eg, could be -90 vs 270. i keeps track of what multiple of 360 we need to shift entire grid by to match midpoint
+            if data[lon][0] <= central_longitude + 360 * i <= data[lon][-1]:
 
-                mp_data = data[x][data[x].shape[0] // 2].values  ## Midpoint of the data
+                ## Shifted version of target midpoint; e.g., could be -90 vs 270
+                ## integer i keeps track of what how many multiples of 360 we need to shift entire
+                ## grid by to match central_longitude
+                _central_longitude = central_longitude + 360 * i
 
-                shift = -1 * (data[x].shape[0] * (_mp_target - mp_data)) // 360
+                ## Midpoint of the data
+                central_data = data[lon][data[lon].shape[0] // 2].values
+
+                ## Number of indices between the data midpoint and the target midpoint.
+                ## Sign indicates direction needed to shift.
                 shift = int(
-                    shift
-                )  ## This is the number of indices between the data midpoint, and the target midpoint. Sign indicates direction needed to shift
+                    -(data[lon].shape[0] * (_central_longitude - central_data)) // 360
+                )
 
-                new_data = data.roll(
-                    {x: 1 * shift}, roll_coords=True
-                )  ## Shifts data so that the midpoint of the target domain is the middle of the data for easy slicing
+                ## Shift data so that the midpoint of the target domain is the middle of
+                ## the data for easy slicing.
+                new_data = data.roll({lon: 1 * shift}, roll_coords=True)
 
-                new_x = new_data[
-                    x
-                ].values  ## Create a new longitude coordinate. We'll modify this to remove any seams (jumps like -270 -> 90)
+                ## Create a new longitude coordinate.
+                ## We'll modify this to remove any seams (i.e., jumps like -270 -> 90)
+                new_x = new_data[lon].values
 
-                ## Take the 'seam' of the data, and either backfill or forward fill based on whether the data was shifted F or west
+                ## Take the 'seam' of the data, and either backfill or forward fill based on
+                ## whether the data was shifted F or west
                 if shift > 0:
                     new_seam_index = shift
 
                     new_x[0:new_seam_index] -= 360
 
                 if shift < 0:
-                    new_seam_index = data[x].shape[0] + shift
+                    new_seam_index = data[lon].shape[0] + shift
 
-                    new_x[new_seam_index:] += 360
+                    new_lon[new_seam_index:] += 360
 
-                new_x -= (
-                    i * 360
-                )  ## Use this to recentre the midpoint to match that of target domain
+                ## new_x is used to recentre the midpoint to match that of target domain
+                new_lon -= i * 360
 
-                new_data = new_data.assign_coords({x: new_x})
+                new_data = new_data.assign_coords({lon: new_lon})
 
-                ## Choose the number of x points to take from the middle, including a buffer. Use this to index the new global dataset
-
-                num_xpoints = (
-                    int(data[x].shape[0] * (mp_target - xextent[0])) // 360 + buffer * 2
+                ## Choose the number of lon points to take from the middle, including a buffer.
+                ## Use this to index the new global dataset
+                num_lonpoints = (
+                    int(data[lon].shape[0] * (central_longitude - longitude_extent[0]))
+                    // 360
+                    + buffer * 2
                 )
 
         data = new_data.isel(
             {
-                x: slice(
-                    data[x].shape[0] // 2 - num_xpoints,
-                    data[x].shape[0] // 2 + num_xpoints,
+                lon: slice(
+                    data[lon].shape[0] // 2 - num_lonpoints,
+                    data[lon].shape[0] // 2 + num_lonpoints,
                 )
             }
         )
@@ -521,7 +539,7 @@ def rectangular_hgrid(λ, φ):
     dλ = λ[1] - λ[0]
 
     assert (
-        np.max(np.diff(λ) - dλ) < 1e-14
+        np.max(np.abs(np.diff(λ)) - dλ) < 1e-14
     ), "provided array of longitudes must be uniformly spaced"
 
     # dx = R * cos(φ) * np.deg2rad(dλ) / 2
@@ -1173,7 +1191,7 @@ class experiment:
                 }  #! Hardcoded 1 degree buffer around bathymetry selection. TODO: automatically select buffer
             ).astype("float")
 
-            ## Here need to make a decision as to whether to slice 'normally' or with nicer slicer for 360 degree domain.
+            ## Here need to make a decision as to whether to slice 'normally' or with the longitude_slicer for 360 degree domain.
 
             horizontal_resolution = bathy[varnames["xh"]][1] - bathy[varnames["xh"]][0]
             horizontal_extent = (
@@ -1183,8 +1201,8 @@ class experiment:
             )
 
             if np.isclose(horizontal_extent, 360):
-                ## Assume that we're dealing with a global grid, in which case we use nicer slicer
-                bathy = nicer_slicer(
+                ## Assume that we're dealing with a global grid, in which case we use longitude_slicer
+                bathy = longitude_slicer(
                     bathy,
                     np.array(self.longitude_extent)
                     + np.array(
@@ -1275,7 +1293,15 @@ class experiment:
 
             ## Replace subprocess run with regular regridder
             print(
-                "Starting to regrid bathymetry. If this process hangs the domain might be too big to handle this way. Try calling ESMF directly from a terminal with appropriate computational resources opened in the input directory using \n\n mpirun ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\n\n For details see https://xesmf.readthedocs.io/en/latest/large_problems_on_HPC.html \n\nAftewards, run this method again but set 'maketopog = False' so that python skips the computationally expensive step and just fixes up the metadata.\n\n"
+                "Begin regridding bathymetry...\n\n"
+                + "If this process hangs it means that the chosen domain might be too big to handle this way. "
+                + "After ensuring access to appropriate computational resources, try calling ESMF "
+                + "directly from a terminal in the input directory via\n\n"
+                + "mpirun ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\n\n"
+                + "For details see https://xesmf.readthedocs.io/en/latest/large_problems_on_HPC.html\n\n"
+                + "Aftewards, run the bathymetry method again but set 'maketopog = False' so the "
+                + "computationally expensive step is skiped and instead the method ensures that only the "
+                + "metadata are fixed."
             )
 
             # If we have a domain large enough for chunks, we'll run regridder with parallel=True
@@ -1725,7 +1751,7 @@ class experiment:
                 )
 
                 ## Cut out this variable to our domain size
-                rawdata[fname] = nicer_slicer(
+                rawdata[fname] = longitude_slicer(
                     ds,
                     self.longitude_extent,
                     "longitude",
