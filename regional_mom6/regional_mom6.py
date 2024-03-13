@@ -20,7 +20,6 @@ warnings.filterwarnings("ignore")
 
 __all__ = [
     "longitude_slicer",
-    "motu_requests",
     "hyperbolictan_thickness_profile",
     "rectangular_hgrid",
     "experiment",
@@ -274,125 +273,6 @@ def longitude_slicer(data, longitude_extent, longitude_coords, buffer=2):
         )
 
     return data
-
-
-def motu_requests(
-    xextent,
-    yextent,
-    daterange,
-    outfolder,
-    usr,
-    pwd,
-    segs,
-    url="https://my.cmems-du.eu/motu-web/Motu",
-    serviceid="GLOBAL_MULTIYEAR_PHY_001_030-TDS",
-    productid="cmems_mod_glo_phy_my_0.083_P1D-m",
-    buffer=0.3,
-):
-    """
-    Generate MOTU data request for each specified boundary, as well as for
-    the initial condition. By default pulls the GLORYS reanalysis dataset.
-
-    Args:
-        xextent (List[float]): Extreme values of longitude coordinates for
-            rectangular domain (in degrees).
-        yextent (List[float]): Extreme values of latitude coordinates for
-            rectangular domain (in degrees).
-        daterange (Tuple[str]): Start and end dates of boundary forcing window.
-            Format: ``%Y-%m-%d %H:%M:%S``.
-        outfolder (str): Directory the files are downloaded.
-        usr (str): MOTU authentication username.
-        pwd (str): MOTU authentication password.
-        segs (List[str]): List of the cardinal directions for the boundary forcing.
-        url (Optional[str]): MOTU server for the request. Defaults to the CMEMS,
-            i.e. ``"https://my.cmems-du.eu/motu-web/Motu"``.
-        serviceid (Optional[str]): Service containing the desired dataset. Default:
-            ``"GLOBAL_MULTIYEAR_PHY_001_030-TDS"``.
-        productid (Optional[str]): Data product within the chosen service. Default:
-            ``"cmems_mod_glo_phy_my_0.083_P1D-m"``.
-
-    Returns:
-        str: A bash script which will call ``motuclient`` to invoke the data requests.
-    """
-
-    if isinstance(segs, str):
-        return f"\nprintf 'processing {segs} segment' \npython -m motuclient --motu {url} --service-id {serviceid} --product-id {productid} --longitude-min {xextent[0]} --longitude-max {xextent[1]} --latitude-min {yextent[0]} --latitude-max {yextent[1]} --date-min {daterange[0]} --date-max {daterange[1]} --depth-min 0.49 --depth-max 6000 --variable so --variable thetao --variable vo --variable zos --variable uo --out-dir {outfolder} --out-name {segs}_unprocessed --user '{usr}' --pwd '{pwd}'\n"
-
-    ## Buffer pads out our boundaries a small amount to allow for interpolation
-    xextent, yextent = np.array(xextent), np.array(yextent)
-    script = "#!/bin/bash\n\n"
-    for seg in segs:
-        if seg == "east":
-            script += motu_requests(
-                [xextent[1] - buffer, xextent[1] + buffer],
-                yextent,
-                daterange,
-                outfolder,
-                usr,
-                pwd,
-                seg,
-                url=url,
-                serviceid=serviceid,
-                productid=productid,
-            )
-        if seg == "west":
-            script += motu_requests(
-                [xextent[0] - buffer, xextent[0] + buffer],
-                yextent,
-                daterange,
-                outfolder,
-                usr,
-                pwd,
-                seg,
-                url=url,
-                serviceid=serviceid,
-                productid=productid,
-            )
-        if seg == "north":
-            script += motu_requests(
-                xextent,
-                [yextent[1] - buffer, yextent[1] + buffer],
-                daterange,
-                outfolder,
-                usr,
-                pwd,
-                seg,
-                url=url,
-                serviceid=serviceid,
-                productid=productid,
-            )
-
-        if seg == "south":
-            script += motu_requests(
-                xextent,
-                [yextent[0] - buffer, yextent[0] + buffer],
-                daterange,
-                outfolder,
-                usr,
-                pwd,
-                seg,
-                url=url,
-                serviceid=serviceid,
-                productid=productid,
-            )
-    ## Now handle the initial condition
-    script += motu_requests(
-        xextent + np.array([-1 * buffer, buffer]),
-        yextent + np.array([-1 * buffer, buffer]),
-        [
-            daterange[0],
-            dt.datetime.strptime(daterange[0], "%Y-%m-%d %H:%M:%S")
-            + dt.timedelta(hours=1),
-        ],  ## For initial condition just take one day
-        outfolder,
-        usr,
-        pwd,
-        "ic",
-        url=url,
-        serviceid=serviceid,
-        productid=productid,
-    )
-    return script
 
 
 def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
