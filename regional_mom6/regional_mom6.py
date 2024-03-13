@@ -283,9 +283,9 @@ def motu_requests(
         daterange (Tuple[str]): Start and end dates of boundary forcing window.
             Format: ``%Y-%m-%d %H:%M:%S``.
         outfolder (str): Directory the files are downloaded.
-        usr (str): MOTU authentication username
-        pwd (str): MOTU authentication password
-        segs (List[str]): List of the cardinal directions for your boundary forcing
+        usr (str): MOTU authentication username.
+        pwd (str): MOTU authentication password.
+        segs (List[str]): List of the cardinal directions for the boundary forcing.
         url (Optional[str]): MOTU server for the request. Defaults to the CMEMS,
             i.e. ``"https://my.cmems-du.eu/motu-web/Motu"``.
         serviceid (Optional[str]): Service containing the desired dataset. Default:
@@ -379,7 +379,7 @@ def motu_requests(
 
 def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
     """Generate a hyperbolic tangent thickness profile with ``nlayers`` vertical
-    layers and total depth of ``total_depth`` whose bottom layer is (about) `ratio`
+    layers and total depth of ``total_depth`` whose bottom layer is (about) ``ratio``
     times larger than the top layer.
 
     The thickness profile transitions from the top-layer thickness to
@@ -588,74 +588,79 @@ def rectangular_hgrid(λ, φ):
 class experiment:
     """The main class for setting up a regional experiment.
 
-    Everything about your regional experiment.
+    Everything about the regional experiment.
 
     Methods in this class will generate the various input files needed
     to generate a MOM6 experiment forced with open boundary conditions
-    (OBCs). The code is agnostic to your choice of boundary forcing,
-    topography and surface forcing - you need to tell it what your variables
+    (OBCs). The code is agnostic to the user's choice of boundary forcing,
+    topography and surface forcing; users need to prescribe what variables
     are all called via mapping dictionaries from MOM6 variable/coordinate
     name to the name in the input dataset.
 
-    This can be used to generate the grids for a new experiment, or to read in
-    an existing one by setting ``read_existing_grids`` to ``True``. In either case,
-    the ``xextent``, ``yextent``, ``daterange``, and ``resolution`` must be specified.
+    The class can be used to generate the grids for a new experiment, or to read in
+    an existing one by providing with ``read_existing_grids=True``.
 
     Args:
-        xextent (Tuple[float]): Extent of the region in longitude in degrees.
-        yextent (Tuple[float]): Extent of the region in latitude in degrees.
-        daterange (Tuple[str]): Start and end dates of the boundary forcing window.
+        longitude_extent (Tuple[float]): Extent of the region in longitude in degrees.
+        latitude_extent (Tuple[float]): Extent of the region in latitude in degrees.
+        date_range (Tuple[str]): Start and end dates of the boundary forcing window.
         resolution (float): Lateral resolution of the domain, in degrees.
-        nlayers (int): Number of vertical layers.
-        dz_ratio (float): Ratio of largest to smallest layer thickness; used as input in
-            :func:`~hyperbolictan_thickness_profile`.
+        number_vertical_layers (int): Number of vertical layers.
+        layer_thickness_ratio (float): Ratio of largest to smallest layer thickness;
+            used as input :func:`~hyperbolictan_thickness_profile`.
         depth (float): Depth of the domain.
         mom_run_dir (str): Path of the MOM6 control directory.
         mom_input_dir (str): Path of the MOM6 input directory, to receive the forcing files.
-        toolpath (str): Path of GFDL's FRE tools (https://github.com/NOAA-GFDL/FRE-NCtools)
+        toolpath_dir (str): Path of GFDL's FRE tools (https://github.com/NOAA-GFDL/FRE-NCtools)
             binaries.
-        gridtype (Optional[str]): Type of horizontal grid to generate.
+        grid_type (Optional[str]): Type of horizontal grid to generate.
             Currently, only ``even_spacing`` is supported.
-        ryf (Optional[bool]): When ``True`` the experiment runs with 'repeat-year forcing'.
-            When ``False`` (default) then inter-annual forcing is used.
+        repeat_year_forcing (Optional[bool]): When ``True`` the experiment runs with
+            'repeat-year forcing'. When ``False`` (default) then inter-annual forcing is used.
         read_existing_grids (Optional[Bool]): When ``True``, instead of generating the grids,
-            reads the grids and ocean mask from the 'inputdir' and 'rundir'. Useful for
-            modifying or troubleshooting experiments. Default: ``False``.
+            reads the grids and ocean mask from ``mom_input_dir`` and ``mom_run_dir``. Useful
+            for modifying or troubleshooting experiments. Default: ``False``.
     """
 
     def __init__(
         self,
-        xextent,
-        yextent,
-        daterange,
+        *,
+        longitude_extent,
+        latitude_extent,
+        date_range,
         resolution,
-        nlayers,
-        dz_ratio,
+        number_vertical_layers,
+        layer_thickness_ratio,
         depth,
         mom_run_dir,
         mom_input_dir,
-        toolpath,
-        gridtype="even_spacing",
-        ryf=False,
+        toolpath_dir,
+        grid_type="even_spacing",
+        repeat_year_forcing=False,
         read_existing_grids=False,
     ):
+        ## in case list was given, convert to tuples
+        self.longitude_extent = tuple(longitude_extent)
+        self.latitude_extent = tuple(latitude_extent)
+        self.date_range = tuple(date_range)
+
         self.mom_run_dir = Path(mom_run_dir)
         self.mom_input_dir = Path(mom_input_dir)
 
         self.mom_run_dir.mkdir(exist_ok=True)
         self.mom_input_dir.mkdir(exist_ok=True)
 
-        self.xextent = xextent
-        self.yextent = yextent
-        self.daterange = [
-            dt.datetime.strptime(daterange[0], "%Y-%m-%d %H:%M:%S"),
-            dt.datetime.strptime(daterange[1], "%Y-%m-%d %H:%M:%S"),
+        self.date_range = [
+            dt.datetime.strptime(date_range[0], "%Y-%m-%d %H:%M:%S"),
+            dt.datetime.strptime(date_range[1], "%Y-%m-%d %H:%M:%S"),
         ]
         self.resolution = resolution
-        self.nlayers = nlayers
-        self.dz_ratio = dz_ratio
+        self.number_vertical_layers = number_vertical_layers
+        self.layer_thickness_ratio = layer_thickness_ratio
         self.depth = depth
-        self.toolpath = Path(toolpath)
+        self.toolpath_dir = Path(toolpath_dir)
+        self.grid_type = grid_type
+        self.repeat_year_forcing = repeat_year_forcing
         self.ocean_mask = None
         if read_existing_grids:
             try:
@@ -667,10 +672,8 @@ class experiment:
                 )
                 raise ValueError
         else:
-            self.hgrid = self._make_hgrid(gridtype)
+            self.hgrid = self._make_hgrid()
             self.vgrid = self._make_vgrid()
-        self.gridtype = gridtype
-        self.ryf = ryf
         # create additional directories and links
         (self.mom_input_dir / "weights").mkdir(exist_ok=True)
         (self.mom_input_dir / "forcing").mkdir(exist_ok=True)
@@ -691,7 +694,7 @@ class experiment:
         )
         raise AttributeError(error_message)
 
-    def _make_hgrid(self, gridtype):
+    def _make_hgrid(self):
         """
         Set up a horizontal grid based on user's specification of the domain.
         The default behaviour provides with a grid evenly spaced both in
@@ -708,30 +711,40 @@ class experiment:
         Note:
             The intention is for the horizontal grid (``hgrid``) generation to be very flexible.
             For now, there is only one implemented horizontal grid included in the package,
-            but you can customise it by simply overwriting the ``hgrid.nc`` file in your ``rundir``
+            but you can customise it by simply overwriting the ``hgrid.nc`` file in the ``rundir``
             after initialising an ``experiment``. To conserve the metadata, it might be easiest
             to read the file in, then modify the fields before re-saving.
         """
 
-        if gridtype == "even_spacing":
+        assert (
+            self.grid_type == "even_spacing"
+        ), "only even_spacing grid type is implemented"
+
+        if self.grid_type == "even_spacing":
 
             # longitudes are evenly spaced based on resolution and bounds
-            nx = int((self.xextent[1] - self.xextent[0]) / (self.resolution / 2))
+            nx = int(
+                (self.longitude_extent[1] - self.longitude_extent[0])
+                / (self.resolution / 2)
+            )
             if nx % 2 != 1:
                 nx += 1
 
             λ = np.linspace(
-                self.xextent[0], self.xextent[1], nx
+                self.longitude_extent[0], self.longitude_extent[1], nx
             )  # longitudes in degrees
 
             # Latitudes evenly spaced by dx * cos(central_latitude)
-            central_latitude = np.mean(self.yextent)  # degrees
+            central_latitude = np.mean(self.latitude_extent)  # degrees
             latitudinal_resolution = self.resolution * np.cos(
                 np.deg2rad(central_latitude)
             )
 
             ny = (
-                int((self.yextent[1] - self.yextent[0]) / (latitudinal_resolution / 2))
+                int(
+                    (self.latitude_extent[1] - self.latitude_extent[0])
+                    / (latitudinal_resolution / 2)
+                )
                 + 1
             )
 
@@ -739,7 +752,7 @@ class experiment:
                 ny += 1
 
             φ = np.linspace(
-                self.yextent[0], self.yextent[1], ny
+                self.latitude_extent[0], self.latitude_extent[1], ny
             )  # latitudes in degrees
 
             hgrid = rectangular_hgrid(λ, φ)
@@ -755,7 +768,7 @@ class experiment:
         """
 
         thicknesses = hyperbolictan_thickness_profile(
-            self.nlayers, self.dz_ratio, self.depth
+            self.number_vertical_layers, self.layer_thickness_ratio, self.depth
         )
 
         zi = np.cumsum(thicknesses)
@@ -1071,7 +1084,7 @@ class experiment:
         return
 
     def rectangular_boundary(
-        self, path_to_bc, varnames, orientation, segment_number, gridtype="A"
+        self, path_to_bc, varnames, orientation, segment_number, arakawa_grid="A"
     ):
         """
         Setup a boundary forcing file for a given orientation. Here the term 'rectangular'
@@ -1088,10 +1101,8 @@ class experiment:
                 ``'north'``, or ``'south'``.
             segment_number (int): Number the segments according to how they'll be specified in
                 the ``MOM_input``.
-            gridtype (Optional[str]): Arakawa grid staggering of input; either ``'A'``, ``'B'``,
+            arakawa_grid (Optional[str]): Arakawa grid staggering of input; either ``'A'``, ``'B'``,
                 or ``'C'``.
-            ryf (Optional[bool]): When ``True`` the experiment runs with  'repeat-year forcing';
-                when ``False``, inter-annual forcing is used.
         """
 
         print("Processing {} boundary...".format(orientation), end="")
@@ -1103,9 +1114,9 @@ class experiment:
             varnames,
             "segment_{:03d}".format(segment_number),
             orientation,  # orienataion
-            self.daterange[0],
-            gridtype=gridtype,
-            ryf=self.ryf,
+            self.date_range[0],
+            gridtype=arakawa_grid,
+            repeat_year_forcing=self.repeat_year_forcing,
         )
 
         seg.rectangular_brushcut()
@@ -1128,7 +1139,7 @@ class experiment:
         It's also possible to optionally fill narrow channels (see ``fill_channels``
         below), although this is less of an issue for models on a C-grid, like MOM6.
 
-        Output is saved to the input folder for your experiment.
+        Output is saved to the input folder for the experiment.
 
         Args:
             bathy_path (str): Path to chosen bathymetry file netCDF file.
@@ -1156,7 +1167,9 @@ class experiment:
 
             bathy = bathy.sel(
                 {
-                    varnames["yh"]: slice(self.yextent[0] - 1, self.yextent[1] + 1)
+                    varnames["yh"]: slice(
+                        self.latitude_extent[0] - 1, self.latitude_extent[1] + 1
+                    )
                 }  #! Hardcoded 1 degree buffer around bathymetry selection. TODO: automatically select buffer
             ).astype("float")
 
@@ -1173,7 +1186,7 @@ class experiment:
                 ## Assume that we're dealing with a global grid, in which case we use nicer slicer
                 bathy = nicer_slicer(
                     bathy,
-                    np.array(self.xextent)
+                    np.array(self.longitude_extent)
                     + np.array(
                         [-0.1, 0.1]
                     ),  #! Hardcoded 0.1 degree buffer around bathymetry selection. TODO: automatically select buffer
@@ -1183,7 +1196,9 @@ class experiment:
                 ## Otherwise just slice normally
                 bathy = bathy.sel(
                     {
-                        varnames["xh"]: slice(self.xextent[0] - 1, self.xextent[1] + 1)
+                        varnames["xh"]: slice(
+                            self.longitude_extent[0] - 1, self.longitude_extent[1] + 1
+                        )
                     }  #! Hardcoded 1 degree buffer around bathymetry selection. TODO: automatically select buffer
                 )
 
@@ -1260,7 +1275,7 @@ class experiment:
 
             ## Replace subprocess run with regular regridder
             print(
-                "Starting to regrid bathymetry. If this process hangs your domain might be too big to handle this way. Try calling ESMF directly from a terminal with appropriate computational resources opened in the input directory using \n\n mpirun ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\n\n For details see https://xesmf.readthedocs.io/en/latest/large_problems_on_HPC.html \n\nAftewards, run this method again but set 'maketopog = False' so that python skips the computationally expensive step and just fixes up the metadata.\n\n"
+                "Starting to regrid bathymetry. If this process hangs the domain might be too big to handle this way. Try calling ESMF directly from a terminal with appropriate computational resources opened in the input directory using \n\n mpirun ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\n\n For details see https://xesmf.readthedocs.io/en/latest/large_problems_on_HPC.html \n\nAftewards, run this method again but set 'maketopog = False' so that python skips the computationally expensive step and just fixes up the metadata.\n\n"
             )
 
             # If we have a domain large enough for chunks, we'll run regridder with parallel=True
@@ -1479,7 +1494,7 @@ class experiment:
         print(
             "OUTPUT FROM MAKE SOLO MOSAIC:",
             subprocess.run(
-                str(self.toolpath / "make_solo_mosaic/make_solo_mosaic")
+                str(self.toolpath_dir / "make_solo_mosaic/make_solo_mosaic")
                 + " --num_tiles 1 --dir . --mosaic_name ocean_mosaic --tile_file hgrid.nc",
                 shell=True,
                 cwd=self.mom_input_dir,
@@ -1490,7 +1505,7 @@ class experiment:
         print(
             "OUTPUT FROM QUICK QUICK MOSAIC:",
             subprocess.run(
-                str(self.toolpath / "make_quick_mosaic/make_quick_mosaic")
+                str(self.toolpath_dir / "make_quick_mosaic/make_quick_mosaic")
                 + " --input_mosaic ocean_mosaic.nc --mosaic_name grid_spec --ocean_topog topog.nc",
                 shell=True,
                 cwd=self.mom_input_dir,
@@ -1510,7 +1525,7 @@ class experiment:
         print(
             "OUTPUT FROM CHECK MASK:\n\n",
             subprocess.run(
-                str(self.toolpath / "check_mask/check_mask")
+                str(self.toolpath_dir / "check_mask/check_mask")
                 + f" --grid_file ocean_mosaic.nc --ocean_topog topog.nc --layout {layout[0]},{layout[1]} --halo 4",
                 shell=True,
                 cwd=self.mom_input_dir,
@@ -1613,7 +1628,7 @@ class experiment:
             ncpus = (x * y) - int(masked)
         if mask_table == None:
             print(
-                "No mask table found! This suggests your domain is mostly water, so there are no `non compute` cells that are entirely land. If this doesn't seem right, ensure you've already run .FRE_tools()."
+                "No mask table found! This suggests the domain is mostly water, so there are no `non compute` cells that are entirely land. If this doesn't seem right, ensure you've already run .FRE_tools()."
             )
             if not hasattr(self, "layout"):
                 raise AttributeError(
@@ -1670,9 +1685,9 @@ class experiment:
         # Modify input.nml
         nml = f90nml.read(self.mom_run_dir / "input.nml")
         nml["coupler_nml"]["current_date"] = [
-            self.daterange[0].year,
-            self.daterange[0].month,
-            self.daterange[0].day,
+            self.date_range[0].year,
+            self.date_range[0].month,
+            self.date_range[0].day,
             0,
             0,
             0,
@@ -1681,7 +1696,7 @@ class experiment:
 
     def setup_era5(self, era5_path):
         """
-        Setup the ERA5 forcing files for your experiment. This assumes that
+        Setup the ERA5 forcing files for the experiment. This assumes that
         all of the ERA5 data in the prescribed date range are downloaded.
         We need the following fields: "2t", "10u", "10v", "sp", "2d", "msdwswrf",
         "msdwlwrf", "lsrr", and "crr".
@@ -1699,7 +1714,7 @@ class experiment:
         ):
             ## Load data from all relevant years
             years = [
-                i for i in range(self.daterange[0].year, self.daterange[1].year + 1)
+                i for i in range(self.date_range[0].year, self.date_range[1].year + 1)
             ]
             # Loop through each year and read the corresponding files
             for year in years:
@@ -1712,11 +1727,11 @@ class experiment:
                 ## Cut out this variable to our domain size
                 rawdata[fname] = nicer_slicer(
                     ds,
-                    self.xextent,
+                    self.longitude_extent,
                     "longitude",
                 ).sel(
                     latitude=slice(
-                        self.yextent[1], self.yextent[0]
+                        self.longitude_extent[1], self.longitude_extent[0]
                     )  ## This is because ERA5 has latitude in decreasing order (??)
                 )
 
@@ -1734,7 +1749,7 @@ class experiment:
 
                 rawdata[fname].time.attrs = {
                     "calendar": "julian",
-                    "units": f"hours since {self.daterange[0].strftime('%Y-%m-%d %H:%M:%S')}",
+                    "units": f"hours since {self.date_range[0].strftime('%Y-%m-%d %H:%M:%S')}",
                 }  ## Fix up calendar to match
 
                 if fname == "2d":
@@ -1818,8 +1833,8 @@ class segment:
             *K*:sub:`2`, *K*:sub:`1`, *O*:sub:`2`, *P*:sub:`1`, *Q*:sub:`1`, *Mm*,
             *Mf*, and *M*:sub:`4`. For example, specifying ``1`` only includes *M*:sub:`2`;
             specifying ``2`` includes *M*:sub:`2` and *S*:sub:`2`, etc. Default: ``None``.
-        ryf (Optional[bool]): When ``True`` the experiment runs with 'repeat-year forcing'.
-            When ``False`` (default) then inter-annual forcing is used.
+        repeat_year_forcing (Optional[bool]): When ``True`` the experiment runs with 'repeat-year
+            forcing'. When ``False`` (default) then inter-annual forcing is used.
     """
 
     def __init__(
@@ -1834,7 +1849,7 @@ class segment:
         gridtype="A",
         time_units="days",
         tidal_constituents=None,
-        ryf=False,
+        repeat_year_forcing=False,
     ):
         ## Store coordinate names
         if gridtype == "A":
@@ -1867,7 +1882,7 @@ class segment:
         self.hgrid = hgrid
         self.seg_name = seg_name
         self.tidal_constituents = tidal_constituents
-        self.ryf = ryf
+        self.repeat_year_forcing = repeat_year_forcing
 
     def rectangular_brushcut(self):
         """
@@ -2168,7 +2183,7 @@ class segment:
         }
 
         # If repeat-year forcing, add modulo coordinate
-        if self.ryf:
+        if self.repeat_year_forcing:
             segment_out["time"] = segment_out["time"].assign_attrs({"modulo": " "})
 
         with ProgressBar():
