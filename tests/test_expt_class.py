@@ -6,21 +6,21 @@ import xarray as xr
 
 @pytest.mark.parametrize(
     (
-        "xextent",
-        "yextent",
-        "daterange",
+        "longitude_extent",
+        "latitude_extent",
+        "date_range",
         "resolution",
-        "nlayers",
-        "dz_ratio",
+        "number_vertical_layers",
+        "layer_thickness_ratio",
         "depth",
         "mom_run_dir",
         "mom_input_dir",
-        "toolpath",
-        "gridtype",
+        "toolpath_dir",
+        "grid_type",
     ),
     [
         (
-            [-5, 5],
+            (-5, 5),
             [0, 10],
             ["2003-01-01 00:00:00", "2003-01-01 00:00:00"],
             0.1,
@@ -35,31 +35,31 @@ import xarray as xr
     ],
 )
 def test_bathymetry(
-    xextent,
-    yextent,
-    daterange,
+    longitude_extent,
+    latitude_extent,
+    date_range,
     resolution,
-    nlayers,
-    dz_ratio,
+    number_vertical_layers,
+    layer_thickness_ratio,
     depth,
     mom_run_dir,
     mom_input_dir,
-    toolpath,
-    gridtype,
+    toolpath_dir,
+    grid_type,
     tmp_path,
 ):
     expt = experiment(
-        xextent,
-        yextent,
-        daterange,
-        resolution,
-        nlayers,
-        dz_ratio,
-        depth,
-        mom_run_dir,
-        mom_input_dir,
-        toolpath,
-        gridtype,
+        longitude_extent=longitude_extent,
+        latitude_extent=latitude_extent,
+        date_range=date_range,
+        resolution=resolution,
+        number_vertical_layers=number_vertical_layers,
+        layer_thickness_ratio=layer_thickness_ratio,
+        depth=depth,
+        mom_run_dir=mom_run_dir,
+        mom_input_dir=mom_input_dir,
+        toolpath_dir=toolpath_dir,
+        grid_type=grid_type,
     )
 
     ## Generate some bathymetry to test on
@@ -71,8 +71,8 @@ def test_bathymetry(
         bathy,
         dims=["lata", "lona"],
         coords={
-            "lata": np.linspace(yextent[0] - 5, yextent[1] + 5, 100),
-            "lona": np.linspace(xextent[0] - 5, xextent[1] + 5, 100),
+            "lata": np.linspace(latitude_extent[0] - 5, latitude_extent[1] + 5, 100),
+            "lona": np.linspace(longitude_extent[0] - 5, longitude_extent[1] + 5, 100),
         },
     )
     bathy.name = "elevation"
@@ -92,22 +92,22 @@ def test_bathymetry(
 
 @pytest.mark.parametrize(
     (
-        "xextent",
-        "yextent",
-        "daterange",
+        "longitude_extent",
+        "latitude_extent",
+        "date_range",
         "resolution",
-        "nlayers",
-        "dz_ratio",
+        "number_vertical_layers",
+        "layer_thickness_ratio",
         "depth",
         "mom_run_dir",
         "mom_input_dir",
-        "toolpath",
-        "gridtype",
+        "toolpath_dir",
+        "grid_type",
     ),
     [
         (
             [-5, 5],
-            [0, 10],
+            (0, 10),
             ["2003-01-01 00:00:00", "2003-01-01 00:00:00"],
             0.1,
             5,
@@ -121,31 +121,31 @@ def test_bathymetry(
     ],
 )
 def test_ocean_forcing(
-    xextent,
-    yextent,
-    daterange,
+    longitude_extent,
+    latitude_extent,
+    date_range,
     resolution,
-    nlayers,
-    dz_ratio,
+    number_vertical_layers,
+    layer_thickness_ratio,
     depth,
     mom_run_dir,
     mom_input_dir,
-    toolpath,
-    gridtype,
+    toolpath_dir,
+    grid_type,
     tmp_path,
 ):
     expt = experiment(
-        xextent,
-        yextent,
-        daterange,
-        resolution,
-        nlayers,
-        dz_ratio,
-        depth,
-        mom_run_dir,
-        mom_input_dir,
-        toolpath,
-        gridtype,
+        longitude_extent=longitude_extent,
+        latitude_extent=latitude_extent,
+        date_range=date_range,
+        resolution=resolution,
+        number_vertical_layers=number_vertical_layers,
+        layer_thickness_ratio=layer_thickness_ratio,
+        depth=depth,
+        mom_run_dir=mom_run_dir,
+        mom_input_dir=mom_input_dir,
+        toolpath_dir=toolpath_dir,
+        grid_type=grid_type,
     )
 
     ## Generate some initial condition to test on
@@ -157,8 +157,12 @@ def test_ocean_forcing(
                 np.random.random((100, 100, 10)),
                 dims=["lata", "lona", "deepness"],
                 coords={
-                    "lata": np.linspace(yextent[0] - 5, yextent[1] + 5, 100),
-                    "lona": np.linspace(xextent[0] - 5, xextent[1] + 5, 100),
+                    "lata": np.linspace(
+                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
+                    ),
+                    "lona": np.linspace(
+                        longitude_extent[0] - 5, longitude_extent[1] + 5, 100
+                    ),
                     "deepness": np.linspace(0, 1000, 10),
                 },
             ),
@@ -166,16 +170,24 @@ def test_ocean_forcing(
                 np.random.random((100, 100)),
                 dims=["lata", "lona"],
                 coords={
-                    "lata": np.linspace(yextent[0] - 5, yextent[1] + 5, 100),
-                    "lona": np.linspace(xextent[0] - 5, xextent[1] + 5, 100),
+                    "lata": np.linspace(
+                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
+                    ),
+                    "lona": np.linspace(
+                        longitude_extent[0] - 5, longitude_extent[1] + 5, 100
+                    ),
                 },
             ),
             "salt": xr.DataArray(
                 np.random.random((100, 100, 10)),
                 dims=["lata", "lona", "deepness"],
                 coords={
-                    "lata": np.linspace(yextent[0] - 5, yextent[1] + 5, 100),
-                    "lona": np.linspace(xextent[0] - 5, xextent[1] + 5, 100),
+                    "lata": np.linspace(
+                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
+                    ),
+                    "lona": np.linspace(
+                        longitude_extent[0] - 5, longitude_extent[1] + 5, 100
+                    ),
                     "deepness": np.linspace(0, 1000, 10),
                 },
             ),
@@ -183,8 +195,12 @@ def test_ocean_forcing(
                 np.random.random((100, 100, 10)),
                 dims=["lata", "lona", "deepness"],
                 coords={
-                    "lata": np.linspace(yextent[0] - 5, yextent[1] + 5, 100),
-                    "lona": np.linspace(xextent[0] - 5, xextent[1] + 5, 100),
+                    "lata": np.linspace(
+                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
+                    ),
+                    "lona": np.linspace(
+                        longitude_extent[0] - 5, longitude_extent[1] + 5, 100
+                    ),
                     "deepness": np.linspace(0, 1000, 10),
                 },
             ),
@@ -192,8 +208,12 @@ def test_ocean_forcing(
                 np.random.random((100, 100, 10)),
                 dims=["lata", "lona", "deepness"],
                 coords={
-                    "lata": np.linspace(yextent[0] - 5, yextent[1] + 5, 100),
-                    "lona": np.linspace(xextent[0] - 5, xextent[1] + 5, 100),
+                    "lata": np.linspace(
+                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
+                    ),
+                    "lona": np.linspace(
+                        longitude_extent[0] - 5, longitude_extent[1] + 5, 100
+                    ),
                     "deepness": np.linspace(0, 1000, 10),
                 },
             ),
@@ -224,17 +244,17 @@ def test_ocean_forcing(
 
 @pytest.mark.parametrize(
     (
-        "xextent",
-        "yextent",
-        "daterange",
+        "longitude_extent",
+        "latitude_extent",
+        "date_range",
         "resolution",
-        "nlayers",
-        "dz_ratio",
+        "number_vertical_layers",
+        "layer_thickness_ratio",
         "depth",
         "mom_run_dir",
         "mom_input_dir",
-        "toolpath",
-        "gridtype",
+        "toolpath_dir",
+        "grid_type",
     ),
     [
         (
@@ -253,17 +273,17 @@ def test_ocean_forcing(
     ],
 )
 def test_rectangular_boundary(
-    xextent,
-    yextent,
-    daterange,
+    longitude_extent,
+    latitude_extent,
+    date_range,
     resolution,
-    nlayers,
-    dz_ratio,
+    number_vertical_layers,
+    layer_thickness_ratio,
     depth,
     mom_run_dir,
     mom_input_dir,
-    toolpath,
-    gridtype,
+    toolpath_dir,
+    grid_type,
     tmp_path,
 ):
 
@@ -273,8 +293,12 @@ def test_rectangular_boundary(
                 np.random.random((100, 5, 10, 10)),
                 dims=["lata", "lona", "deepness", "time"],
                 coords={
-                    "lata": np.linspace(yextent[0] - 5, yextent[1] + 5, 100),
-                    "lona": np.linspace(xextent[1] - 0.5, xextent[1] + 0.5, 5),
+                    "lata": np.linspace(
+                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
+                    ),
+                    "lona": np.linspace(
+                        longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5
+                    ),
                     "deepness": np.linspace(0, 1000, 10),
                     "time": np.linspace(0, 1000, 10),
                 },
@@ -283,8 +307,12 @@ def test_rectangular_boundary(
                 np.random.random((100, 5, 10)),
                 dims=["lata", "lona", "time"],
                 coords={
-                    "lata": np.linspace(yextent[0] - 5, yextent[1] + 5, 100),
-                    "lona": np.linspace(xextent[1] - 0.5, xextent[1] + 0.5, 5),
+                    "lata": np.linspace(
+                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
+                    ),
+                    "lona": np.linspace(
+                        longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5
+                    ),
                     "time": np.linspace(0, 1000, 10),
                 },
             ),
@@ -292,8 +320,12 @@ def test_rectangular_boundary(
                 np.random.random((100, 5, 10, 10)),
                 dims=["lata", "lona", "deepness", "time"],
                 coords={
-                    "lata": np.linspace(yextent[0] - 5, yextent[1] + 5, 100),
-                    "lona": np.linspace(xextent[1] - 0.5, xextent[1] + 0.5, 5),
+                    "lata": np.linspace(
+                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
+                    ),
+                    "lona": np.linspace(
+                        longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5
+                    ),
                     "deepness": np.linspace(0, 1000, 10),
                     "time": np.linspace(0, 1000, 10),
                 },
@@ -302,8 +334,12 @@ def test_rectangular_boundary(
                 np.random.random((100, 5, 10, 10)),
                 dims=["lata", "lona", "deepness", "time"],
                 coords={
-                    "lata": np.linspace(yextent[0] - 5, yextent[1] + 5, 100),
-                    "lona": np.linspace(xextent[1] - 0.5, xextent[1] + 0.5, 5),
+                    "lata": np.linspace(
+                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
+                    ),
+                    "lona": np.linspace(
+                        longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5
+                    ),
                     "deepness": np.linspace(0, 1000, 10),
                     "time": np.linspace(0, 1000, 10),
                 },
@@ -312,8 +348,12 @@ def test_rectangular_boundary(
                 np.random.random((100, 5, 10, 10)),
                 dims=["lata", "lona", "deepness", "time"],
                 coords={
-                    "lata": np.linspace(yextent[0] - 5, yextent[1] + 5, 100),
-                    "lona": np.linspace(xextent[1] - 0.5, xextent[1] + 0.5, 5),
+                    "lata": np.linspace(
+                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
+                    ),
+                    "lona": np.linspace(
+                        longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5
+                    ),
                     "deepness": np.linspace(0, 1000, 10),
                     "time": np.linspace(0, 1000, 10),
                 },
@@ -324,17 +364,17 @@ def test_rectangular_boundary(
     eastern_boundary.close()
 
     expt = experiment(
-        xextent,
-        yextent,
-        daterange,
-        resolution,
-        nlayers,
-        dz_ratio,
-        depth,
-        mom_run_dir,
-        mom_input_dir,
-        toolpath,
-        gridtype,
+        longitude_extent=longitude_extent,
+        latitude_extent=latitude_extent,
+        date_range=date_range,
+        resolution=resolution,
+        number_vertical_layers=number_vertical_layers,
+        layer_thickness_ratio=layer_thickness_ratio,
+        depth=depth,
+        mom_run_dir=mom_run_dir,
+        mom_input_dir=mom_input_dir,
+        toolpath_dir=toolpath_dir,
+        grid_type=grid_type,
     )
 
     varnames = {
