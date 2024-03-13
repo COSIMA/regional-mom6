@@ -768,7 +768,7 @@ class experiment:
         """
 
         thicknesses = hyperbolictan_thickness_profile(
-            self.nlayers, self.dz_ratio, self.depth
+            self.number_vertical_layers, self.layer_thickness_ratio, self.depth
         )
 
         zi = np.cumsum(thicknesses)
