@@ -127,10 +127,11 @@ def test_quadrilateral_areas(lat, lon, true_area):
 def test_rectangular_hgrid(lat, lon):
     assert isinstance(rectangular_hgrid(lat, lon), xr.Dataset)
 
+
 def test_longitude_slicer():
     with pytest.raises(AssertionError):
         nx, ny, nt = 10, 14, 5
-    
+
         latitude_extent = (10, 20)
         longitude_extent = (12, 18)
 
