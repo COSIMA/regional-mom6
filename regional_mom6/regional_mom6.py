@@ -608,12 +608,11 @@ class experiment:
 
     Everything about the regional experiment.
 
-    Methods in this class will generate the various input files needed
-    to generate a MOM6 experiment forced with open boundary conditions
-    (OBCs). The code is agnostic to the user's choice of boundary forcing,
-    topography and surface forcing; users need to prescribe what variables
-    are all called via mapping dictionaries from MOM6 variable/coordinate
-    name to the name in the input dataset.
+    Methods in this class generate the various input files needed for a MOM6
+    experiment forced with open boundary conditions (OBCs). The code is agnostic
+    to the user's choice of boundary forcing, topography and surface forcing;
+    users need to prescribe what variables are all called via mapping dictionaries
+    from MOM6 variable/coordinate name to the name in the input dataset.
 
     The class can be used to generate the grids for a new experiment, or to read in
     an existing one by providing with ``read_existing_grids=True``.
@@ -625,16 +624,16 @@ class experiment:
         resolution (float): Lateral resolution of the domain, in degrees.
         number_vertical_layers (int): Number of vertical layers.
         layer_thickness_ratio (float): Ratio of largest to smallest layer thickness;
-            used as input :func:`~hyperbolictan_thickness_profile`.
+            used as input in :func:`~hyperbolictan_thickness_profile`.
         depth (float): Depth of the domain.
         mom_run_dir (str): Path of the MOM6 control directory.
         mom_input_dir (str): Path of the MOM6 input directory, to receive the forcing files.
         toolpath_dir (str): Path of GFDL's FRE tools (https://github.com/NOAA-GFDL/FRE-NCtools)
             binaries.
         grid_type (Optional[str]): Type of horizontal grid to generate.
-            Currently, only ``even_spacing`` is supported.
+            Currently, only ``'even_spacing'`` is supported.
         repeat_year_forcing (Optional[bool]): When ``True`` the experiment runs with
-            'repeat-year forcing'. When ``False`` (default) then inter-annual forcing is used.
+            repeat-year forcing. When ``False`` (default) then inter-annual forcing is used.
         read_existing_grids (Optional[Bool]): When ``True``, instead of generating the grids,
             reads the grids and ocean mask from ``mom_input_dir`` and ``mom_run_dir``. Useful
             for modifying or troubleshooting experiments. Default: ``False``.
@@ -1859,8 +1858,8 @@ class segment:
             *K*:sub:`2`, *K*:sub:`1`, *O*:sub:`2`, *P*:sub:`1`, *Q*:sub:`1`, *Mm*,
             *Mf*, and *M*:sub:`4`. For example, specifying ``1`` only includes *M*:sub:`2`;
             specifying ``2`` includes *M*:sub:`2` and *S*:sub:`2`, etc. Default: ``None``.
-        repeat_year_forcing (Optional[bool]): When ``True`` the experiment runs with 'repeat-year
-            forcing'. When ``False`` (default) then inter-annual forcing is used.
+        repeat_year_forcing (Optional[bool]): When ``True`` the experiment runs with repeat-year
+            forcing. When ``False`` (default) then inter-annual forcing is used.
     """
 
     def __init__(
