@@ -1529,7 +1529,7 @@ class experiment:
         )
 
         print(
-            "OUTPUT FROM QUICK QUICK MOSAIC:",
+            "OUTPUT FROM QUICK MOSAIC:",
             subprocess.run(
                 str(self.toolpath_dir / "make_quick_mosaic/make_quick_mosaic")
                 + " --input_mosaic ocean_mosaic.nc --mosaic_name grid_spec --ocean_topog topog.nc",
