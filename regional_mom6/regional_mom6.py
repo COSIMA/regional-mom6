@@ -158,7 +158,7 @@ def ep2ap(SEMA, ECC, INC, PHA):
 def longitude_slicer(data, longitude_extent, longitude_coords, buffer=2):
     """
     Slice longitudes, handling periodicity and 'seams' where the
-    data wraps around (commonly either in domain [-180, 180] or in [-270, 90]).
+    data wraps around (commonly either in domain [0, 360], [-180, 180], or [-270, 90]).
 
     The algorithm works in five steps:
 
@@ -173,7 +173,7 @@ def longitude_slicer(data, longitude_extent, longitude_coords, buffer=2):
     - Fix ``old_lon`` to make it monotonically increasing again. This uses
       the information we have about the way the dataset was shifted/rolled.
 
-    - Slice the ``data`` index-wise. We know that ``|longitude_extent| / 360``
+    - Slice the ``data`` index-wise. We know that ``|longitude_extent[1] - longitude_extent[0]| / 360``
       multiplied by the number of discrete longitude points will give
       the total width of our slice, and we've already set the midpoint
       to be the middle of the target domain. Here we add a ``buffer``
