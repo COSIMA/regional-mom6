@@ -379,7 +379,7 @@ def motu_requests(
 
 def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
     """Generate a hyperbolic tangent thickness profile with ``nlayers`` vertical
-    layers and total depth of ``total_depth`` whose bottom layer is (about) `ratio`
+    layers and total depth of ``total_depth`` whose bottom layer is (about) ``ratio``
     times larger than the top layer.
 
     The thickness profile transitions from the top-layer thickness to
