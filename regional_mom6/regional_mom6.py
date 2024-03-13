@@ -206,8 +206,8 @@ def longitude_slicer(data, longitude_extent, longitude_coords, buffer=2):
 
         dλ = data[lon][1] - data[lon][0]
 
-        assert (
-            np.max(np.abs(np.diff(data[lon]) - dλ)) < 1e-14
+        assert np.allclose(
+            np.diff(data[lon]), dλ * np.ones(np.size(λ) - 1)
         ), "provided longitude coordinate must be uniformly spaced"
 
         assert np.isclose(
@@ -538,8 +538,8 @@ def rectangular_hgrid(λ, φ):
     # compute longitude spacing and ensure that longitudes are uniformly spaced
     dλ = λ[1] - λ[0]
 
-    assert (
-        np.allclose(np.diff(λ), dλ * np.ones(np.size(λ)-1))
+    assert np.allclose(
+        np.diff(λ), dλ * np.ones(np.size(λ) - 1)
     ), "provided array of longitudes must be uniformly spaced"
 
     # dx = R * cos(φ) * np.deg2rad(dλ) / 2
