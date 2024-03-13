@@ -204,10 +204,14 @@ def longitude_slicer(data, longitude_extent, longitude_coords, buffer=2):
         ## Find a corresponding value for the intended domain midpoint in our data.
         ## It's assumed that data has equally-spaced longitude values that span 360 degrees.
 
-        dλ = data[lon][1] - data[lon][0]
+        λ = data[lon].data
+        dλ = λ[1] - λ[0]
+
+        print(λ)
+        print(dλ)
 
         assert np.allclose(
-            np.diff(data[lon]), dλ * np.ones(np.size(λ) - 1)
+            np.diff(λ), dλ * np.ones(np.size(λ) - 1)
         ), "provided longitude coordinate must be uniformly spaced"
 
         assert np.isclose(
