@@ -21,7 +21,7 @@ warnings.filterwarnings("ignore")
 __all__ = [
     "nicer_slicer",
     "motu_requests",
-    "dz_hyperbolictan",
+    "hyperbolictan_thickness_profile",
     "rectangular_hgrid",
     "experiment",
     "segment",
@@ -377,39 +377,120 @@ def motu_requests(
     return script
 
 
-def dz_hyperbolictan(npoints, ratio, target_depth, min_dz=0.0001, tolerance=1):
-    """Generate a hyperbolic tangent thickness profile for the
-    experiment.  Iterates to find the mininum depth value which gives
-    the target depth within some tolerance.
-    Thickness of layers monotonically increases (or decreases if ratio is negative) from the surface to the bottom of the domain.
-    Set the ratio to 1 for a uniformly spaced grid.
+def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
+    """Generate a hyperbolic tangent thickness profile with ``nlayers`` vertical
+    layers and total depth of ``total_depth`` whose bottom layer is (about) `ratio`
+    times larger than the top layer.
+
+    The thickness profile transitions from the top-layer thickness to
+    the bottom-layer thickness via a hyperbolic tangent proportional to
+    ``tanh(2π * (k / (nlayers - 1) - 1 / 2))``, where ``k = 0, 1, ..., nlayers - 1``
+    is the layer index with ``k = 0`` corresponding to the top-most layer.
+
+    The sum of all layer thicknesses is ``total_depth``.
+
+    Positive parameter ``ratio`` prescribes (approximately) the ratio of the thickness
+    of the bottom-most layer to the top-most layer. The final ratio of the bottom-most
+    layer to the top-most layer ends up a bit different from the prescribed ``ratio``.
+    In particular, the final ratio of the bottom over the top-most layer thickness is
+    ``(1 + ratio * exp(2π)) / (ratio + exp(2π))``. This slight departure comes about
+    because of the value of the hyperbolic tangent profile at the end-points ``tanh(π)``,
+    which is approximately 0.9963 and not 1. Note that because ``exp(2π)`` is much greater
+    than 1, the value of the actual ratio is not that different from prescribed value
+    ``ratio``, e.g., for ``ratio`` values between 1/100 and 100 the final ratio of the
+    bottom-most layer to the top-most layer only departs from the prescribed ``ratio``
+    by ±20%.
 
     Args:
-        npoints (int): Number of vertical points
-        ratio (float): Ratio of largest to smallest layer
-            thickness. Negative values mean higher resolution is at
-            bottom rather than top of the column.
-        target_depth (float): Maximum depth of a layer
-        min_dz (float): Starting layer thickness for iteration
-        tolerance (float): Tolerance to the target depth.
+        nlayers (int): Number of vertical layers.
+        ratio (float): The desired value of the ratio of bottom-most to
+            the top-most layer thickness. Note that the final value of
+            the ratio of bottom-most to the top-most layer thickness
+            ends up ``(1 + ratio * exp(2π)) / (ratio + exp(2π))``. Must
+            be positive.
+        total_depth (float): The total depth of grid, i.e., the sum
+            of all thicknesses.
 
     Returns:
-        numpy.array: An array containing the thickness profile.
+        numpy.array: An array containing the layer thicknesses.
+
+    Examples:
+
+        The spacings for a vertical grid with 20 layers, with maximum depth 1000 meters,
+        and for which the top-most layer is about 4 times thinner than the bottom-most
+        one.
+
+        >>> from regional_mom6 import hyperbolictan_thickness_profile
+        >>> nlayers, total_depth = 20, 1000
+        >>> ratio = 4
+        >>> dz = hyperbolictan_thickness_profile(nlayers, ratio, total_depth)
+        >>> dz
+        array([20.11183771, 20.2163053 , 20.41767549, 20.80399084, 21.53839043,
+               22.91063751, 25.3939941 , 29.6384327 , 36.23006369, 45.08430684,
+               54.91569316, 63.76993631, 70.3615673 , 74.6060059 , 77.08936249,
+               78.46160957, 79.19600916, 79.58232451, 79.7836947 , 79.88816229])
+        >>> dz.sum()
+        1000.0
+        >>> dz[-1] / dz[0]
+        3.9721960481753706
+
+        If we want the top layer to be thicker then we need to prescribe ``ratio < 1``.
+
+        >>> from regional_mom6 import hyperbolictan_thickness_profile
+        >>> nlayers, total_depth = 20, 1000
+        >>> ratio = 1/4
+        >>> dz = hyperbolictan_thickness_profile(nlayers, ratio, total_depth)
+        >>> dz
+        array([79.88816229, 79.7836947 , 79.58232451, 79.19600916, 78.46160957,
+               77.08936249, 74.6060059 , 70.3615673 , 63.76993631, 54.91569316,
+               45.08430684, 36.23006369, 29.6384327 , 25.3939941 , 22.91063751,
+               21.53839043, 20.80399084, 20.41767549, 20.2163053 , 20.11183771])
+        >>> dz.sum()
+        1000.0
+        >>> dz[-1] / dz[0]
+        0.25174991059652
+
+        Now how about a grid with the same total depth as above but with equally-spaced
+        layers.
+
+        >>> from regional_mom6 import hyperbolictan_thickness_profile
+        >>> nlayers, total_depth = 20, 1000
+        >>> ratio = 1
+        >>> dz = hyperbolictan_thickness_profile(nlayers, ratio, total_depth)
+        >>> dz
+        array([50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50.,
+               50., 50., 50., 50., 50., 50., 50.])
     """
 
-    profile = min_dz + 0.5 * (np.abs(ratio) * min_dz - min_dz) * (
-        1 + np.tanh(2 * np.pi * (np.arange(npoints) - npoints // 2) / npoints)
-    )
-    tot = np.sum(profile)
-    if np.abs(tot - target_depth) < tolerance:
-        if ratio > 0:
-            return profile
+    assert isinstance(nlayers, int), "nlayers must be an integer"
 
-        return profile[::-1]
+    if nlayers == 1:
+        return np.array([float(total_depth)])
 
-    err_ratio = target_depth / tot
+    assert ratio > 0, "ratio must be > 0"
 
-    return dz_hyperbolictan(npoints, ratio, target_depth, min_dz * err_ratio)
+    # The hyberbolic tangent profile below implies that the sum of
+    # all layer thicknesses is:
+    #
+    # nlayers * (top_layer_thickness + bottom_layer_thickness) / 2
+    #
+    # By choosing the top_layer_thickness appropriately we ensure that
+    # the sum of all layer thicknesses is the prescribed total_depth.
+    top_layer_thickness = 2 * total_depth / (nlayers * (1 + ratio))
+
+    bottom_layer_thickness = ratio * top_layer_thickness
+
+    layer_thicknesses = top_layer_thickness + 0.5 * (
+        bottom_layer_thickness - top_layer_thickness
+    ) * (1 + np.tanh(2 * np.pi * (np.arange(nlayers) / (nlayers - 1) - 1 / 2)))
+
+    sum_of_thicknesses = np.sum(layer_thicknesses)
+
+    atol = np.finfo(type(sum_of_thicknesses)).eps
+
+    assert np.isclose(total_depth, sum_of_thicknesses, atol=atol)  # just checking ;)
+
+    return layer_thicknesses
 
 
 def rectangular_hgrid(λ, φ):
@@ -525,8 +606,8 @@ class experiment:
         date_range (Tuple[str]): Start and end dates of the boundary forcing window.
         resolution (float): Lateral resolution of the domain, in degrees.
         number_vertical_layers (int): Number of vertical layers.
-        layer_thickness_ratio (float): Ratio of largest to smallest layer thickness, used
-            as input in :func:`~dz_hyperbolictan`.
+        layer_thickness_ratio (float): Ratio of largest to smallest layer thickness;
+            used as input :func:`~hyperbolictan_thickness_profile`.
         depth (float): Depth of the domain.
         mom_run_dir (str): Path of the MOM6 control directory.
         mom_input_dir (str): Path of the MOM6 input directory, to receive the forcing files.
@@ -686,16 +767,20 @@ class experiment:
         specified at the class level.
         """
 
-        thickness = dz_hyperbolictan(
-            self.number_vertical_layers + 1, self.layer_thickness_ratio, self.depth
+        thicknesses = hyperbolictan_thickness_profile(
+            self.nlayers, self.dz_ratio, self.depth
         )
-        vcoord = xr.Dataset(
-            {
-                "zi": ("zi", np.cumsum(thickness)),
-                "zl": ("zl", (np.cumsum(thickness) + 0.5 * thickness)[0:-1]),
-            }
-        )
+
+        zi = np.cumsum(thicknesses)
+        zi = np.insert(zi, 0, 0.0)  # add zi = 0.0 as first interface
+
+        zl = zi[0:-1] + thicknesses / 2  # the mid-points between interfaces zi
+
+        vcoord = xr.Dataset({"zi": ("zi", zi), "zl": ("zl", zl)})
+
         vcoord["zi"].attrs = {"units": "meters"}
+        vcoord["zl"].attrs = {"units": "meters"}
+
         vcoord.to_netcdf(self.mom_input_dir / "vcoord.nc")
 
         return vcoord
