@@ -233,14 +233,14 @@ def longitude_slicer(data, longitude_extent, longitude_coords, buffer=2):
 
                 ## Create a new longitude coordinate.
                 ## We'll modify this to remove any seams (i.e., jumps like -270 -> 90)
-                new_x = new_data[lon].values
+                new_lon = new_data[lon].values
 
                 ## Take the 'seam' of the data, and either backfill or forward fill based on
                 ## whether the data was shifted F or west
                 if shift > 0:
                     new_seam_index = shift
 
-                    new_x[0:new_seam_index] -= 360
+                    new_lon[0:new_seam_index] -= 360
 
                 if shift < 0:
                     new_seam_index = data[lon].shape[0] + shift
