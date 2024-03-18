@@ -201,17 +201,14 @@ def longitude_slicer(data, longitude_extent, longitude_coords, buffer=2):
         central_longitude = np.mean(longitude_extent)  ## Midpoint of target domain
 
         ## Find a corresponding value for the intended domain midpoint in our data.
-        ## It's assumed that data has equally-spaced longitude values that span 360 degrees.
+        ## It's assumed that data has equally-spaced longitude values.
 
-        dλ = data[lon][1] - data[lon][0]
+        λ = data[lon].data
+        dλ = λ[1] - λ[0]
 
         assert np.allclose(
-            np.diff(data[lon]), dλ * np.ones(np.size(λ) - 1)
+            np.diff(λ), dλ * np.ones(np.size(λ) - 1)
         ), "provided longitude coordinate must be uniformly spaced"
-
-        assert np.isclose(
-            data[lon][-1] - data[lon][0], 360
-        ), "longitude values must span 360 degrees"
 
         for i in range(-1, 2, 1):
             if data[lon][0] <= central_longitude + 360 * i <= data[lon][-1]:
@@ -236,14 +233,14 @@ def longitude_slicer(data, longitude_extent, longitude_coords, buffer=2):
 
                 ## Create a new longitude coordinate.
                 ## We'll modify this to remove any seams (i.e., jumps like -270 -> 90)
-                new_x = new_data[lon].values
+                new_lon = new_data[lon].values
 
                 ## Take the 'seam' of the data, and either backfill or forward fill based on
                 ## whether the data was shifted F or west
                 if shift > 0:
                     new_seam_index = shift
 
-                    new_x[0:new_seam_index] -= 360
+                    new_lon[0:new_seam_index] -= 360
 
                 if shift < 0:
                     new_seam_index = data[lon].shape[0] + shift
