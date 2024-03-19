@@ -1,11 +1,51 @@
 import numpy as np
 import pytest
-from regional_mom6 import angle_between
-from regional_mom6 import latlon_to_cartesian
-from regional_mom6 import quadrilateral_area
-from regional_mom6 import quadrilateral_areas
+
+from regional_mom6 import hyperbolictan_thickness_profile
 from regional_mom6 import rectangular_hgrid
+from regional_mom6 import longitude_slicer
+
+from regional_mom6.utils import angle_between
+from regional_mom6.utils import latlon_to_cartesian
+from regional_mom6.utils import quadrilateral_area
+from regional_mom6.utils import quadrilateral_areas
+
 import xarray as xr
+
+
+@pytest.mark.parametrize(
+    ("nlayers", "ratio", "total_depth"),
+    [
+        (20, 1 / 3, 1000),
+        (20, 2, 1000),
+        (20, 10, 1000),
+        (20, 2, 3000),
+        (50, 1 / 3, 1000),
+        (50, 2, 1000),
+        (50, 10, 1000),
+        (50, 2, 3000),
+    ],
+)
+def test_hyperbolictan_thickness_profile_symmetric(nlayers, ratio, total_depth):
+    assert np.isclose(
+        hyperbolictan_thickness_profile(nlayers, ratio, total_depth),
+        np.flip(hyperbolictan_thickness_profile(nlayers, 1 / ratio, total_depth)),
+    ).all()
+
+
+@pytest.mark.parametrize(
+    ("nlayers", "total_depth"),
+    [
+        (23, 2000),
+        (50, 1000),
+        (50, 3000),
+    ],
+)
+def test_hyperbolictan_thickness_profile_equispaced(nlayers, total_depth):
+    assert np.isclose(
+        hyperbolictan_thickness_profile(nlayers, 1, total_depth),
+        np.ones(nlayers) * total_depth / nlayers,
+    ).all()
 
 
 @pytest.mark.parametrize(
@@ -19,19 +59,6 @@ import xarray as xr
 )
 def test_latlon_to_cartesian(lat, lon, true_xyz):
     assert np.isclose(latlon_to_cartesian(lat, lon), true_xyz).all()
-
-
-@pytest.mark.parametrize(
-    ("v1", "v2", "v3", "true_angle"),
-    [
-        ([1, 0, 0], [0, 1, 0], [0, 0, 1], np.pi / 2),
-        ([1, 0, 0], [1, 1, 0], [0, 1, 1], np.pi / 4),
-        ([1, 0, 0], [1, 1, 1], [0, 0, 1], np.pi / 4),
-        ([1, 1, 1], [1, 1, 0], [0, 1, 1], 2 * np.pi / 3),
-    ],
-)
-def test_angle_between(v1, v2, v3, true_angle):
-    assert np.isclose(angle_between(v1, v2, v3), true_angle)
 
 
 @pytest.mark.parametrize(
@@ -99,3 +126,34 @@ def test_quadrilateral_areas(lat, lon, true_area):
 )
 def test_rectangular_hgrid(lat, lon):
     assert isinstance(rectangular_hgrid(lat, lon), xr.Dataset)
+
+
+def test_longitude_slicer():
+    with pytest.raises(AssertionError):
+        nx, ny, nt = 4, 14, 5
+
+        latitude_extent = (10, 20)
+        longitude_extent = (12, 18)
+
+        dims = ["lata", "lona", "time"]
+
+        dλ = (longitude_extent[1] - longitude_extent[0]) / 2
+
+        data = xr.DataArray(
+            np.random.random((ny, nx, nt)),
+            dims=dims,
+            coords={
+                "lata": np.linspace(latitude_extent[0], latitude_extent[1], ny),
+                "lona": np.array(
+                    [
+                        longitude_extent[0],
+                        longitude_extent[0] + 1.5 * dλ,
+                        longitude_extent[0] + 2.6 * dλ,
+                        longitude_extent[1],
+                    ]
+                ),
+                "time": np.linspace(0, 1000, nt),
+            },
+        )
+
+        longitude_slicer(data, longitude_extent, "lona")

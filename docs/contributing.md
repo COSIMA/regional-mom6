@@ -30,10 +30,17 @@ python -m pip install .
 python -m pip install pytest
 ```
 
-Now we can run the test with
+Now we can run the tests with
 
 ```{code-block} bash
 python -m pytest tests/
+```
+
+If we also want to run the doctests (tests that appear as examples in various docstrings), we
+can use
+
+```{code-block} bash
+python -m pytest --doctest-modules tests/ regional_mom6/
 ```
 
 ## Documentation
