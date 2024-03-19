@@ -3,6 +3,7 @@ import pytest
 
 from regional_mom6 import hyperbolictan_thickness_profile
 from regional_mom6 import rectangular_hgrid
+from regional_mom6 import longitude_slicer
 
 from regional_mom6.utils import angle_between
 from regional_mom6.utils import latlon_to_cartesian
@@ -125,3 +126,34 @@ def test_quadrilateral_areas(lat, lon, true_area):
 )
 def test_rectangular_hgrid(lat, lon):
     assert isinstance(rectangular_hgrid(lat, lon), xr.Dataset)
+
+
+def test_longitude_slicer():
+    with pytest.raises(AssertionError):
+        nx, ny, nt = 4, 14, 5
+
+        latitude_extent = (10, 20)
+        longitude_extent = (12, 18)
+
+        dims = ["lata", "lona", "time"]
+
+        dλ = (longitude_extent[1] - longitude_extent[0]) / 2
+
+        data = xr.DataArray(
+            np.random.random((ny, nx, nt)),
+            dims=dims,
+            coords={
+                "lata": np.linspace(latitude_extent[0], latitude_extent[1], ny),
+                "lona": np.array(
+                    [
+                        longitude_extent[0],
+                        longitude_extent[0] + 1.5 * dλ,
+                        longitude_extent[0] + 2.6 * dλ,
+                        longitude_extent[1],
+                    ]
+                ),
+                "time": np.linspace(0, 1000, nt),
+            },
+        )
+
+        longitude_slicer(data, longitude_extent, "lona")

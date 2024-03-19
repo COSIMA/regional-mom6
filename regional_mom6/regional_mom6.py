@@ -19,8 +19,7 @@ from .utils import quadrilateral_areas
 warnings.filterwarnings("ignore")
 
 __all__ = [
-    "nicer_slicer",
-    "motu_requests",
+    "longitude_slicer",
     "hyperbolictan_thickness_profile",
     "rectangular_hgrid",
     "experiment",
@@ -155,27 +154,25 @@ def ep2ap(SEMA, ECC, INC, PHA):
 ## Auxiliary functions
 
 
-def nicer_slicer(data, xextent, xcoords, buffer=2):
+def longitude_slicer(data, longitude_extent, longitude_coords, buffer=2):
     """
     Slice longitudes, handling periodicity and 'seams' where the
-    data wraps around (commonly either in domain [-180, 180] or in [-270, 90]).
+    data wraps around (commonly either in domain [0, 360], [-180, 180], or [-270, 90]).
 
     The algorithm works in five steps:
 
-    - Determine whether we need to add or subtract 360 to get the
-      middle of the ``xextent`` to lie within ``data``'s longitude range
-      (hereby ``oldx``).
+    - Determine whether we need to add or subtract 360 to get the middle of the
+      ``longitude_extent`` to lie within ``data``'s longitude range (hereby ``old_lon``).
 
     - Shift the dataset so that its midpoint matches the midpoint of
-      ``xextent`` (up to a muptiple of 360). Now, the modified ``oldx``
-      does not increase monotonically from West to East  since the
-      'seam' has moved.
+      ``longitude_extent`` (up to a multiple of 360). Now, the modified ``old_lon``
+      does not increase monotonically from West to East since the 'seam'
+      has moved.
 
-    - Fix ``oldx`` to make it monotonically increasing again. This uses
-      the information we have about the way the dataset was
-      shifted/rolled.
+    - Fix ``old_lon`` to make it monotonically increasing again. This uses
+      the information we have about the way the dataset was shifted/rolled.
 
-    - Slice the ``data`` index-wise. We know that ``|xextent| / 360``
+    - Slice the ``data`` index-wise. We know that ``|longitude_extent[1] - longitude_extent[0]| / 360``
       multiplied by the number of discrete longitude points will give
       the total width of our slice, and we've already set the midpoint
       to be the middle of the target domain. Here we add a ``buffer``
@@ -186,195 +183,93 @@ def nicer_slicer(data, xextent, xcoords, buffer=2):
 
     Args:
         data (xarray.Dataset): The global data you want to slice in longitude.
-        xextent (Tuple[float, float]): The target longitudes (in degrees) we would
-            like to slice to. Must be in increasing order.
-        xcoords (Union[str, List[str]): The name or list of names of the longitude
-            dimension in ``data``.
+        longitude_extent (Tuple[float, float]): The target longitudes (in degrees)
+            we want to slice to. Must be in increasing order.
+        longitude_coords (Union[str, list[str]): The name or list of names of the
+            longitude coordinates(s) in ``data``.
+        buffer (float): A ``buffer`` region (in degrees) on either side of the domain
+            reserved for interpolation purposes near the edges of the regional domain.
 
     Returns:
         xarray.Dataset: The sliced ``data``.
     """
 
-    if isinstance(xcoords, str):
-        xcoords = [xcoords]
+    if isinstance(longitude_coords, str):
+        longitude_coords = [longitude_coords]
 
-    for x in xcoords:
-        mp_target = np.mean(xextent)  ## Midpoint of target domain
+    for lon in longitude_coords:
+        central_longitude = np.mean(longitude_extent)  ## Midpoint of target domain
 
-        ## Find a corresponding value for the intended domain midpint in our data. Assuming here that data has equally spaced longitude values spanning 360deg
+        ## Find a corresponding value for the intended domain midpoint in our data.
+        ## It's assumed that data has equally-spaced longitude values.
+
+        λ = data[lon].data
+        dλ = λ[1] - λ[0]
+
+        assert np.allclose(
+            np.diff(λ), dλ * np.ones(np.size(λ) - 1)
+        ), "provided longitude coordinate must be uniformly spaced"
+
         for i in range(-1, 2, 1):
-            if data[x][0] <= mp_target + 360 * i <= data[x][-1]:
-                _mp_target = (
-                    mp_target + 360 * i
-                )  ## Shifted version of target midpoint. eg, could be -90 vs 270. i keeps track of what multiple of 360 we need to shift entire grid by to match midpoint
+            if data[lon][0] <= central_longitude + 360 * i <= data[lon][-1]:
 
-                mp_data = data[x][data[x].shape[0] // 2].values  ## Midpoint of the data
+                ## Shifted version of target midpoint; e.g., could be -90 vs 270
+                ## integer i keeps track of what how many multiples of 360 we need to shift entire
+                ## grid by to match central_longitude
+                _central_longitude = central_longitude + 360 * i
 
-                shift = -1 * (data[x].shape[0] * (_mp_target - mp_data)) // 360
+                ## Midpoint of the data
+                central_data = data[lon][data[lon].shape[0] // 2].values
+
+                ## Number of indices between the data midpoint and the target midpoint.
+                ## Sign indicates direction needed to shift.
                 shift = int(
-                    shift
-                )  ## This is the number of indices between the data midpoint, and the target midpoint. Sign indicates direction needed to shift
+                    -(data[lon].shape[0] * (_central_longitude - central_data)) // 360
+                )
 
-                new_data = data.roll(
-                    {x: 1 * shift}, roll_coords=True
-                )  ## Shifts data so that the midpoint of the target domain is the middle of the data for easy slicing
+                ## Shift data so that the midpoint of the target domain is the middle of
+                ## the data for easy slicing.
+                new_data = data.roll({lon: 1 * shift}, roll_coords=True)
 
-                new_x = new_data[
-                    x
-                ].values  ## Create a new longitude coordinate. We'll modify this to remove any seams (jumps like -270 -> 90)
+                ## Create a new longitude coordinate.
+                ## We'll modify this to remove any seams (i.e., jumps like -270 -> 90)
+                new_lon = new_data[lon].values
 
-                ## Take the 'seam' of the data, and either backfill or forward fill based on whether the data was shifted F or west
+                ## Take the 'seam' of the data, and either backfill or forward fill based on
+                ## whether the data was shifted F or west
                 if shift > 0:
                     new_seam_index = shift
 
-                    new_x[0:new_seam_index] -= 360
+                    new_lon[0:new_seam_index] -= 360
 
                 if shift < 0:
-                    new_seam_index = data[x].shape[0] + shift
+                    new_seam_index = data[lon].shape[0] + shift
 
-                    new_x[new_seam_index:] += 360
+                    new_lon[new_seam_index:] += 360
 
-                new_x -= (
-                    i * 360
-                )  ## Use this to recentre the midpoint to match that of target domain
+                ## new_x is used to recentre the midpoint to match that of target domain
+                new_lon -= i * 360
 
-                new_data = new_data.assign_coords({x: new_x})
+                new_data = new_data.assign_coords({lon: new_lon})
 
-                ## Choose the number of x points to take from the middle, including a buffer. Use this to index the new global dataset
-
-                num_xpoints = (
-                    int(data[x].shape[0] * (mp_target - xextent[0])) // 360 + buffer * 2
+                ## Choose the number of lon points to take from the middle, including a buffer.
+                ## Use this to index the new global dataset
+                num_lonpoints = (
+                    int(data[lon].shape[0] * (central_longitude - longitude_extent[0]))
+                    // 360
+                    + buffer * 2
                 )
 
         data = new_data.isel(
             {
-                x: slice(
-                    data[x].shape[0] // 2 - num_xpoints,
-                    data[x].shape[0] // 2 + num_xpoints,
+                lon: slice(
+                    data[lon].shape[0] // 2 - num_lonpoints,
+                    data[lon].shape[0] // 2 + num_lonpoints,
                 )
             }
         )
 
     return data
-
-
-def motu_requests(
-    xextent,
-    yextent,
-    daterange,
-    outfolder,
-    usr,
-    pwd,
-    segs,
-    url="https://my.cmems-du.eu/motu-web/Motu",
-    serviceid="GLOBAL_MULTIYEAR_PHY_001_030-TDS",
-    productid="cmems_mod_glo_phy_my_0.083_P1D-m",
-    buffer=0.3,
-):
-    """
-    Generate MOTU data request for each specified boundary, as well as for
-    the initial condition. By default pulls the GLORYS reanalysis dataset.
-
-    Args:
-        xextent (List[float]): Extreme values of longitude coordinates for
-            rectangular domain (in degrees).
-        yextent (List[float]): Extreme values of latitude coordinates for
-            rectangular domain (in degrees).
-        daterange (Tuple[str]): Start and end dates of boundary forcing window.
-            Format: ``%Y-%m-%d %H:%M:%S``.
-        outfolder (str): Directory the files are downloaded.
-        usr (str): MOTU authentication username.
-        pwd (str): MOTU authentication password.
-        segs (List[str]): List of the cardinal directions for the boundary forcing.
-        url (Optional[str]): MOTU server for the request. Defaults to the CMEMS,
-            i.e. ``"https://my.cmems-du.eu/motu-web/Motu"``.
-        serviceid (Optional[str]): Service containing the desired dataset. Default:
-            ``"GLOBAL_MULTIYEAR_PHY_001_030-TDS"``.
-        productid (Optional[str]): Data product within the chosen service. Default:
-            ``"cmems_mod_glo_phy_my_0.083_P1D-m"``.
-
-    Returns:
-        str: A bash script which will call ``motuclient`` to invoke the data requests.
-    """
-
-    if isinstance(segs, str):
-        return f"\nprintf 'processing {segs} segment' \npython -m motuclient --motu {url} --service-id {serviceid} --product-id {productid} --longitude-min {xextent[0]} --longitude-max {xextent[1]} --latitude-min {yextent[0]} --latitude-max {yextent[1]} --date-min {daterange[0]} --date-max {daterange[1]} --depth-min 0.49 --depth-max 6000 --variable so --variable thetao --variable vo --variable zos --variable uo --out-dir {outfolder} --out-name {segs}_unprocessed --user '{usr}' --pwd '{pwd}'\n"
-
-    ## Buffer pads out our boundaries a small amount to allow for interpolation
-    xextent, yextent = np.array(xextent), np.array(yextent)
-    script = "#!/bin/bash\n\n"
-    for seg in segs:
-        if seg == "east":
-            script += motu_requests(
-                [xextent[1] - buffer, xextent[1] + buffer],
-                yextent,
-                daterange,
-                outfolder,
-                usr,
-                pwd,
-                seg,
-                url=url,
-                serviceid=serviceid,
-                productid=productid,
-            )
-        if seg == "west":
-            script += motu_requests(
-                [xextent[0] - buffer, xextent[0] + buffer],
-                yextent,
-                daterange,
-                outfolder,
-                usr,
-                pwd,
-                seg,
-                url=url,
-                serviceid=serviceid,
-                productid=productid,
-            )
-        if seg == "north":
-            script += motu_requests(
-                xextent,
-                [yextent[1] - buffer, yextent[1] + buffer],
-                daterange,
-                outfolder,
-                usr,
-                pwd,
-                seg,
-                url=url,
-                serviceid=serviceid,
-                productid=productid,
-            )
-
-        if seg == "south":
-            script += motu_requests(
-                xextent,
-                [yextent[0] - buffer, yextent[0] + buffer],
-                daterange,
-                outfolder,
-                usr,
-                pwd,
-                seg,
-                url=url,
-                serviceid=serviceid,
-                productid=productid,
-            )
-    ## Now handle the initial condition
-    script += motu_requests(
-        xextent + np.array([-1 * buffer, buffer]),
-        yextent + np.array([-1 * buffer, buffer]),
-        [
-            daterange[0],
-            dt.datetime.strptime(daterange[0], "%Y-%m-%d %H:%M:%S")
-            + dt.timedelta(hours=1),
-        ],  ## For initial condition just take one day
-        outfolder,
-        usr,
-        pwd,
-        "ic",
-        url=url,
-        serviceid=serviceid,
-        productid=productid,
-    )
-    return script
 
 
 def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
@@ -515,13 +410,16 @@ def rectangular_hgrid(λ, φ):
         xarray.Dataset: An FMS-compatible ``hgrid`` that includes all required attributes.
     """
 
+    assert np.all(np.diff(λ) > 0), "longitudes array λ must be monotonically increasing"
+    assert np.all(np.diff(φ) > 0), "latitudes array φ must be monotonically increasing"
+
     R = 6371e3  # mean radius of the Earth; https://en.wikipedia.org/wiki/Earth_radius
 
     # compute longitude spacing and ensure that longitudes are uniformly spaced
     dλ = λ[1] - λ[0]
 
-    assert (
-        np.max(np.diff(λ) - dλ) < 1e-14
+    assert np.allclose(
+        np.diff(λ), dλ * np.ones(np.size(λ) - 1)
     ), "provided array of longitudes must be uniformly spaced"
 
     # dx = R * cos(φ) * np.deg2rad(dλ) / 2
@@ -590,12 +488,11 @@ class experiment:
 
     Everything about the regional experiment.
 
-    Methods in this class will generate the various input files needed
-    to generate a MOM6 experiment forced with open boundary conditions
-    (OBCs). The code is agnostic to the user's choice of boundary forcing,
-    topography and surface forcing; users need to prescribe what variables
-    are all called via mapping dictionaries from MOM6 variable/coordinate
-    name to the name in the input dataset.
+    Methods in this class generate the various input files needed for a MOM6
+    experiment forced with open boundary conditions (OBCs). The code is agnostic
+    to the user's choice of boundary forcing, topography and surface forcing;
+    users need to prescribe what variables are all called via mapping dictionaries
+    from MOM6 variable/coordinate name to the name in the input dataset.
 
     The class can be used to generate the grids for a new experiment, or to read in
     an existing one by providing with ``read_existing_grids=True``.
@@ -607,16 +504,16 @@ class experiment:
         resolution (float): Lateral resolution of the domain, in degrees.
         number_vertical_layers (int): Number of vertical layers.
         layer_thickness_ratio (float): Ratio of largest to smallest layer thickness;
-            used as input :func:`~hyperbolictan_thickness_profile`.
+            used as input in :func:`~hyperbolictan_thickness_profile`.
         depth (float): Depth of the domain.
         mom_run_dir (str): Path of the MOM6 control directory.
         mom_input_dir (str): Path of the MOM6 input directory, to receive the forcing files.
         toolpath_dir (str): Path of GFDL's FRE tools (https://github.com/NOAA-GFDL/FRE-NCtools)
             binaries.
         grid_type (Optional[str]): Type of horizontal grid to generate.
-            Currently, only ``even_spacing`` is supported.
+            Currently, only ``'even_spacing'`` is supported.
         repeat_year_forcing (Optional[bool]): When ``True`` the experiment runs with
-            'repeat-year forcing'. When ``False`` (default) then inter-annual forcing is used.
+            repeat-year forcing. When ``False`` (default) then inter-annual forcing is used.
         read_existing_grids (Optional[Bool]): When ``True``, instead of generating the grids,
             reads the grids and ocean mask from ``mom_input_dir`` and ``mom_run_dir``. Useful
             for modifying or troubleshooting experiments. Default: ``False``.
@@ -1173,7 +1070,7 @@ class experiment:
                 }  #! Hardcoded 1 degree buffer around bathymetry selection. TODO: automatically select buffer
             ).astype("float")
 
-            ## Here need to make a decision as to whether to slice 'normally' or with nicer slicer for 360 degree domain.
+            ## Here need to make a decision as to whether to slice 'normally' or with the longitude_slicer for 360 degree domain.
 
             horizontal_resolution = bathy[varnames["xh"]][1] - bathy[varnames["xh"]][0]
             horizontal_extent = (
@@ -1183,8 +1080,8 @@ class experiment:
             )
 
             if np.isclose(horizontal_extent, 360):
-                ## Assume that we're dealing with a global grid, in which case we use nicer slicer
-                bathy = nicer_slicer(
+                ## Assume that we're dealing with a global grid, in which case we use longitude_slicer
+                bathy = longitude_slicer(
                     bathy,
                     np.array(self.longitude_extent)
                     + np.array(
@@ -1275,7 +1172,15 @@ class experiment:
 
             ## Replace subprocess run with regular regridder
             print(
-                "Starting to regrid bathymetry. If this process hangs the domain might be too big to handle this way. Try calling ESMF directly from a terminal with appropriate computational resources opened in the input directory using \n\n mpirun ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\n\n For details see https://xesmf.readthedocs.io/en/latest/large_problems_on_HPC.html \n\nAftewards, run this method again but set 'maketopog = False' so that python skips the computationally expensive step and just fixes up the metadata.\n\n"
+                "Begin regridding bathymetry...\n\n"
+                + "If this process hangs it means that the chosen domain might be too big to handle this way. "
+                + "After ensuring access to appropriate computational resources, try calling ESMF "
+                + "directly from a terminal in the input directory via\n\n"
+                + "mpirun ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\n\n"
+                + "For details see https://xesmf.readthedocs.io/en/latest/large_problems_on_HPC.html\n\n"
+                + "Aftewards, run the bathymetry method again but set 'maketopog = False' so the "
+                + "computationally expensive step is skiped and instead the method ensures that only the "
+                + "metadata are fixed."
             )
 
             # If we have a domain large enough for chunks, we'll run regridder with parallel=True
@@ -1503,7 +1408,7 @@ class experiment:
         )
 
         print(
-            "OUTPUT FROM QUICK QUICK MOSAIC:",
+            "OUTPUT FROM QUICK MOSAIC:",
             subprocess.run(
                 str(self.toolpath_dir / "make_quick_mosaic/make_quick_mosaic")
                 + " --input_mosaic ocean_mosaic.nc --mosaic_name grid_spec --ocean_topog topog.nc",
@@ -1725,7 +1630,7 @@ class experiment:
                 )
 
                 ## Cut out this variable to our domain size
-                rawdata[fname] = nicer_slicer(
+                rawdata[fname] = longitude_slicer(
                     ds,
                     self.longitude_extent,
                     "longitude",
@@ -1833,8 +1738,8 @@ class segment:
             *K*:sub:`2`, *K*:sub:`1`, *O*:sub:`2`, *P*:sub:`1`, *Q*:sub:`1`, *Mm*,
             *Mf*, and *M*:sub:`4`. For example, specifying ``1`` only includes *M*:sub:`2`;
             specifying ``2`` includes *M*:sub:`2` and *S*:sub:`2`, etc. Default: ``None``.
-        repeat_year_forcing (Optional[bool]): When ``True`` the experiment runs with 'repeat-year
-            forcing'. When ``False`` (default) then inter-annual forcing is used.
+        repeat_year_forcing (Optional[bool]): When ``True`` the experiment runs with repeat-year
+            forcing. When ``False`` (default) then inter-annual forcing is used.
     """
 
     def __init__(
