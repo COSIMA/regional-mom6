@@ -1442,7 +1442,6 @@ class experiment:
 
     def setup_run_directory(
         self,
-        regional_mom6_path=".",
         surface_forcing=False,
         using_payu=False,
         overwrite=False,
