@@ -1465,23 +1465,18 @@ class experiment:
         """
 
         ## Get the path to the regional_mom package on this computer
-        premade_rundir_path = Path(importlib.resources.files('regional_mom6') / "demos/premade_run_directories")
-
+        premade_rundir_path = Path(
+            importlib.resources.files("regional_mom6") / "demos/premade_run_directories"
+        )
 
         # Define the locations of the directories we'll copy files across from. Base contains most of the files, and overwrite replaces files in the base directory.
-        base_run_dir = (
-            premade_rundir_path
-            / "common_files"
-        )
+        base_run_dir = premade_rundir_path / "common_files"
         if not os.path.exists(premade_rundir_path):
             raise ValueError(
                 f"Cannot find the premade run directory files at \n{premade_rundir_path}\n. Please ensure that you've installed the package from a clone of the repository to ensure you have access to the files required for the demos."
             )
         if surface_forcing != False:
-            overwrite_run_dir = (
-                premade_rundir_path
-                / f"{surface_forcing}_surface"
-            )
+            overwrite_run_dir = premade_rundir_path / f"{surface_forcing}_surface"
             print(overwrite_run_dir)
             if not overwrite_run_dir.exists():
                 raise ValueError(
