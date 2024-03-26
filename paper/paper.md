@@ -44,24 +44,7 @@ Although `regional_mom6` was desined to automate the setup as much as possible t
 
 # Statement of need
 
-The learning curve for setting up a regional ocean model can be quite steep. In the case of MOM6, there are several tools scattered around github, as well as examples hardcoded for particular domains, input files and hardware. However, there doesn't exist a concise package that is documented and continuously tested. Other models 
-
-# Mathematics
-
-Single dollars ($) are required for inline mathematics e.g. $f(x) = e^{\pi/x}$
-
-Double dollars make self-standing equations:
-
-$$\Theta(x) = \left\{\begin{array}{l}
-0\textrm{ if } x < 0\cr
-1\textrm{ else}
-\end{array}\right.$$
-
-You can also use plain \LaTeX for equations
-\begin{equation}\label{eq:fourier}
-\hat f(\omega) = \int_{-\infty}^{\infty} f(x) e^{i\omega x} dx
-\end{equation}
-and refer to \autoref{eq:fourier} from text.
+The learning curve for setting up a regional ocean model can be quite steep. In the case of MOM6, there are several tools scattered around github like those collected in [ESMG's grid tools](https://github.com/ESMG/gridtools), as well as examples hardcoded for particular domains, input files and hardware. However, there is no one-stop-shop to learn how to get a regional MOM6 model up and running, meaning that a newcomer must collect many disparate pieces of information from around the internet unless they are able to get help. Other models have packages to aid in domain setup like [pyroms](https://github.com/ESMG/pyroms) for ROMS and [MITGCM_python](https://github.com/knaughten/mitgcm_python) for MITGCM. With MOM6's growing user base for regional applications, there is a need for a platform that walks users through regional domain setup from from start to finish, and ideally helps with some of the time consuming parts of the process that ought to be automated. 
 
 # Citations
 
