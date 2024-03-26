@@ -12,7 +12,7 @@ import datetime as dt
 import warnings
 import shutil
 import os
-from pkg_resources import resource_filename
+import importlib.resources
 
 from .utils import quadrilateral_areas
 
@@ -1465,7 +1465,7 @@ class experiment:
         """
 
         ## Get the path to the regional_mom package on this computer
-        premade_rundir_path = Path(resource_filename('regional_mom6','') + "/demos/premade_run_directories")
+        premade_rundir_path = Path(importlib.resources.files('regional_mom6') / "demos/premade_run_directories")
 
 
         # Define the locations of the directories we'll copy files across from. Base contains most of the files, and overwrite replaces files in the base directory.
