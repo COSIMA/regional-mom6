@@ -32,39 +32,19 @@ date: 16 February 2024
 bibliography: paper.bib
 ---
 
+
 # Summary
 
-The forces on stars, galaxies, and dark matter under external gravitational
-fields lead to the dynamical evolution of structures in the universe. The orbits
-of these bodies are therefore key to understanding the formation, history, and
-future state of galaxies. The field of "galactic dynamics," which aims to model
-the gravitating components of galaxies to study their structure and evolution,
-is now well-established, commonly taught, and frequently used in astronomy.
-Aside from toy problems and demonstrations, the majority of problems require
-efficient numerical tools, many of which require the same base code (e.g., for
-performing numerical orbit integration).
+Modular Ocean Model 6 (MOM6) is a widely used general circulation ocean model developed at the Geophysical Fluid Dynamics Laboratory (GFDL) at Princeton. Among other improvements on its predecessor MOM5, this iteration permits open boundary conditions, and MOM6 is subsequently growing in popularity for high resolution regional modelling. However, setting up a regional domain can be challenging and time consuming for new users even for the simplest rectangular domains. The `regional_mom6` python package automates much of the regridding, metadata encoding, grid generation and other miscellaneous steps, allowing models to be up and running more quickly. 
+
+The `regional_mom6` package takes raw files containing the initial condition, forcing and bathymetry. These inputs can be on the Arakawa A,B or C grids, and the package performs the appropriate interpolation using `xESMF` (citation needed) onto the C grid required by MOM6. This base grid can either be constucted based on the user's desired resolution and choice of pre-configured options, or the user can provide their own horizontal or vertical grids. In either case, the package then handles the coordinates, dimensions, metadata and encoding to ensure that the final input files are in formats expected by MOM6. The package also comes with pre-configured run directories, which can be automatically copied and modified to match the user's experiment. Subsequently, a user need only copy a demo notebook, modify the longitude, latitude and resolution, and simply by running the notebook from start to finish will generate all they need for running a MOM6 experiment in their domain of interest. 
+
+Although `regional_mom6` was desined to automate the setup as much as possible to aid first time users, it can also be used for more advanced configurations. The modular desin of the code means that users can use their own custom grids and set up boundaries one-by-one to accommodate more complex domain shapes. 
+
 
 # Statement of need
 
-`regional_mom6` is an Astropy-affiliated Python package for galactic dynamics. Python
-enables wrapping low-level languages (e.g., C) for speed without losing
-flexibility or ease-of-use in the user-interface. The API for `Gala` was
-designed to provide a class-based and user-friendly interface to fast (C or
-Cython-optimized) implementations of common operations such as gravitational
-potential and force evaluation, orbit integration, dynamical transformations,
-and chaos indicators for nonlinear dynamics. `Gala` also relies heavily on and
-interfaces well with the implementations of physical units and astronomical
-coordinate systems in the `Astropy` package [@astropy] (`astropy.units` and
-`astropy.coordinates`).
-
-`Gala` was designed to be used by both astronomical researchers and by
-students in courses on gravitational dynamics or astronomy. It has already been
-used in a number of scientific publications [@Pearson:2017] and has also been
-used in graduate courses on Galactic dynamics to, e.g., provide interactive
-visualizations of textbook material [@Binney:2008]. The combination of speed,
-design, and support for Astropy functionality in `Gala` will enable exciting
-scientific explorations of forthcoming data releases from the *Gaia* mission
-[@gaia] by students and experts alike.
+The learning curve for setting up a regional ocean model can be quite steep. In the case of MOM6, there are several tools scattered around github, as well as examples hardcoded for particular domains, input files and hardware. However, there doesn't exist a concise package that is documented and continuously tested. Other models 
 
 # Mathematics
 
