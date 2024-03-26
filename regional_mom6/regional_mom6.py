@@ -154,7 +154,7 @@ def ep2ap(SEMA, ECC, INC, PHA):
 ## Auxiliary functions
 
 
-def longitude_slicer(data, longitude_extent, longitude_coords, buffer=2):
+def longitude_slicer(data, longitude_extent, longitude_coords):
     """
     Slice longitudes, handling periodicity and 'seams' where the
     data wraps around (commonly either in domain [0, 360], [-180, 180], or [-270, 90]).
@@ -175,8 +175,7 @@ def longitude_slicer(data, longitude_extent, longitude_coords, buffer=2):
     - Slice the ``data`` index-wise. We know that ``|longitude_extent[1] - longitude_extent[0]| / 360``
       multiplied by the number of discrete longitude points will give
       the total width of our slice, and we've already set the midpoint
-      to be the middle of the target domain. Here we add a ``buffer``
-      region on either side if we need it for interpolation.
+      to be the middle of the target domain. 
 
     - Finally re-add the right multiple of 360 so the whole domain matches
       the target.
@@ -187,9 +186,6 @@ def longitude_slicer(data, longitude_extent, longitude_coords, buffer=2):
             we want to slice to. Must be in increasing order.
         longitude_coords (Union[str, list[str]): The name or list of names of the
             longitude coordinates(s) in ``data``.
-        buffer (float): A ``buffer`` region (in degrees) on either side of the domain
-            reserved for interpolation purposes near the edges of the regional domain.
-
     Returns:
         xarray.Dataset: The sliced ``data``.
     """
@@ -257,7 +253,6 @@ def longitude_slicer(data, longitude_extent, longitude_coords, buffer=2):
                 num_lonpoints = (
                     int(data[lon].shape[0] * (central_longitude - longitude_extent[0]))
                     // 360
-                    + buffer * 2
                 )
 
         data = new_data.isel(
@@ -1065,9 +1060,9 @@ class experiment:
             bathy = bathy.sel(
                 {
                     varnames["yh"]: slice(
-                        self.latitude_extent[0] - 1, self.latitude_extent[1] + 1
+                        self.latitude_extent[0] - 0.5, self.latitude_extent[1] + 0.5
                     )
-                }  #! Hardcoded 1 degree buffer around bathymetry selection. TODO: automatically select buffer
+                }  # Hardcoded 0.5 degree latitude buffer for regridding
             ).astype("float")
 
             ## Here need to make a decision as to whether to slice 'normally' or with the longitude_slicer for 360 degree domain.
@@ -1085,8 +1080,8 @@ class experiment:
                     bathy,
                     np.array(self.longitude_extent)
                     + np.array(
-                        [-0.1, 0.1]
-                    ),  #! Hardcoded 0.1 degree buffer around bathymetry selection. TODO: automatically select buffer
+                        [-0.5, 0.5]
+                    ),  # Hardcoded 0.5 degree longitude buffer for regridding. 
                     varnames["xh"],
                 )
             else:
@@ -1094,9 +1089,9 @@ class experiment:
                 bathy = bathy.sel(
                     {
                         varnames["xh"]: slice(
-                            self.longitude_extent[0] - 1, self.longitude_extent[1] + 1
+                            self.longitude_extent[0] - 0.5, self.longitude_extent[1] + 0.5
                         )
-                    }  #! Hardcoded 1 degree buffer around bathymetry selection. TODO: automatically select buffer
+                    }  # 0.5 degree longitude bufffer for regridding
                 )
 
             bathy.attrs["missing_value"] = (
