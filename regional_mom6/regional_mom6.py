@@ -12,6 +12,7 @@ import datetime as dt
 import warnings
 import shutil
 import os
+from pkg_resources import resource_filename
 
 from .utils import quadrilateral_areas
 
@@ -1463,18 +1464,22 @@ class experiment:
                 not re-copy across the rest of the default files.
         """
 
+        ## Get the path to the regional_mom package on this computer
+        premade_rundir_path = Path(resource_filename('regional_mom6','') + "/demos/premade_run_directories")
+
+
         # Define the locations of the directories we'll copy files across from. Base contains most of the files, and overwrite replaces files in the base directory.
         base_run_dir = (
-            Path(regional_mom6_path)  ## Path to where the demos are stored
-            / "demos"
-            / "premade_run_directories"
+            premade_rundir_path
             / "common_files"
         )
+        if not os.path.exists(premade_rundir_path):
+            raise ValueError(
+                f"Cannot find the premade run directory files at \n{premade_rundir_path}\n. Please ensure that you've installed the package from a clone of the repository to ensure you have access to the files required for the demos."
+            )
         if surface_forcing != False:
             overwrite_run_dir = (
-                Path(regional_mom6_path)
-                / "demos"
-                / "premade_run_directories"
+                premade_rundir_path
                 / f"{surface_forcing}_surface"
             )
             print(overwrite_run_dir)
