@@ -135,7 +135,7 @@ def test_longitude_slicer():
         latitude_extent = (10, 20)
         longitude_extent = (12, 18)
 
-        dims = ["lata", "lona", "time"]
+        dims = ["silly_lat", "silly_lon", "time"]
 
         dλ = (longitude_extent[1] - longitude_extent[0]) / 2
 
@@ -143,8 +143,8 @@ def test_longitude_slicer():
             np.random.random((ny, nx, nt)),
             dims=dims,
             coords={
-                "lata": np.linspace(latitude_extent[0], latitude_extent[1], ny),
-                "lona": np.array(
+                "silly_lat": np.linspace(latitude_extent[0], latitude_extent[1], ny),
+                "silly_lon": np.array(
                     [
                         longitude_extent[0],
                         longitude_extent[0] + 1.5 * dλ,
@@ -156,4 +156,4 @@ def test_longitude_slicer():
             },
         )
 
-        longitude_slicer(data, longitude_extent, "lona")
+        longitude_slicer(data, longitude_extent, "silly_lon")
