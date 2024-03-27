@@ -3,6 +3,10 @@ import pytest
 from regional_mom6 import experiment
 import xarray as xr
 
+## Note:
+## When creating test dataarrays we use 'silly' names for coordinates to
+## ensure that the proper mapping to MOM6 names occurs correctly
+
 
 @pytest.mark.parametrize(
     (
@@ -62,17 +66,21 @@ def test_bathymetry(
         grid_type=grid_type,
     )
 
-    ## Generate some bathymetry to test on
+    ## Generate some bathymetry to use in tests
 
     bathy_file = tmp_path / "bathy.nc"
 
     bathy = np.random.random((100, 100)) * (-100)
     bathy = xr.DataArray(
         bathy,
-        dims=["lata", "lona"],
+        dims=["silly_lat", "silly_lon"],
         coords={
-            "lata": np.linspace(latitude_extent[0] - 5, latitude_extent[1] + 5, 100),
-            "lona": np.linspace(longitude_extent[0] - 5, longitude_extent[1] + 5, 100),
+            "silly_lat": np.linspace(
+                latitude_extent[0] - 5, latitude_extent[1] + 5, 100
+            ),
+            "silly_lon": np.linspace(
+                longitude_extent[0] - 5, longitude_extent[1] + 5, 100
+            ),
         },
     )
     bathy.name = "elevation"
@@ -82,7 +90,7 @@ def test_bathymetry(
     # Now use this bathymetry as input in `expt.bathymetry()`
     expt.bathymetry(
         str(bathy_file),
-        {"xh": "lona", "yh": "lata", "elevation": "elevation"},
+        {"xh": "silly_lon", "yh": "silly_lat", "elevation": "elevation"},
         minimum_layers=1,
         chunks={"lat": 10, "lon": 10},
     )
@@ -155,66 +163,66 @@ def test_ocean_forcing(
         {
             "temp": xr.DataArray(
                 np.random.random((100, 100, 10)),
-                dims=["lata", "lona", "deepness"],
+                dims=["silly_lat", "silly_lon", "silly_depth"],
                 coords={
-                    "lata": np.linspace(
+                    "silly_lat": np.linspace(
                         latitude_extent[0] - 5, latitude_extent[1] + 5, 100
                     ),
-                    "lona": np.linspace(
+                    "silly_lon": np.linspace(
                         longitude_extent[0] - 5, longitude_extent[1] + 5, 100
                     ),
-                    "deepness": np.linspace(0, 1000, 10),
+                    "silly_depth": np.linspace(0, 1000, 10),
                 },
             ),
             "eta": xr.DataArray(
                 np.random.random((100, 100)),
-                dims=["lata", "lona"],
+                dims=["silly_lat", "silly_lon"],
                 coords={
-                    "lata": np.linspace(
+                    "silly_lat": np.linspace(
                         latitude_extent[0] - 5, latitude_extent[1] + 5, 100
                     ),
-                    "lona": np.linspace(
+                    "silly_lon": np.linspace(
                         longitude_extent[0] - 5, longitude_extent[1] + 5, 100
                     ),
                 },
             ),
             "salt": xr.DataArray(
                 np.random.random((100, 100, 10)),
-                dims=["lata", "lona", "deepness"],
+                dims=["silly_lat", "silly_lon", "silly_depth"],
                 coords={
-                    "lata": np.linspace(
+                    "silly_lat": np.linspace(
                         latitude_extent[0] - 5, latitude_extent[1] + 5, 100
                     ),
-                    "lona": np.linspace(
+                    "silly_lon": np.linspace(
                         longitude_extent[0] - 5, longitude_extent[1] + 5, 100
                     ),
-                    "deepness": np.linspace(0, 1000, 10),
+                    "silly_depth": np.linspace(0, 1000, 10),
                 },
             ),
             "u": xr.DataArray(
                 np.random.random((100, 100, 10)),
-                dims=["lata", "lona", "deepness"],
+                dims=["silly_lat", "silly_lon", "silly_depth"],
                 coords={
-                    "lata": np.linspace(
+                    "silly_lat": np.linspace(
                         latitude_extent[0] - 5, latitude_extent[1] + 5, 100
                     ),
-                    "lona": np.linspace(
+                    "silly_lon": np.linspace(
                         longitude_extent[0] - 5, longitude_extent[1] + 5, 100
                     ),
-                    "deepness": np.linspace(0, 1000, 10),
+                    "silly_depth": np.linspace(0, 1000, 10),
                 },
             ),
             "v": xr.DataArray(
                 np.random.random((100, 100, 10)),
-                dims=["lata", "lona", "deepness"],
+                dims=["silly_lat", "silly_lon", "silly_depth"],
                 coords={
-                    "lata": np.linspace(
+                    "silly_lat": np.linspace(
                         latitude_extent[0] - 5, latitude_extent[1] + 5, 100
                     ),
-                    "lona": np.linspace(
+                    "silly_lon": np.linspace(
                         longitude_extent[0] - 5, longitude_extent[1] + 5, 100
                     ),
-                    "deepness": np.linspace(0, 1000, 10),
+                    "silly_depth": np.linspace(0, 1000, 10),
                 },
             ),
         }
@@ -225,11 +233,11 @@ def test_ocean_forcing(
     initial_cond.to_netcdf(tmp_path / "ic_unprocessed")
     initial_cond.close()
     varnames = {
-        "x": "lona",
-        "y": "lata",
+        "x": "silly_lon",
+        "y": "silly_lat",
         "time": "time",
         "eta": "eta",
-        "zl": "deepness",
+        "zl": "silly_depth",
         "u": "u",
         "v": "v",
         "tracers": {"temp": "temp", "salt": "salt"},
@@ -291,26 +299,26 @@ def test_rectangular_boundary(
         {
             "temp": xr.DataArray(
                 np.random.random((100, 5, 10, 10)),
-                dims=["lata", "lona", "deepness", "time"],
+                dims=["silly_lat", "silly_lon", "silly_depth", "time"],
                 coords={
-                    "lata": np.linspace(
+                    "silly_lat": np.linspace(
                         latitude_extent[0] - 5, latitude_extent[1] + 5, 100
                     ),
-                    "lona": np.linspace(
+                    "silly_lon": np.linspace(
                         longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5
                     ),
-                    "deepness": np.linspace(0, 1000, 10),
+                    "silly_depth": np.linspace(0, 1000, 10),
                     "time": np.linspace(0, 1000, 10),
                 },
             ),
             "eta": xr.DataArray(
                 np.random.random((100, 5, 10)),
-                dims=["lata", "lona", "time"],
+                dims=["silly_lat", "silly_lon", "time"],
                 coords={
-                    "lata": np.linspace(
+                    "silly_lat": np.linspace(
                         latitude_extent[0] - 5, latitude_extent[1] + 5, 100
                     ),
-                    "lona": np.linspace(
+                    "silly_lon": np.linspace(
                         longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5
                     ),
                     "time": np.linspace(0, 1000, 10),
@@ -318,43 +326,43 @@ def test_rectangular_boundary(
             ),
             "salt": xr.DataArray(
                 np.random.random((100, 5, 10, 10)),
-                dims=["lata", "lona", "deepness", "time"],
+                dims=["silly_lat", "silly_lon", "silly_depth", "time"],
                 coords={
-                    "lata": np.linspace(
+                    "silly_lat": np.linspace(
                         latitude_extent[0] - 5, latitude_extent[1] + 5, 100
                     ),
-                    "lona": np.linspace(
+                    "silly_lon": np.linspace(
                         longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5
                     ),
-                    "deepness": np.linspace(0, 1000, 10),
+                    "silly_depth": np.linspace(0, 1000, 10),
                     "time": np.linspace(0, 1000, 10),
                 },
             ),
             "u": xr.DataArray(
                 np.random.random((100, 5, 10, 10)),
-                dims=["lata", "lona", "deepness", "time"],
+                dims=["silly_lat", "silly_lon", "silly_depth", "time"],
                 coords={
-                    "lata": np.linspace(
+                    "silly_lat": np.linspace(
                         latitude_extent[0] - 5, latitude_extent[1] + 5, 100
                     ),
-                    "lona": np.linspace(
+                    "silly_lon": np.linspace(
                         longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5
                     ),
-                    "deepness": np.linspace(0, 1000, 10),
+                    "silly_depth": np.linspace(0, 1000, 10),
                     "time": np.linspace(0, 1000, 10),
                 },
             ),
             "v": xr.DataArray(
                 np.random.random((100, 5, 10, 10)),
-                dims=["lata", "lona", "deepness", "time"],
+                dims=["silly_lat", "silly_lon", "silly_depth", "time"],
                 coords={
-                    "lata": np.linspace(
+                    "silly_lat": np.linspace(
                         latitude_extent[0] - 5, latitude_extent[1] + 5, 100
                     ),
-                    "lona": np.linspace(
+                    "silly_lon": np.linspace(
                         longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5
                     ),
-                    "deepness": np.linspace(0, 1000, 10),
+                    "silly_depth": np.linspace(0, 1000, 10),
                     "time": np.linspace(0, 1000, 10),
                 },
             ),
@@ -378,11 +386,11 @@ def test_rectangular_boundary(
     )
 
     varnames = {
-        "x": "lona",
-        "y": "lata",
+        "x": "silly_lon",
+        "y": "silly_lat",
         "time": "time",
         "eta": "eta",
-        "zl": "deepness",
+        "zl": "silly_depth",
         "u": "u",
         "v": "v",
         "tracers": {"temp": "temp", "salt": "salt"},
