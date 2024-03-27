@@ -1092,7 +1092,7 @@ class experiment:
                             self.longitude_extent[0] - 0.5,
                             self.longitude_extent[1] + 0.5,
                         )
-                    }  # 0.5 degree longitude bufffer for regridding
+                    }  # 0.5 degree longitude bufffer (hardcoded) for regridding
                 )
 
             bathy.attrs["missing_value"] = (
