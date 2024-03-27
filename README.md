@@ -64,7 +64,6 @@ for MOM6, and example notebooks that walk you through the package.
 
 ```bash 
 git clone git@github.com:COSIMA/regional-mom6.git
-pip install .
 ```
 
 
