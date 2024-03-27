@@ -1463,12 +1463,6 @@ class experiment:
         path_data = importlib.resources.files(
             "regional_mom6.demos.premade_run_directories"
         )
-        print(
-            f"importlib package path: {path_package}, importlib data path: {path_data}"
-        )
-
-        print([f for f in path_package.iterdir()])
-        print([f for f in path_data.iterdir()])
 
         ## Get the path to the regional_mom package on this computer
         premade_rundir_path = Path(
@@ -1491,7 +1485,9 @@ class experiment:
                     x for x in available if os.path.isdir(premade_rundir_path / x)
                 ]
                 raise ValueError(
-                    f"Surface forcing {surface_forcing} not available. Please choose from {str(available)}."  ##Here print all available run directories
+                    f"""importlib package path: {path_package}, importlib data path: {path_data}
+                    package files: {[f for f in path_package.iterdir()]}
+                    data files: {[f for f in path_data.iterdir()]}"""
                 )
         else:
             overwrite_run_dir = False
