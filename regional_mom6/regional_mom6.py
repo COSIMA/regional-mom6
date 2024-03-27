@@ -1480,7 +1480,7 @@ class experiment:
                     x for x in available if os.path.isdir(premade_rundir_path / x)
                 ]
                 raise ValueError(
-                    f"Surface forcing {surface_forcing} not available. Please choose from {str(available)}.\n\n{premade_rundir_path}"  ##Here print all available run directories
+                    f"Surface forcing {surface_forcing} not available. Please choose from {str(available)}.\n\n{premade_rundir_path}\n\n{os.listdir(premade_rundir_path)}"  ##Here print all available run directories
                 )
         else:
             overwrite_run_dir = False
