@@ -1472,7 +1472,7 @@ class experiment:
             )
         if surface_forcing != False:
             overwrite_run_dir = premade_rundir_path / f"{surface_forcing}_surface"
-            print(overwrite_run_dir)
+            print(f"Directory containing premade run dir: {overwrite_run_dir}")
             if not overwrite_run_dir.exists():
                 available = os.listdir(premade_rundir_path)
                 # Get all of the available surface forcing types
