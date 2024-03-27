@@ -4,7 +4,7 @@ title: 'regional_mom6: A Python package for automatic generation of regional con
 tags:
   - Python
   - ocean modeling
-  - regional
+  - regional modeling
   - mom6
 authors:
   - name: Ashley J. Barnes
@@ -28,7 +28,7 @@ affiliations:
    index: 2
  - name: Independent Researcher, Country
    index: 3
-date: 16 February 2024
+date: 27 Μαρψη 2024
 bibliography: paper.bib
 ---
 
@@ -41,7 +41,7 @@ However, setting up a regional domain can be challenging and time consuming for 
 The `regional_mom6` python package automates much of the regridding, metadata encoding, grid generation and other miscellaneous steps, allowing models to be up and running more quickly.
 
 The `regional_mom6` package takes raw files containing the initial condition, forcing and bathymetry.
-These inputs can be on the Arakawa A,B or C grids, and the package performs the appropriate interpolation using `xESMF` (citation needed) onto the C grid required by MOM6.
+These inputs can be on the Arakawa A, B, or C grids, and the package performs the appropriate interpolation using `xESMF` (citation needed) onto the C grid required by MOM6.
 This base grid can either be constucted based on the user's desired resolution and choice of pre-configured options, or the user can provide their own horizontal or vertical grids.
 In either case, the package then handles the coordinates, dimensions, metadata and encoding to ensure that the final input files are in formats expected by MOM6.
 The package also comes with pre-configured run directories, which can be automatically copied and modified to match the user's experiment.
@@ -55,7 +55,7 @@ The modular desin of the code means that users can use their own custom grids an
 The learning curve for setting up a regional ocean model can be quite steep.
 In the case of MOM6, there are several tools scattered around github like those collected in [ESMG's grid tools](https://github.com/ESMG/gridtools), as well as examples hardcoded for particular domains, input files and hardware.
 However, there is no one-stop-shop to learn how to get a regional MOM6 model up and running, meaning that a newcomer must collect many disparate pieces of information from around the internet unless they are able to get help.
-Other models have packages to aid in domain setup like [pyroms](https://github.com/ESMG/pyroms) for ROMS and [MITgcm_python](https://github.com/knaughten/mitgcm_python) for MITgcm [@marshall1997finite].
+Other models have packages to aid in domain setup like [pyroms](https://github.com/ESMG/pyroms) for ROMS [@shchepetkin2005regional] and [MITgcm_python](https://github.com/knaughten/mitgcm_python) for MITgcm [@marshall1997finite].
 With MOM6's growing user base for regional applications, there is a need for a platform that walks users through regional domain setup from from start to finish, and ideally helps with some of the time consuming parts of the process that ought to be automated.
 
 # Citations
