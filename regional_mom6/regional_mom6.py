@@ -1461,7 +1461,7 @@ class experiment:
 
         ## Get the path to the regional_mom package on this computer
         premade_rundir_path = Path(
-            importlib.resources.files("regional_mom6.demos.premade_run_dirs")
+            importlib.resources.files("regional_mom6") / "demos/premade_run_directories"
         )
 
         # Define the locations of the directories we'll copy files across from. Base contains most of the files, and overwrite replaces files in the base directory.
