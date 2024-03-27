@@ -1081,7 +1081,7 @@ class experiment:
                     np.array(self.longitude_extent)
                     + np.array(
                         [-0.5, 0.5]
-                    ),  # Hardcoded 0.5 degree longitude buffer for regridding.
+                    ),  # 0.5 degree longitude buffer (hardcoded) for regridding.
                     varnames["xh"],
                 )
             else:
