@@ -1062,7 +1062,7 @@ class experiment:
                     varnames["yh"]: slice(
                         self.latitude_extent[0] - 0.5, self.latitude_extent[1] + 0.5
                     )
-                }  # Hardcoded 0.5 degree latitude buffer for regridding
+                }  # 0.5 degree latitude buffer (hardcoded) for regridding
             ).astype("float")
 
             ## Here need to make a decision as to whether to slice 'normally' or with the longitude_slicer for 360 degree domain.
