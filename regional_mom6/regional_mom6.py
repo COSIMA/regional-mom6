@@ -1459,6 +1459,17 @@ class experiment:
                 not re-copy across the rest of the default files.
         """
 
+        path_package = importlib.resources.files("regional_mom6")
+        path_data = importlib.resources.files(
+            "regional_mom6.demos.premade_run_directories"
+        )
+        print(
+            f"importlib package path: {path_package}, importlib data path: {path_data}"
+        )
+
+        print([f for f in path_package.iterdir()])
+        print([f for f in path_data.iterdir()])
+
         ## Get the path to the regional_mom package on this computer
         premade_rundir_path = Path(
             importlib.resources.files("regional_mom6") / "demos/premade_run_directories"
