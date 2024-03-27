@@ -12,6 +12,10 @@ from regional_mom6.utils import quadrilateral_areas
 
 import xarray as xr
 
+## Note:
+## When creating test dataarrays we use 'silly' names for coordinates to
+## ensure that the proper mapping to MOM6 names occurs correctly
+
 
 @pytest.mark.parametrize(
     ("nlayers", "ratio", "total_depth"),
