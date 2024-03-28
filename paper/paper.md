@@ -17,7 +17,7 @@ authors:
     affiliation: "1, 2" # (Multiple affiliations must be quoted)  
   - name: Angus H. Gibson
       equal-contrib: true
-      affiliation: "1" # (Multiple affiliations must be quoted)
+      affiliation: 1 # (Multiple affiliations must be quoted)
 affiliations:
  - name: Australian National University, Australia
    index: 1
