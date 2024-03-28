@@ -11,7 +11,13 @@ authors:
     orcid: 0000-0003-3165-8676
     equal-contrib: true
     affiliation: "1, 2" # (Multiple affiliations must be quoted)
-
+  - name: Navid C. Constantinou
+    orcid: https://orcid.org/0000-0002-8149-4094
+    equal-contrib: true
+    affiliation: "1, 2" # (Multiple affiliations must be quoted)  
+- name: Angus H. Gibson
+    equal-contrib: true
+    affiliation: "1" # (Multiple affiliations must be quoted)
 affiliations:
  - name: Australian National University, Australia
    index: 1
@@ -25,20 +31,20 @@ bibliography: paper.bib
 
 # Summary
 
-Modular Ocean Model 6 (MOM6) is a widely used general circulation ocean model developed at the Geophysical Fluid Dynamics Laboratory (GFDL) at Princeton `[@Adcroft2019MOM6]`.
+Modular Ocean Model 6 (MOM6) is a widely used general circulation ocean model developed at the Geophysical Fluid Dynamics Laboratory (GFDL) at Princeton [@Adcroft2019MOM6].
 Among other improvements on its predecessor MOM5, this iteration permits open boundary conditions, and MOM6 is subsequently growing in popularity for high resolution regional modelling.
 However, setting up a regional domain can be challenging and time consuming for new users even for the simplest rectangular domains.
 The `regional_mom6` python package automates much of the regridding, metadata encoding, grid generation and other miscellaneous steps, allowing models to be up and running more quickly.
 
-The `regional_mom6` package takes raw files containing the initial condition, forcing and bathymetry.
-These inputs can be on the Arakawa A,B or C grids, and the package performs the appropriate interpolation using `xESMF` `@xesmf` onto the C grid required by MOM6.
+The `regional_mom6` package takes raw files containing the initial condition, forcing, and bathymetry.
+These inputs can be on the Arakawa A, B, or C grids, and the package performs the appropriate interpolation using `xESMF` [@xesmf] onto the C grid required by MOM6.
 This base grid can either be constructed based on the user's desired resolution and choice of pre-configured options, or the user can provide their own horizontal or vertical grids.
 In either case, the package then handles the coordinates, dimensions, metadata and encoding to ensure that the final input files are in formats expected by MOM6.
 Additionally, the tricky case of a `seam' in the longitude of the raw input data (for instance at -180 and 180) is handled automatically, removing the need for any preprocessing of the data. 
 The package also comes with pre-configured run directories, which can be automatically copied and modified to match the user's experiment
 Subsequently, a user need only copy a demo notebook, modify the longitude, latitude and resolution, and simply by running the notebook from start to finish will generate all they need for running a MOM6 experiment in their domain of interest.
 
-This package is targeted at users with basic Python skills, and contains a documented tutorial based on publicly available forcing and bathymetry datasets. 
+This package is targeted at users with basic Python skills, and contains a documented tutorial based on publicly available forcing and bathymetry datasets, namely GLORYS for ocean forcing, ERA5 for atmospheric forcing and GEBCO for bathymetry. (TODO: cite these!)
 After completion of the example notebook, a complete set of input and configuration files will be generated for the example domain, requiring the user only to compile and run the MOM6 code on their computer. 
 Having the entire process run in a single, well documented Jupyter notebook dramatically reduces the barrier to entry for first time users, or those without a strong background reading FORTRAN source code of large models and manipulating NETCDF files.
 Besides making regional modelling with MOM6 more accessible, this package also serves to automate the generation of multiple experiments, saving time and improving reproducibility. 
@@ -57,7 +63,7 @@ As more advanced use cases emerge, users can contribute their grid generation fu
 The learning curve for setting up a regional ocean model can be quite steep.
 In the case of MOM6, there are several tools scattered around github like those collected in ESMG's grid tools `[@gridtools]`, as well as examples hardcoded for particular domains, input files and hardware.
 However, there is no one-stop-shop to learn how to get a regional MOM6 model up and running, meaning that a newcomer must collect many disparate pieces of information from around the internet unless they are able to get help.
-Other models have packages to aid in domain setup like Pyroms `[@pyroms]` for ROMS and MITGCM python `[@mitgcmpy]` for MITGCM.
+Other models have packages to aid in domain setup like Pyroms [@pyroms] for the regional Oceanic Modelling System (ROMS; [@shchepetkin2005regional]) and MITGCM python [@mitgcmpy] for the Massachusetts Institude of Technology General Circulation Model (MITCGM; [@ marshall1997finite]).
 With MOM6's growing user base for regional applications, there is a need for a platform that walks users through regional domain setup from from start to finish, and ideally helps with some of the time consuming parts of the process that ought to be automated.
 
 A package also provides a standardised way of setting up regional models, allowing for more efficient troubleshooting. 
