@@ -1438,7 +1438,7 @@ class experiment:
 
     def setup_run_directory(
         self,
-        surface_forcing=False,
+        surface_forcing=None,
         using_payu=False,
         overwrite=False,
     ):
@@ -1470,7 +1470,7 @@ class experiment:
             raise ValueError(
                 f"Cannot find the premade run directory files at \n{premade_rundir_path}\n. Something is not right about how the package has been installed as these files are missing!"
             )
-        if surface_forcing != False:
+        if type(surface_forcing) == str:
             overwrite_run_dir = premade_rundir_path / f"{surface_forcing}_surface"
             if not overwrite_run_dir.exists():
                 available = [x for x in premade_rundir_path.iterdir() if x.is_dir()]
@@ -1478,6 +1478,8 @@ class experiment:
                     f"Surface forcing {surface_forcing} not available. Please choose from {str(available)}"  ##Here print all available run directories
                 )
         else:
+            ## In this case there's no separate forcing so don't need to alter the run dir.
+            #! When implementing tides we need an extra elif statement, as we'll need to overwrite files in rundir to include tides!
             overwrite_run_dir = False
 
         # 3 different cases to handle:
