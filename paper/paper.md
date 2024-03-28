@@ -79,24 +79,10 @@ A further advantage of such a package is for use in education.
 With the challenging - but unimportant from an oceanographical point of view - aspects of setting up a regional model handled by a Python package, simple MOM6 configurations could be set up and run in Geophysical fluid dynamics courses, with students altering things like resolution or forcing, quickly re-running, and interpreting the changes.
  
 
-# Citations
-
-Citations to entries in paper.bib should be in
-[rMarkdown](http://rmarkdown.rstudio.com/authoring_bibliographies_and_citations.html)
-format.
-
-If you want to cite a software repository URL (e.g. something on GitHub without a preferred
-citation) then you can do it with the example BibTeX entry below for @fidgit.
-
-For a quick reference, the following citation commands can be used:
-- `@author:2001`  ->  "Author et al. (2001)"
-- `[@author:2001]` -> "(Author et al., 2001)"
-- `[@author1:2001; @author2:2001]` -> "(Author1 et al., 2001; Author2 et al., 2002)"
-
-
 # Acknowledgements
 
 We thank the Consortium for Ocean–Sea Ice Modeling in Australia ([cosima.org.au](https://cosima.org.au)) for useful discussions during the development of this package.
 N.C.C. acknowledges funding from the Australian Research Council under DECRA Fellowship DE210100749.
+We would like to acknowledge the code and notes of of James Simkins, Andrew Ross and Rob Cermak, which helped us to troubleshoot and improve our own regional MOM6 algorithms. 
 
 # References
