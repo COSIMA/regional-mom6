@@ -1478,8 +1478,7 @@ class experiment:
                     f"Surface forcing {surface_forcing} not available. Please choose from {str(available)}"  ##Here print all available run directories
                 )
         else:
-            ## In this case there's no separate forcing so don't need to alter the run dir.
-            #! When implementing tides we need an extra elif statement, as we'll need to overwrite files in rundir to include tides!
+            ## In case there is additional forcing (e.g., tides) then we need to modify the run dir to include the additional forcing.
             overwrite_run_dir = False
 
         # 3 different cases to handle:
