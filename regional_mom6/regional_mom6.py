@@ -1438,7 +1438,7 @@ class experiment:
 
     def setup_run_directory(
         self,
-        surface_forcing=False,
+        surface_forcing=None,
         using_payu=False,
         overwrite=False,
     ):
@@ -1470,7 +1470,7 @@ class experiment:
             raise ValueError(
                 f"Cannot find the premade run directory files at \n{premade_rundir_path}\n. Something is not right about how the package has been installed as these files are missing!"
             )
-        if surface_forcing != False:
+        if type(surface_forcing) == str:
             overwrite_run_dir = premade_rundir_path / f"{surface_forcing}_surface"
             if not overwrite_run_dir.exists():
                 available = [x for x in premade_rundir_path.iterdir() if x.is_dir()]
@@ -1478,6 +1478,7 @@ class experiment:
                     f"Surface forcing {surface_forcing} not available. Please choose from {str(available)}"  ##Here print all available run directories
                 )
         else:
+            ## In case there is additional forcing (e.g., tides) then we need to modify the run dir to include the additional forcing.
             overwrite_run_dir = False
 
         # 3 different cases to handle:
