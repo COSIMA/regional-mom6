@@ -1473,10 +1473,8 @@ class experiment:
         if surface_forcing != False:
             overwrite_run_dir = premade_rundir_path / f"{surface_forcing}_surface"
             if not overwrite_run_dir.exists():
-                available = os.listdir(premade_rundir_path)
-                # Get all of the available surface forcing types
                 available = [
-                    x for x in available if os.path.isdir(premade_rundir_path / x)
+                    x for x in premade_rundir_path.iterdir() if x.is_dir()
                 ]
                 raise ValueError(
                     f"Surface forcing {surface_forcing} not available. Please choose from {str(available)}"  ##Here print all available run directories
