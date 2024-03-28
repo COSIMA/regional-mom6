@@ -10,21 +10,37 @@ authors:
   - name: Ashley J. Barnes
     orcid: 0000-0003-3165-8676
     equal-contrib: true
-    affiliation: "1, 2" 
+    affiliation: "1, 2" # (Multiple affiliations must be quoted)
   - name: Navid C. Constantinou
     orcid: 0000-0002-8149-4094
     equal-contrib: true
     affiliation: "1, 2"  
   - name: Angus H. Gibson
     equal-contrib: true
-    affiliation: 1 # (Multiple affiliations must be quoted)
+    affiliation: 1
+  - name: Chris Chapman
+    orcid: 0000-0002-6030-1951
+    affiliation: 3
+  - name: John Reily
+    affiliation: 4
+  - name: Dhruv Bhagtani
+    orcid: 0000-0002-1222-375X
+    affiliation: "1, 2"
+  - name: Andrew E. Kiss
+    orcid: 0000-0001-8960-9557
+    affiliation: 1
+
 affiliations:
  - name: Australian National University, Australia
    index: 1
  - name: ARC Centre of Excellence in Climate Extremes, Australia
    index: 2
+- name: CSIRO Oceans and Atmosphere, Hobart, Tasmania, Australia
+   index: 3
+- name: University of Tasmania, Australia
+   index: 4
 
-date: 27 March 2024
+date: 28 March 2024
 bibliography: paper.bib
 ---
 
@@ -44,8 +60,8 @@ Additionally, the tricky case of a `seam' in the longitude of the raw input data
 The package also comes with pre-configured run directories, which can be automatically copied and modified to match the user's experiment
 Subsequently, a user need only copy a demo notebook, modify the longitude, latitude and resolution, and simply by running the notebook from start to finish will generate all they need for running a MOM6 experiment in their domain of interest.
 
-This package is targeted at users with basic Python skills, and contains a documented tutorial that uses publicly available forcing and bathymetry datasets, namely GLORYS for ocean forcing, ERA5 for atmospheric forcing and GEBCO for bathymetry. (TODO: cite these!)
-After completion of the example notebook, a complete set of input and configuration files will be generated for the example domain, requiring the user only to compile and run the MOM6 code on their computer. 
+This package is targeted at users with basic Python skills, and contains a documented tutorial that uses publicly available forcing and bathymetry datasets, namely, the GLORYS dataset for ocean forcing, ERA5 for atmospheric forcing, and GEBCO for bathymetry. (TODO: cite these!)
+After completion of the example notebook, a complete set of input and configuration files will be generated for the example domain, requiring the user only to compile and run the MOM6 code on their computer.
 Having the entire process run in a single, well documented Jupyter notebook dramatically reduces the barrier to entry for first time users, or those without a strong background reading FORTRAN source code of large models and manipulating NETCDF files.
 Besides making regional modelling with MOM6 more accessible, this package also serves to automate the generation of multiple experiments, saving time and improving reproducibility. 
 
@@ -54,16 +70,15 @@ The modular design of the code means that users can use their own custom grids a
 As more advanced use cases emerge, users can contribute their grid generation functions as well as example configuration files and notebooks. 
 
 
-![Windstress curl for a regional MOM6 run in the Tasman sea\label{fig:example}](tasman-windstress-curl.png).
-
+![The curl of the wind stress from a regional MOM6 simulation in the Tasman sea. \label{fig:example}](tasman-windstress-curl.png).
 
 
 # Statement of need
 
 The learning curve for setting up a regional ocean model can be quite steep.
-In the case of MOM6, there are several tools scattered around github like those collected in ESMG's grid tools `[@gridtools]`, as well as examples hardcoded for particular domains, input files and hardware.
+In the case of MOM6, there are several tools scattered around github like those collected in ESMG's grid tools [@gridtools], as well as examples hardcoded for particular domains, input files and hardware.
 However, there is no one-stop-shop to learn how to get a regional MOM6 model up and running, meaning that a newcomer must collect many disparate pieces of information from around the internet unless they are able to get help.
-Other models have packages to aid in domain setup like Pyroms [@pyroms] for the regional Oceanic Modelling System (ROMS; [@shchepetkin2005regional]) and MITGCM python [@mitgcmpy] for the Massachusetts Institude of Technology General Circulation Model (MITCGM; [@ marshall1997finite]).
+Other models have packages to aid in domain setup like `Pyroms` [@pyroms] for the Regional Oceanic Modelling System (ROMS; [@shchepetkin2005regional]) and `MITgcm_python` [@mitgcmpy] for the Massachusetts Institute of Technology General Circulation Model (MITgcm; [@marshall1997finite]).
 With MOM6's growing user base for regional applications, there is a need for a platform that walks users through regional domain setup from from start to finish, and ideally helps with some of the time consuming parts of the process that ought to be automated.
 
 A package also provides a standardised way of setting up regional models, allowing for more efficient troubleshooting. 
@@ -76,23 +91,7 @@ For instance, the Australian ocean modelling community built a set of tools know
 In using a shared framework for setting up regional models, it will be easier to compare and contrast examples of different experiments as users seek techniques for generating their chosen domain.
 
 A further advantage of such a package is for use in education. 
-With the challenging - but unimportant from an oceanographical point of view - aspects of setting up a regional model handled by a Python package, simple MOM6 configurations could be set up and run in Geophysical fluid dynamics courses, with students altering things like resolution or forcing, quickly re-running, and interpreting the changes.
- 
-
-# Citations
-
-Citations to entries in paper.bib should be in
-[rMarkdown](http://rmarkdown.rstudio.com/authoring_bibliographies_and_citations.html)
-format.
-
-If you want to cite a software repository URL (e.g. something on GitHub without a preferred
-citation) then you can do it with the example BibTeX entry below for @fidgit.
-
-For a quick reference, the following citation commands can be used:
-- `@author:2001`  ->  "Author et al. (2001)"
-- `[@author:2001]` -> "(Author et al., 2001)"
-- `[@author1:2001; @author2:2001]` -> "(Author1 et al., 2001; Author2 et al., 2002)"
-
+With the challenging -- but unimportant from an oceanographical point of view -- aspects of setting up a regional model handled by a Python package, simple MOM6 configurations could be set up and run in geophysical fluid dynamics courses, with students altering things like resolution or forcing, quickly re-running, and interpreting the changes.
 
 # Acknowledgements
 
