@@ -16,6 +16,7 @@ authors:
     equal-contrib: true
     affiliation: "1, 2"  
   - name: Angus H. Gibson
+    orcid: 0000-0001-7577-3604
     equal-contrib: true
     affiliation: 1
   - name: Chris Chapman
