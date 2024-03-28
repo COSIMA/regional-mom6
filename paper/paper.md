@@ -69,7 +69,7 @@ Although `regional_mom6` was designed to automate the set-up as much as possible
 The modular design of the code means that users can use their own custom grids and set up boundaries one-by-one to accommodate more complex domain shapes.
 As more advanced use cases emerge, users can contribute their grid generation functions as well as example configuration files and notebooks. 
 
-![The curl of the wind stress from a regional MOM6 simulation in the Tasman sea. [ADD COLORBAR + Units] [ADD DETAILS FOR REPRODUCING SIMULATION, EG CITE A GITHUB REPO?] \label{fig:example}](tasman-windstress-curl.png).
+![The curl of the wind stress from a regional MOM6 simulation in the Tasman sea. ADD COLORBAR with Units; ADD DETAILS FOR REPRODUCING SIMULATION, EG CITE A GITHUB REPO? \label{fig:example}](tasman-windstress-curl.png).
 
 # Statement of need
 
