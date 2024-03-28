@@ -12,6 +12,7 @@ import datetime as dt
 import warnings
 import shutil
 import os
+import importlib.resources
 
 from .utils import quadrilateral_areas
 
@@ -1437,7 +1438,6 @@ class experiment:
 
     def setup_run_directory(
         self,
-        regional_mom6_path=".",
         surface_forcing=False,
         using_payu=False,
         overwrite=False,
@@ -1459,24 +1459,23 @@ class experiment:
                 not re-copy across the rest of the default files.
         """
 
-        # Define the locations of the directories we'll copy files across from. Base contains most of the files, and overwrite replaces files in the base directory.
-        base_run_dir = (
-            Path(regional_mom6_path)  ## Path to where the demos are stored
-            / "demos"
-            / "premade_run_directories"
-            / "common_files"
+        ## Get the path to the regional_mom package on this computer
+        premade_rundir_path = Path(
+            importlib.resources.files("regional_mom6") / "demos/premade_run_directories"
         )
-        if surface_forcing != False:
-            overwrite_run_dir = (
-                Path(regional_mom6_path)
-                / "demos"
-                / "premade_run_directories"
-                / f"{surface_forcing}_surface"
+
+        # Define the locations of the directories we'll copy files across from. Base contains most of the files, and overwrite replaces files in the base directory.
+        base_run_dir = premade_rundir_path / "common_files"
+        if not premade_rundir_path.exists():
+            raise ValueError(
+                f"Cannot find the premade run directory files at \n{premade_rundir_path}\n. Something is not right about how the package has been installed as these files are missing!"
             )
-            print(overwrite_run_dir)
+        if surface_forcing != False:
+            overwrite_run_dir = premade_rundir_path / f"{surface_forcing}_surface"
             if not overwrite_run_dir.exists():
+                available = [x for x in premade_rundir_path.iterdir() if x.is_dir()]
                 raise ValueError(
-                    f"Surface forcing {surface_forcing} not available. Please choose from {str(os.listdir(base_run_dir.parent))}."  ##Here print all available run directories
+                    f"Surface forcing {surface_forcing} not available. Please choose from {str(available)}"  ##Here print all available run directories
                 )
         else:
             overwrite_run_dir = False
