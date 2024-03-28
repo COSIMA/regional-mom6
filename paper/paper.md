@@ -15,9 +15,9 @@ authors:
     orcid: https://orcid.org/0000-0002-8149-4094
     equal-contrib: true
     affiliation: "1, 2" # (Multiple affiliations must be quoted)  
-- name: Angus H. Gibson
-    equal-contrib: true
-    affiliation: "1" # (Multiple affiliations must be quoted)
+  - name: Angus H. Gibson
+      equal-contrib: true
+      affiliation: "1" # (Multiple affiliations must be quoted)
 affiliations:
  - name: Australian National University, Australia
    index: 1
