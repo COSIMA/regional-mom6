@@ -48,7 +48,7 @@ The modular design of the code means that users can use their own custom grids a
 As more advanced use cases emerge, users can contribute their grid generation functions as well as example configuration files and notebooks. 
 
 
-![Windstress curl for a regional MOM6 run in the Tasman sea\label{fig:example}](tasman-windstress-curl.png){ width=80% }.
+![Windstress curl for a regional MOM6 run in the Tasman sea\label{fig:example}](tasman-windstress-curl.png).
 
 
 
