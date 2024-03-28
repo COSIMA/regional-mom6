@@ -21,15 +21,14 @@ authors:
   - name: Chris Chapman
     orcid: 0000-0002-6030-1951
     affiliation: 3
-  - name: John Reily
-    affiliation: 4
   - name: Dhruv Bhagtani
     orcid: 0000-0002-1222-375X
     affiliation: "1, 2"
+  - name: John Reily
+    affiliation: 4
   - name: Andrew E. Kiss
     orcid: 0000-0001-8960-9557
     affiliation: 1
-
 affiliations:
  - name: Australian National University, Australia
    index: 1
@@ -95,6 +94,6 @@ With the challenging -- but unimportant from an oceanographical point of view --
 
 We thank the Consortium for Ocean–Sea Ice Modeling in Australia ([cosima.org.au](https://cosima.org.au)) for useful discussions during the development of this package.
 N.C.C. acknowledges funding from the Australian Research Council under DECRA Fellowship DE210100749.
-We would like to acknowledge the code and notes of of James Simkins, Andrew Ross and Rob Cermak, which helped us to troubleshoot and improve our own regional MOM6 algorithms. 
+We would like to acknowledge the code and notes by James Simkins, Andrew Ross, and Rob Cermak, which helped us to troubleshoot and improve our own regional MOM6 algorithms.
 
 # References
