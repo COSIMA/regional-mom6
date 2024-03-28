@@ -58,18 +58,10 @@ or
 pip install git+https://github.com/COSIMA/regional-mom6.git@061b0ef80c7cbc04de0566df329c4ea472002f7e
 ```
 
-It's recommended that you get started with the example notebooks. In this case you'll want to clone this
-entire repo so that you have access to the `demo` folder. This contains some template configuration files
-for MOM6, and example notebooks that walk you through the package. 
-
-```bash 
-git clone git@github.com:COSIMA/regional-mom6.git
-```
-
-
 ## MOM6 Configuration and Version Requirements
-The package and demos assume a coupled SIS2-MOM6 configuration. They may also work for an ocean only
-MOM6 run but this has not been tested. 
+
+The package and demos assume a coupled SIS2-MOM6 configuration.
+The examples could work for an ocean-only MOM6 run but this has not been tested. 
 
 The current release of this package assumes the latest source code of all components needed to run MOM6 as of
 January 2024. A forked version of the [`setup-mom6-nci`](https://github.com/ashjbarnes/setup-mom6-nci) repository
@@ -81,10 +73,14 @@ necessarily those used by the GFDL's [`MOM6_examples`](https://github.com/NOAA-G
 
 ## Getting started
 
+
 The [example notebooks](https://regional-mom6.readthedocs.io/en/latest/demos.html) walk you through how to use
-the package using two different sets of input datasets. Please ensure that you can get at least one of these working
-on your setup with your MOM6 executable before trying modify the example to suit your domain with your bathymethry,
-forcing, and boundary conditions.
+the package using two different sets of input datasets.
+Please ensure that you can get at least one of these working on your setup with your MOM6 executable before trying modify the example to suit your domain with your bathymethry, forcing, and boundary conditions.
+
+You can download the notebooks [from Github](https://github.com/COSIMA/regional-mom6/tree/ncc/installation/demos) or by clicking on the download <img width="22" alt="download" src="https://github.com/COSIMA/regional-mom6/assets/7112768/2c1ae149-c6a8-4395-ab09-2f77588008d9"> button, e.g., at the top-right of the [regional tasmania forced by ERA5 example](https://regional-mom6.readthedocs.io/en/latest/demo_notebooks/reanalysis-forced.html).
+
+**Note**
 
 The `xesmf` the package attempts to regrid in parallel, and if it's not able to do so, it throws a warning and
 runs in serial. You also get a print out of the relevant `mpirun` command which you could use as a backup.
