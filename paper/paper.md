@@ -4,7 +4,7 @@ title: 'regional_mom6: A Python package for automatic generation of regional con
 tags:
   - Python
   - ocean modeling
-  - regional
+  - regional modeling
   - mom6
 authors:
   - name: Ashley J. Barnes
@@ -28,7 +28,7 @@ affiliations:
    index: 2
  - name: Independent Researcher, Country
    index: 3
-date: 16 February 2024
+date: 27 Μαρψη 2024
 bibliography: paper.bib
 ---
 
@@ -107,7 +107,7 @@ Figure sizes can be customized by adding an optional second parameter:
 
 # Acknowledgements
 
-We acknowledge contributions from Brigitta Sipocz, Syrtis Major, and Semyeong
-Oh, and support from Kathryn Johnston during the genesis of this project.
+We thank the Consortium for Ocean–Sea Ice Modeling in Australia ([cosima.org.au](https://cosima.org.au)) for useful discussions during the development of this package.
+N.C.C. acknowledges funding from the Australian Research Council under DECRA Fellowship DE210100749.
 
 # References
