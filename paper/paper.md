@@ -97,5 +97,6 @@ With the challenging -- but unimportant from an oceanographical point of view --
 
 We thank the Consortium for Ocean–Sea Ice Modeling in Australia ([cosima.org.au](https://cosima.org.au)) for useful discussions during the development of this package.
 N.C.C. acknowledges funding from the Australian Research Council under DECRA Fellowship DE210100749.
+We would like to acknowledge the code and notes of of James Simkins, Andrew Ross and Rob Cermak, which helped us to troubleshoot and improve our own regional MOM6 algorithms. 
 
 # References
