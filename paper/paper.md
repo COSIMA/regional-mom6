@@ -34,9 +34,9 @@ affiliations:
    index: 1
  - name: ARC Centre of Excellence in Climate Extremes, Australia
    index: 2
-- name: CSIRO Oceans and Atmosphere, Hobart, Tasmania, Australia
+ - name: CSIRO Oceans and Atmosphere, Hobart, Tasmania, Australia
    index: 3
-- name: University of Tasmania, Australia
+ - name: University of Tasmania, Australia
    index: 4
 
 date: 28 March 2024
