@@ -10,14 +10,14 @@ authors:
   - name: Ashley J. Barnes
     orcid: 0000-0003-3165-8676
     equal-contrib: true
-    affiliation: "1, 2" # (Multiple affiliations must be quoted)
+    affiliation: "1, 2" 
   - name: Navid C. Constantinou
-    orcid: https://orcid.org/0000-0002-8149-4094
+    orcid: 0000-0002-8149-4094
     equal-contrib: true
-    affiliation: "1, 2" # (Multiple affiliations must be quoted)  
+    affiliation: "1, 2"  
   - name: Angus H. Gibson
-      equal-contrib: true
-      affiliation: 1 # (Multiple affiliations must be quoted)
+    equal-contrib: true
+    affiliation: 1 # (Multiple affiliations must be quoted)
 affiliations:
  - name: Australian National University, Australia
    index: 1
