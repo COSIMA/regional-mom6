@@ -32,7 +32,7 @@ The `regional_mom6` python package automates much of the regridding, metadata en
 
 The `regional_mom6` package takes raw files containing the initial condition, forcing and bathymetry.
 These inputs can be on the Arakawa A,B or C grids, and the package performs the appropriate interpolation using `xESMF` `@xesmf` onto the C grid required by MOM6.
-This base grid can either be constucted based on the user's desired resolution and choice of pre-configured options, or the user can provide their own horizontal or vertical grids.
+This base grid can either be constructed based on the user's desired resolution and choice of pre-configured options, or the user can provide their own horizontal or vertical grids.
 In either case, the package then handles the coordinates, dimensions, metadata and encoding to ensure that the final input files are in formats expected by MOM6.
 Additionally, the tricky case of a `seam' in the longitude of the raw input data (for instance at -180 and 180) is handled automatically, removing the need for any preprocessing of the data. 
 The package also comes with pre-configured run directories, which can be automatically copied and modified to match the user's experiment
