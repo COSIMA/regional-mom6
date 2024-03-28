@@ -1466,7 +1466,7 @@ class experiment:
 
         # Define the locations of the directories we'll copy files across from. Base contains most of the files, and overwrite replaces files in the base directory.
         base_run_dir = premade_rundir_path / "common_files"
-        if not os.path.exists(premade_rundir_path):
+        if not premade_rundir_path.exists():
             raise ValueError(
                 f"Cannot find the premade run directory files at \n{premade_rundir_path}\n. Something is not right about how the package has been installed as these files are missing!"
             )
