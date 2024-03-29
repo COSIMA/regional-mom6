@@ -96,9 +96,9 @@ Currently, it is difficult to discern what the best model settings are for a par
 However, having different releases of a python package tied to releases of the MOM6 executable will help users avoid difficult to diagnose compatibility errors between the MOM6 codebase, input file formats and parameter files. -->
 
 By having a shared set of tools that the community can work with and contribute to, this package also facilitates collaboration and knowledge-sharing between different research groups.
-For instance, the Australian ocean modelling community built a set of tools known as the COSIMA Cookbook (cite github repo).
-Alongside the tools grew a set of contributed examples for post-processing and analysis of model outputs.
-In using a shared framework for setting up regional models, it will be easier to compare and contrast examples of different experiments as users seek techniques for generating their chosen domain.
+<!-- For instance, the Australian ocean modelling community built a set of tools known as the COSIMA Cookbook (cite github repo).
+Alongside the tools grew a set of contributed examples for post-processing and analysis of model outputs. -->
+Using a shared framework for setting up regional models, it is easier to compare and contrast examples of different experiments and allows for user to gain intuition for generating their chosen domain.
 
 Another potential advantage of a package that allows users to automatically obtain regional configurations of MOM6 is in education.
 With the technically-challenging aspects of setting up a regional configuration now being automated by `regional_mom6` package, students can setup and run simple MOM6 regional configurations and also change parameters like resolution or forcing, run again, and see how these parameters affect the ocean flow.
