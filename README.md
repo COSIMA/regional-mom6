@@ -6,28 +6,28 @@
 
 Users just need to provide some information about where, when, and how big their domain is and also where raw input forcing files are. The package sorts out all the boring details and creates a set of MOM6-friendly input files along with setup directories ready to go! 
 
-The idea behind this package is that it should the user sidestep some of the tricky issues with getting the model to run in the first place. This removes some of the steep learning curve for people new to working with the model. Note that the resultant model configuration might still need some tweaking (e.g., fiddling with timestep to avoid CFL-related numerical stability issues or fiddling with bathymetry to deal with very narrow fjords or channels that may exist).
+The idea behind this package is that it should let the user sidestep some of the tricky issues with getting the model to run in the first place. This removes some of the steep learning curve for people new to working with MOM6. Note that the resultant model configuration might still need some tweaking (e.g., fiddling with timestep to avoid CFL-related numerical stability issues or fiddling with bathymetry to deal with very narrow fjords or channels that may exist).
 
 Limitations: Currently the package supports only one horizontal grid type (that is equally spaced in longitude); there are plans to add more grid options. We have designed the package in a way that it is modular so, for example, one needs to implement just another method for a different type of grid and the rest should be good to go.
 
 If you find this package useful and have any suggestions please feel free to open an [issue](https://github.com/COSIMA/regional-mom6/issues) or a [discussion](https://github.com/COSIMA/regional-mom6/discussions). We'd love to have [new contributors](https://regional-mom6.readthedocs.io/en/latest/contributing.html) and we are very keen to help you out along the way!
 
-## What you need to get started
-1. A cool idea for a new regional MOM6 domain
-2. A working MOM6 executable on a machine of your choice. 
-3. A bathymetry file that at least covers your domain
-4. 3D ocean forcing files *of any resolution* on your choice of A, B or C Arakawa grid
-5. Surface forcing files (eg ERA or JRA reanalysis)
+## What you need to get started:
+1. a cool idea for a new regional MOM6 domain,
+2. a working MOM6 executable on a machine of your choice, 
+3. a bathymetry file that at least covers your domain,
+4. 3D ocean forcing files *of any resolution* on your choice of A, B or C Arakawa grid,
+5. surface forcing files (eg ERA or JRA reanalysis), and
 6. [GFDL's FRE tools](https://github.com/NOAA-GFDL/FRE-NCtools) must be downloaded and compiled on the machine you are using.
 
-Check out the the [documentation](https://regional-mom6.readthedocs.io/en/latest/) and browse through the [demos](https://regional-mom6.readthedocs.io/en/latest/demos.html).
+Check out the [documentation](https://regional-mom6.readthedocs.io/en/latest/) and browse through the [demos](https://regional-mom6.readthedocs.io/en/latest/demos.html).
 
 ## Installation
 
-We can install `regional_mom6` via `pip` from GitHub. A prerequisite of is that the binary `esmpy`
-dependency is first installed. The easiest way to install `esmpy` is using Conda.
-To do so, first we create a custom Conda environment, or activate an existing environment
-into which we will install `esmpy` and `regional_mom6`. Then install `emspy` via:
+We can install `regional_mom6` via `pip` from GitHub. A prerequisite is the binary `esmpy`
+dependency, which provides regridding capabilities. The easiest way to install `esmpy` is using Conda.
+We encourage using a new or existing conda environment, into which we will install `esmpy` and `regional_mom6`. 
+Then install `emspy` via:
 
 ```bash
 conda install -c conda-forge esmpy
