@@ -50,7 +50,7 @@ However, setting up a regional configuration for MOM6 can be challenging and tim
 The `regional_mom6` python package automates the procedure of generating a regional MOM6 configuration.
 
 The `regional_mom6` package takes as input various datasets that containing the ocean initial condition, the boundary forcing (ocean and atmosphere) for the regional domain, and the bathymetry.
-The inputs datasets can be on the Arakawa A, B, or C grids; the package performs the appropriate interpolation using `xESMF` [@xesmf] under the hood, to put the everything on the C grid required by MOM6.
+The inputs datasets can be on the Arakawa A, B, or C grids [@arakawa1977computational]; the package performs the appropriate interpolation using `xESMF` [@xesmf] under the hood, to put the everything on the C grid required by MOM6.
 Thus, the package automates the re-gridding of all the required forcing input, takes care of all the metadata encoding, generates the regional grid, and deals with few other miscellaneous steps required.
 This allows users to setup a regional MOM6 configurations using only Python and from a single Jupyter notebook.
 
