@@ -70,7 +70,7 @@ Besides making regional modelling with MOM6 more accessible, our package can aut
 We designed `regional_mom6` with automation of regional configurations in mind.
 However, the package's code design and modularity allows makes more complex configurations possible since users can use their own custom-made grids with more complex boundaries and construct the boundary forcing terms one by one.
 
-![A snapshot of surface currents from a MOM6 regional simulation of the Tasman sea. The simulation is forced by GLORYS and ERA5 reanalyses datasets and configured with a horizontal resolution of 1/80th degree and 100 vertical levels (see @tasmantides for the source code). \label{fig:tasman}](tasman_speed.png){ width=80% }
+![A snapshot of the ocean surface currents from a MOM6 regional simulation of the Tasman sea. The simulation is forced by GLORYS and ERA5 reanalyses datasets and configured with a horizontal resolution of 1/80th degree and 100 vertical levels (see @tasmantides for the source code). \label{fig:tasman}](tasman_speed.png){ width=80% }
 
 \autoref{fig:tasman} shows the surface currents from a regional ocean simulation of the Tasman sea that was configured using the `regional_mom6` package.
 
