@@ -9,15 +9,12 @@ tags:
 authors:
   - name: Ashley J. Barnes
     orcid: 0000-0003-3165-8676
-    equal-contrib: true
     affiliation: "1, 2" # (Multiple affiliations must be quoted)
   - name: Navid C. Constantinou
     orcid: 0000-0002-8149-4094
-    equal-contrib: true
     affiliation: "1, 2"  
   - name: Angus H. Gibson
     orcid: 0000-0001-7577-3604
-    equal-contrib: true
     affiliation: 1
   - name: Chris Chapman
     orcid: 0000-0002-6030-1951
