@@ -72,7 +72,7 @@ However, the package's code design and modularity allows makes more complex conf
 
 <!-- As more advanced use cases emerge, users can contribute their grid generation functions as well as example configuration files and notebooks.  -->
 
-![A snapshot of surface speed in MOM6 simulation in the Tasman sea. The source code can be found at https://github.com/ashjbarnes/tasman-tides. \label{fig:example}](tasman_speed.png){ width=80% }.
+![A figure](tasman_speed.png){ width=80% }.
 
 Figure \autoref{fig:example} is an example of a domain set up with the `regional_mom6` package. In this case, the forcing datasets are GLORYS and ERA5, with an 80th degree horizontal resolution and 100 vertical levels. 
 
