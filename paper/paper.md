@@ -12,7 +12,7 @@ authors:
     affiliation: "1, 2" # (Multiple affiliations must be quoted)
   - name: Navid C. Constantinou
     orcid: 0000-0002-8149-4094
-    affiliation: "1, 2"  
+    affiliation: "1, 2"
   - name: Angus H. Gibson
     orcid: 0000-0001-7577-3604
     affiliation: 1
@@ -44,7 +44,7 @@ bibliography: paper.bib
 
 # Summary
 
-Modular Ocean Model 6 (MOM6) is a widely used general circulation ocean model developed at the Geophysical Fluid Dynamics Laboratory (GFDL) at Princeton [@Adcroft2019MOM6].
+Modular Ocean Model 6 (MOM6) is a widely-used general circulation open-source ocean model developed mainly at the Geophysical Fluid Dynamics Laboratory (GFDL) [@Adcroft2019MOM6].
 Among other improvements on its predecessor MOM5, this iteration permits open boundary conditions, and MOM6 is subsequently growing in popularity for high resolution regional modelling.
 However, setting up a regional domain can be challenging and time consuming for new users even for the simplest rectangular domains.
 The `regional_mom6` python package automates much of the regridding, metadata encoding, grid generation and other miscellaneous steps, allowing models to be up and running more quickly.
@@ -66,14 +66,16 @@ Although `regional_mom6` was designed to automate the set-up as much as possible
 The modular design of the code means that users can use their own custom grids and set up boundaries one-by-one to accommodate more complex domain shapes.
 As more advanced use cases emerge, users can contribute their grid generation functions as well as example configuration files and notebooks. 
 
-![The curl of the wind stress from a regional MOM6 simulation in the Tasman sea. ADD COLORBAR with Units; ADD DETAILS FOR REPRODUCING SIMULATION, EG CITE A GITHUB REPO? \label{fig:example}](tasman-windstress-curl.png).
+Figure \autoref{fig:example} is an example.
+
+![The curl of the wind stress from a regional MOM6 simulation in the Tasman sea. ADD COLORBAR with Units; ADD DETAILS FOR REPRODUCING SIMULATION, EG CITE A GITHUB REPO? \label{fig:example}](tasman-windstress-curl.png){ width=80% }.
 
 # Statement of need
 
 The learning curve for setting up a regional ocean model can be quite steep.
 In the case of MOM6, there are several tools scattered around github like those collected in ESMG's grid tools [@gridtools], as well as examples hardcoded for particular domains, input files and hardware.
 However, there is no one-stop-shop to learn how to get a regional MOM6 model up and running, meaning that a newcomer must collect many disparate pieces of information from around the internet unless they are able to get help.
-Other models have packages to aid in domain setup like `Pyroms` [@pyroms] for the Regional Oceanic Modelling System (ROMS; [@shchepetkin2005regional]) and `MITgcm_python` [@mitgcmpy] for the Massachusetts Institute of Technology General Circulation Model (MITgcm; [@marshall1997finite]).
+Other models have packages to aid in domain setup like `Pyroms` [@pyroms] for the Regional Oceanic Modelling System (ROMS; @shchepetkin2005regional) and `MITgcm_python` [@mitgcmpy] for the Massachusetts Institute of Technology General Circulation Model (MITgcm; @marshall1997finite).
 With MOM6's growing user base for regional applications, there is a need for a platform that walks users through regional domain setup from from start to finish, and ideally helps with some of the time consuming parts of the process that ought to be automated.
 
 A package also provides a standardised way of setting up regional models, allowing for more efficient troubleshooting. 
@@ -92,6 +94,6 @@ With the challenging -- but unimportant from an oceanographical point of view --
 
 We thank the Consortium for Ocean–Sea Ice Modeling in Australia ([cosima.org.au](https://cosima.org.au)) for useful discussions during the development of this package.
 N.C.C. acknowledges funding from the Australian Research Council under DECRA Fellowship DE210100749.
-We would like to acknowledge the code and notes by James Simkins, Andrew Ross, and Rob Cermak, which helped us to troubleshoot and improve our own regional MOM6 algorithms.
+We would also like to acknowledge the code and notes by James Simkins, Andrew Ross, and Rob Cermak, which helped us to troubleshoot and improve the algorithms in our package.
 
 # References
