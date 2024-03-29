@@ -70,16 +70,9 @@ Besides making regional modelling with MOM6 more accessible, our package can aut
 We designed `regional_mom6` with automation of regional configurations in mind.
 However, the package's code design and modularity allows makes more complex configurations possible since users can use their own custom-made grids with more complex boundaries and construct the boundary forcing terms one by one.
 
-\bigskip
-\begin{figure}[!tbh]
-\centering
-\includegraphics{tasman_speed.png}
-\caption{A snapshot of surface speed in MOM6 simulation in the Tasman sea. The source code can be found at . \label{fig:example}}
-\end{figure}
+![A snapshot of surface speed in MOM6 simulation in the Tasman sea. The source code can be found at https://github.com/ashjbarnes/tasman-tides. \label{fig:tasman}](tasman_speed.png){ width=80% }
 
-![A snapshot of surface speed in MOM6 simulation in the Tasman sea. The source code can be found at https://github.com/ashjbarnes/tasman-tides. \label{fig:example2}](tasman_speed.png){ width=80% }
-
-Figure \autoref{fig:example2} is an example of a domain set up with the `regional_mom6` package. In this case, the forcing datasets are GLORYS and ERA5, with an 80th degree horizontal resolution and 100 vertical levels. 
+Figure \autoref{fig:tasman} is an example of a domain set up with the `regional_mom6` package. In this case, the forcing datasets are GLORYS and ERA5, with an 80th degree horizontal resolution and 100 vertical levels. 
 
 # Statement of need
 
