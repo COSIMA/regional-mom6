@@ -54,10 +54,10 @@ These inputs can be on the Arakawa A, B, or C grids, and the package performs th
 This base grid can either be constructed based on the user's desired resolution and choice of pre-configured options, or the user can provide their own horizontal or vertical grids.
 In either case, the package then handles the coordinates, dimensions, metadata and encoding to ensure that the final input files are in formats expected by MOM6.
 Additionally, the tricky case of a `seam' in the longitude of the raw input data (for instance at -180 and 180) is handled automatically, removing the need for any preprocessing of the data. 
-The package also comes with pre-configured run directories, which can be automatically copied and modified to match the user's experiment
+The package also comes with pre-configured run directories, which can be automatically copied and modified to match the user's experiment.
 Subsequently, a user need only copy a demo notebook, modify the longitude, latitude and resolution, and simply by running the notebook from start to finish will generate all they need for running a MOM6 experiment in their domain of interest.
 
-This package is targeted at users with basic Python skills, and contains a documented tutorial that uses publicly available forcing and bathymetry datasets, namely, the GLORYS dataset for ocean forcing (citation), ERA5 for atmospheric forcing (citation), and GEBCO for bathymetry [@gebco].
+This package is targeted at users with basic Python skills, and contains a documented tutorial that uses publicly available forcing and bathymetry datasets, namely, the GLORYS dataset for ocean forcing [@glorys], ERA5 for atmospheric forcing [@era5], and GEBCO for bathymetry [@gebco].
 After completion of the example notebook, a complete set of input and configuration files will be generated for the example domain, requiring the user only to compile and run the MOM6 code on their computer.
 Having the entire process run in a single, well documented Jupyter notebook dramatically reduces the barrier to entry for first time users, or those without a strong background reading FORTRAN source code of large models and manipulating netCDF files.
 Besides making regional modelling with MOM6 more accessible, this package also serves to automate the generation of multiple experiments, saving time and improving reproducibility. 
@@ -79,7 +79,7 @@ Other models have packages to aid in domain setup like `Pyroms` [@pyroms] for th
 With MOM6's growing user base for regional applications, there is a need for a platform that walks users through regional domain setup from from start to finish, and ideally helps with some of the time consuming parts of the process that ought to be automated.
 
 A package also provides a standardised way of setting up regional models, allowing for more efficient troubleshooting. 
-This is particularly as the MOM6 boundary code is still under active development, meaning that an old example found Github may not work as intended with a newer executable.
+This is particularly important as the MOM6 boundary code is still under active development, meaning that an old example found Github may not work as intended with a newer executable.
 Currently, it is difficult to discern what the best model settings are for a particular experiment with a given MOM6 executable. 
 However, having different releases of a python package tied to releases of the MOM6 executable will help users avoid difficult to diagnose compatibility errors between the MOM6 codebase, input file formats and parameter files.
 
