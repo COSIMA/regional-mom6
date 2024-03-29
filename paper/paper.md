@@ -57,18 +57,18 @@ Additionally, the tricky case of a `seam' in the longitude of the raw input data
 The package also comes with pre-configured run directories, which can be automatically copied and modified to match the user's experiment
 Subsequently, a user need only copy a demo notebook, modify the longitude, latitude and resolution, and simply by running the notebook from start to finish will generate all they need for running a MOM6 experiment in their domain of interest.
 
-This package is targeted at users with basic Python skills, and contains a documented tutorial that uses publicly available forcing and bathymetry datasets, namely, the GLORYS dataset for ocean forcing, ERA5 for atmospheric forcing, and GEBCO for bathymetry. (TODO: cite these!)
+This package is targeted at users with basic Python skills, and contains a documented tutorial that uses publicly available forcing and bathymetry datasets, namely, the GLORYS dataset for ocean forcing (citation), ERA5 for atmospheric forcing (citation), and GEBCO for bathymetry [@gebco].
 After completion of the example notebook, a complete set of input and configuration files will be generated for the example domain, requiring the user only to compile and run the MOM6 code on their computer.
-Having the entire process run in a single, well documented Jupyter notebook dramatically reduces the barrier to entry for first time users, or those without a strong background reading FORTRAN source code of large models and manipulating NETCDF files.
+Having the entire process run in a single, well documented Jupyter notebook dramatically reduces the barrier to entry for first time users, or those without a strong background reading FORTRAN source code of large models and manipulating netCDF files.
 Besides making regional modelling with MOM6 more accessible, this package also serves to automate the generation of multiple experiments, saving time and improving reproducibility. 
 
 Although `regional_mom6` was designed to automate the set-up as much as possible to aid first time users, it can also be used for more advanced configurations.
 The modular design of the code means that users can use their own custom grids and set up boundaries one-by-one to accommodate more complex domain shapes.
 As more advanced use cases emerge, users can contribute their grid generation functions as well as example configuration files and notebooks. 
 
-Figure \autoref{fig:example} is an example.
+![The curl of the wind stress from a regional MOM6 simulation in the Tasman sea. \label{fig:example}](tasman-windstress-curl.png){ width=80% }.
 
-![The curl of the wind stress from a regional MOM6 simulation in the Tasman sea. ADD COLORBAR with Units; ADD DETAILS FOR REPRODUCING SIMULATION, EG CITE A GITHUB REPO? \label{fig:example}](tasman-windstress-curl.png){ width=80% }.
+Figure \autoref{fig:example} is an example.
 
 # Statement of need
 
