@@ -26,7 +26,7 @@ authors:
     affiliation: 4
   - name: Andrew E. Kiss
     orcid: 0000-0001-8960-9557
-    affiliation: 1
+    affiliation: "1, 2"
 affiliations:
  - name: Australian National University, Australia
    index: 1
