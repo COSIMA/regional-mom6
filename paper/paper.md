@@ -1,5 +1,5 @@
 ---
-title: 'regional_mom6: A Python package for automatic generation of regional configurations for the Modular Ocean Model 6'
+title: 'regional_mom6: Automatic generation of regional configurations for the Modular Ocean Model 6 in Python'
 
 tags:
   - Python
@@ -44,10 +44,10 @@ bibliography: paper.bib
 
 # Summary
 
-Modular Ocean Model 6 (MOM6) is a widely-used general circulation open-source ocean model developed mainly at the Geophysical Fluid Dynamics Laboratory (GFDL) [@Adcroft2019MOM6].
-Among other improvements on its predecessor MOM5, this iteration permits open boundary conditions, and MOM6 is subsequently growing in popularity for high resolution regional modelling.
-However, setting up a regional domain can be challenging and time consuming for new users even for the simplest rectangular domains.
-The `regional_mom6` python package automates much of the regridding, metadata encoding, grid generation and other miscellaneous steps, allowing models to be up and running more quickly.
+Modular Ocean Model 6 (MOM6) is a widely-used general circulation open-source ocean-sea ice-ice shelf model developed mainly at the Geophysical Fluid Dynamics Laboratory (GFDL) [@Adcroft2019MOM6].
+Among other improvements on its predecessor MOM5 (citation), MOM6 allows open boundary conditions and thus it is becoming popular also for regional ocean modeling studies (citation? is there a paper using MOM6 in regional config already?).
+However, setting up a regional configuration for MOM6 can be challenging and time consuming.
+The `regional_mom6` python package automates the regridding, metadata encoding, grid generation and other miscellaneous steps, allowing models to be up and running more quickly.
 
 The `regional_mom6` package takes raw files containing the initial condition, forcing, and bathymetry.
 These inputs can be on the Arakawa A, B, or C grids, and the package performs the appropriate interpolation using `xESMF` [@xesmf] onto the C grid required by MOM6.
