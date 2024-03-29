@@ -30,6 +30,7 @@ __all__ = [
 
 ## Auxiliary functions
 
+
 def longitude_slicer(data, longitude_extent, longitude_coords):
     """
     Slice longitudes, handling periodicity and 'seams' where the
