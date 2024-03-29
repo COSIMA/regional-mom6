@@ -66,9 +66,9 @@ Although `regional_mom6` was designed to automate the set-up as much as possible
 The modular design of the code means that users can use their own custom grids and set up boundaries one-by-one to accommodate more complex domain shapes.
 As more advanced use cases emerge, users can contribute their grid generation functions as well as example configuration files and notebooks. 
 
-![The curl of the wind stress from a regional MOM6 simulation in the Tasman sea. \label{fig:example}](tasman-windstress-curl.png){ width=80% }.
+![The curl of the wind stress from a regional MOM6 simulation in the Tasman sea. The source code can be found at https://github.com/ashjbarnes/tasman-tides. \label{fig:example}](tasman-speed.png){ width=80% }.
 
-Figure \autoref{fig:example} is an example.
+Figure \autoref{fig:example} is an example of a domain set up with the `regional_mom6` package. In this case, the forcing datasets are GLORYS and ERA5, with an 80th degree horizontal resolution. 
 
 # Statement of need
 
