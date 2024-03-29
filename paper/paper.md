@@ -72,8 +72,8 @@ However, the package's code design and modularity allows makes more complex conf
 
 ![A snapshot of surface currents from a MOM6 regional simulation of the Tasman sea. The simulation is forced by GLORYS and ERA5 reanalyses datasets. The source code at @tasmantides. \label{fig:tasman}](tasman_speed.png){ width=80% }
 
-\autoref{fig:tasman} show the surface currents from a region ocean simulation of the Tasman sea configured with `regional_mom6`.
-In this case, the forcing datasets are GLORYS and ERA5, with an 1/80th degree horizontal resolution and 100 vertical levels. 
+\autoref{fig:tasman} shows the surface currents from a regional ocean simulation of the Tasman sea that was configured using the `regional_mom6` package.
+In this simulation, the forcing datasets used were GLORYS and ERA5 reanalyses and the simulation was configured with a horizontal resolution of 1/80th degree and 100 vertical levels. 
 
 # Statement of need
 
