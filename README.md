@@ -17,7 +17,7 @@ If you find this package useful and have any suggestions please feel free to ope
 2. a working MOM6 executable on a machine of your choice, 
 3. a bathymetry file that at least covers your domain,
 4. 3D ocean forcing files *of any resolution* on your choice of A, B, or C Arakawa grid,
-5. surface forcing files (eg ERA or JRA reanalysis), and
+5. surface forcing files (e.g., from ERA or JRA reanalysis), and
 6. [GFDL's FRE tools](https://github.com/NOAA-GFDL/FRE-NCtools) must be downloaded and compiled on the machine you are using.
 
 Check out the [documentation](https://regional-mom6.readthedocs.io/en/latest/) and browse through the [demos](https://regional-mom6.readthedocs.io/en/latest/demos.html).
