@@ -1,10 +1,10 @@
 Installation
 ============
 
-We can install `regional_mom6` via `pip` from GitHub. A prerequisite of is that the binary `esmpy`
-dependency is first installed. The easiest way to install `esmpy` is using Conda.
+We can install `regional_mom6` via `pip` from GitHub. A prerequisite is the binary `esmpy`
+dependency, which provides regridding capabilities. The easiest way to install `esmpy` is using Conda.
 
-First we create a custom Conda environment, or activate an existing environment into which we
+We encourage creating a custom Conda environment, or activate an existing environment into which we
 will install `esmpy` and `regional_mom6`. Then install `emspy` via:
 
 ```{code-block} bash
