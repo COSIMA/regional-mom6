@@ -45,7 +45,7 @@ bibliography: paper.bib
 # Summary
 
 The Modular Ocean Model version 6 (MOM6) is a widely-used open-source general circulation ocean-sea ice model developed mainly at the Geophysical Fluid Dynamics Laboratory (GFDL) [@Adcroft2019MOM6].
-Among other improvements over its predecessor MOM5 [@griffies2012elements], MOM6 has more capable support for open boundary conditions and thus is becoming popular for regional ocean modeling studies (see, e.g., @gmd-16-6943-2023, @egusphere-2024-394) in addition to global.
+Among other improvements over its predecessor MOM5 [@griffies2012elements], MOM6 has more capable support for open boundary conditions and thus is becoming popular for regional ocean modeling studies (see, e.g., @gmd-16-6943-2023, @egusphere-2024-394) in addition to global configurations.
 However, setting up a regional configuration for MOM6 can be challenging and time consuming and often involves using several programming languages, a few different tools, and also manually editing/tweaking some input files.
 The `regional_mom6` python package overcomes these difficulties, automatically generating a regional MOM6 configuration.
 
