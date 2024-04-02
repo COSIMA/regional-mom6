@@ -1346,7 +1346,7 @@ class experiment:
             raise ValueError(
                 f"Cannot find the premade run directory files at \n{premade_rundir_path}\n. Something is not right about how the package has been installed as these files are missing!"
             )
-        if isinstance(surface_forcing, str):
+        if surface_forcing:
             overwrite_run_dir = premade_rundir_path / f"{surface_forcing}_surface"
             if not overwrite_run_dir.exists():
                 available = [x for x in premade_rundir_path.iterdir() if x.is_dir()]
