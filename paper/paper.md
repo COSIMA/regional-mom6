@@ -45,7 +45,7 @@ bibliography: paper.bib
 # Summary
 
 The Modular Ocean Model version 6 (MOM6) is a widely-used open-source general circulation ocean-sea ice model developed mainly at the NOAA Geophysical Fluid Dynamics Laboratory (GFDL) [@Adcroft2019MOM6].
-MOM6 contains several improvements over its predecessor MOM5 [@griffies2014elements], including the implementation of the Arbitrary-Lagrangian-Eulerian (ALE) vertical coordinates [@griffies2020ALE], more efficient tracer advection schemes, and state-of-the art parameterisations of sub-grid scale physics.
+MOM6 contains several improvements over its predecessor MOM5 [@griffies2014elements], including the implementation of the Arbitrary-Lagrangian-Eulerian (ALE) vertical coordinates [@griffies2020ALE], more efficient tracer advection schemes, and state-of-the art parameterizations of sub-grid scale physics.
  MOM6 provides support for open boundary conditions and thus is becoming popular for regional ocean modeling studies (see, e.g., @gmd-16-6943-2023, @egusphere-2024-394) in addition to global configurations.
 However, setting up a regional configuration for MOM6 can be challenging, time consuming, and often involves using several programming languages, a few different tools, and also manually editing/tweaking some input files.
 The `regional_mom6` Python package overcomes these difficulties, automatically generating a regional MOM6 configuration with relatively simple domain geometry.
@@ -56,7 +56,7 @@ This base grid for the regional configuration can either be constructed based on
 The user can use MOM6's Arbitrary-Lagrangian-Eulerian vertical coordinates, regardless of the native vertical coordinates of the boundary forcing input.
 The package automates the re-gridding of all the required forcing input, takes care of all the metadata encoding, generates the regional grid, and ensures that the final input files are in the format expected by MOM6.
 Additionally, the tricky case of a regional configuration that includes the 'seam' in the longitude of the raw input data is handled automatically, removing the need for any preprocessing of the input data.
-(For example, such a 'seam'-related issue arises for a regional 10ᵒ-wide regional configuration centred at Fiji (178ᵒE) when forced by input with native longitude coordinate in the range between 180ᵒW and 180ᵒE.)
+(For example, such a 'seam'-related issue arises for a 10ᵒ-wide regional configuration centered at Fiji (178ᵒE) when forced by input with native longitude coordinate in the range between 180ᵒW and 180ᵒE.)
 The above-mentioned automation allows users to setup a regional MOM6 configuration using only Python and from the convenience of a single Jupyter notebook.
 Rules-of-thumb to guide the user in setting grid parameters such as the regional domains resolution, can be found in the paper by @Herzfeld2011.
 
