@@ -894,25 +894,27 @@ class experiment:
 
     def bathymetry(
         self,
-        bathy_path,
-        varnames,
+        *,
+        bathymetry_path,
+        coordinate_names,
         fill_channels=False,
         minimum_layers=3,
-        maketopog=True,
-        positivedown=False,
+        make_topography=True,
+        positive_down=False,
         chunks="auto",
     ):
         """
         Cut out and interpolate the chosen bathymetry, then fill inland lakes.
 
         It's also possible to optionally fill narrow channels (see ``fill_channels``
-        below), although this is less of an issue for models on a C-grid, like MOM6.
+        below), although this is less of an issue for models that are discretized on
+        an Arakawa C grid, like MOM6.
 
-        Output is saved to the input folder for the experiment.
+        Output is saved to the input directory of the experiment.
 
         Args:
-            bathy_path (str): Path to chosen bathymetry file netCDF file.
-            varnames (Dict[str, str]): Mapping of coordinate and
+            bathymetry_path (str): Path to chosen bathymetry file netCDF file.
+            coordinate_names (Dict[str, str]): Mapping of coordinate and
                 variable names between the input and output.
             fill_channels (Optional[bool]): Whether or not to fill in
                 diagonal channels. This removes more narrow inlets,
@@ -921,22 +923,29 @@ class experiment:
                 as an integer number of layers. The default value of ``3``
                 layers means that anything shallower than the 3rd
                 layer (as specified by the ``vcoord``) is deemed land.
-            positivedown (Optional[bool]): If ``True``, it assumes that
+            make_topography (Optional[bool]): If ``True`` (default), the method
+                does something, else it does nothing.
+            positive_down (Optional[bool]): If ``True``, it assumes that
                 bathymetry vertical coordinate is positive down. Default: ``False``.
             chunks (Optional Dict[str, str]): Chunking scheme for bathymetry, e.g.,
                 ``{"lon": 100, "lat": 100}``. Use lat/lon rather than the coordinate
                 names in the input file.
         """
 
-        if maketopog == True:
+        if make_topography == True:
             if chunks != "auto":
-                chunks = {varnames["xh"]: chunks["lon"], varnames["yh"]: chunks["lat"]}
+                chunks = {
+                    coordinate_names["xh"]: chunks["lon"],
+                    coordinate_names["yh"]: chunks["lat"],
+                }
 
-            bathy = xr.open_dataset(bathy_path, chunks=chunks)[varnames["elevation"]]
+            bathy = xr.open_dataset(bathymetry_path, chunks=chunks)[
+                coordinate_names["elevation"]
+            ]
 
             bathy = bathy.sel(
                 {
-                    varnames["yh"]: slice(
+                    coordinate_names["yh"]: slice(
                         self.latitude_extent[0] - 0.5, self.latitude_extent[1] + 0.5
                     )
                 }  # 0.5 degree latitude buffer (hardcoded) for regridding
@@ -944,10 +953,12 @@ class experiment:
 
             ## Here need to make a decision as to whether to slice 'normally' or with the longitude_slicer for 360 degree domain.
 
-            horizontal_resolution = bathy[varnames["xh"]][1] - bathy[varnames["xh"]][0]
+            horizontal_resolution = (
+                bathy[coordinate_names["xh"]][1] - bathy[coordinate_names["xh"]][0]
+            )
             horizontal_extent = (
-                bathy[varnames["xh"]][-1]
-                - bathy[varnames["xh"]][0]
+                bathy[coordinate_names["xh"]][-1]
+                - bathy[coordinate_names["xh"]][0]
                 + horizontal_resolution
             )
 
@@ -959,13 +970,13 @@ class experiment:
                     + np.array(
                         [-0.5, 0.5]
                     ),  # 0.5 degree longitude buffer (hardcoded) for regridding.
-                    varnames["xh"],
+                    coordinate_names["xh"],
                 )
             else:
                 ## Otherwise just slice normally
                 bathy = bathy.sel(
                     {
-                        varnames["xh"]: slice(
+                        coordinate_names["xh"]: slice(
                             self.longitude_extent[0] - 0.5,
                             self.longitude_extent[1] + 0.5,
                         )
@@ -978,7 +989,9 @@ class experiment:
             bathyout = xr.Dataset({"elevation": bathy})
             bathy.close()
 
-            bathyout = bathyout.rename({varnames["xh"]: "lon", varnames["yh"]: "lat"})
+            bathyout = bathyout.rename(
+                {coordinate_names["xh"]: "lon", coordinate_names["yh"]: "lat"}
+            )
             bathyout.lon.attrs["units"] = "degrees_east"
             bathyout.lat.attrs["units"] = "degrees_north"
             bathyout.elevation.attrs["_FillValue"] = -1e20
@@ -1029,7 +1042,10 @@ class experiment:
 
             # rewrite chunks to use lat/lon now for use with xesmf
             if chunks != "auto":
-                chunks = {"lon": chunks[varnames["xh"]], "lat": chunks[varnames["yh"]]}
+                chunks = {
+                    "lon": chunks[coordinate_names["xh"]],
+                    "lat": chunks[coordinate_names["yh"]],
+                }
 
             tgrid = tgrid.chunk(chunks)
             tgrid.lon.attrs["units"] = "degrees_east"
@@ -1051,7 +1067,7 @@ class experiment:
                 + "directly from a terminal in the input directory via\n\n"
                 + "mpirun ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\n\n"
                 + "For details see https://xesmf.readthedocs.io/en/latest/large_problems_on_HPC.html\n\n"
-                + "Aftewards, run the bathymetry method again but set 'maketopog = False' so the "
+                + "Aftewards, run the bathymetry method again but set 'make_topography = False' so the "
                 + "computationally expensive step is skiped and instead the method ensures that only the "
                 + "metadata are fixed."
             )
@@ -1072,10 +1088,10 @@ class experiment:
             print(
                 "Regridding finished. Now excavating inland lakes and fixing up metadata..."
             )
-            self.tidy_bathymetry(fill_channels, minimum_layers, positivedown)
+            self.tidy_bathymetry(fill_channels, minimum_layers, positive_down)
 
     def tidy_bathymetry(
-        self, fill_channels=False, minimum_layers=3, positivedown=False
+        self, fill_channels=False, minimum_layers=3, positive_down=False
     ):
         """
         An auxillary function for bathymetry. It's used to fix up the metadata and
@@ -1100,7 +1116,7 @@ class experiment:
 
         topog.expand_dims("tiles", 0)
 
-        if not positivedown:
+        if not positive_down:
             ## Ensure that coordinate is positive down!
             topog["depth"] *= -1
 

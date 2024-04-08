@@ -66,13 +66,13 @@ def test_bathymetry(
         grid_type=grid_type,
     )
 
-    ## Generate some bathymetry to use in tests
+    ## Generate a bathymetry to use in tests
 
-    bathy_file = tmp_path / "bathy.nc"
+    bathymetry_file = tmp_path / "bathymetry.nc"
 
-    bathy = np.random.random((100, 100)) * (-100)
-    bathy = xr.DataArray(
-        bathy,
+    bathymetry = np.random.random((100, 100)) * (-100)
+    bathymetry = xr.DataArray(
+        bathymetry,
         dims=["silly_lat", "silly_lon"],
         coords={
             "silly_lat": np.linspace(
@@ -83,19 +83,23 @@ def test_bathymetry(
             ),
         },
     )
-    bathy.name = "elevation"
-    bathy.to_netcdf(bathy_file)
-    bathy.close()
+    bathymetry.name = "elevation"
+    bathymetry.to_netcdf(bathymetry_file)
+    bathymetry.close()
 
-    # Now use this bathymetry as input in `expt.bathymetry()`
+    # Now provide the above bathymetry file as input in `expt.bathymetry()`
     expt.bathymetry(
-        str(bathy_file),
-        {"xh": "silly_lon", "yh": "silly_lat", "elevation": "elevation"},
+        bathymetry_path=str(bathymetry_file),
+        coordinate_names={
+            "xh": "silly_lon",
+            "yh": "silly_lat",
+            "elevation": "elevation",
+        },
         minimum_layers=1,
         chunks={"lat": 10, "lon": 10},
     )
 
-    bathy_file.unlink()
+    bathymetry_file.unlink()
 
 
 @pytest.mark.parametrize(
