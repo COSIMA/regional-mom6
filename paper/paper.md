@@ -48,26 +48,25 @@ The Modular Ocean Model version 6 (MOM6) is a widely-used open-source general ci
 MOM6 contains several improvements over its predecessor MOM5 [@griffies2014elements], including the implementation of the Arbitrary-Lagrangian-Eulerian (ALE) vertical coordinates [@griffies2020ALE], more efficient tracer advection schemes, and state-of-the art parameterisations of sub-grid scale physics.
  MOM6 provides support for open boundary conditions and thus is becoming popular for regional ocean modeling studies (see, e.g., @gmd-16-6943-2023, @egusphere-2024-394) in addition to global configurations.
 However, setting up a regional configuration for MOM6 can be challenging, time consuming, and often involves using several programming languages, a few different tools, and also manually editing/tweaking some input files.
-The `regional_mom6` python package overcomes these difficulties, automatically generating a regional MOM6 configuration with relatively simple domain geometry.
+The `regional_mom6` Python package overcomes these difficulties, automatically generating a regional MOM6 configuration with relatively simple domain geometry.
 
 The `regional_mom6` package takes as input various datasets that containing the ocean initial condition, the boundary forcing (ocean and atmosphere) for the regional domain, and the bathymetry.
 The input datasets can be on the Arakawa A, B, or C grids [@arakawa1977computational]; the package performs the appropriate interpolation using `xESMF` [@xesmf] under the hood, to put the everything on the C grid required by MOM6.
-Thus, the package automates the re-gridding of all the required forcing input, takes care of all the metadata encoding, generates the regional grid, and deals with a few other necessary steps.
-This allows users to setup a regional MOM6 configuration using only Python and from a single Jupyter notebook.
-The package allows the user to use MOM6's Arbitrary-Lagrangian-Eulerian vertical coordinates, regardless of the vertical coordinates of boundary forcing input.
+This base grid for the regional configuration can either be constructed based on the user's desired resolution preference and choice of pre-configured options, or from a user-provided  horizontal and/or vertical pre-existing MOM6 grids.
+The user can use MOM6's Arbitrary-Lagrangian-Eulerian vertical coordinates, regardless of the native vertical coordinates of the boundary forcing input.
+The package automates the re-gridding of all the required forcing input, takes care of all the metadata encoding, generates the regional grid, and ensures that the final input files are in the format expected by MOM6.
+Additionally, the tricky case of a regional configuration that includes the `seam' in the longitude of the raw input data is handled automatically, removing the need for any preprocessing of the input data.
+(For example, such a `seam'-related issue arises for a regional configuration centred at Fiji (178ᵒE) forced by input with native longitude coordinate -180 and +180.)
+The above-mentioned automation allows users to setup a regional MOM6 configuration using only Python and from the convenience of a single Jupyter notebook.
 Rules-of-thumb to guide the user in setting grid parameters such as the regional domains resolution, can be found in the paper by @Herzfeld2011.
 
-<!-- The `regional_mom6` package takes raw files containing the initial condition, the boundary forcing, and bathymetry.
-These inputs can be on the Arakawa A, B, or C grids, and the package performs the appropriate interpolation using `xESMF` [@xesmf] onto the C grid required by MOM6.
-This base grid can either be constructed based on the user's desired resolution and choice of pre-configured options, or the user can provide their own horizontal or vertical grids.
-In either case, the package then handles the coordinates, dimensions, metadata and encoding to ensure that the final input files are in the format expected by MOM6.
-Additionally, the tricky case of a `seam' in the longitude of the raw input data (for instance at -180 and 180) is handled automatically, removing the need for any preprocessing of the data. 
-The package also comes with pre-configured run directories, which can be automatically copied and modified to match the user's experiment.
-Subsequently, a user need only copy a demo notebook, modify the longitude, latitude and resolution, and simply by running the notebook from start to finish will generate all they need for running a MOM6 experiment in their domain of interest. -->
+<!--
+Subsequently, a user need only copy a demo notebook, modify the longitude, latitude and resolution, and simply by running the notebook from start to finish will generate all they need for running a MOM6 experiment in their domain of interest.
+-->
 
-`regional_mom6` is continuously tested and comes with an extensive documentation that also includes documented tutorials/examples for setting up regional MOM6 configurations using publicly-available forcing and bathymetry datasets (namely, the GLORYS dataset for ocean boundary forcing [@glorys], the ERA5 reanalysis for atmospheric forcing [@era5], and the GEBCO dataset for bathymetry [@gebco]).
+`regional_mom6` is continuously tested and comes with an extensive documentation that also includes documented tutorials and examples for setting up regional MOM6 configurations using publicly-available forcing and bathymetry datasets (namely, the GLORYS dataset for ocean boundary forcing [@glorys], the ERA5 reanalysis for atmospheric forcing [@era5], and the GEBCO dataset for bathymetry [@gebco]).
 
-Having the entire process for setting up a regional configuration running in a Jupyter notebook dramatically reduces the barrier to entry for first-time users, or those without a strong background in Fortran, experience in compiling and running scripts in terminals, and manipulating netCDF files.
+With the entire process for setting up a regional configuration streamlined to run within a Jupyter notebook, the package dramatically reduces the barrier-to-entry for first-time users, or those without a strong background in Fortran, experience in compiling and running scripts in terminals, and manipulating netCDF files.
 Besides making regional modelling with MOM6 more accessible, our package can automate the generation of multiple experiments (e.g., a series of perturbation experiments), saving time and effort, and improving reproducibility. 
 
 We designed `regional_mom6` with automation of regional configurations in mind.
