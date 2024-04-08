@@ -44,9 +44,9 @@ bibliography: paper.bib
 
 # Summary
 
-The Modular Ocean Model version 6 (MOM6) is a widely-used open-source general circulation ocean-sea ice model developed mainly at the NOAA Geophysical Fluid Dynamics Laboratory (GFDL) [@Adcroft2019MOM6].
-MOM6 contains several improvements over its predecessor MOM5 [@griffies2014elements], including the implementation of the Arbitrary-Lagrangian-Eulerian (ALE) vertical coordinates [@griffies2020ALE], more efficient tracer advection schemes, and state-of-the art parameterizations of sub-grid scale physics.
- MOM6 provides support for open boundary conditions and thus is becoming popular for regional ocean modeling studies (see, e.g., @gmd-16-6943-2023, @egusphere-2024-394) in addition to global configurations.
+The Modular Ocean Model version 6 (MOM6) is a widely-used open-source general circulation ocean-sea ice model, developed mainly at the NOAA Geophysical Fluid Dynamics Laboratory[@Adcroft2019MOM6].
+MOM6 contains several improvements over its predecessor MOM5 [@griffies2014elements], including the implementation of the Arbitrary-Lagrangian-Eulerian vertical coordinates [@griffies2020ALE], more efficient tracer advection schemes, and state-of-the art parameterizations of sub-grid scale physics.
+MOM6 provides support for open boundary conditions and thus is becoming popular for regional ocean modeling studies (see, e.g., @gmd-16-6943-2023, @egusphere-2024-394) in addition to global configurations.
 However, setting up a regional configuration for MOM6 can be challenging, time consuming, and often involves using several programming languages, a few different tools, and also manually editing/tweaking some input files.
 The `regional_mom6` Python package overcomes these difficulties, automatically generating a regional MOM6 configuration with relatively simple domain geometry.
 
@@ -78,7 +78,7 @@ However, the package's code design and modularity makes more complex configurati
 
 # Statement of need
 
-The learning curve for setting up a regional ocean model can be quite steep, and it it not obvious for a new user what inputs are required, nor the appropriate format.
+The learning curve for setting up a regional ocean model can be quite steep, and it is not obvious for a new user what inputs are required, nor the appropriate format.
 In the case of MOM6, there are several tools scattered in Github repositories, for example those collected in ESMG's grid tools [@gridtools].
 Also, there exist several regional configuration examples (e.g., [cite here 1-2 repos?]) but they are hardcoded for particular domains, specific input files, and work only on specific high-performance computing machines.
 
