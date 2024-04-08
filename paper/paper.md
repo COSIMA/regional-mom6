@@ -55,8 +55,8 @@ The input datasets can be on the Arakawa A, B, or C grids [@arakawa1977computati
 This base grid for the regional configuration can either be constructed based on the user's desired resolution preference and choice of pre-configured options, or from a user-provided  horizontal and/or vertical pre-existing MOM6 grids.
 The user can use MOM6's Arbitrary-Lagrangian-Eulerian vertical coordinates, regardless of the native vertical coordinates of the boundary forcing input.
 The package automates the re-gridding of all the required forcing input, takes care of all the metadata encoding, generates the regional grid, and ensures that the final input files are in the format expected by MOM6.
-Additionally, the tricky case of a regional configuration that includes the `seam' in the longitude of the raw input data is handled automatically, removing the need for any preprocessing of the input data.
-(For example, such a `seam'-related issue arises for a regional configuration centred at Fiji (178ᵒE) forced by input with native longitude coordinate -180 and +180.)
+Additionally, the tricky case of a regional configuration that includes the 'seam' in the longitude of the raw input data is handled automatically, removing the need for any preprocessing of the input data.
+(For example, such a 'seam'-related issue arises for a regional 10ᵒ-wide regional configuration centred at Fiji (178ᵒE) when forced by input with native longitude coordinate in the range between 180ᵒW and 180ᵒE.)
 The above-mentioned automation allows users to setup a regional MOM6 configuration using only Python and from the convenience of a single Jupyter notebook.
 Rules-of-thumb to guide the user in setting grid parameters such as the regional domains resolution, can be found in the paper by @Herzfeld2011.
 
