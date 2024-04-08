@@ -1325,8 +1325,8 @@ class experiment:
         Args:
             regional_mom6_path (str): Path to the regional MOM6 source code that was cloned
                 from GitHub. Default is current path, ``'.'``.
-            surface_forcing (Optional[str, bool]): Specify the choice of surface forcing, one
-                of: ``'jra'`` or ``'era5'``. If left blank, constant fluxes will be used.
+            surface_forcing (Optional[str]): Specify the choice of surface forcing, one
+                of: ``'jra'`` or ``'era5'``. If not prescribed then constant fluxes are used.
             using_payu (Optional[bool]): Whether or not to use payu (https://github.com/payu-org/payu)
                 to run the model. If ``True``, a payu configuration file will be created.
                 Default: ``False``.
@@ -1346,7 +1346,7 @@ class experiment:
             raise ValueError(
                 f"Cannot find the premade run directory files at \n{premade_rundir_path}\n. Something is not right about how the package has been installed as these files are missing!"
             )
-        if type(surface_forcing) == str:
+        if surface_forcing:
             overwrite_run_dir = premade_rundir_path / f"{surface_forcing}_surface"
             if not overwrite_run_dir.exists():
                 available = [x for x in premade_rundir_path.iterdir() if x.is_dir()]
