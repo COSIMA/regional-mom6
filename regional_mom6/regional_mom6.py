@@ -262,24 +262,25 @@ def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
 
 def rectangular_hgrid(λ, φ):
     """
-    Construct a horizontal grid with all the metadata given an array of
-    longitudes (``λ``) and latitudes (``φ``) on the supergrid. Here, 'supergrid'
-    refers to both cell edges and centres, meaning that there are twice as many
-    points along each axis than for any individual field.
+    Construct a horizontal grid with all the metadata required by MOM6 provided
+    an array of longitudes (``λ``) and latitudes (``φ``) on the supergrid.
+    Here, 'supergrid' refers to both cell edges and centres, meaning that there
+    are twice as many points along each axis than for any individual field.
 
     Caution:
         It is assumed the grid's boundaries are lines of constant latitude and
         longitude. Rotated grids need to be handled differently.
+
         It is also assumed here that the longitude array values are uniformly spaced.
 
         Ensure both ``λ`` and ``φ`` are monotonically increasing.
 
     Args:
-        λ (numpy.array): All longitude points on the supergrid. Must be uniformly spaced!
+        λ (numpy.array): All longitude points on the supergrid. Must be uniformly spaced.
         φ (numpy.array): All latitude points on the supergrid.
 
     Returns:
-        xarray.Dataset: An FMS-compatible ``hgrid`` that includes all required attributes.
+        xarray.Dataset: An FMS-compatible horizontal grid (``hgrid``) that includes all required attributes.
     """
 
     assert np.all(np.diff(λ) > 0), "longitudes array λ must be monotonically increasing"
@@ -565,8 +566,8 @@ class experiment:
                 in the input dataset. For example, ``{'xq': 'lonq', 'yh': 'lath', 'salt': 'so', ...}``.
             gridtype (Optional[str]): Arakawa grid staggering of input; either ``'A'``, ``'B'``,
                 or ``'C'``.
-            vcoord_type (Optional[str]): The type of vertical coordinate used in yhe forcing files.
-                Either ``height`` or ``thickness``.
+            vcoord_type (Optional[str]): The type of vertical coordinate used in the forcing files.
+                Either ``'height'`` or ``'thickness'``.
         """
 
         # Remove time dimension if present in the IC. Assume that the first time dim is the intended on if more than one is present
@@ -914,8 +915,12 @@ class experiment:
 
         Args:
             bathymetry_path (str): Path to chosen bathymetry file netCDF file.
-            coordinate_names (Dict[str, str]): Mapping of coordinate and
-                variable names between the input and output.
+            coordinate_names (Dict[str, str]): Mapping of coordinate names between
+                the input and output. For example, ``{'xh': 'lon', 'yh': 'lat',
+                'elevation': 'z'}`` implies that the ``'xh'``, ``'yh'``, and
+                ``'elevation'`` coordinates in MOM6 correspond to coordinates
+                ``'lon'``, ``'lat'``, and ``'z'`` in the bathymetry netCDF file
+                at ``bathymetry_path``.
             fill_channels (Optional[bool]): Whether or not to fill in
                 diagonal channels. This removes more narrow inlets,
                 but can also connect extra islands to land. Default: ``False``.
