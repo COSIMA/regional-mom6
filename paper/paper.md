@@ -99,8 +99,8 @@ By having a shared set of tools that the community can work with and contribute 
 Alongside the tools grew a set of contributed examples for post-processing and analysis of model outputs. -->
 Using a shared framework for setting up regional models, it is easier to compare and contrast examples of different experiments and allows for users to gain intuition for generating their chosen domain.
 
-Another potential advantage of a package that allows users to automatically obtain regional configurations of MOM6 is in education.
-With the technically-challenging aspects of setting up a regional configuration now being automated by the `regional_mom6` package, students can set up and run simple MOM6 regional configurations and also change parameters like resolution or forcing, run again, and see how these parameters affect the ocean flow.
+`regional_mom6` package can also be used for educational purposes, for example as part of course curricula.
+With the technically-challenging aspects of setting up a regional configuration now being automated by the `regional_mom6` package, students can set up and run simple MOM6 regional configurations and also change parameters like the model's resolution or the forcing, run again, and see how these parameters affect the ocean flow.
 
 # Acknowledgements
 
