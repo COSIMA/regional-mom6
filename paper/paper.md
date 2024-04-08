@@ -51,7 +51,11 @@ However, setting up a regional configuration for MOM6 can be challenging, time c
 The `regional_mom6` python package overcomes these difficulties, automatically generating a regional MOM6 configuration with relatively simple domain geometry.
 
 The `regional_mom6` package takes as input various datasets that containing the ocean initial condition, the boundary forcing (ocean and atmosphere) for the regional domain, and the bathymetry.
-The input datasets can be on the Arakawa A, B, or C grids [@arakawa1977computational]; the package performs the appropriate interpolation using `xESMF` [@xesmf] under the hood, to put the everything on the C grid required by MOM6. Thus, the package automates the re-gridding of all the required forcing input, takes care of all the metadata encoding, generates the regional grid, and deals with a few other necessary steps. This allows users to setup a regional MOM6 configurations using only Python and from a single Jupyter notebook. The package allows the user to use MOM6's ALE vertical coordinates, regardless of the vertical coordinates of boundary forcing input. Rules-of-thumb to guide the user in setting grid parameters such as the regional domains resolution, can be found in @Herzfeld2011.  
+The input datasets can be on the Arakawa A, B, or C grids [@arakawa1977computational]; the package performs the appropriate interpolation using `xESMF` [@xesmf] under the hood, to put the everything on the C grid required by MOM6.
+Thus, the package automates the re-gridding of all the required forcing input, takes care of all the metadata encoding, generates the regional grid, and deals with a few other necessary steps.
+This allows users to setup a regional MOM6 configuration using only Python and from a single Jupyter notebook.
+The package allows the user to use MOM6's Arbitrary-Lagrangian-Eulerian vertical coordinates, regardless of the vertical coordinates of boundary forcing input.
+Rules-of-thumb to guide the user in setting grid parameters such as the regional domains resolution, can be found in the paper by @Herzfeld2011.
 
 <!-- The `regional_mom6` package takes raw files containing the initial condition, the boundary forcing, and bathymetry.
 These inputs can be on the Arakawa A, B, or C grids, and the package performs the appropriate interpolation using `xESMF` [@xesmf] onto the C grid required by MOM6.
