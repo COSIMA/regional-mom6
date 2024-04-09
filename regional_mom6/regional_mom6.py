@@ -914,7 +914,7 @@ class experiment:
         Output is saved to the input directory of the experiment.
 
         Args:
-            bathymetry_path (str): Path to chosen bathymetry file netCDF file.
+            bathymetry_path (str): Path to the netCDF file with the bathymetry.
             coordinate_names (Dict[str, str]): Mapping of coordinate names between
                 the input and output. For example, ``{'xh': 'lon', 'yh': 'lat',
                 'elevation': 'z'}`` implies that the ``'xh'``, ``'yh'``, and
