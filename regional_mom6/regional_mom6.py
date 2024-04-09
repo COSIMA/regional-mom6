@@ -470,7 +470,7 @@ class experiment:
         The default behaviour provides with a grid evenly spaced both in
         longitude and in latitude.
 
-        The latitudinal resolution is scaled with the cosine of the cental latitude of
+        The latitudinal resolution is scaled with the cosine of the central latitude of
         the domain, i.e., ``Δφ = cos(φ_central) * Δλ``, where ``Δλ`` is the longitudinal
         spacing. This way, and given that the domain is small enough, the linear
         distances between grid points are nearly identical: ``Δx = R * cos(φ) * Δλ``
@@ -533,7 +533,7 @@ class experiment:
     def _make_vgrid(self):
         """
         Generate a vertical grid based on the number of layers ``nlayers`` and
-        the prescribed ratio of the vertical layer thicknesses ``dz_ratio``
+        the prescribed ratio of the vertical layer thicknesses (``layer_thickness_ratio``)
         specified at the class level.
         """
 
