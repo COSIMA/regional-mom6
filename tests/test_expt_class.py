@@ -38,7 +38,7 @@ import xarray as xr
         ),
     ],
 )
-def test_bathymetry(
+def test_setup_bathymetry(
     longitude_extent,
     latitude_extent,
     date_range,
@@ -88,7 +88,7 @@ def test_bathymetry(
     bathymetry.close()
 
     # Now provide the above bathymetry file as input in `expt.bathymetry()`
-    expt.bathymetry(
+    expt.setup_bathymetry(
         bathymetry_path=str(bathymetry_file),
         coordinate_names={
             "xh": "silly_lon",

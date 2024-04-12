@@ -16,7 +16,7 @@ GRID_CONFIG = "mosaic"
 GRID_FILE = "hgrid.nc"
 INPUTDIR = "INPUT"
 
-TOPO_FILE = "topog.nc"
+TOPO_FILE = "bathymetry.nc"
 
 MAXIMUM_DEPTH = 6000.0
 
