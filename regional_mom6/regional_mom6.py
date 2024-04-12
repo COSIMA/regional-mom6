@@ -933,6 +933,12 @@ class experiment:
                 names in the input file.
         """
 
+        ## Convert our three coordinate names into a dictionary
+        coordinate_names = {
+            "xh":x_coordinate_name,
+            "yh":y_coordinate_name,
+            "elevation":z_coordinate_name,
+        }
         if chunks != "auto":
             chunks = {
                 coordinate_names["xh"]: chunks["lon"],
