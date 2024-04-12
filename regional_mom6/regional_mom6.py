@@ -984,9 +984,7 @@ class experiment:
                 }  # 0.5 degree longitude bufffer (hardcoded) for regridding
             )
 
-        bathy.attrs["missing_value"] = (
-            -1e20
-        )  # This is what FRE tools expects I guess?
+        bathy.attrs["missing_value"] = -1e20  # This is what FRE tools expects I guess?
         bathyout = xr.Dataset({"elevation": bathy})
         bathy.close()
 
@@ -997,9 +995,7 @@ class experiment:
         bathyout.lat.attrs["units"] = "degrees_north"
         bathyout.elevation.attrs["_FillValue"] = -1e20
         bathyout.elevation.attrs["units"] = "m"
-        bathyout.elevation.attrs["standard_name"] = (
-            "height_above_reference_ellipsoid"
-        )
+        bathyout.elevation.attrs["standard_name"] = "height_above_reference_ellipsoid"
         bathyout.elevation.attrs["long_name"] = "Elevation relative to sea level"
         bathyout.elevation.attrs["coordinates"] = "lon lat"
         bathyout.to_netcdf(
@@ -1087,7 +1083,7 @@ class experiment:
         print(
             "Regridding finished. Now calling `tidy_bathymetry` method for some finishing touches..."
         )
-        
+
         self.tidy_bathymetry(fill_channels, minimum_layers, positive_down)
 
     def tidy_bathymetry(
@@ -1117,10 +1113,14 @@ class experiment:
 
         ## reopen bathymetry to modify
         print("Reading in regridded bathymetry to fix up metadata...", end="")
-        bathymetry = xr.open_dataset(self.mom_input_dir / "bathymetry_unfinished.nc", engine="netcdf4")
+        bathymetry = xr.open_dataset(
+            self.mom_input_dir / "bathymetry_unfinished.nc", engine="netcdf4"
+        )
 
         ## Ensure correct encoding
-        bathymetry = xr.Dataset({"depth": (["ny", "nx"], bathymetry["elevation"].values)})
+        bathymetry = xr.Dataset(
+            {"depth": (["ny", "nx"], bathymetry["elevation"].values)}
+        )
         bathymetry.attrs["depth"] = "meters"
         bathymetry.attrs["standard_name"] = "bathymetryraphic depth at T-cell centers"
         bathymetry.attrs["coordinates"] = "zi"
@@ -1135,7 +1135,9 @@ class experiment:
 
         min_depth = self.vgrid.zi[minimum_layers]
 
-        ocean_mask = bathymetry.copy(deep=True).depth.where(bathymetry.depth <= min_depth, 1)
+        ocean_mask = bathymetry.copy(deep=True).depth.where(
+            bathymetry.depth <= min_depth, 1
+        )
         land_mask = np.abs(ocean_mask - 1)
 
         changed = True  ## keeps track of whether solution has converged or not
@@ -1269,7 +1271,9 @@ class experiment:
 
         bathymetry["depth"] *= self.ocean_mask
 
-        bathymetry["depth"] = bathymetry["depth"].where(bathymetry["depth"] != 0, np.nan)
+        bathymetry["depth"] = bathymetry["depth"].where(
+            bathymetry["depth"] != 0, np.nan
+        )
 
         bathymetry.expand_dims({"ntiles": 1}).to_netcdf(
             self.mom_input_dir / "bathymetry.nc",
