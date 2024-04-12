@@ -899,7 +899,7 @@ class experiment:
         bathymetry_path,
         x_coordinate_name="lat",
         y_coordinate_name="lon",
-        z_name="elevation",
+        z_coordinate_name="elevation",
         fill_channels=False,
         minimum_layers=3,
         positive_down=False,
