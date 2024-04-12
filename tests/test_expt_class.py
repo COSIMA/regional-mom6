@@ -90,9 +90,9 @@ def test_setup_bathymetry(
     # Now provide the above bathymetry file as input in `expt.bathymetry()`
     expt.setup_bathymetry(
         bathymetry_path=str(bathymetry_file),
-        x_coordinate_names="silly_lon",
-        y_coordinate_names="silly_lat",
-        z_coordinate_names="silly_depth",
+        x_coordinate_name="silly_lon",
+        y_coordinate_name="silly_lat",
+        z_coordinate_name="silly_depth",
         minimum_layers=1,
         chunks={"lat": 10, "lon": 10},
     )
