@@ -897,7 +897,9 @@ class experiment:
         self,
         *,
         bathymetry_path,
-        coordinate_names,
+        x_coordinate_name="lat",
+        y_coordinate_name="lon",
+        z_name="elevation",
         fill_channels=False,
         minimum_layers=3,
         positive_down=False,
@@ -914,12 +916,9 @@ class experiment:
 
         Args:
             bathymetry_path (str): Path to the netCDF file with the bathymetry.
-            coordinate_names (Dict[str, str]): Mapping of coordinate names between
-                the input and output. For example, ``{'xh': 'lon', 'yh': 'lat',
-                'elevation': 'z'}`` implies that the ``'xh'``, ``'yh'``, and
-                ``'elevation'`` coordinates in MOM6 correspond to coordinates
-                ``'lon'``, ``'lat'``, and ``'z'`` in the bathymetry netCDF file
-                at ``bathymetry_path``.
+            *_coordinate_name (str): The name of the * coordinate in the bathymetry dataset
+                being used. For GEBCO for example, these are lat,lon and elevation. Note that x & y
+                are assumed to follow lat and lon coordinates.
             fill_channels (Optional[bool]): Whether or not to fill in
                 diagonal channels. This removes more narrow inlets,
                 but can also connect extra islands to land. Default: ``False``.

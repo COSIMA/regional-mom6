@@ -83,18 +83,16 @@ def test_setup_bathymetry(
             ),
         },
     )
-    bathymetry.name = "elevation"
+    bathymetry.name = "silly_depth"
     bathymetry.to_netcdf(bathymetry_file)
     bathymetry.close()
 
     # Now provide the above bathymetry file as input in `expt.bathymetry()`
     expt.setup_bathymetry(
         bathymetry_path=str(bathymetry_file),
-        coordinate_names={
-            "xh": "silly_lon",
-            "yh": "silly_lat",
-            "elevation": "elevation",
-        },
+        x_coordinate_names="silly_lon",
+        y_coordinate_names="silly_lat",
+        z_coordinate_names="silly_depth",
         minimum_layers=1,
         chunks={"lat": 10, "lon": 10},
     )
