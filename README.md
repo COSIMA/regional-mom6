@@ -8,7 +8,15 @@ Users just need to provide some information about where, when, and how big their
 
 The idea behind this package is that it should the user sidestep some of the tricky issues with getting the model to run in the first place. This removes some of the steep learning curve for people new to working with the model. Note that the resultant model configuration might still need some tweaking (e.g., fiddling with timestep to avoid CFL-related numerical stability issues or fiddling with bathymetry to deal with very narrow fjords or channels that may exist).
 
-Limitations: Currently the package supports only one horizontal grid type (that is equally spaced in longitude); there are plans to add more grid options. We have designed the package in a way that it is modular so, for example, one needs to implement just another method for a different type of grid and the rest should be good to go.
+**Features**
+- Automatic grid generation at your chosen vertical and horizontal grid spacing
+- Finds and removes non-advective cells from your bathymetry that cause the model to crash
+- Handles the slicing across 'seams' in your input datasets (eg. at 0,360 or -180,180)
+- Handles metadata encoding
+- Modifies pre-made configuration files to match your experiment
+- Handles interpolation and interpretation of input data. Limited pre-processing of your forcing data required!
+
+Limitations: Currently the package only comes with one function for generating a horizontal grid, namely one that's equally spaced in longitude and latitude. However, users can BYO a grid, or ideally open a PR with their desired grid generation function and we'll include it as an option! Further, only boundary segments parallel to longitude or latitude lines are currently supported. 
 
 If you find this package useful and have any suggestions please feel free to open an [issue](https://github.com/COSIMA/regional-mom6/issues) or a [discussion](https://github.com/COSIMA/regional-mom6/discussions). We'd love to have [new contributors](https://regional-mom6.readthedocs.io/en/latest/contributing.html) and we are very keen to help you out along the way!
 
@@ -60,8 +68,7 @@ pip install git+https://github.com/COSIMA/regional-mom6.git@061b0ef80c7cbc04de05
 
 ## MOM6 Configuration and Version Requirements
 
-The package and demos assume a coupled SIS2-MOM6 configuration.
-The examples could work for an ocean-only MOM6 run but this has not been tested. 
+The package and demos assume a coupled SIS2-MOM6 configuration, but also works for a MOM6 ocean-only case too given appropriate changes to the `input.nml` and `MOM_input` files. For regional models, the executable must always be compiled with *symmetric* memory.
 
 The current release of this package assumes the latest source code of all components needed to run MOM6 as of
 January 2024. A forked version of the [`setup-mom6-nci`](https://github.com/ashjbarnes/setup-mom6-nci) repository
@@ -80,9 +87,3 @@ Please ensure that you can get at least one of these working on your setup with 
 
 You can download the notebooks [from Github](https://github.com/COSIMA/regional-mom6/tree/ncc/installation/demos) or by clicking on the download <img width="22" alt="download" src="https://github.com/COSIMA/regional-mom6/assets/7112768/2c1ae149-c6a8-4395-ab09-2f77588008d9"> button, e.g., at the top-right of the [regional tasmania forced by ERA5 example](https://regional-mom6.readthedocs.io/en/latest/demo_notebooks/reanalysis-forced.html).
 
-**Note**
-
-The `xesmf` the package attempts to regrid in parallel, and if it's not able to do so, it throws a warning and
-runs in serial. You also get a print out of the relevant `mpirun` command which you could use as a backup.
-Depending on your setup of your machine, you may need to write scripts that implement the package to access more
-computational resources than might be available, e.g., on the HPC machine of you are working on.
