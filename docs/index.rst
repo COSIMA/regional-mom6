@@ -12,6 +12,7 @@ configurations for the `Modular Ocean Model 6`_.
 
    installation
    demos
+   file-structure
    api
    contributing
    
