@@ -1108,14 +1108,14 @@ class experiment:
         self, fill_channels=False, minimum_layers=3, positive_down=True
     ):
         """
-        An auxillary function for bathymetry. It's used to fix up the metadata and
+        An auxiliary function for bathymetry. It's used to fix up the metadata and
         remove inland lakes after regridding the bathymetry. The functions are split
         to allow for the regridding to be done as a separate job, since regridding can
         be really expensive for large domains.
 
         If you've already regridded the bathymetry and just want to fix up the metadata,
         or fill in some channels you can call this function directly to read in the existing
-         ``bathymetry_unfinished.nc`` file that should be in the input directory.
+        ``bathymetry_unfinished.nc`` file that should be in the input directory.
 
         Args:
             fill_channels (Optional[bool]): Whether or not to fill in
@@ -1125,8 +1125,8 @@ class experiment:
                 as an integer number of layers. The default value of ``3``
                 layers means that anything shallower than the 3rd
                 layer (as specified by the ``vcoord``) is deemed land.
-            positive_down (Optional[bool]): If ``True``, it assumes that
-                bathymetry vertical coordinate is positive down. Default: ``False``.
+            positive_down (Optional[bool]): If ``True`` (default), it assumes that
+                bathymetry vertical coordinate is positive down.
         """
 
         ## reopen bathymetry to modify
