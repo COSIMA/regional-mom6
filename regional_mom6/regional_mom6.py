@@ -936,7 +936,8 @@ class experiment:
                 than the actual coordinate names in the input file.
         """
 
-        ## Convert the coordinate names into a dictionary
+        ## Convert the provided coordinate names into a dictionary mapping to the
+        ## coordinate names that MOM6 expects.
         coordinate_names = {
             "xh": longitude_coordinate_name,
             "yh": latitude_coordinate_name,
@@ -963,7 +964,8 @@ class experiment:
         ## Here need to make a decision as to whether to slice 'normally' or with the longitude_slicer for 360 degree domain.
 
         horizontal_resolution = (
-            bathymetry[coordinate_names["xh"]][1] - bathymetry[coordinate_names["xh"]][0]
+            bathymetry[coordinate_names["xh"]][1]
+            - bathymetry[coordinate_names["xh"]][0]
         )
 
         horizontal_extent = (
@@ -993,7 +995,9 @@ class experiment:
                 }  # 0.5 degree longitude bufffer (hardcoded) for regridding
             )
 
-        bathymetry.attrs["missing_value"] = -1e20  # This is what FRE tools expects I guess?
+        bathymetry.attrs["missing_value"] = (
+            -1e20
+        )  # This is what FRE tools expects I guess?
         bathymetry_output = xr.Dataset({"elevation": bathymetry})
         bathymetry.close()
 
@@ -1004,8 +1008,12 @@ class experiment:
         bathymetry_output.lat.attrs["units"] = "degrees_north"
         bathymetry_output.elevation.attrs["_FillValue"] = -1e20
         bathymetry_output.elevation.attrs["units"] = "m"
-        bathymetry_output.elevation.attrs["standard_name"] = "height_above_reference_ellipsoid"
-        bathymetry_output.elevation.attrs["long_name"] = "Elevation relative to sea level"
+        bathymetry_output.elevation.attrs["standard_name"] = (
+            "height_above_reference_ellipsoid"
+        )
+        bathymetry_output.elevation.attrs["long_name"] = (
+            "Elevation relative to sea level"
+        )
         bathymetry_output.elevation.attrs["coordinates"] = "lon lat"
         bathymetry_output.to_netcdf(
             self.mom_input_dir / "bathymetry_original.nc", mode="w", engine="netcdf4"
@@ -1083,7 +1091,9 @@ class experiment:
         print(f"Regridding in parallel: {parallel}")
         bathymetry_output = bathymetry_output.chunk(chunks)
         # return
-        regridder = xe.Regridder(bathymetry_output, tgrid, "bilinear", parallel=parallel)
+        regridder = xe.Regridder(
+            bathymetry_output, tgrid, "bilinear", parallel=parallel
+        )
 
         bathymetry = regridder(bathymetry_output)
         bathymetry.to_netcdf(
