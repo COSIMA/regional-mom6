@@ -925,14 +925,14 @@ class experiment:
             fill_channels (Optional[bool]): Whether or not to fill in
                 diagonal channels. This removes more narrow inlets,
                 but can also connect extra islands to land. Default: ``False``.
-            minimum_layers (Optional[int]): The minimum depth allowed
-                as an integer number of layers. The default value of ``3``
-                layers means that anything shallower than the 3rd
-                layer (as specified by the vertical coordinate file ``vcoord.nc``) is deemed land.
+            minimum_layers (Optional[int]): The minimum depth allowed as an integer
+                number of layers. Anything shallower than the ``minimum_layers``
+                (as specified by the vertical coordinate file ``vcoord.nc``) is deemed land.
+                Default: 3.
             positive_down (Optional[bool]): If ``True``, it assumes that
                 bathymetry vertical coordinate is positive down. Default: ``False``.
             chunks (Optional Dict[str, str]): Horizontal chunking scheme for the bathymetry, e.g.,
-                ``{"longitude": 100, "latitude": 100}``. Use ``'longitude'`` an ``'latitude'`` rather
+                ``{"longitude": 100, "latitude": 100}``. Use ``'longitude'`` and ``'latitude'`` rather
                 than the actual coordinate names in the input file.
         """
 
