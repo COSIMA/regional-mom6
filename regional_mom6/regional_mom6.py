@@ -897,28 +897,31 @@ class experiment:
         self,
         *,
         bathymetry_path,
-        x_coordinate_name="lat",
-        y_coordinate_name="lon",
-        z_coordinate_name="elevation",
+        longitude_coordinate_name="lat",
+        latitude_coordinate_name="lon",
+        vertical_coordinate_name="elevation",
         fill_channels=False,
         minimum_layers=3,
         positive_down=False,
         chunks="auto",
     ):
         """
-        Cut out and interpolate the chosen bathymetry, then fill inland lakes.
+        Cut out and interpolate the chosen bathymetry and then fill inland lakes.
 
         It's also possible to optionally fill narrow channels (see ``fill_channels``
-        below), although this is less of an issue for models that are discretized on
-        an Arakawa C grid, like MOM6.
+        below), although narrow channels are less of an issue for models that are
+        discretized on an Arakawa C grid, like MOM6.
 
-        Output is saved to the input directory of the experiment.
+        Output is saved in the input directory of the experiment.
 
         Args:
             bathymetry_path (str): Path to the netCDF file with the bathymetry.
-            *_coordinate_name (str): The name of the * coordinate in the bathymetry dataset
-                being used. For GEBCO for example, these are lat,lon and elevation. Note that x & y
-                are assumed to follow lat and lon coordinates.
+            longitude_coordinate_name (Optional[str]): The name of the longitude coordinate in the bathymetry
+                dataset at ``bathymetry_path``. For example, for GEBCO bathymetry: ``'lon'`` (default).
+            latitude_coordinate_name (Optional[str]): The name of the longitude coordinate in the bathymetry
+                dataset at ``bathymetry_path``. For example, for GEBCO bathymetry: ``'lat'`` (default).
+            vertical_coordinate_name (Optional[str]): The name of the longitude coordinate in the bathymetry
+                dataset at ``bathymetry_path``. For example, for GEBCO bathymetry: ``'elevation'`` (default).
             fill_channels (Optional[bool]): Whether or not to fill in
                 diagonal channels. This removes more narrow inlets,
                 but can also connect extra islands to land. Default: ``False``.
@@ -928,28 +931,28 @@ class experiment:
                 layer (as specified by the vertical coordinate file ``vcoord.nc``) is deemed land.
             positive_down (Optional[bool]): If ``True``, it assumes that
                 bathymetry vertical coordinate is positive down. Default: ``False``.
-            chunks (Optional Dict[str, str]): Chunking scheme for bathymetry, e.g.,
-                ``{"lon": 100, "lat": 100}``. Use lat/lon rather than the coordinate
-                names in the input file.
+            chunks (Optional Dict[str, str]): Horizontal chunking scheme for the bathymetry, e.g.,
+                ``{"longitude": 100, "latitude": 100}``. Use ``'longitude'`` an ``'latitude'`` rather
+                than the actual coordinate names in the input file.
         """
 
-        ## Convert our three coordinate names into a dictionary
+        ## Convert the coordinate names into a dictionary
         coordinate_names = {
-            "xh": x_coordinate_name,
-            "yh": y_coordinate_name,
-            "elevation": z_coordinate_name,
+            "xh": longitude_coordinate_name,
+            "yh": latitude_coordinate_name,
+            "elevation": vertical_coordinate_name,
         }
         if chunks != "auto":
             chunks = {
-                coordinate_names["xh"]: chunks["lon"],
-                coordinate_names["yh"]: chunks["lat"],
+                coordinate_names["xh"]: chunks["longitude"],
+                coordinate_names["yh"]: chunks["latitude"],
             }
 
-        bathy = xr.open_dataset(bathymetry_path, chunks=chunks)[
+        bathymetry = xr.open_dataset(bathymetry_path, chunks=chunks)[
             coordinate_names["elevation"]
         ]
 
-        bathy = bathy.sel(
+        bathymetry = bathymetry.sel(
             {
                 coordinate_names["yh"]: slice(
                     self.latitude_extent[0] - 0.5, self.latitude_extent[1] + 0.5
@@ -960,18 +963,19 @@ class experiment:
         ## Here need to make a decision as to whether to slice 'normally' or with the longitude_slicer for 360 degree domain.
 
         horizontal_resolution = (
-            bathy[coordinate_names["xh"]][1] - bathy[coordinate_names["xh"]][0]
+            bathymetry[coordinate_names["xh"]][1] - bathymetry[coordinate_names["xh"]][0]
         )
+
         horizontal_extent = (
-            bathy[coordinate_names["xh"]][-1]
-            - bathy[coordinate_names["xh"]][0]
+            bathymetry[coordinate_names["xh"]][-1]
+            - bathymetry[coordinate_names["xh"]][0]
             + horizontal_resolution
         )
 
         if np.isclose(horizontal_extent, 360):
             ## Assume that we're dealing with a global grid, in which case we use longitude_slicer
-            bathy = longitude_slicer(
-                bathy,
+            bathymetry = longitude_slicer(
+                bathymetry,
                 np.array(self.longitude_extent)
                 + np.array(
                     [-0.5, 0.5]
@@ -980,7 +984,7 @@ class experiment:
             )
         else:
             ## Otherwise just slice normally
-            bathy = bathy.sel(
+            bathymetry = bathymetry.sel(
                 {
                     coordinate_names["xh"]: slice(
                         self.longitude_extent[0] - 0.5,
@@ -989,22 +993,22 @@ class experiment:
                 }  # 0.5 degree longitude bufffer (hardcoded) for regridding
             )
 
-        bathy.attrs["missing_value"] = -1e20  # This is what FRE tools expects I guess?
-        bathyout = xr.Dataset({"elevation": bathy})
-        bathy.close()
+        bathymetry.attrs["missing_value"] = -1e20  # This is what FRE tools expects I guess?
+        bathymetry_output = xr.Dataset({"elevation": bathymetry})
+        bathymetry.close()
 
-        bathyout = bathyout.rename(
+        bathymetry_output = bathymetry_output.rename(
             {coordinate_names["xh"]: "lon", coordinate_names["yh"]: "lat"}
         )
-        bathyout.lon.attrs["units"] = "degrees_east"
-        bathyout.lat.attrs["units"] = "degrees_north"
-        bathyout.elevation.attrs["_FillValue"] = -1e20
-        bathyout.elevation.attrs["units"] = "m"
-        bathyout.elevation.attrs["standard_name"] = "height_above_reference_ellipsoid"
-        bathyout.elevation.attrs["long_name"] = "Elevation relative to sea level"
-        bathyout.elevation.attrs["coordinates"] = "lon lat"
-        bathyout.to_netcdf(
-            self.mom_input_dir / "bathy_original.nc", mode="w", engine="netcdf4"
+        bathymetry_output.lon.attrs["units"] = "degrees_east"
+        bathymetry_output.lat.attrs["units"] = "degrees_north"
+        bathymetry_output.elevation.attrs["_FillValue"] = -1e20
+        bathymetry_output.elevation.attrs["units"] = "m"
+        bathymetry_output.elevation.attrs["standard_name"] = "height_above_reference_ellipsoid"
+        bathymetry_output.elevation.attrs["long_name"] = "Elevation relative to sea level"
+        bathymetry_output.elevation.attrs["coordinates"] = "lon lat"
+        bathymetry_output.to_netcdf(
+            self.mom_input_dir / "bathymetry_original.nc", mode="w", engine="netcdf4"
         )
 
         tgrid = xr.Dataset(
@@ -1067,9 +1071,9 @@ class experiment:
             + "If this process hangs it means that the chosen domain might be too big to handle this way. "
             + "After ensuring access to appropriate computational resources, try calling ESMF "
             + "directly from a terminal in the input directory via\n\n"
-            + "mpirun ESMF_Regrid -s bathy_original.nc -d bathymetry_unfinished.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\n\n"
+            + "mpirun ESMF_Regrid -s bathymetry_original.nc -d bathymetry_unfinished.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\n\n"
             + "For details see https://xesmf.readthedocs.io/en/latest/large_problems_on_HPC.html\n\n"
-            + "Aftewards, run the 'tidy_bathymetry' method to skip the expensive interpolation step, and finishing metadata, encoding and cleanup."
+            + "Aftewards, we run 'tidy_bathymetry' method to skip the expensive interpolation step, and finishing metadata, encoding and cleanup."
         )
 
         # If we have a domain large enough for chunks, we'll run regridder with parallel=True
@@ -1077,11 +1081,11 @@ class experiment:
         if len(tgrid.chunks) != 2:
             parallel = False
         print(f"Regridding in parallel: {parallel}")
-        bathyout = bathyout.chunk(chunks)
+        bathymetry_output = bathymetry_output.chunk(chunks)
         # return
-        regridder = xe.Regridder(bathyout, tgrid, "bilinear", parallel=parallel)
+        regridder = xe.Regridder(bathymetry_output, tgrid, "bilinear", parallel=parallel)
 
-        bathymetry = regridder(bathyout)
+        bathymetry = regridder(bathymetry_output)
         bathymetry.to_netcdf(
             self.mom_input_dir / "bathymetry_unfinished.nc", mode="w", engine="netcdf4"
         )

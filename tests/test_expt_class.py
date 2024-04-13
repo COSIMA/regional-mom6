@@ -87,14 +87,14 @@ def test_setup_bathymetry(
     bathymetry.to_netcdf(bathymetry_file)
     bathymetry.close()
 
-    # Now provide the above bathymetry file as input in `expt.bathymetry()`
+    # Now provide the above bathymetry file as input in `expt.setup_bathymetry()`
     expt.setup_bathymetry(
         bathymetry_path=str(bathymetry_file),
-        x_coordinate_name="silly_lon",
-        y_coordinate_name="silly_lat",
-        z_coordinate_name="silly_depth",
+        longitude_coordinate_name="silly_lon",
+        latitude_coordinate_name="silly_lat",
+        vertical_coordinate_name="silly_depth",
         minimum_layers=1,
-        chunks={"lat": 10, "lon": 10},
+        chunks={"longitude": 10, "latitude": 10},
     )
 
     bathymetry_file.unlink()
