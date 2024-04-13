@@ -961,7 +961,8 @@ class experiment:
             }  # 0.5 degree latitude buffer (hardcoded) for regridding
         ).astype("float")
 
-        ## Here need to make a decision as to whether to slice 'normally' or with the longitude_slicer for 360 degree domain.
+        ## Check if the original bathymetry provided has a longitude extent that goes around the globe
+        ## to take care of the longitude seam when we slice out the regional domain.
 
         horizontal_resolution = (
             bathymetry[coordinate_names["xh"]][1]
@@ -974,30 +975,28 @@ class experiment:
             + horizontal_resolution
         )
 
+        longitude_buffer = 0.5  # 0.5 degree longitude buffer (hardcoded) for regridding
+
         if np.isclose(horizontal_extent, 360):
-            ## Assume that we're dealing with a global grid, in which case we use longitude_slicer
+            ## longitude extent that goes around the globe -- use longitude_slicer
             bathymetry = longitude_slicer(
                 bathymetry,
                 np.array(self.longitude_extent)
-                + np.array(
-                    [-0.5, 0.5]
-                ),  # 0.5 degree longitude buffer (hardcoded) for regridding.
+                + np.array([-longitude_buffer, longitude_buffer]),
                 coordinate_names["xh"],
             )
         else:
-            ## Otherwise just slice normally
+            ## otherwise, slice normally
             bathymetry = bathymetry.sel(
                 {
                     coordinate_names["xh"]: slice(
-                        self.longitude_extent[0] - 0.5,
-                        self.longitude_extent[1] + 0.5,
+                        self.longitude_extent[0] - longitude_buffer,
+                        self.longitude_extent[1] + longitude_buffer,
                     )
-                }  # 0.5 degree longitude bufffer (hardcoded) for regridding
+                }
             )
 
-        bathymetry.attrs["missing_value"] = (
-            -1e20
-        )  # This is what FRE tools expects I guess?
+        bathymetry.attrs["missing_value"] = -1e20  # missing value expected by FRE tools
         bathymetry_output = xr.Dataset({"elevation": bathymetry})
         bathymetry.close()
 
