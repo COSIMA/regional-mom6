@@ -68,7 +68,9 @@ pip install git+https://github.com/COSIMA/regional-mom6.git@061b0ef80c7cbc04de05
 
 ## MOM6 Configuration and Version Requirements
 
-The package and demos assume a coupled SIS2-MOM6 configuration, but also works for a MOM6 ocean-only case too given appropriate changes to the `input.nml` and `MOM_input` files. For regional models, the executable must always be compiled with *symmetric* memory.
+The package and demos assume a coupled MOM6-SIS2 configuration, but also work for MOM6 ocean-only configuration after appropriate changes in the `input.nml` and `MOM_input` files.
+
+Additionally, regional configurations require that the MOM6 executable _must_ be compiled with **symmetric memory**.
 
 The current release of this package assumes the latest source code of all components needed to run MOM6 as of
 January 2024. A forked version of the [`setup-mom6-nci`](https://github.com/ashjbarnes/setup-mom6-nci) repository
