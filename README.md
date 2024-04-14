@@ -17,7 +17,7 @@ The idea behind this package is that it should let the user sidestep some of the
 - Modifies pre-made configuration files to match your experiment
 - Handles interpolation and interpretation of input data. Limited pre-processing of your forcing data required!
 
-Limitations: Currently the package only comes with one function for generating a horizontal grid, namely one that's equally spaced in longitude and latitude. However, users can BYO a grid, or ideally open a PR with their desired grid generation function and we'll include it as an option! Further, only boundary segments parallel to longitude or latitude lines are currently supported. 
+Limitations: Currently the package only comes with one function for generating a horizontal grid, namely one that's equally spaced in longitude and latitude. However, users can provide their own grid, or ideally open a PR with their desired grid generation function and we'll include it as an option! Further, only boundary segments parallel to longitude or latitude lines are currently supported. 
 
 If you find this package useful and have any suggestions please feel free to open an [issue](https://github.com/COSIMA/regional-mom6/issues) or a [discussion](https://github.com/COSIMA/regional-mom6/discussions). We'd love to have [new contributors](https://regional-mom6.readthedocs.io/en/latest/contributing.html) and we are very keen to help you out along the way!
 
