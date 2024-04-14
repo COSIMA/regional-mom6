@@ -9,7 +9,7 @@ Users just need to provide some information about where, when, and how big their
 The idea behind this package is that it should let the user sidestep some of the tricky issues with getting the model to run in the first place. This removes some of the steep learning curve for people new to working with MOM6. Note that the resultant model configuration might still need some tweaking (e.g., fiddling with timestep to avoid CFL-related numerical stability issues or fiddling with bathymetry to deal with very narrow fjords or channels that may exist).
 
 **Features**
-- Automatic grid generation at your chosen vertical and horizontal grid spacing
+- Automatic grid generation at chosen vertical and horizontal grid spacing.
 - Finds and removes non-advective cells from your bathymetry that cause the model to crash
 - Handles the slicing across 'seams' in your input datasets (eg. at 0,360 or -180,180)
 - Handles metadata encoding
