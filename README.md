@@ -10,7 +10,7 @@ The idea behind this package is that it should let the user sidestep some of the
 
 **Features**
 - Automatic grid generation at chosen vertical and horizontal grid spacing.
-- Finds and removes non-advective cells from your bathymetry that cause the model to crash
+- Automatic removal of non-advective cells from the bathymetry that cause the model to crash.
 - Handles the slicing across 'seams' in your input datasets (eg. at 0,360 or -180,180)
 - Handles metadata encoding
 - Modifies pre-made configuration files to match your experiment
