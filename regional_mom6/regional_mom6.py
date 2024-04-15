@@ -1108,13 +1108,13 @@ class experiment:
         self, fill_channels=False, minimum_layers=3, positive_down=True
     ):
         """
-        An auxiliary function for bathymetry. It's used to fix up the metadata and
-        remove inland lakes after regridding the bathymetry. The functions are split
-        to allow for the regridding to be done as a separate job, since regridding can
-        be really expensive for large domains.
+        An auxiliary function for bathymetry used to fix up the metadata and remove inland
+        lakes after regridding the bathymetry. Having `tidy_bathymetry` as a separate
+        method from :func:`~setup_bathymetry` allows for the regridding to be done separately,
+        since regridding can be really expensive for large domains.
 
-        If you've already regridded the bathymetry and just want to fix up the metadata,
-        or fill in some channels you can call this function directly to read in the existing
+        If the bathymetry is already regridded and what is left to be done is fixing the metadata,
+        or fill in some channels then call this function directly to read in the existing
         ``bathymetry_unfinished.nc`` file that should be in the input directory.
 
         Args:
@@ -1163,7 +1163,8 @@ class experiment:
         forward = True  ## only useful for iterating through diagonal channel removal. Means iteration goes SW -> NE
 
         while changed == True:
-            ## First fill in all lakes. This uses a scipy function where it fills holes made of 0's within a field of 1's
+            ## First fill in all lakes.
+            ## scipy.ndimage.binary_fill_holes fills holes made of 0's within a field of 1's
             land_mask[:, :] = binary_fill_holes(land_mask.data)
             ## Get the ocean mask instead of land- easier to remove channels this way
             ocean_mask = np.abs(land_mask - 1)
