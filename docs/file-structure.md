@@ -1,17 +1,22 @@
 MOM6 file structure
 ============
 
-This section describes all of the various files that `MOM6_regional` produces, and explains how they fit in. A better understanding of what these files do will help with troubleshooting and more advanced customisation
+This section describes the various directories and files that `regional-mom6` package produces.
+A better understanding of what these files do will help with troubleshooting and more advanced customisations.
 
-## The run directory
+## The `run` directory
 
-This folder, specified by the `mom_run_dir` path that's given to the `experiment` class, contains only text files that configure MOM6 and are read at model initialisation. You can see examples of these files in the pre-made run directories folder. In no particular order, these files are 
+The directory, specified by the `mom_run_dir` path keyword argument in the `experiment` class, contains only text files that configure MOM6 and are used at model initialisation.
+You can see examples of these files in the `premade_run_directories`.
+These files are:
 
-`input.nml`
-This contains high level information to be passed directly to each component of your MOM6 setup. Here you'll the paths to the `SIS` and `MOM` input directories, and outputs. Importantly, the `coupler` section turns on or off different model components, and specifies how long to run the experiment for. 
+* `input.nml`:
+  High-level information that is passed directly to each component of your MOM6 setup.
+  The paths of to the `SIS` and `MOM` input directories and outputs are included.
+  The `coupler` section turns on or off different model components, and specifies how long to run the experiment for. 
 
-`diag_table`
-The diagnostics to save from your model. You can't keep everything! Consider the things that are most important for your experiment - you can fill up disk space very fast if you save too much. Different lines in the diagnostic table either specify a new output *file* and its associated characteristics, or a new output *variable* and the matching file that it should go in (which needs to already have been specified!). If you're not sure which diagnostics to pick, you can run the model for 1 hour and look in the output folder. Here there'll be a file called `available_diags` which lists every possible diagnostic for your model configuration. Here it will also tell you which grids you're allowed to output them on. Aside from the native model grid, you can create your own set of vertical coordinates. To output on your custom vertical coordinate, create a netcdf containing all of the vertical points (be they depths or densities) go to the `MOM_input` file and specify additional diagnostic coordinates there. Then, you can pick these coordinates in the diag table.
+* `diag_table`:
+  The diagnostics to save from your model. You can't keep everything! Consider the things that are most important for your experiment - you can fill up disk space very fast if you save too much. Different lines in the diagnostic table either specify a new output *file* and its associated characteristics, or a new output *variable* and the matching file that it should go in (which needs to already have been specified!). If you're not sure which diagnostics to pick, you can run the model for 1 hour and look in the output folder. Here there'll be a file called `available_diags` which lists every possible diagnostic for your model configuration. Here it will also tell you which grids you're allowed to output them on. Aside from the native model grid, you can create your own set of vertical coordinates. To output on your custom vertical coordinate, create a netcdf containing all of the vertical points (be they depths or densities) go to the `MOM_input` file and specify additional diagnostic coordinates there. Then, you can pick these coordinates in the diag table.
 
 Documentation as to how to format the file can be found [here](https://mom6.readthedocs.io/en/dev-gfdl/api/generated/pages/Diagnostics.html). 
 
