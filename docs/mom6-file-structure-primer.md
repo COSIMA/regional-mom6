@@ -26,14 +26,15 @@ These files are:
   look in the output directory for `available_diags` that lists every available diagnostic for our
   model configuration also mentioning which grids the quantity can be output on.
   Aside from the native model grid, we can create our own custom vertical coordinates to output on.
-  To output on a custom vertical coordinate, create a netCDF that contains all of the vertical points (in the coordinate of your choice) and then edit the `MOM_input` file to specify additional diagnostic coordinates.
-  After that, we are able to select the custom vertical coordinate in the `diag_table`.
+  To output on a custom vertical coordinate, create a netCDF that contains all of the vertical points
+  (in the coordinate of your choice) and then edit the `MOM_input` file to specify additional diagnostic
+  coordinates.
+  After that, we can use this custom vertical coordinate in the `diag_table`.
 
   Instructions for how to format the `diag_table` are included in the [MOM6 documentation](https://mom6.readthedocs.io/en/dev-gfdl/api/generated/pages/Diagnostics.html).
 
 * `data_table`
-  The data table is read by the coupler to provide different model components with inputs.
-  With more model components we need more inputs.
+  The data table is read by the coupler to provide the different model components with inputs.
 
   Instructions for how to format the `data_table` are included in the [MOM6 documentation](https://mom6.readthedocs.io/en/dev-gfdl/forcing.html). 
 
