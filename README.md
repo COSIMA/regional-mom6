@@ -58,7 +58,7 @@ source](https://earthsystemmodeling.org/esmpy_doc/release/latest/html/install.ht
 With `esmpy` available, we can then install `regional_mom6` via pip. (If we don't have have pip, then
 `conda install pip` should do the job.)
 
-With `esmpy` install we can now install `regional-mom6` via [`pip`](https://badge.fury.io/py/regional-mom6):
+With `esmpy` installed we can now install `regional-mom6` via [`pip`](https://pypi.org/project/regional-mom6/):
 
 ```bash
 pip install regional-mom6
