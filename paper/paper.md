@@ -44,11 +44,22 @@ bibliography: paper.bib
 
 # Summary
 
-The Modular Ocean Model version 6 (MOM6) is a widely-used open-source general circulation ocean--sea ice model, developed mainly at the NOAA Geophysical Fluid Dynamics Laboratory[@Adcroft2019MOM6].
+The Modular Ocean Model version 6 (MOM6) is a widely-used open-source general circulation ocean--sea ice model, developed mainly at the NOAA Geophysical Fluid Dynamics Laboratory [@Adcroft2019MOM6].
 MOM6 contains several improvements over its predecessor MOM5 [@griffies2014elements], including the implementation of the Arbitrary-Lagrangian-Eulerian vertical coordinates [@griffies2020ALE], more efficient tracer advection schemes, and state-of-the art parameterizations of sub-grid scale physics.
+
+The nature of turbulent flows, and in particular oceanic flows, is such that smaller scales of motion emerge.
+These small scales turn out to be important for shaping the large-scale ocean circulation [@Melet2022ch2, @deLavergne2022ch3, @Gula2022ch8].
+Thus, despite the increase in computational power and use of graphical processing units that bring about breakthrough performance and speedup [@silvestri2023oceananigansjl], there will always be smaller-scale processes that remain unresolved.
+To resolve more scales of motion given restrictions in computational power we can resolve to regional ocean modeling.
+Regional ocean modeling is an ocean simulation of only a subset of the global ocean.
+In order to do that, we need to apply open boundary conditions at the region's boundaries, that is, to impose conditions that mimic the oceanic flow that we are not simulating; see \autoref{fig:tasman} for an example.
+\autoref{fig:tasman} shows the surface currents from a regional ocean simulation of the Tasman sea that was configured using the `regional-mom6` package.
+
 MOM6 provides support for open boundary conditions and thus is becoming popular for regional ocean modeling studies (see, e.g., @gmd-16-6943-2023, @egusphere-2024-394) in addition to global configurations.
 However, setting up a regional configuration for MOM6 can be challenging, time consuming, and often involves using several programming languages, a few different tools, and also manually editing/tweaking some input files.
 The `regional-mom6` Python package overcomes these difficulties, automatically generating a regional MOM6 configuration with relatively simple domain geometry.
+
+![A snapshot of the ocean surface currents from a MOM6 regional simulation of the Tasman sea. The simulation is forced by GLORYS and ERA5 reanalysis datasets and configured with a horizontal resolution of 1/80th degree and 100 vertical levels (see @tasmantides for the source code). \label{fig:tasman}](tasman_speed.png){ width=80% }
 
 The `regional-mom6` package takes as input various datasets that containing the ocean initial condition, the boundary forcing (ocean and atmosphere) for the regional domain, and the bathymetry.
 The input datasets can be on the Arakawa A, B, or C grids [@arakawa1977computational]; the package performs the appropriate interpolation using `xESMF` [@xesmf] under the hood, to put the everything on the C grid required by MOM6.
@@ -72,9 +83,6 @@ Besides making regional modelling with MOM6 more accessible, our package can aut
 We designed `regional-mom6` with automation of regional configurations in mind.
 However, the package's code design and modularity makes more complex configurations possible since users can use their own custom-made grids with more complex boundaries and construct the boundary forcing terms one by one.
 
-![A snapshot of the ocean surface currents from a MOM6 regional simulation of the Tasman sea. The simulation is forced by GLORYS and ERA5 reanalysis datasets and configured with a horizontal resolution of 1/80th degree and 100 vertical levels (see @tasmantides for the source code). \label{fig:tasman}](tasman_speed.png){ width=80% }
-
-\autoref{fig:tasman} shows the surface currents from a regional ocean simulation of the Tasman sea that was configured using the `regional-mom6` package.
 
 # Statement of need
 
