@@ -1,5 +1,5 @@
 ---
-title: 'regional_mom6: Automatic generation of regional configurations for the Modular Ocean Model 6 in Python'
+title: 'regional-mom6: Automatic generation of regional configurations for the Modular Ocean Model 6 in Python'
 
 tags:
   - Python
@@ -48,9 +48,9 @@ The Modular Ocean Model version 6 (MOM6) is a widely-used open-source general ci
 MOM6 contains several improvements over its predecessor MOM5 [@griffies2014elements], including the implementation of the Arbitrary-Lagrangian-Eulerian vertical coordinates [@griffies2020ALE], more efficient tracer advection schemes, and state-of-the art parameterizations of sub-grid scale physics.
 MOM6 provides support for open boundary conditions and thus is becoming popular for regional ocean modeling studies (see, e.g., @gmd-16-6943-2023, @egusphere-2024-394) in addition to global configurations.
 However, setting up a regional configuration for MOM6 can be challenging, time consuming, and often involves using several programming languages, a few different tools, and also manually editing/tweaking some input files.
-The `regional_mom6` Python package overcomes these difficulties, automatically generating a regional MOM6 configuration with relatively simple domain geometry.
+The `regional-mom6` Python package overcomes these difficulties, automatically generating a regional MOM6 configuration with relatively simple domain geometry.
 
-The `regional_mom6` package takes as input various datasets that containing the ocean initial condition, the boundary forcing (ocean and atmosphere) for the regional domain, and the bathymetry.
+The `regional-mom6` package takes as input various datasets that containing the ocean initial condition, the boundary forcing (ocean and atmosphere) for the regional domain, and the bathymetry.
 The input datasets can be on the Arakawa A, B, or C grids [@arakawa1977computational]; the package performs the appropriate interpolation using `xESMF` [@xesmf] under the hood, to put the everything on the C grid required by MOM6.
 This base grid for the regional configuration can either be constructed based on the user's desired resolution preference and choice of pre-configured options, or from a user-provided  horizontal and/or vertical pre-existing MOM6 grids.
 The user can use MOM6's Arbitrary-Lagrangian-Eulerian vertical coordinates, regardless of the native vertical coordinates of the boundary forcing input.
@@ -64,17 +64,17 @@ Rules-of-thumb to guide the user in setting grid parameters such as the regional
 Subsequently, a user need only copy a demo notebook, modify the longitude, latitude and resolution, and simply by running the notebook from start to finish will generate all they need for running a MOM6 experiment in their domain of interest.
 -->
 
-`regional_mom6` is continuously tested and comes with an extensive documentation that also includes documented tutorials and examples for setting up regional MOM6 configurations using publicly-available forcing and bathymetry datasets (namely, the GLORYS dataset for ocean boundary forcing [@glorys], the ERA5 reanalysis for atmospheric forcing [@era5], and the GEBCO dataset for bathymetry [@gebco]).
+`regional-mom6` is installable via `conda`, it is continuously tested, and comes with an extensive documentation that also includes documented tutorials and examples for setting up regional MOM6 configurations using publicly-available forcing and bathymetry datasets (namely, the GLORYS dataset for ocean boundary forcing [@glorys], the ERA5 reanalysis for atmospheric forcing [@era5], and the GEBCO dataset for bathymetry [@gebco]).
 
 With the entire process for setting up a regional configuration streamlined to run within a Jupyter notebook, the package dramatically reduces the barrier-to-entry for first-time users, or those without a strong background in Fortran, experience in compiling and running scripts in terminals, and manipulating netCDF files.
 Besides making regional modelling with MOM6 more accessible, our package can automate the generation of multiple experiments (e.g., a series of perturbation experiments), saving time and effort, and improving reproducibility. 
 
-We designed `regional_mom6` with automation of regional configurations in mind.
+We designed `regional-mom6` with automation of regional configurations in mind.
 However, the package's code design and modularity makes more complex configurations possible since users can use their own custom-made grids with more complex boundaries and construct the boundary forcing terms one by one.
 
 ![A snapshot of the ocean surface currents from a MOM6 regional simulation of the Tasman sea. The simulation is forced by GLORYS and ERA5 reanalysis datasets and configured with a horizontal resolution of 1/80th degree and 100 vertical levels (see @tasmantides for the source code). \label{fig:tasman}](tasman_speed.png){ width=80% }
 
-\autoref{fig:tasman} shows the surface currents from a regional ocean simulation of the Tasman sea that was configured using the `regional_mom6` package.
+\autoref{fig:tasman} shows the surface currents from a regional ocean simulation of the Tasman sea that was configured using the `regional-mom6` package.
 
 # Statement of need
 
@@ -87,7 +87,7 @@ Users are required to use several tools in several programming languages and the
 Many parts of this process are not documented, requiring users to dig into the MOM6 Fortran source code.
 Other ocean models have packages to aid in regional configuration setup, for example `Pyroms` [@pyroms] for the Regional Oceanic Modelling System (ROMS; @shchepetkin2005regional) and `MITgcm_python` [@mitgcmpy] for the Massachusetts Institute of Technology General Circulation Model (MITgcm; @marshall1997finite).
 With MOM6's growing user base for regional applications, there is a need for a platform that walks users through regional domain configuration from start to finish and, ideally, automates the process on the way.
-`regional_mom6` fills precisely this need.
+`regional-mom6` fills precisely this need.
 
 <!-- A package also provides a standardised way of setting up regional models, allowing for more efficient troubleshooting. 
 This is particularly important as the MOM6 boundary code is still under active development, meaning that an old example found Github may not work as intended with a newer executable.
@@ -99,8 +99,8 @@ By having a shared set of tools that the community can work with and contribute 
 Alongside the tools grew a set of contributed examples for post-processing and analysis of model outputs. -->
 Using a shared framework for setting up regional models, it is easier to compare and contrast examples of different experiments and allows for users to gain intuition for generating their chosen domain.
 
-`regional_mom6` package can also be used for educational purposes, for example as part of course curricula.
-With the technically-challenging aspects of setting up a regional configuration now being automated by the `regional_mom6` package, students can set up and run simple MOM6 regional configurations and also change parameters like the model's resolution or the forcing, run again, and see how these parameters affect the ocean flow.
+`regional-mom6` package can also be used for educational purposes, for example as part of course curricula.
+With the technically-challenging aspects of setting up a regional configuration now being automated by the `regional-mom6` package, students can set up and run simple MOM6 regional configurations and also change parameters like the model's resolution or the forcing, run again, and see how these parameters affect the ocean flow.
 
 # Acknowledgements
 
