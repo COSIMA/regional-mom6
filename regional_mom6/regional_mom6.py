@@ -262,24 +262,25 @@ def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
 
 def rectangular_hgrid(λ, φ):
     """
-    Construct a horizontal grid with all the metadata given an array of
-    longitudes (``λ``) and latitudes (``φ``) on the supergrid. Here, 'supergrid'
-    refers to both cell edges and centres, meaning that there are twice as many
-    points along each axis than for any individual field.
+    Construct a horizontal grid with all the metadata required by MOM6 provided
+    an array of longitudes (``λ``) and latitudes (``φ``) on the supergrid.
+    Here, 'supergrid' refers to both cell edges and centres, meaning that there
+    are twice as many points along each axis than for any individual field.
 
     Caution:
         It is assumed the grid's boundaries are lines of constant latitude and
         longitude. Rotated grids need to be handled differently.
+
         It is also assumed here that the longitude array values are uniformly spaced.
 
         Ensure both ``λ`` and ``φ`` are monotonically increasing.
 
     Args:
-        λ (numpy.array): All longitude points on the supergrid. Must be uniformly spaced!
+        λ (numpy.array): All longitude points on the supergrid. Must be uniformly spaced.
         φ (numpy.array): All latitude points on the supergrid.
 
     Returns:
-        xarray.Dataset: An FMS-compatible ``hgrid`` that includes all required attributes.
+        xarray.Dataset: An FMS-compatible horizontal grid (``hgrid``) that includes all required attributes.
     """
 
     assert np.all(np.diff(λ) > 0), "longitudes array λ must be monotonically increasing"
@@ -362,7 +363,7 @@ class experiment:
 
     Methods in this class generate the various input files needed for a MOM6
     experiment forced with open boundary conditions (OBCs). The code is agnostic
-    to the user's choice of boundary forcing, topography and surface forcing;
+    to the user's choice of boundary forcing, bathymetry and surface forcing;
     users need to prescribe what variables are all called via mapping dictionaries
     from MOM6 variable/coordinate name to the name in the input dataset.
 
@@ -469,7 +470,7 @@ class experiment:
         The default behaviour provides with a grid evenly spaced both in
         longitude and in latitude.
 
-        The latitudinal resolution is scaled with the cosine of the cental latitude of
+        The latitudinal resolution is scaled with the cosine of the central latitude of
         the domain, i.e., ``Δφ = cos(φ_central) * Δλ``, where ``Δλ`` is the longitudinal
         spacing. This way, and given that the domain is small enough, the linear
         distances between grid points are nearly identical: ``Δx = R * cos(φ) * Δλ``
@@ -532,7 +533,7 @@ class experiment:
     def _make_vgrid(self):
         """
         Generate a vertical grid based on the number of layers ``nlayers`` and
-        the prescribed ratio of the vertical layer thicknesses ``dz_ratio``
+        the prescribed ratio of the vertical layer thicknesses (``layer_thickness_ratio``)
         specified at the class level.
         """
 
@@ -565,8 +566,8 @@ class experiment:
                 in the input dataset. For example, ``{'xq': 'lonq', 'yh': 'lath', 'salt': 'so', ...}``.
             gridtype (Optional[str]): Arakawa grid staggering of input; either ``'A'``, ``'B'``,
                 or ``'C'``.
-            vcoord_type (Optional[str]): The type of vertical coordinate used in yhe forcing files.
-                Either ``height`` or ``thickness``.
+            vcoord_type (Optional[str]): The type of vertical coordinate used in the forcing files.
+                Either ``'height'`` or ``'thickness'``.
         """
 
         # Remove time dimension if present in the IC. Assume that the first time dim is the intended on if more than one is present
@@ -892,28 +893,231 @@ class experiment:
         print("Done.")
         return
 
-    def bathymetry(
+    def setup_bathymetry(
         self,
-        bathy_path,
-        varnames,
+        *,
+        bathymetry_path,
+        longitude_coordinate_name="lat",
+        latitude_coordinate_name="lon",
+        vertical_coordinate_name="elevation",
         fill_channels=False,
         minimum_layers=3,
-        maketopog=True,
-        positivedown=False,
+        positive_down=False,
         chunks="auto",
     ):
         """
-        Cut out and interpolate the chosen bathymetry, then fill inland lakes.
+        Cut out and interpolate the chosen bathymetry and then fill inland lakes.
 
         It's also possible to optionally fill narrow channels (see ``fill_channels``
-        below), although this is less of an issue for models on a C-grid, like MOM6.
+        below), although narrow channels are less of an issue for models that are
+        discretized on an Arakawa C grid, like MOM6.
 
-        Output is saved to the input folder for the experiment.
+        Output is saved in the input directory of the experiment.
 
         Args:
-            bathy_path (str): Path to chosen bathymetry file netCDF file.
-            varnames (Dict[str, str]): Mapping of coordinate and
-                variable names between the input and output.
+            bathymetry_path (str): Path to the netCDF file with the bathymetry.
+            longitude_coordinate_name (Optional[str]): The name of the longitude coordinate in the bathymetry
+                dataset at ``bathymetry_path``. For example, for GEBCO bathymetry: ``'lon'`` (default).
+            latitude_coordinate_name (Optional[str]): The name of the longitude coordinate in the bathymetry
+                dataset at ``bathymetry_path``. For example, for GEBCO bathymetry: ``'lat'`` (default).
+            vertical_coordinate_name (Optional[str]): The name of the longitude coordinate in the bathymetry
+                dataset at ``bathymetry_path``. For example, for GEBCO bathymetry: ``'elevation'`` (default).
+            fill_channels (Optional[bool]): Whether or not to fill in
+                diagonal channels. This removes more narrow inlets,
+                but can also connect extra islands to land. Default: ``False``.
+            minimum_layers (Optional[int]): The minimum depth allowed as an integer
+                number of layers. Anything shallower than the ``minimum_layers``
+                (as specified by the vertical coordinate file ``vcoord.nc``) is deemed land.
+                Default: 3.
+            positive_down (Optional[bool]): If ``True``, it assumes that
+                bathymetry vertical coordinate is positive down. Default: ``False``.
+            chunks (Optional Dict[str, str]): Horizontal chunking scheme for the bathymetry, e.g.,
+                ``{"longitude": 100, "latitude": 100}``. Use ``'longitude'`` and ``'latitude'`` rather
+                than the actual coordinate names in the input file.
+        """
+
+        ## Convert the provided coordinate names into a dictionary mapping to the
+        ## coordinate names that MOM6 expects.
+        coordinate_names = {
+            "xh": longitude_coordinate_name,
+            "yh": latitude_coordinate_name,
+            "elevation": vertical_coordinate_name,
+        }
+        if chunks != "auto":
+            chunks = {
+                coordinate_names["xh"]: chunks["longitude"],
+                coordinate_names["yh"]: chunks["latitude"],
+            }
+
+        bathymetry = xr.open_dataset(bathymetry_path, chunks=chunks)[
+            coordinate_names["elevation"]
+        ]
+
+        bathymetry = bathymetry.sel(
+            {
+                coordinate_names["yh"]: slice(
+                    self.latitude_extent[0] - 0.5, self.latitude_extent[1] + 0.5
+                )
+            }  # 0.5 degree latitude buffer (hardcoded) for regridding
+        ).astype("float")
+
+        ## Check if the original bathymetry provided has a longitude extent that goes around the globe
+        ## to take care of the longitude seam when we slice out the regional domain.
+
+        horizontal_resolution = (
+            bathymetry[coordinate_names["xh"]][1]
+            - bathymetry[coordinate_names["xh"]][0]
+        )
+
+        horizontal_extent = (
+            bathymetry[coordinate_names["xh"]][-1]
+            - bathymetry[coordinate_names["xh"]][0]
+            + horizontal_resolution
+        )
+
+        longitude_buffer = 0.5  # 0.5 degree longitude buffer (hardcoded) for regridding
+
+        if np.isclose(horizontal_extent, 360):
+            ## longitude extent that goes around the globe -- use longitude_slicer
+            bathymetry = longitude_slicer(
+                bathymetry,
+                np.array(self.longitude_extent)
+                + np.array([-longitude_buffer, longitude_buffer]),
+                coordinate_names["xh"],
+            )
+        else:
+            ## otherwise, slice normally
+            bathymetry = bathymetry.sel(
+                {
+                    coordinate_names["xh"]: slice(
+                        self.longitude_extent[0] - longitude_buffer,
+                        self.longitude_extent[1] + longitude_buffer,
+                    )
+                }
+            )
+
+        bathymetry.attrs["missing_value"] = -1e20  # missing value expected by FRE tools
+        bathymetry_output = xr.Dataset({"elevation": bathymetry})
+        bathymetry.close()
+
+        bathymetry_output = bathymetry_output.rename(
+            {coordinate_names["xh"]: "lon", coordinate_names["yh"]: "lat"}
+        )
+        bathymetry_output.lon.attrs["units"] = "degrees_east"
+        bathymetry_output.lat.attrs["units"] = "degrees_north"
+        bathymetry_output.elevation.attrs["_FillValue"] = -1e20
+        bathymetry_output.elevation.attrs["units"] = "m"
+        bathymetry_output.elevation.attrs["standard_name"] = (
+            "height_above_reference_ellipsoid"
+        )
+        bathymetry_output.elevation.attrs["long_name"] = (
+            "Elevation relative to sea level"
+        )
+        bathymetry_output.elevation.attrs["coordinates"] = "lon lat"
+        bathymetry_output.to_netcdf(
+            self.mom_input_dir / "bathymetry_original.nc", mode="w", engine="netcdf4"
+        )
+
+        tgrid = xr.Dataset(
+            {
+                "lon": (
+                    ["lon"],
+                    self.hgrid.x.isel(nxp=slice(1, None, 2), nyp=1).values,
+                ),
+                "lat": (
+                    ["lat"],
+                    self.hgrid.y.isel(nxp=1, nyp=slice(1, None, 2)).values,
+                ),
+            }
+        )
+        tgrid = xr.Dataset(
+            data_vars={
+                "elevation": (
+                    ["lat", "lon"],
+                    np.zeros(
+                        self.hgrid.x.isel(
+                            nxp=slice(1, None, 2), nyp=slice(1, None, 2)
+                        ).shape
+                    ),
+                )
+            },
+            coords={
+                "lon": (
+                    ["lon"],
+                    self.hgrid.x.isel(nxp=slice(1, None, 2), nyp=1).values,
+                ),
+                "lat": (
+                    ["lat"],
+                    self.hgrid.y.isel(nxp=1, nyp=slice(1, None, 2)).values,
+                ),
+            },
+        )
+
+        # rewrite chunks to use lat/lon now for use with xesmf
+        if chunks != "auto":
+            chunks = {
+                "lon": chunks[coordinate_names["xh"]],
+                "lat": chunks[coordinate_names["yh"]],
+            }
+
+        tgrid = tgrid.chunk(chunks)
+        tgrid.lon.attrs["units"] = "degrees_east"
+        tgrid.lon.attrs["_FillValue"] = 1e20
+        tgrid.lat.attrs["units"] = "degrees_north"
+        tgrid.lat.attrs["_FillValue"] = 1e20
+        tgrid.elevation.attrs["units"] = "m"
+        tgrid.elevation.attrs["coordinates"] = "lon lat"
+        tgrid.to_netcdf(
+            self.mom_input_dir / "bathymetry_unfinished.nc", mode="w", engine="netcdf4"
+        )
+        tgrid.close()
+
+        ## Replace subprocess run with regular regridder
+        print(
+            "Begin regridding bathymetry...\n\n"
+            + "If this process hangs it means that the chosen domain might be too big to handle this way. "
+            + "After ensuring access to appropriate computational resources, try calling ESMF "
+            + "directly from a terminal in the input directory via\n\n"
+            + "mpirun ESMF_Regrid -s bathymetry_original.nc -d bathymetry_unfinished.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\n\n"
+            + "For details see https://xesmf.readthedocs.io/en/latest/large_problems_on_HPC.html\n\n"
+            + "Aftewards, we run 'tidy_bathymetry' method to skip the expensive interpolation step, and finishing metadata, encoding and cleanup."
+        )
+
+        # If we have a domain large enough for chunks, we'll run regridder with parallel=True
+        parallel = True
+        if len(tgrid.chunks) != 2:
+            parallel = False
+        print(f"Regridding in parallel: {parallel}")
+        bathymetry_output = bathymetry_output.chunk(chunks)
+        # return
+        regridder = xe.Regridder(
+            bathymetry_output, tgrid, "bilinear", parallel=parallel
+        )
+
+        bathymetry = regridder(bathymetry_output)
+        bathymetry.to_netcdf(
+            self.mom_input_dir / "bathymetry_unfinished.nc", mode="w", engine="netcdf4"
+        )
+        print(
+            "Regridding finished. Now calling `tidy_bathymetry` method for some finishing touches..."
+        )
+
+        self.tidy_bathymetry(fill_channels, minimum_layers, positive_down)
+
+    def tidy_bathymetry(
+        self, fill_channels=False, minimum_layers=3, positive_down=True
+    ):
+        """
+        An auxiliary function for bathymetry used to fix up the metadata and remove inland
+        lakes after regridding the bathymetry. Having `tidy_bathymetry` as a separate
+        method from :func:`~setup_bathymetry` allows for the regridding to be done separately,
+        since regridding can be really expensive for large domains.
+
+        If the bathymetry is already regridded and what is left to be done is fixing the metadata,
+        or fill in some channels then call this function directly to read in the existing
+        ``bathymetry_unfinished.nc`` file that should be in the input directory.
+
+        Args:
             fill_channels (Optional[bool]): Whether or not to fill in
                 diagonal channels. This removes more narrow inlets,
                 but can also connect extra islands to land. Default: ``False``.
@@ -921,194 +1125,37 @@ class experiment:
                 as an integer number of layers. The default value of ``3``
                 layers means that anything shallower than the 3rd
                 layer (as specified by the ``vcoord``) is deemed land.
-            positivedown (Optional[bool]): If ``True``, it assumes that
-                bathymetry vertical coordinate is positive down. Default: ``False``.
-            chunks (Optional Dict[str, str]): Chunking scheme for bathymetry, e.g.,
-                ``{"lon": 100, "lat": 100}``. Use lat/lon rather than the coordinate
-                names in the input file.
+            positive_down (Optional[bool]): If ``True`` (default), it assumes that
+                bathymetry vertical coordinate is positive down.
         """
 
-        if maketopog == True:
-            if chunks != "auto":
-                chunks = {varnames["xh"]: chunks["lon"], varnames["yh"]: chunks["lat"]}
-
-            bathy = xr.open_dataset(bathy_path, chunks=chunks)[varnames["elevation"]]
-
-            bathy = bathy.sel(
-                {
-                    varnames["yh"]: slice(
-                        self.latitude_extent[0] - 0.5, self.latitude_extent[1] + 0.5
-                    )
-                }  # 0.5 degree latitude buffer (hardcoded) for regridding
-            ).astype("float")
-
-            ## Here need to make a decision as to whether to slice 'normally' or with the longitude_slicer for 360 degree domain.
-
-            horizontal_resolution = bathy[varnames["xh"]][1] - bathy[varnames["xh"]][0]
-            horizontal_extent = (
-                bathy[varnames["xh"]][-1]
-                - bathy[varnames["xh"]][0]
-                + horizontal_resolution
-            )
-
-            if np.isclose(horizontal_extent, 360):
-                ## Assume that we're dealing with a global grid, in which case we use longitude_slicer
-                bathy = longitude_slicer(
-                    bathy,
-                    np.array(self.longitude_extent)
-                    + np.array(
-                        [-0.5, 0.5]
-                    ),  # 0.5 degree longitude buffer (hardcoded) for regridding.
-                    varnames["xh"],
-                )
-            else:
-                ## Otherwise just slice normally
-                bathy = bathy.sel(
-                    {
-                        varnames["xh"]: slice(
-                            self.longitude_extent[0] - 0.5,
-                            self.longitude_extent[1] + 0.5,
-                        )
-                    }  # 0.5 degree longitude bufffer (hardcoded) for regridding
-                )
-
-            bathy.attrs["missing_value"] = (
-                -1e20
-            )  # This is what FRE tools expects I guess?
-            bathyout = xr.Dataset({"elevation": bathy})
-            bathy.close()
-
-            bathyout = bathyout.rename({varnames["xh"]: "lon", varnames["yh"]: "lat"})
-            bathyout.lon.attrs["units"] = "degrees_east"
-            bathyout.lat.attrs["units"] = "degrees_north"
-            bathyout.elevation.attrs["_FillValue"] = -1e20
-            bathyout.elevation.attrs["units"] = "m"
-            bathyout.elevation.attrs["standard_name"] = (
-                "height_above_reference_ellipsoid"
-            )
-            bathyout.elevation.attrs["long_name"] = "Elevation relative to sea level"
-            bathyout.elevation.attrs["coordinates"] = "lon lat"
-            bathyout.to_netcdf(
-                self.mom_input_dir / "bathy_original.nc", mode="w", engine="netcdf4"
-            )
-
-            tgrid = xr.Dataset(
-                {
-                    "lon": (
-                        ["lon"],
-                        self.hgrid.x.isel(nxp=slice(1, None, 2), nyp=1).values,
-                    ),
-                    "lat": (
-                        ["lat"],
-                        self.hgrid.y.isel(nxp=1, nyp=slice(1, None, 2)).values,
-                    ),
-                }
-            )
-            tgrid = xr.Dataset(
-                data_vars={
-                    "elevation": (
-                        ["lat", "lon"],
-                        np.zeros(
-                            self.hgrid.x.isel(
-                                nxp=slice(1, None, 2), nyp=slice(1, None, 2)
-                            ).shape
-                        ),
-                    )
-                },
-                coords={
-                    "lon": (
-                        ["lon"],
-                        self.hgrid.x.isel(nxp=slice(1, None, 2), nyp=1).values,
-                    ),
-                    "lat": (
-                        ["lat"],
-                        self.hgrid.y.isel(nxp=1, nyp=slice(1, None, 2)).values,
-                    ),
-                },
-            )
-
-            # rewrite chunks to use lat/lon now for use with xesmf
-            if chunks != "auto":
-                chunks = {"lon": chunks[varnames["xh"]], "lat": chunks[varnames["yh"]]}
-
-            tgrid = tgrid.chunk(chunks)
-            tgrid.lon.attrs["units"] = "degrees_east"
-            tgrid.lon.attrs["_FillValue"] = 1e20
-            tgrid.lat.attrs["units"] = "degrees_north"
-            tgrid.lat.attrs["_FillValue"] = 1e20
-            tgrid.elevation.attrs["units"] = "m"
-            tgrid.elevation.attrs["coordinates"] = "lon lat"
-            tgrid.to_netcdf(
-                self.mom_input_dir / "topog_raw.nc", mode="w", engine="netcdf4"
-            )
-            tgrid.close()
-
-            ## Replace subprocess run with regular regridder
-            print(
-                "Begin regridding bathymetry...\n\n"
-                + "If this process hangs it means that the chosen domain might be too big to handle this way. "
-                + "After ensuring access to appropriate computational resources, try calling ESMF "
-                + "directly from a terminal in the input directory via\n\n"
-                + "mpirun ESMF_Regrid -s bathy_original.nc -d topog_raw.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\n\n"
-                + "For details see https://xesmf.readthedocs.io/en/latest/large_problems_on_HPC.html\n\n"
-                + "Aftewards, run the bathymetry method again but set 'maketopog = False' so the "
-                + "computationally expensive step is skiped and instead the method ensures that only the "
-                + "metadata are fixed."
-            )
-
-            # If we have a domain large enough for chunks, we'll run regridder with parallel=True
-            parallel = True
-            if len(tgrid.chunks) != 2:
-                parallel = False
-            print(f"Regridding in parallel: {parallel}")
-            bathyout = bathyout.chunk(chunks)
-            # return
-            regridder = xe.Regridder(bathyout, tgrid, "bilinear", parallel=parallel)
-
-            topog = regridder(bathyout)
-            topog.to_netcdf(
-                self.mom_input_dir / "topog_raw.nc", mode="w", engine="netcdf4"
-            )
-            print(
-                "Regridding finished. Now excavating inland lakes and fixing up metadata..."
-            )
-            self.tidy_bathymetry(fill_channels, minimum_layers, positivedown)
-
-    def tidy_bathymetry(
-        self, fill_channels=False, minimum_layers=3, positivedown=False
-    ):
-        """
-        An auxillary function for bathymetry. It's used to fix up the metadata and
-        remove inland lakes after regridding the bathymetry. The functions are split
-        to allow for the regridding to be done as a separate job, since regridding can
-        be really expensive for large domains.
-
-        If you've already regridded the bathymetry and just want to fix up the metadata,
-        you can call this function directly to read in the existing ``topog_raw.nc`` file
-        that should be in the input directory.
-        """
-
-        ## reopen topography to modify
+        ## reopen bathymetry to modify
         print("Reading in regridded bathymetry to fix up metadata...", end="")
-        topog = xr.open_dataset(self.mom_input_dir / "topog_raw.nc", engine="netcdf4")
+        bathymetry = xr.open_dataset(
+            self.mom_input_dir / "bathymetry_unfinished.nc", engine="netcdf4"
+        )
 
         ## Ensure correct encoding
-        topog = xr.Dataset({"depth": (["ny", "nx"], topog["elevation"].values)})
-        topog.attrs["depth"] = "meters"
-        topog.attrs["standard_name"] = "topographic depth at T-cell centers"
-        topog.attrs["coordinates"] = "zi"
+        bathymetry = xr.Dataset(
+            {"depth": (["ny", "nx"], bathymetry["elevation"].values)}
+        )
+        bathymetry.attrs["depth"] = "meters"
+        bathymetry.attrs["standard_name"] = "bathymetryraphic depth at T-cell centers"
+        bathymetry.attrs["coordinates"] = "zi"
 
-        topog.expand_dims("tiles", 0)
+        bathymetry.expand_dims("tiles", 0)
 
-        if not positivedown:
+        if not positive_down:
             ## Ensure that coordinate is positive down!
-            topog["depth"] *= -1
+            bathymetry["depth"] *= -1
 
         ## REMOVE INLAND LAKES
 
         min_depth = self.vgrid.zi[minimum_layers]
 
-        ocean_mask = topog.copy(deep=True).depth.where(topog.depth <= min_depth, 1)
+        ocean_mask = bathymetry.copy(deep=True).depth.where(
+            bathymetry.depth <= min_depth, 1
+        )
         land_mask = np.abs(ocean_mask - 1)
 
         changed = True  ## keeps track of whether solution has converged or not
@@ -1116,7 +1163,8 @@ class experiment:
         forward = True  ## only useful for iterating through diagonal channel removal. Means iteration goes SW -> NE
 
         while changed == True:
-            ## First fill in all lakes. This uses a scipy function where it fills holes made of 0's within a field of 1's
+            ## First fill in all lakes.
+            ## scipy.ndimage.binary_fill_holes fills holes made of 0's within a field of 1's
             land_mask[:, :] = binary_fill_holes(land_mask.data)
             ## Get the ocean mask instead of land- easier to remove channels this way
             ocean_mask = np.abs(land_mask - 1)
@@ -1240,19 +1288,20 @@ class experiment:
 
         self.ocean_mask = np.abs(land_mask - 1)
 
-        topog["depth"] *= self.ocean_mask
+        bathymetry["depth"] *= self.ocean_mask
 
-        topog["depth"] = topog["depth"].where(topog["depth"] != 0, np.nan)
+        bathymetry["depth"] = bathymetry["depth"].where(
+            bathymetry["depth"] != 0, np.nan
+        )
 
-        topog.expand_dims({"ntiles": 1}).to_netcdf(
-            self.mom_input_dir / "topog_deseas.nc",
+        bathymetry.expand_dims({"ntiles": 1}).to_netcdf(
+            self.mom_input_dir / "bathymetry.nc",
             mode="w",
             encoding={"depth": {"_FillValue": None}},
         )
 
-        (self.mom_input_dir / "topog_deseas.nc").rename(self.mom_input_dir / "topog.nc")
         print("done.")
-        self.topog = topog
+        self.bathymetry = bathymetry
 
     def FRE_tools(self, layout=None):
         """A wrapper for FRE Tools ``check_mask``, ``make_solo_mosaic``, and ``make_quick_mosaic``.
@@ -1262,8 +1311,8 @@ class experiment:
         print(
             "Running GFDL's FRE Tools. The following information is all printed by the FRE tools themselves"
         )
-        if not (self.mom_input_dir / "topog.nc").exists():
-            print("No topography file! Need to run make_bathymetry first")
+        if not (self.mom_input_dir / "bathymetry.nc").exists():
+            print("No bathymetry file! Need to run .setup_bathymetry method first")
             return
 
         for p in self.mom_input_dir.glob("mask_table*"):
@@ -1284,7 +1333,7 @@ class experiment:
             "OUTPUT FROM QUICK MOSAIC:",
             subprocess.run(
                 str(self.toolpath_dir / "make_quick_mosaic/make_quick_mosaic")
-                + " --input_mosaic ocean_mosaic.nc --mosaic_name grid_spec --ocean_topog topog.nc",
+                + " --input_mosaic ocean_mosaic.nc --mosaic_name grid_spec --ocean_topog bathymetry.nc",
                 shell=True,
                 cwd=self.mom_input_dir,
             ),
@@ -1304,7 +1353,7 @@ class experiment:
             "OUTPUT FROM CHECK MASK:\n\n",
             subprocess.run(
                 str(self.toolpath_dir / "check_mask/check_mask")
-                + f" --grid_file ocean_mosaic.nc --ocean_topog topog.nc --layout {layout[0]},{layout[1]} --halo 4",
+                + f" --grid_file ocean_mosaic.nc --ocean_topog bathymetry.nc --layout {layout[0]},{layout[1]} --halo 4",
                 shell=True,
                 cwd=self.mom_input_dir,
             ),
