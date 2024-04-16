@@ -16,17 +16,25 @@ These files are:
   The `coupler` section turns on or off different model components, and specifies how long to run the experiment for. 
 
 * `diag_table`:
-  The diagnostics to save from your model. You can't keep everything! Consider the things that are most important for your experiment - you can fill up disk space very fast if you save too much. Different lines in the diagnostic table either specify a new output *file* and its associated characteristics, or a new output *variable* and the matching file that it should go in (which needs to already have been specified!). If you're not sure which diagnostics to pick, you can run the model for 1 hour and look in the output folder. Here there'll be a file called `available_diags` which lists every possible diagnostic for your model configuration. Here it will also tell you which grids you're allowed to output them on. Aside from the native model grid, you can create your own set of vertical coordinates. To output on your custom vertical coordinate, create a netcdf containing all of the vertical points (be they depths or densities) go to the `MOM_input` file and specify additional diagnostic coordinates there. Then, you can pick these coordinates in the diag table.
+  The diagnostics to save from your model run.
+  Choose wisely the quantities that are relevant to your experiment and the analysis you plan to do otherwise you can fill up disk space very fast.
+  Different lines in the * `diag_table` either specify a new output *file* and its associated characteristics, or a new output *variable* and the matching file that it should go in (which needs to already have been specified).
+  If uncertain regarding which diagnostics to pick, try running the model for a short period (e.g., 1 hour) and look in the output folder.
+  There, you'll find a file `available_diags` that lists every available diagnostic for your model configuration also mentioning  which grids the quantity can be output on.
+  Aside from the native model grid, we can create our own custom vertical coordinates to output on.
+  To output on a custom vertical coordinate, create a netCDF that contains all of the vertical points (in the coordinate of your choice) and then edit the `MOM_input` file to specify additional diagnostic coordinates.
+  After that, we are able to select the custom vertical coordinate in the `diag_table`.
 
-Documentation as to how to format the file can be found [here](https://mom6.readthedocs.io/en/dev-gfdl/api/generated/pages/Diagnostics.html). 
+  Instructions for how to format the `diag_table` are included in the [MOM6 documentation](https://mom6.readthedocs.io/en/dev-gfdl/api/generated/pages/Diagnostics.html).
 
-`data_table`
-The data table is read by the coupler to provide different model components with inputs. For example, for our ocean only model runs, atmospheric forcing data ought to be provided. This can either be a constant value, or a dataset as in the reanalysis-forced demo. As more model components are included, the data table has less of a role to play. However, unless you want risk freezing or boiling the ocean you'll usually need to provide solar fluxes at a minimum! 
+* `data_table`
+  The data table is read by the coupler to provide different model components with inputs.
+  With more model components we need more inputs.
 
-Documentation as to how to format the file can be found [here](https://mom6.readthedocs.io/en/dev-gfdl/forcing.html). 
+  Instructions for how to format the `data_table` are included in the [MOM6 documentation](https://mom6.readthedocs.io/en/dev-gfdl/forcing.html). 
 
-`MOM_input / SIS_input`
-These files provide the basic settings for the core MOM and SIS code. The settings themselves are reasonably well documented. After running the experiment for a short amount of time, you can find a `MOM_parameter_doc.all` file which lists every possible setting your can modify for your experiment. The MOM_regional package can copy and modify a default set of input files to work with your experiment. There's too much in these files to explain here. The aforementioned vertical diagnostic coordinates are specified here, as are all of the different parameterisation schemes and hyperparameters used by the model. Some really important ones are the timesteps which will likely need to be fiddled with to get your model running quickly but stably. However, it can be more helpful to specify these in the `MOM_override` file instead. 
+* `MOM_input / SIS_input`
+  These files provide the basic settings for the core MOM and SIS code. The settings themselves are reasonably well documented. After running the experiment for a short amount of time, you can find a `MOM_parameter_doc.all` file which lists every possible setting your can modify for your experiment. The MOM_regional package can copy and modify a default set of input files to work with your experiment. There's too much in these files to explain here. The aforementioned vertical diagnostic coordinates are specified here, as are all of the different parameterisation schemes and hyperparameters used by the model. Some really important ones are the timesteps which will likely need to be fiddled with to get your model running quickly but stably. However, it can be more helpful to specify these in the `MOM_override` file instead. 
 
 Another important part section for regional modelling is the specification of open boundary segments. You need to include a separate line for each boundary in your domain, and specify any additional tracers that need be included.
 
