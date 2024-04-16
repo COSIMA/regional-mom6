@@ -52,8 +52,9 @@ These small scales turn out to be important for shaping the large-scale ocean ci
 Thus, despite the increase in computational power and use of graphical processing units that bring about breakthrough performance and speedup [@silvestri2023oceananigansjl], there will always be smaller-scale processes that remain unresolved.
 To resolve more scales of motion given restrictions in computational power we can resolve to regional ocean modeling.
 Regional ocean modeling is an ocean simulation that only simulates a subset of the global ocean.
-To do that, we need to apply open boundary conditions at the region's boundaries, that is, we need to impose conditions that mimic the oceanic flow that we are not simulating; see \autoref{fig:tasman} for an example.
-\autoref{fig:tasman} shows the surface currents from a regional ocean simulation of the Tasman sea that was configured using the `regional-mom6` package.
+To do that, we need to apply open boundary conditions at the region's boundaries, that is, we need to impose conditions that mimic the oceanic flow that we are not simulating.
+\autoref{fig:tasman} that shows the surface currents from a regional ocean simulation of the Tasman sea that was configured using the `regional-mom6` package.
+The boundaries of the domain depicted in \autoref{fig:tasman}b are forced with the ocean flow from a reanalysis product that is shown in \autoref{fig:tasman}a.
 
 MOM6 provides support for open boundary conditions and thus is becoming popular for regional ocean modeling studies (see, e.g., @gmd-16-6943-2023, @egusphere-2024-394) in addition to global configurations.
 However, setting up a regional configuration for MOM6 can be challenging, time consuming, and often involves using several programming languages, a few different tools, and also manually editing/tweaking some input files.
