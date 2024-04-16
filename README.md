@@ -26,7 +26,11 @@ The idea behind this package is that it should let the user sidestep some of the
 
 ## Limitations
 
-Currently the package only supports one type of regional horizontal grid, namely one that's equally spaced in longitude and latitude. Users can provide their own grid, or ideally [open a PR](https://github.com/COSIMA/regional-mom6/pulls) with a method that implements another type of horizontal grid! Furthermore, currently only boundary segments that are parallel to either lines of constant longitude or constant latitude lines are supported. 
+- Only supports one type of regional horizontal grid, namely one that's equally spaced in longitude
+  and latitude. Users can provide their own grid, or ideally [open a pull request](https://github.com/COSIMA/regional-mom6/pulls) with a method that implements another type of horizontal grid!
+- Only boundary segments that are parallel to either lines of constant longitude or constant latitude
+  lines are supported.
+
 
 ## We want to hear from you
 
