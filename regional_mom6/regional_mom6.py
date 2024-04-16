@@ -878,11 +878,11 @@ class experiment:
         print("Processing {} boundary...".format(orientation), end="")
 
         seg = segment(
-            hgrid = self.hgrid,
-            infile = path_to_bc,  # location of raw boundary
-            outfolder = self.mom_input_dir,
-            varnames = varnames,
-            segment_name = "segment_{:03d}".format(segment_number),
+            hgrid=self.hgrid,
+            infile=path_to_bc,  # location of raw boundary
+            outfolder=self.mom_input_dir,
+            varnames=varnames,
+            segment_name="segment_{:03d}".format(segment_number),
             orientation=orientation,  # orienataion
             startdate=self.date_range[0],
             gridtype=arakawa_grid,
@@ -1947,7 +1947,12 @@ class segment:
 
             ## Add the layer thicknesses
             segment_out[f"dz_{v}"] = (
-                ["time", f"nz_{v}", f"ny_{self.segment_name}", f"nx_{self.segment_name}"],
+                [
+                    "time",
+                    f"nz_{v}",
+                    f"ny_{self.segment_name}",
+                    f"nx_{self.segment_name}",
+                ],
                 da.broadcast_to(
                     dz.data[None, :, None, None],
                     segment_out[v].shape,
