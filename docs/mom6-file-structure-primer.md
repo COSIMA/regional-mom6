@@ -34,7 +34,7 @@ These files are:
   Instructions for how to format the `data_table` are included in the [MOM6 documentation](https://mom6.readthedocs.io/en/dev-gfdl/forcing.html). 
 
 * `MOM_input / SIS_input`
-  Basic settings for the core MOM and SIS code with reasonably-well documentation.
+  Basic settings for the core MOM and SIS code with reasonably good documentation.
   After running the experiment for a short amount of time, you can find a `MOM_parameter_doc.all` file which lists every possible setting your can modify for your experiment.
   The `regional-mom6` package can copy and modify a default set of input files to work with your experiment.
   There's too much in these files to explain here.
