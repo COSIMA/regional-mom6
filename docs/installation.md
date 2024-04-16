@@ -29,7 +29,7 @@ source](https://earthsystemmodeling.org/esmpy_doc/release/latest/html/install.ht
 With `esmpy` available, we can then install `regional_mom6` via pip. (If we don't have have pip, then
 `conda install pip` should do the job.)
 
-With `esmpy` install we can now install `regional-mom6` via [`pip`](https://badge.fury.io/py/regional-mom6):
+With `esmpy` installed we can now install `regional-mom6` via [`pip`](https://pypi.org/project/regional-mom6/):
 
 ```bash
 pip install regional-mom6
@@ -39,7 +39,7 @@ The above installs the version of `regional-mom6` (plus any required dependencie
 
 #### "*I'd like to be on the cutting edge of the development*?"
 
-Alternatively, we can install directly `regional-mom6` directly via Github using `pip`.
+Alternatively, we can install directly `regional-mom6` directly via GitHub using `pip`.
 First install `esmpy` as described above and then:
 
 ```bash
@@ -47,7 +47,7 @@ pip install git+https://github.com/COSIMA/regional-mom6.git
 ```
 
 to get the version that corresponds to the latest commit in GitHub.
-Or, install the version that corresponds to a particular git commit via
+Or, install the version that corresponds to a particular git commit using
 
 ```bash
 pip install git+https://github.com/COSIMA/regional-mom6.git@061b0ef80c7cbc04de0566df329c4ea472002f7e
