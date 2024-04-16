@@ -24,9 +24,13 @@ The idea behind this package is that it should let the user sidestep some of the
 - Creates directory structure with the configuration files as expected by MOM6.
 - Handles interpolation and interpretation of input data. No pre-processing of forcing datasets is required. (In some cases, slicing the forcing dataset before helps with hitting limitations related to the machine's available memory.)
 
-Limitations: Currently the package only comes with one function for generating a horizontal grid, namely one that's equally spaced in longitude and latitude. However, users can provide their own grid, or ideally open a PR with their desired grid generation function and we'll include it as an option! Further, only boundary segments parallel to longitude or latitude lines are currently supported. 
+## Limitations
 
-If you find this package useful and have any suggestions please feel free to open an [issue](https://github.com/COSIMA/regional-mom6/issues) or a [discussion](https://github.com/COSIMA/regional-mom6/discussions). We'd love to have [new contributors](https://regional-mom6.readthedocs.io/en/latest/contributing.html) and we are very keen to help you out along the way!
+Currently the package only supports one type of regional horizontal grid, namely one that's equally spaced in longitude and latitude. Users can provide their own grid, or ideally [open a PR](https://github.com/COSIMA/regional-mom6/pulls) with a method that implements another type of horizontal grid! Furthermore, currently only boundary segments that are parallel to either lines of constant longitude or constant latitude lines are supported. 
+
+## We want to hear from you
+
+If you have any suggestions please feel free to open an [issue](https://github.com/COSIMA/regional-mom6/issues) or start a [discussion](https://github.com/COSIMA/regional-mom6/discussions). We welcome any [new contributors](https://regional-mom6.readthedocs.io/en/latest/contributing.html) and we are very keen to help you out along the way!
 
 
 ## What you need to get started:
