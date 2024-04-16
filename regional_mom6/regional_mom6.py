@@ -878,13 +878,13 @@ class experiment:
         print("Processing {} boundary...".format(orientation), end="")
 
         seg = segment(
-            self.hgrid,
-            path_to_bc,  # location of raw boundary
-            self.mom_input_dir,
-            varnames,
-            "segment_{:03d}".format(segment_number),
-            orientation,  # orienataion
-            self.date_range[0],
+            hgrid = self.hgrid,
+            infile = path_to_bc,  # location of raw boundary
+            outfolder = self.mom_input_dir,
+            varnames = varnames,
+            segment_name = "segment_{:03d}".format(segment_number),
+            orientation=orientation,  # orienataion
+            startdate=self.date_range[0],
             gridtype=arakawa_grid,
             repeat_year_forcing=self.repeat_year_forcing,
         )
@@ -1647,7 +1647,7 @@ class segment:
             standard naming convension of this pipeline, e.g., ``{"xq": "longitude,
             "yh": "latitude", "salt": "salinity", ...}``. Key "tracers" points to nested
             dictionary of tracers to include in boundary.
-        seg_name (str): Name of the segment, e.g., ``'segment_001'``.
+        segment_name (str): Name of the segment, e.g., ``'segment_001'``.
         orientation (str): Cardinal direction (lowercase) of the boundary segment.
         startdate (str): The starting date to use in the segment calendar.
         gridtype (Optional[str]): Arakawa staggering of input grid, one of ``'A'``, ``'B'``,
@@ -1665,11 +1665,12 @@ class segment:
 
     def __init__(
         self,
+        *,
         hgrid,
         infile,
         outfolder,
         varnames,
-        seg_name,
+        segment_name,
         orientation,
         startdate,
         gridtype="A",
@@ -1706,7 +1707,7 @@ class segment:
         self.orientation = orientation.lower()  ## might not be needed? NSEW
         self.grid = gridtype
         self.hgrid = hgrid
-        self.seg_name = seg_name
+        self.segment_name = segment_name
         self.tidal_constituents = tidal_constituents
         self.repeat_year_forcing = repeat_year_forcing
 
@@ -1746,11 +1747,11 @@ class segment:
         self.interp_grid = xr.Dataset(
             {
                 "lat": (
-                    [f"{self.parallel}_{self.seg_name}"],
+                    [f"{self.parallel}_{self.segment_name}"],
                     self.hgrid_seg.y.squeeze().data,
                 ),
                 "lon": (
-                    [f"{self.parallel}_{self.seg_name}"],
+                    [f"{self.parallel}_{self.segment_name}"],
                     self.hgrid_seg.x.squeeze().data,
                 ),
             }
@@ -1876,9 +1877,9 @@ class segment:
         # fill in NaNs
         segment_out = (
             segment_out.ffill(self.z)
-            .interpolate_na(f"{self.parallel}_{self.seg_name}")
-            .ffill(f"{self.parallel}_{self.seg_name}")
-            .bfill(f"{self.parallel}_{self.seg_name}")
+            .interpolate_na(f"{self.parallel}_{self.segment_name}")
+            .ffill(f"{self.parallel}_{self.segment_name}")
+            .bfill(f"{self.parallel}_{self.segment_name}")
         )
 
         time = np.arange(
@@ -1899,10 +1900,10 @@ class segment:
             "time": {
                 "dtype": "double",
             },
-            f"nx_{self.seg_name}": {
+            f"nx_{self.segment_name}": {
                 "dtype": "int32",
             },
-            f"ny_{self.seg_name}": {
+            f"ny_{self.segment_name}": {
                 "dtype": "int32",
             },
         }
@@ -1925,28 +1926,28 @@ class segment:
         ) in (
             allfields
         ):  ## Replace with more generic list of tracer variables that might be included?
-            v = f"{var}_{self.seg_name}"
+            v = f"{var}_{self.segment_name}"
             ## Rename each variable in dataset
             segment_out = segment_out.rename({allfields[var]: v})
 
             ## Rename vertical coordinate for this variable
-            segment_out[f"{var}_{self.seg_name}"] = segment_out[
-                f"{var}_{self.seg_name}"
-            ].rename({self.z: f"nz_{self.seg_name}_{var}"})
+            segment_out[f"{var}_{self.segment_name}"] = segment_out[
+                f"{var}_{self.segment_name}"
+            ].rename({self.z: f"nz_{self.segment_name}_{var}"})
 
             ## Replace the old depth coordinates with incremental integers
-            segment_out[f"nz_{self.seg_name}_{var}"] = np.arange(
-                segment_out[f"nz_{self.seg_name}_{var}"].size
+            segment_out[f"nz_{self.segment_name}_{var}"] = np.arange(
+                segment_out[f"nz_{self.segment_name}_{var}"].size
             )
 
             ## Re-add the secondary dimension (even though it represents one value..)
             segment_out[v] = segment_out[v].expand_dims(
-                f"{self.perpendicular}_{self.seg_name}", axis=self.axis_to_expand
+                f"{self.perpendicular}_{self.segment_name}", axis=self.axis_to_expand
             )
 
             ## Add the layer thicknesses
             segment_out[f"dz_{v}"] = (
-                ["time", f"nz_{v}", f"ny_{self.seg_name}", f"nx_{self.seg_name}"],
+                ["time", f"nz_{v}", f"ny_{self.segment_name}", f"nx_{self.segment_name}"],
                 da.broadcast_to(
                     dz.data[None, :, None, None],
                     segment_out[v].shape,
@@ -1971,40 +1972,40 @@ class segment:
             }
 
             ## appears to be another variable just with integers??
-            encoding_dict[f"nz_{self.seg_name}_{var}"] = {"dtype": "int32"}
+            encoding_dict[f"nz_{self.segment_name}_{var}"] = {"dtype": "int32"}
 
         ## Treat eta separately since it has no vertical coordinate. Do the same things as for the surface variables above
-        segment_out = segment_out.rename({self.eta: f"eta_{self.seg_name}"})
-        encoding_dict[f"eta_{self.seg_name}"] = {
+        segment_out = segment_out.rename({self.eta: f"eta_{self.segment_name}"})
+        encoding_dict[f"eta_{self.segment_name}"] = {
             "_FillValue": netCDF4.default_fillvals["f8"],
         }
-        segment_out[f"eta_{self.seg_name}"] = segment_out[
-            f"eta_{self.seg_name}"
+        segment_out[f"eta_{self.segment_name}"] = segment_out[
+            f"eta_{self.segment_name}"
         ].expand_dims(
-            f"{self.perpendicular}_{self.seg_name}", axis=self.axis_to_expand - 1
+            f"{self.perpendicular}_{self.segment_name}", axis=self.axis_to_expand - 1
         )
 
         # Overwrite the actual lat/lon values in the dimensions, replace with incrementing integers
-        segment_out[f"{self.parallel}_{self.seg_name}"] = np.arange(
-            segment_out[f"{self.parallel}_{self.seg_name}"].size
+        segment_out[f"{self.parallel}_{self.segment_name}"] = np.arange(
+            segment_out[f"{self.parallel}_{self.segment_name}"].size
         )
-        segment_out[f"{self.perpendicular}_{self.seg_name}"] = [0]
+        segment_out[f"{self.perpendicular}_{self.segment_name}"] = [0]
 
         # Store actual lat/lon values here as variables rather than coordinates
-        segment_out[f"lon_{self.seg_name}"] = (
-            [f"ny_{self.seg_name}", f"nx_{self.seg_name}"],
+        segment_out[f"lon_{self.segment_name}"] = (
+            [f"ny_{self.segment_name}", f"nx_{self.segment_name}"],
             self.hgrid_seg.x.data,
         )
-        segment_out[f"lat_{self.seg_name}"] = (
-            [f"ny_{self.seg_name}", f"nx_{self.seg_name}"],
+        segment_out[f"lat_{self.segment_name}"] = (
+            [f"ny_{self.segment_name}", f"nx_{self.segment_name}"],
             self.hgrid_seg.y.data,
         )
 
         # Add units to the lat / lon to keep the `categorize_axis_from_units` checker happy
-        segment_out[f"lat_{self.seg_name}"].attrs = {
+        segment_out[f"lat_{self.segment_name}"].attrs = {
             "units": "degrees_north",
         }
-        segment_out[f"lon_{self.seg_name}"].attrs = {
+        segment_out[f"lon_{self.segment_name}"].attrs = {
             "units": "degrees_east",
         }
 
@@ -2014,7 +2015,7 @@ class segment:
 
         with ProgressBar():
             segment_out.load().to_netcdf(
-                self.outfolder / f"forcing/forcing_obc_{self.seg_name}.nc",
+                self.outfolder / f"forcing/forcing_obc_{self.segment_name}.nc",
                 encoding=encoding_dict,
                 unlimited_dims="time",
             )
