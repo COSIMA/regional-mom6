@@ -38,7 +38,7 @@ import xarray as xr
         ),
     ],
 )
-def test_bathymetry(
+def test_setup_bathymetry(
     longitude_extent,
     latitude_extent,
     date_range,
@@ -66,13 +66,13 @@ def test_bathymetry(
         grid_type=grid_type,
     )
 
-    ## Generate some bathymetry to use in tests
+    ## Generate a bathymetry to use in tests
 
-    bathy_file = tmp_path / "bathy.nc"
+    bathymetry_file = tmp_path / "bathymetry.nc"
 
-    bathy = np.random.random((100, 100)) * (-100)
-    bathy = xr.DataArray(
-        bathy,
+    bathymetry = np.random.random((100, 100)) * (-100)
+    bathymetry = xr.DataArray(
+        bathymetry,
         dims=["silly_lat", "silly_lon"],
         coords={
             "silly_lat": np.linspace(
@@ -83,19 +83,21 @@ def test_bathymetry(
             ),
         },
     )
-    bathy.name = "elevation"
-    bathy.to_netcdf(bathy_file)
-    bathy.close()
+    bathymetry.name = "silly_depth"
+    bathymetry.to_netcdf(bathymetry_file)
+    bathymetry.close()
 
-    # Now use this bathymetry as input in `expt.bathymetry()`
-    expt.bathymetry(
-        str(bathy_file),
-        {"xh": "silly_lon", "yh": "silly_lat", "elevation": "elevation"},
+    # Now provide the above bathymetry file as input in `expt.setup_bathymetry()`
+    expt.setup_bathymetry(
+        bathymetry_path=str(bathymetry_file),
+        longitude_coordinate_name="silly_lon",
+        latitude_coordinate_name="silly_lat",
+        vertical_coordinate_name="silly_depth",
         minimum_layers=1,
-        chunks={"lat": 10, "lon": 10},
+        chunks={"longitude": 10, "latitude": 10},
     )
 
-    bathy_file.unlink()
+    bathymetry_file.unlink()
 
 
 @pytest.mark.parametrize(
