@@ -30,8 +30,6 @@ Check out the [documentation](https://regional-mom6.readthedocs.io/en/latest/) a
 
 ## Installation
 
-Install `regional_mom6` via [`conda`](https://anaconda.org/conda-forge/regional-mom6) or [`pip`](https://badge.fury.io/py/regional-mom6).
-
 A prerequisite is the binary `esmpy` dependency, which provides regridding capabilities. The easiest way to install `esmpy` is using Conda.
 We encourage creating a new or using an existing conda environment, into which we install `esmpy` and `regional_mom6`.
 Install `emspy` via:
@@ -45,13 +43,13 @@ source](https://earthsystemmodeling.org/esmpy_doc/release/latest/html/install.ht
 With `esmpy` available, we can then install `regional_mom6` via pip. (If we don't have have pip, then
 `conda install pip` should do the job.)
 
-Then install `regional-mom6` via `conda`
+Then install `regional-mom6` via [`conda`](https://anaconda.org/conda-forge/regional-mom6):
 
 ```bash
 conda install conda-forge::regional-mom6
 ```
 
-or via `pip`
+or via [`pip`](https://badge.fury.io/py/regional-mom6):
 
 ```bash
 pip install regional-mom6
