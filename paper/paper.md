@@ -48,7 +48,7 @@ The Modular Ocean Model version 6 (MOM6) is a widely-used open-source general ci
 MOM6 contains several improvements over its predecessor MOM5 [@griffies2014elements], including the implementation of the Arbitrary-Lagrangian-Eulerian vertical coordinates [@griffies2020ALE], more efficient tracer advection schemes, and state-of-the art parameterizations of sub-grid scale physics.
 
 The nature of turbulent flows, and in particular oceanic flows, is such that smaller scales of motion emerge.
-These small scales turn out to be important for shaping the large-scale ocean circulation [@Melet2022ch2, @deLavergne2022ch3, @Gula2022ch8].
+These small scales turn out to be important for shaping the large-scale ocean circulation [@Melet2022ch2; @deLavergne2022ch3; @Gula2022ch8].
 Thus, despite the increase in computational power and use of graphical processing units that bring about breakthrough performance and speedup [@silvestri2023oceananigansjl], there will always be smaller-scale processes that remain unresolved.
 To resolve more scales of motion given restrictions in computational power we can resolve to regional ocean modeling.
 Regional ocean modeling is an ocean simulation of only a subset of the global ocean.
