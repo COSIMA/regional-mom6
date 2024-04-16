@@ -1,4 +1,4 @@
-# regional_mom6
+# regional-mom6
 
 *Python package for automatic generation of regional configurations for the [Modular Ocean Model 6](https://github.com/mom-ocean/MOM6).*
 
@@ -72,7 +72,7 @@ conda install -c conda-forge esmpy
 
 Alternatively, to install `esmpy` in a Conda-free way, follow the instructions for [installing ESMPy from
 source](https://earthsystemmodeling.org/esmpy_doc/release/latest/html/install.html#installing-esmpy-from-source).
-With `esmpy` available, we can then install `regional_mom6` via pip. (If we don't have have pip, then
+With `esmpy` available, we can then install `regional-mom6` via pip. (If we don't have have pip, then
 `conda install pip` should do the job.)
 
 With `esmpy` installed we can now install `regional-mom6` via [`pip`](https://pypi.org/project/regional-mom6/):
