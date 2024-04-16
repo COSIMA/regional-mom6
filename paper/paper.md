@@ -30,7 +30,7 @@ authors:
 affiliations:
  - name: Australian National University, Australia
    index: 1
- - name: ARC Centre of Excellence in Climate Extremes, Australia
+ - name: ARC Centre of Excellence for Climate Extremes, Australia
    index: 2
  - name: CSIRO Environment, Hobart, Tasmania, Australia
    index: 3
