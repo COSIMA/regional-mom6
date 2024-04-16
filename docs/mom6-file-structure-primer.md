@@ -16,11 +16,15 @@ These files are:
   The `coupler` section turns on or off different model components, and specifies how long to run the experiment for. 
 
 * `diag_table`:
-  The diagnostics to save from your model run.
-  Choose wisely the quantities that are relevant to your experiment and the analysis you plan to do otherwise you can fill up disk space very fast.
-  Different lines in the `diag_table` either specify a new output *file* and its associated characteristics, or a new output *variable* and the matching file that it should go in (which needs to already have been specified).
-  If uncertain regarding which diagnostics to pick, try running the model for a short period (e.g., 1 hour) and look in the output folder.
-  There, we find a file `available_diags` that lists every available diagnostic for your model configuration also mentioning  which grids the quantity can be output on.
+  The diagnostics to output at model runtime.
+  We need to choose wisely the quantities/output frequency that are relevant to our experiment and the
+  analysis we plan to do otherwise the size of output can quickly grow a lot.
+  Each line in the `diag_table` either specifies a new output *file* and its associated characteristics,
+  or a new output *variable* and the matching file that it should go in (which needs to already have been
+  specified).
+  If uncertain of the available diagnostics, we can runthe model for a short period (e.g., 1 hour) and then
+  look in the output directory for `available_diags` that lists every available diagnostic for our
+  model configuration also mentioning which grids the quantity can be output on.
   Aside from the native model grid, we can create our own custom vertical coordinates to output on.
   To output on a custom vertical coordinate, create a netCDF that contains all of the vertical points (in the coordinate of your choice) and then edit the `MOM_input` file to specify additional diagnostic coordinates.
   After that, we are able to select the custom vertical coordinate in the `diag_table`.
