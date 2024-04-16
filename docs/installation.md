@@ -1,37 +1,46 @@
 Installation
 ============
 
-We can install `regional_mom6` via `pip` from GitHub. A prerequisite is the binary `esmpy`
-dependency, which provides regridding capabilities. The easiest way to install `esmpy` is using Conda.
+Install `regional_mom6` via [`conda`](https://anaconda.org/conda-forge/regional-mom6) or [`pip`](https://badge.fury.io/py/regional-mom6).
 
-We encourage creating a custom Conda environment, or activate an existing environment into which we
-will install `esmpy` and `regional_mom6`. Then install `emspy` via:
+A prerequisite is the binary `esmpy` dependency, which provides regridding capabilities. The easiest way to install `esmpy` is using Conda.
+We encourage creating a new or using an existing conda environment, into which we install `esmpy` and `regional_mom6`.
+Install `emspy` via:
 
-```{code-block} bash
+```bash
 conda install -c conda-forge esmpy
 ```
 
 Alternatively, to install `esmpy` in a Conda-free way, follow the instructions for [installing ESMPy from
 source](https://earthsystemmodeling.org/esmpy_doc/release/latest/html/install.html#installing-esmpy-from-source).
-With `esmpy` available, we can then install `regional_mom6` via pip. (If we don't have have pip, then `conda install pip`
-should do the job.)
+With `esmpy` available, we can then install `regional_mom6` via pip. (If we don't have have pip, then
+`conda install pip` should do the job.)
 
-```{code-block} bash
+Then install `regional-mom6` via `conda`
+
+```bash
+conda install conda-forge::regional-mom6
+```
+
+or via `pip`
+
+```bash
+pip install regional-mom6
+```
+
+The above installs the version of `regional-mom6` (plus any required dependencies) that corresponds to the latest tagged release of the package.
+
+`esmpy` won't be installed as a dependency and that's why need to install it separately.
+
+Alternatively, we can install directly via Github, e.g., 
+
+```bash
 pip install git+https://github.com/COSIMA/regional-mom6.git
 ```
 
-The above installs the version of `regional_mom6` (plus any required dependencies) that corresponds
-to the latest commit in GitHub. `esmpy` won't be installed as a dependency and that's why need to
-install it separately.
+to get the version that corresponds to the latest commit in GitHub.
+We can also install `regional-mom6` from a particular git commit using, e.g.,
 
-We can also install `regional_mom6` from a particular tag or git commit using, e.g.,
-
-```{code-block} bash
-pip install git+https://github.com/COSIMA/regional-mom6.git@v0.X.X
-```
-
-or
-
-```{code-block} bash
+```bash
 pip install git+https://github.com/COSIMA/regional-mom6.git@061b0ef80c7cbc04de0566df329c4ea472002f7e
 ```
