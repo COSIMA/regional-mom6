@@ -19,7 +19,8 @@ The idea behind this package is that it should let the user sidestep some of the
 
 - Automatic grid generation at chosen vertical and horizontal grid spacing.
 - Automatic removal of non-advective cells from the bathymetry that cause the model to crash.
-- Handle slicing across 'seams' in of the forcing input datasets (e.g., when the regional configuration spans the longitude 180 of a global dataset that spans [-180, 180]).
+- Handle slicing across 'seams' in of the forcing input datasets (e.g., when the regional
+  configuration includes longitude 180 and the forcing longitude is defined in [-180, 180]).
 - Handles metadata encoding.
 - Creates directory structure with the configuration files as expected by MOM6.
 - Handles interpolation and interpretation of input data. No pre-processing of forcing datasets is required. (In some cases, slicing the forcing dataset before helps with hitting limitations related to the machine's available memory.)
