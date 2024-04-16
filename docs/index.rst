@@ -65,7 +65,7 @@ Browse through the `demos <demos.html>`_.
 
    installation
    demos
-   file-structure
+   mom6-file-structure-primer
    api
    contributing
    
