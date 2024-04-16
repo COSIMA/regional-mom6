@@ -8,20 +8,23 @@ Users just need to provide some information about where, when, and how big their
 
 The idea behind this package is that it should let the user sidestep some of the tricky issues with getting the model to run in the first place. This removes some of the steep learning curve for people new to working with MOM6. Note that the resultant model configuration might still need some tweaking (e.g., fiddling with timestep to avoid CFL-related numerical stability issues or fiddling with bathymetry to deal with very narrow fjords or channels that may exist).
 
-**Features**
+
+## Features
 
 - Automatic grid generation at chosen vertical and horizontal grid spacing.
 - Automatic removal of non-advective cells from the bathymetry that cause the model to crash.
 - Handle slicing across 'seams' in of the forcing input datasets (e.g., when the regional configuration spans the longitude 180 of a global dataset that spans [-180, 180]).
 - Handles metadata encoding.
-- Modifies pre-made configuration files to match your experiment
-- Handles interpolation and interpretation of input data. Limited pre-processing of your forcing data required!
+- Creates directory structure with the configuration files as expected by MOM6.
+- Handles interpolation and interpretation of input data. No pre-processing of forcing datasets is required. (In some cases, slicing the forcing dataset before helps with hitting limitations related to the machine's available memory.)
 
 Limitations: Currently the package only comes with one function for generating a horizontal grid, namely one that's equally spaced in longitude and latitude. However, users can provide their own grid, or ideally open a PR with their desired grid generation function and we'll include it as an option! Further, only boundary segments parallel to longitude or latitude lines are currently supported. 
 
 If you find this package useful and have any suggestions please feel free to open an [issue](https://github.com/COSIMA/regional-mom6/issues) or a [discussion](https://github.com/COSIMA/regional-mom6/discussions). We'd love to have [new contributors](https://regional-mom6.readthedocs.io/en/latest/contributing.html) and we are very keen to help you out along the way!
 
+
 ## What you need to get started:
+
 1. a cool idea for a new regional MOM6 domain,
 2. a working MOM6 executable on a machine of your choice, 
 3. a bathymetry file that at least covers your domain,
@@ -30,6 +33,7 @@ If you find this package useful and have any suggestions please feel free to ope
 6. [GFDL's FRE tools](https://github.com/NOAA-GFDL/FRE-NCtools) be downloaded and compiled on the machine you are using.
 
 Check out the [documentation](https://regional-mom6.readthedocs.io/en/latest/) and browse through the [demos](https://regional-mom6.readthedocs.io/en/latest/demos.html).
+
 
 ## Installation
 
@@ -81,8 +85,8 @@ directory lists the particular commits that were used to compile MOM6 and its su
 Note that the commits used for MOM6 submodules (e.g., Flexible Modelling System (FMS), coupler, SIS2) are _not_
 necessarily those used by the GFDL's [`MOM6_examples`](https://github.com/NOAA-GFDL/MOM6-examples) repository.
 
-## Getting started
 
+## Getting started
 
 The [example notebooks](https://regional-mom6.readthedocs.io/en/latest/demos.html) walk you through how to use
 the package using two different sets of input datasets.
