@@ -68,7 +68,7 @@ The above installs the version of `regional-mom6` (plus any required dependencie
 
 #### "*I'd like to be on the cutting edge of the development*?"
 
-Alternatively, we can install directly `regional-mom6` directly via Github using `pip`.
+Alternatively, we can install directly `regional-mom6` directly via GitHub using `pip`.
 First install `esmpy` as described above and then:
 
 ```bash
