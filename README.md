@@ -52,10 +52,11 @@ Check out the [documentation](https://regional-mom6.readthedocs.io/en/latest/) a
 
 ## Installation
 
-#### Easy, clean, one liner
+We encourage creating a new or using an existing conda environment.
 
-The easiest way is to install `regional-mom6` via [`conda`](https://anaconda.org/conda-forge/regional-mom6).
-We encourage creating a new or using an existing conda environment and then simply
+#### Easy, clean, one liner via conda
+
+The easiest way is to install `regional-mom6` is via [`conda`](https://anaconda.org/conda-forge/regional-mom6).
 
 ```bash
 conda install conda-forge::regional-mom6
@@ -65,8 +66,7 @@ That's it -- now enjoy!
 
 #### "*But I want `pip`, can't I install with `pip`*?"
 
-We can install via `pip` but it's a bit more cumbersome.
-Again, we encourage creating a new or using an existing conda environment.
+To install via `pip` is a bit more cumbersome.
 
 A prerequisite is the binary `esmpy` dependency, which provides regridding capabilities.
 The easiest way to install `esmpy` is via conda:
