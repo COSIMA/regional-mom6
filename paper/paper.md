@@ -50,11 +50,11 @@ MOM6 contains several improvements over its predecessor MOM5 [@griffies2014eleme
 The nature of turbulent flows is such that smaller scales of motion emerge spontaneously, i.e., flows exhibit forward energy cascade.
 Oceanic flows are no exception to this rule.
 What might seem counter-intuitive is that in the ocean the small-scale motions (motions from ~100m to ~100km) are very important in shaping the large-scale ocean circulation and climate (motions of ~10,000km) [@Melet2022ch2; @deLavergne2022ch3; @Gula2022ch8].
-Despite the increase in computational power and use of graphical processing units that bring about breakthrough performance and speedup [@silvestri2023oceananigzansjl], there will always be processes that are smaller than the model's grid spacing and, thus, remain unresolved.
+Despite the increase in computational power and the use of graphical processing units that can bring breakthrough performance and speedup [@silvestri2023oceananigansjl], there will always be processes that are smaller than the model's grid spacing and, thus, remain unresolved.
 
 To resolve more scales of motion within the constraints of computational power, we can turn to regional ocean modeling.
 Regional ocean modeling simulates the ocean only at a prescribed region which is a subset of the global ocean.
-To do that, we need to apply open boundary conditions at the region's boundaries, that is, we need to impose conditions that mimic the oceanic flow that we are not simulating (open boundary conditions; @Orlanski1976)
+To do that, we need to apply open boundary conditions at the region's boundaries, that is, we need to impose conditions that mimic the oceanic flow that we are not simulating (open boundary conditions; @Orlanski1976).
 \autoref{fig:tasman} that shows the surface currents from a regional ocean simulation of the Tasman sea that was configured using the `regional-mom6` package.
 The boundaries of the domain depicted in \autoref{fig:tasman}b are forced with the ocean flow from a reanalysis product that is shown in \autoref{fig:tasman}a.
 
