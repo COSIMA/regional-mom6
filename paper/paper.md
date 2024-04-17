@@ -66,7 +66,9 @@ The `regional-mom6` Python package overcomes these difficulties, automatically g
 
 The `regional-mom6` package takes as input various datasets that containing the ocean initial condition, the boundary forcing (ocean and atmosphere) for the regional domain, and the bathymetry.
 The input datasets can be on the Arakawa A, B, or C grids [@arakawa1977computational]; the package performs the appropriate interpolation using `xESMF` [@xesmf] under the hood, to put the everything on the C grid required by MOM6.
-This base grid for the regional configuration can either be constructed based on the user's desired resolution preference and choice of pre-configured options, or from a user-provided  horizontal and/or vertical pre-existing MOM6 grids.
+This base grid for the regional configuration can be constructed in two ways.
+The first, by the user defining a desired resolution and choosing between pre-configured options.
+The second, by the user providing a pre-existing horizontal and/or vertical MOM6 grids.
 The user can use MOM6's Arbitrary-Lagrangian-Eulerian vertical coordinates, regardless of the native vertical coordinates of the boundary forcing input.
 The package automates the re-gridding of all the required forcing input, takes care of all the metadata encoding, generates the regional grid, and ensures that the final input files are in the format expected by MOM6.
 Additionally, the tricky case of a regional configuration that includes the 'seam' in the longitude of the raw input data is handled automatically, removing the need for any preprocessing of the input data.
@@ -115,7 +117,7 @@ With the technically-challenging aspects of setting up a regional configuration 
 
 # Acknowledgements
 
-We thank the Consortium for Ocean–Sea Ice Modeling in Australia ([cosima.org.au](https://cosima.org.au)) for useful discussions during the development of this package.
+We thank the Consortium for Ocean–Sea Ice Modeling in Australia ([cosima.org.au](https://cosima.org.au)) and Josué Martínez-Moreno for useful discussions during the development of this package.
 We acknowledge support from the Australian Research Council under DECRA Fellowship DE210100749 (N.C.C.) and grant LP200100406 (A.E.K.).
 We would also like to acknowledge the code and notes by James Simkins, Andrew Ross, and Rob Cermak, which helped us to troubleshoot and improve the algorithms in our package.
 
