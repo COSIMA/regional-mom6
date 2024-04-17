@@ -56,7 +56,7 @@ We encourage creating a new or using an existing conda environment.
 
 #### Easy, clean, one liner via conda
 
-The easiest way is to install `regional-mom6` is via [`conda`](https://anaconda.org/conda-forge/regional-mom6).
+The easiest way to install `regional-mom6` is via [`conda`](https://anaconda.org/conda-forge/regional-mom6).
 
 ```bash
 conda install conda-forge::regional-mom6
@@ -88,7 +88,7 @@ pip install regional-mom6
 
 The above installs the version of `regional-mom6` (plus any required dependencies) that corresponds to the latest tagged release of the package.
 
-#### "*I want to live on the edge! I want the most latest developments*"
+#### "*I want to live on the edge! I want the latest developments*"
 
 To install `regional-mom6` directly via GitHub using `pip`, first install `esmpy` as described above. Then:
 
