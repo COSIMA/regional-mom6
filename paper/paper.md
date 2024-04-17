@@ -93,7 +93,7 @@ However, the package's code design and modularity makes more complex configurati
 
 The learning curve for setting up a regional ocean model can be quite steep, and it is not obvious for a new user what inputs are required, nor the appropriate format.
 In the case of MOM6, there are several tools scattered in Github repositories, for example those collected in Earth System Modeling Group grid tools [@gridtools].
-Also, there exist several regional configuration examples (e.g., [cite here 1-2 repos?]) but they are hardcoded for particular domains, specific input files, and work only on specific high-performance computing machines.
+Also, there exist several regional configuration examples (e.g.,  <span style="color: #FF69B4;">[cite here 1-2 repos?]</span>) but they are hardcoded for particular domains, specific input files, and work only on specific high-performance computing machines.
 
 Until now there has been no one-stop-shop for users to learn how to get a regional MOM6 configuration up and running.
 Users are required to use several tools in several programming languages and then modify --sometimes by hand-- some of the input metadata to bring everything into the format that MOM6 expects.
