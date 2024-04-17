@@ -38,15 +38,14 @@ The above installs the version of `regional-mom6` (plus any required dependencie
 
 ## "*I want to live on the edge! I want the most latest developments*"
 
-Alternatively, we can install directly `regional-mom6` directly via GitHub using `pip`.
-First install `esmpy` as described above and then:
+To install `regional-mom6` directly via GitHub using `pip`, first install `esmpy` as described above. Then:
 
 ```bash
 pip install git+https://github.com/COSIMA/regional-mom6.git
 ```
 
 to get the version that corresponds to the latest commit in GitHub.
-Or, install the version that corresponds to a particular git commit using
+Alternatively, install the version that corresponds to a particular git commit using
 
 ```bash
 pip install git+https://github.com/COSIMA/regional-mom6.git@061b0ef80c7cbc04de0566df329c4ea472002f7e
