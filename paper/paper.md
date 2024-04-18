@@ -47,8 +47,9 @@ bibliography: paper.bib
 The Modular Ocean Model version 6 (MOM6) is a widely-used open-source general circulation ocean--sea ice model, developed mainly at the NOAA Geophysical Fluid Dynamics Laboratory [@Adcroft2019MOM6].
 MOM6 contains several improvements over its predecessor MOM5 [@griffies2014elements], including the implementation of the Arbitrary-Lagrangian-Eulerian vertical coordinates [@griffies2020ALE], more efficient tracer advection schemes, and state-of-the art parameterizations of sub-grid scale physics.
 
-The nature of turbulent flows is such that smaller scales of motion emerge spontaneously, i.e., flows exhibit forward energy cascade; oceanic flows are no exception to this rule. [@richardson1922weather].
-What might seem counter-intuitive is that in the ocean the small-scale motions (motions from ~100m to ~100km) are very important in shaping the large-scale ocean circulation and climate (motions of ~10,000km) [@Melet2022ch2; @deLavergne2022ch3; @Gula2022ch8].
+The nature of turbulent flows is such that smaller scales of motion emerge spontaneously, i.e., flows exhibit forward energy cascade [@richardson1922weather].
+Oceanic flows are no exception to this rule.
+What might seem counter-intuitive, however, is that in the ocean the fast and small-scale motions (from ~100m to ~100km varying at time scales of hours to days) are very important in shaping the large-scale ocean circulation and climate (lenght scales of ~10,000km and decadal time scales) [@Melet2022ch2; @deLavergne2022ch3; @Gula2022ch8].
 Despite the increase in computational power and the use of graphical processing units that can bring breakthrough performance and speedup [@silvestri2023oceananigansjl], there will always be processes that are smaller than the model's grid spacing and, thus, remain unresolved.
 
 To resolve more scales of motion within the constraints of computational power, we can turn to regional ocean modeling.
