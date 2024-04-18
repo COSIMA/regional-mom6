@@ -47,8 +47,7 @@ bibliography: paper.bib
 The Modular Ocean Model version 6 (MOM6) is a widely-used open-source general circulation ocean--sea ice model, developed mainly at the NOAA Geophysical Fluid Dynamics Laboratory [@Adcroft2019MOM6].
 MOM6 contains several improvements over its predecessor MOM5 [@griffies2014elements], including the implementation of the Arbitrary-Lagrangian-Eulerian vertical coordinates [@griffies2020ALE], more efficient tracer advection schemes, and state-of-the art parameterizations of sub-grid scale physics.
 
-The nature of turbulent flows is such that smaller scales of motion emerge spontaneously, i.e., flows exhibit forward energy cascade.
-Oceanic flows are no exception to this rule.
+The nature of turbulent flows is such that smaller scales of motion emerge spontaneously, i.e., flows exhibit forward energy cascade; oceanic flows are no exception to this rule. [@richardson1922weather].
 What might seem counter-intuitive is that in the ocean the small-scale motions (motions from ~100m to ~100km) are very important in shaping the large-scale ocean circulation and climate (motions of ~10,000km) [@Melet2022ch2; @deLavergne2022ch3; @Gula2022ch8].
 Despite the increase in computational power and the use of graphical processing units that can bring breakthrough performance and speedup [@silvestri2023oceananigansjl], there will always be processes that are smaller than the model's grid spacing and, thus, remain unresolved.
 
@@ -93,7 +92,7 @@ However, the package's code design and modularity makes more complex configurati
 
 The learning curve for setting up a regional ocean model can be quite steep, and it is not obvious for a new user what inputs are required, nor the appropriate format.
 In the case of MOM6, there are several tools scattered in Github repositories, for example those collected in Earth System Modeling Group grid tools [@gridtools].
-Also, there exist several regional configuration examples (e.g.,  <span style="color: #FF69B4;">[cite here 1-2 repos?]</span>) but they are hardcoded for particular domains, specific input files, and work only on specific high-performance computing machines.
+Also, there exist several regional configuration examples (e.g., [ADD 1-2 CITATIONS OF REPOS HERE?]) but they are hardcoded for particular domains, specific input files, and work only on specific high-performance computing machines.
 
 Until now there has been no one-stop-shop for users to learn how to get a regional MOM6 configuration up and running.
 Users are required to use several tools in several programming languages and then modify --sometimes by hand-- some of the input metadata to bring everything into the format that MOM6 expects.
