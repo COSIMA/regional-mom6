@@ -74,9 +74,6 @@ Additionally, the tricky case of a regional configuration that includes the 'sea
 This automation allows users to set up a regional MOM6 configuration using only Python and from the convenience of a single Jupyter notebook.
 @Herzfeld2011 provide rules of thumb to guide the user in setting regional grid parameters such as the resolution.
 
-<!--
-Subsequently, a user need only copy a demo notebook, modify the longitude, latitude and resolution, and simply by running the notebook from start to finish will generate all they need for running a MOM6 experiment in their domain of interest.
--->
 
 `regional-mom6` is installable via `conda`, it is continuously tested, and comes with extensive documentation including tutorials and examples for setting up regional MOM6 configurations using publicly-available forcing and bathymetry datasets (namely, the GLORYS dataset for ocean boundary forcing [@glorys], the ERA5 reanalysis for atmospheric forcing [@era5], and the GEBCO dataset for seafloor topography [@gebco]).
 
@@ -91,7 +88,7 @@ However, the package's code design and modularity make more complex configuratio
 
 The learning curve for setting up a regional ocean model can be steep, and it is not obvious for a new user what inputs are required, nor the appropriate format.
 In the case of MOM6, there are several tools scattered in Github repositories, for example those collected in Earth System Modeling Group grid tools [@gridtools].
-Also, there exist several regional configuration examples (e.g., [ADD 1-2 CITATIONS OF REPOS HERE?]) but they are hardcoded for particular domains, specific input files, and work only on specific high-performance computing machines.
+Also, there exist several regional configuration examples (e.g., [**ADD 1-2 CITATIONS OF REPOS HERE?**]) but they are hardcoded for particular domains, specific input files, and work only on specific high-performance computing machines.
 
 Until now there has been no one-stop-shop for users to learn how to get a regional MOM6 configuration up and running.
 Users are required to use several tools in several programming languages and then modify -- sometimes by hand -- some of the input metadata to bring everything into the format that MOM6 expects.
@@ -100,14 +97,7 @@ Other ocean models have packages to aid in regional configuration setup, for exa
 With MOM6's growing user base for regional applications, there is a need for a platform that walks users through regional domain configuration from start to finish and, ideally, automates the process on the way.
 `regional-mom6` fills precisely this need.
 
-<!-- A package also provides a standardised way of setting up regional models, allowing for more efficient troubleshooting. 
-This is particularly important as the MOM6 boundary code is still under active development, meaning that an old example found Github may not work as intended with a newer executable.
-Currently, it is difficult to discern what the best model settings are for a particular experiment with a given MOM6 executable. 
-However, having different releases of a python package tied to releases of the MOM6 executable will help users avoid difficult to diagnose compatibility errors between the MOM6 codebase, input file formats and parameter files. -->
-
 By having a shared set of tools that the community can work with and contribute to, this package also facilitates collaboration and knowledge-sharing between different research groups.
-<!-- For instance, the Australian ocean modelling community built a set of tools known as the COSIMA Cookbook (cite github repo).
-Alongside the tools grew a set of contributed examples for post-processing and analysis of model outputs. -->
 Using a shared framework for setting up regional models, it is easier to compare and contrast examples of different experiments and allows for users to gain intuition for generating their chosen domain.
 
 `regional-mom6` package can also be used for educational purposes, for example as part of course curricula.
