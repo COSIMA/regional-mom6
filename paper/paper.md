@@ -46,23 +46,20 @@ bibliography: paper.bib
 
 `regional-mom6` is a Python package that provides an easy and versatile way to set up regional configurations of the Modular Ocean Model version 6 (MOM6) ocean model.
 
+In the ocean, fast and small-scale motions (from ~100m to ~100km varying at time scales of hours to days) play an important role in shaping the large-scale ocean circulation and climate (length scales ~10,000km varying at decadal time scales) [@Melet2022ch2; @deLavergne2022ch3; @Gula2022ch8].
+Despite the increase in computational power and the use of graphical processing units that can bring breakthrough performance and speedup [@silvestri2023oceananigansjl], there will always be processes that are smaller than the model's grid spacing and, thus, remain unresolved.
+To resolve more scales of motion within the constraints of computational power, we can turn to regional ocean modeling.
+
+A regional ocean model simulates the ocean only at a prescribed region, which is a subset of the global ocean.
+To do that, we need to apply open boundary conditions at the region's boundaries, that is, we need to impose conditions that mimic the oceanic flow that we are not simulating [@Orlanski1976].
+Regional ocean models can be run at higher resolutions while limiting the required computational resources.
+Higher-resolution regional ocean models improve the representation of smaller-scale motions, such as tidal beams, mixing, mesoscale and sub-mesoscale circulation, as well as the oceanic response to smaller-scale bathymetric or coastal features (such as headlands, islands, sea-mounts, or submarine canyons) and surface forcing (such as atmospheric fronts and convective storms).
+
 MOM6 is a widely-used open-source general circulation ocean--sea ice model, written in Fortran and developed mainly at the NOAA Geophysical Fluid Dynamics Laboratory [@Adcroft2019MOM6].
 MOM6 contains several improvements over its predecessor MOM5 [@griffies2014elements], including the implementation of the Arbitrary-Lagrangian-Eulerian vertical coordinates [bleck2002gvc; @griffies2020ALE], more efficient tracer advection schemes, and state-of-the art parameterizations of sub-grid scale physics.
-
-The nature of turbulent flows is such that smaller scales of motion emerge spontaneously, i.e., flows exhibit forward energy cascade [@richardson1922weather].
-Oceanic flows are no exception to this rule.
-What might seem counter-intuitive, however, is that in the ocean the fast and small-scale motions (from ~100m to ~100km varying at time scales of hours to days) are very important in shaping the large-scale ocean circulation and climate (length scales ~10,000km varying at decadal time scales) [@Melet2022ch2; @deLavergne2022ch3; @Gula2022ch8].
-Despite the increase in computational power and the use of graphical processing units that can bring breakthrough performance and speedup [@silvestri2023oceananigansjl], there will always be processes that are smaller than the model's grid spacing and, thus, remain unresolved.
-
-To resolve more scales of motion within the constraints of computational power, we can turn to regional ocean modeling.
-Regional ocean modeling simulates the ocean only in a prescribed region which is a subset of the global ocean.
-To do that, we need to apply open boundary conditions at the region's boundaries, that is, we need to impose conditions that mimic the oceanic flow that we are not simulating [@Orlanski1976].
-For example, \autoref{fig:tasman} shows the surface currents from a regional ocean simulation of the Tasman sea that was configured using the `regional-mom6` package.
-The boundaries of the domain depicted in \autoref{fig:tasman}b are forced with the ocean flow from a global data product product that is shown in \autoref{fig:tasman}a.
-
-MOM6 provides support for open boundary conditions and thus is becoming popular for regional ocean modeling studies (see, e.g., @gmd-16-6943-2023, @egusphere-2024-394) in addition to global configurations.
+Pertinent for our discussion, MOM6 provides support for open boundary conditions and thus is becoming popular for regional ocean modeling studies (see, e.g., @gmd-16-6943-2023, @egusphere-2024-394) in addition to global configurations.
 However, setting up a regional configuration for MOM6 can be challenging, time consuming, and often involves using several programming languages, a few different tools, and also manually editing/tweaking some input files.
-The `regional-mom6` Python package overcomes these difficulties, automatically generating a regional MOM6 configuration of the user's choice with relatively simple domain geometry.
+The `regional-mom6` package overcomes these difficulties, automatically generating a regional MOM6 configuration of the user's choice with relatively simple domain geometry.
 
 ![A snapshot of the ocean surface currents from a MOM6 regional simulation of the Tasman sea. The simulation is forced by GLORYS and ERA5 reanalysis datasets and configured with a horizontal resolution of 1/80th degree and 100 vertical levels (see @tasmantides for the source code). \label{fig:tasman}](tasman_speed.png){ width=80% }
 
