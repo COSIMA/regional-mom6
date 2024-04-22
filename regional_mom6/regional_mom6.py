@@ -443,7 +443,8 @@ class experiment:
                 self.vgrid = xr.open_dataset(self.mom_input_dir / "vcoord.nc")
             except:
                 print(
-                    "Error while reading in existing grids! Make sure `hgrid.nc` and `vcoord.nc` exists in {self.mom_input_dir} directory."
+                    "Error while reading in existing grids!\n\n"
+                    + f"Make sure `hgrid.nc` and `vcoord.nc` exists in {self.mom_input_dir} directory."
                 )
                 raise ValueError
         else:
@@ -465,7 +466,7 @@ class experiment:
             method for method in dir(self) if not method.startswith("__")
         ]
         error_message = (
-            f"'{name}' method not found. Available methods are: {available_methods}"
+            f"{name} method not found. Available methods are: {available_methods}"
         )
         raise AttributeError(error_message)
 
@@ -582,7 +583,8 @@ class experiment:
                 Either ``'height'`` or ``'thickness'``.
         """
 
-        # Remove time dimension if present in the IC. Assume that the first time dim is the intended on if more than one is present
+        # Remove time dimension if present in the IC.
+        # Assume that the first time dim is the intended on if more than one is present
 
         ic_raw = xr.open_dataset(ic_path)
         if varnames["time"] in ic_raw.dims:
@@ -1417,7 +1419,8 @@ class experiment:
         base_run_dir = premade_rundir_path / "common_files"
         if not premade_rundir_path.exists():
             raise ValueError(
-                f"Cannot find the premade run directory files at \n{premade_rundir_path}\n. Something is not right about how the package has been installed as these files are missing!"
+                f"Cannot find the premade run directory files at {premade_rundir_path}.\n\n"
+                + "These files missing might be indicating an error during the package installation!"
             )
         if surface_forcing:
             overwrite_run_dir = premade_rundir_path / f"{surface_forcing}_surface"
@@ -1478,11 +1481,14 @@ class experiment:
             ncpus = (x * y) - int(masked)
         if mask_table == None:
             print(
-                "No mask table found! This suggests the domain is mostly water, so there are no `non compute` cells that are entirely land. If this doesn't seem right, ensure you've already run .FRE_tools()."
+                "No mask table found! This suggests the domain is mostly water, so there are "
+                + "no `non compute` cells that are entirely land. If this doesn't seem right, "
+                + "ensure you've already run `FRE_tools`."
             )
             if not hasattr(self, "layout"):
                 raise AttributeError(
-                    "No layout information found. This suggests you haven't run .FRE_tools() yet. Please do so first so I know how many processors you'd like to use."
+                    "No layout information found. This suggests that `FRE_tools()` hasn't been called yet. "
+                    + "Please do so, in order for the number of processors required is computed."
                 )
             ncpus = self.layout[0] * self.layout[1]
         print("Number of CPUs required: ", ncpus)
@@ -1947,7 +1953,8 @@ class segment:
         dz.name = "dz"
         dz = xr.concat([dz, dz[-1]], dim=self.z)
 
-        # Here, keep in mind that 'var' keeps track of the mom6 variable names we want, and self.tracers[var] will return the name of the variable from the original data
+        # Here, keep in mind that 'var' keeps track of the mom6 variable names we want, and self.tracers[var]
+        # will return the name of the variable from the original data
 
         allfields = {
             **self.tracers,
