@@ -7,7 +7,7 @@ useful insights that, hopefully, will help users deal with troubleshooting and m
 ## `run` directory
 
 The directory, specified by the `mom_run_dir` path keyword argument in the `experiment` class, contains only text files that configure MOM6 and are used at model initialisation.
-You can see examples of these files in [`docs/premade_run_directories`](https://github.com/COSIMA/regional-mom6/tree/main/demos/premade_run_directories).
+You can see examples of these files in [`demos/premade_run_directories`](https://github.com/COSIMA/regional-mom6/tree/main/demos/premade_run_directories).
 These files are:
 
 * `input.nml`:
