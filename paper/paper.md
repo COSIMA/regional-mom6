@@ -49,12 +49,11 @@ bibliography: paper.bib
 `regional-mom6` is a Python package that provides an easy and versatile way to set up regional configurations of the Modular Ocean Model version 6 (MOM6) ocean model.
 
 In the ocean, fast and small-scale motions (from ~100m to ~100km varying at time scales of hours to days) play an important role in shaping the large-scale ocean circulation and climate (length scales ~10,000km varying at decadal time scales) [@Melet2022ch2; @deLavergne2022ch3; @Gula2022ch8].
-Despite the increase in computational power and the use of graphical processing units that can bring breakthrough performance and speedup [@silvestri2023oceananigansjl], there will always be processes that are smaller than the model's grid spacing and, thus, remain unresolved.
-To resolve more scales of motion within the constraints of computational power, we can turn to regional ocean modeling.
+Despite the increase in computational power and the use of graphical processing units that can bring breakthrough performance and speedup [@silvestri2023oceananigansjl], there are always processes, boundary, or forcing features that are smaller than the model's grid spacing and, thus, remain unresolved.
+Regional ocean models can be run at higher resolutions while limiting the required computational resources.
 
 A regional ocean model simulates the ocean only at a prescribed region, which is a subset of the global ocean.
 To do that, we need to apply open boundary conditions at the region's boundaries, that is, we need to impose conditions that mimic the oceanic flow that we are not simulating [@Orlanski1976].
-Regional ocean models can be run at higher resolutions while limiting the required computational resources.
 Higher-resolution regional ocean models improve the representation of smaller-scale motions, such as tidal beams, mixing, mesoscale and sub-mesoscale circulation, as well as the oceanic response to smaller-scale bathymetric or coastal features (such as headlands, islands, sea-mounts, or submarine canyons) and surface forcing (such as atmospheric fronts and convective storms).
 
 MOM6 is a widely-used open-source general circulation ocean--sea ice model, written in Fortran and developed mainly at the NOAA Geophysical Fluid Dynamics Laboratory [@Adcroft2019MOM6].
