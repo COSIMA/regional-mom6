@@ -98,7 +98,8 @@ Users are required to use several tools in several programming languages and the
 Many parts of this process are not documented, requiring users to dig into the MOM6 Fortran source code.
 Other ocean models have packages to aid in regional configuration setup, for example `Pyroms` [@pyroms] for the Regional Oceanic Modelling System (ROMS; @shchepetkin2005regional) and `MITgcm_python` [@mitgcmpy] for the Massachusetts Institute of Technology General Circulation Model (MITgcm; @marshall1997finite).
 With MOM6's growing user base for regional applications, there is a need for a platform that walks users through regional domain configuration from start to finish and, ideally, automates the process on the way.
-`regional-mom6` fills precisely this need.
+Other than reducing the barrier-to-entry, automating the regional configuration renders the workflow much more reproducible; see discusion by @polton2023reproducible.
+`regional-mom6` fills precisely these needs.
 
 By having a shared set of tools that the community can work with and contribute to, this package also facilitates collaboration and knowledge-sharing between different research groups.
 Using a shared framework for setting up regional models, it is easier to compare and contrast examples of different experiments and allows for users to gain intuition for generating their chosen domain.
