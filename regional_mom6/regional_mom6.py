@@ -825,7 +825,8 @@ class experiment:
         eta_out.yh.attrs = ic_raw_tracers.lat.attrs
         eta_out.attrs = ic_raw_eta.attrs
 
-        # if temp units are K, convert to C
+        ## if min(temp) > 100 then assume that units must be degrees K
+        ## (otherwise we can't be on Earth) and convert to degrees C
         if np.min(tracers_out["temp"].isel({"zl": 0})) > 100:
             tracers_out["temp"] -= 273.15
 
