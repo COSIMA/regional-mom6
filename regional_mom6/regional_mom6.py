@@ -33,8 +33,9 @@ __all__ = [
 
 def longitude_slicer(data, longitude_extent, longitude_coords):
     """
-    Slice longitudes, handling periodicity and 'seams' where the
-    data wraps around (commonly either in domain [0, 360], [-180, 180], or [-270, 90]).
+    Slice longitudes while handling periodicity and the 'seams', that is the
+    longitude values where the data wraps around in a global domain (for example,
+    longitudes are defined, usually, within domain [0, 360] or [-180, 180]).
 
     The algorithm works in five steps:
 
@@ -50,7 +51,7 @@ def longitude_slicer(data, longitude_extent, longitude_coords):
       the information we have about the way the dataset was shifted/rolled.
 
     - Slice the ``data`` index-wise. We know that ``|longitude_extent[1] - longitude_extent[0]| / 360``
-      multiplied by the number of discrete longitude points in the global input data will give
+      multiplied by the number of discrete longitude points in the global input data gives
       the number of longitude points in our slice, and we've already set the midpoint
       to be the middle of the target domain.
 
@@ -120,7 +121,7 @@ def longitude_slicer(data, longitude_extent, longitude_coords):
 
                     new_lon[new_seam_index:] += 360
 
-                ## new_x is used to re-centre the midpoint to match that of target domain
+                ## new_lon is used to re-centre the midpoint to match that of target domain
                 new_lon -= i * 360
 
                 new_data = new_data.assign_coords({lon: new_lon})
@@ -368,13 +369,16 @@ class experiment:
     from MOM6 variable/coordinate name to the name in the input dataset.
 
     The class can be used to generate the grids for a new experiment, or to read in
-    an existing one (with ``read_existing_grids=True``).
+    an existing one (when ``read_existing_grids=True``; see argument description below).
 
     Args:
-        longitude_extent (Tuple[float]): Extent of the region in longitude in degrees.
-        latitude_extent (Tuple[float]): Extent of the region in latitude in degrees.
-        date_range (Tuple[str]): Start and end dates of the boundary forcing window.
-        resolution (float): Lateral resolution of the domain, in degrees.
+        longitude_extent (Tuple[float]): Extent of the region in longitude (in degrees). For
+            example: ``(40.5, 50.0)``.
+        latitude_extent (Tuple[float]): Extent of the region in latitude (in degrees). For
+            example: ``(-20.0, 30.0)``.
+        date_range (Tuple[str]): Start and end dates of the boundary forcing window. For
+            example: ``("2003-01-01", "2003-01-31")``.
+        resolution (float): Lateral resolution of the domain (in degrees).
         number_vertical_layers (int): Number of vertical layers.
         layer_thickness_ratio (float): Ratio of largest to smallest layer thickness;
             used as input in :func:`~hyperbolictan_thickness_profile`.
@@ -388,8 +392,9 @@ class experiment:
         repeat_year_forcing (Optional[bool]): When ``True`` the experiment runs with
             repeat-year forcing. When ``False`` (default) then inter-annual forcing is used.
         read_existing_grids (Optional[Bool]): When ``True``, instead of generating the grids,
-            reads the grids and ocean mask from ``mom_input_dir`` and ``mom_run_dir``. Useful
-            for modifying or troubleshooting experiments. Default: ``False``.
+            the grids and the ocean mask are being read from within the ``mom_input_dir`` and
+            ``mom_run_dir`` directories. Useful for modifying or troubleshooting experiments.
+            Default: ``False``.
     """
 
     def __init__(
@@ -475,17 +480,19 @@ class experiment:
         is the longitudinal spacing. This way, for a sufficiently small domain,
         the linear distances between grid points are nearly identical:
         ``Δx = R * cos(φ) * Δλ`` and ``Δy = R * Δφ = R * cos(φ_central) * Δλ``
-        (here ``R`` is Earth's radius and φ and Δλ are expressed in radians).
-        That is, if the domain is small enough that so that
-        ``cos(φ_North_Side)`` is not much different from ``cos(φ_South_Side)``,
-        then ``Δx`` and ``Δy`` are similar.
+        (here ``R`` is Earth's radius and ``φ``, ``φ_central``, ``Δλ``, and ``Δφ``
+        are all expressed in radians).
+        That is, if the domain is small enough that so that ``cos(φ_North_Side)``
+        is not much different from ``cos(φ_South_Side)``, then ``Δx`` and ``Δy``
+        are similar.
 
         Note:
-            The intention is for the horizontal grid (``hgrid``) generation to be very flexible.
+            The intention is for the horizontal grid (``hgrid``) generation to be flexible.
             For now, there is only one implemented horizontal grid included in the package,
-            but you can customise it by simply overwriting the ``hgrid.nc`` file in the ``rundir``
-            after initialising an ``experiment``. To conserve the metadata, it might be easiest
-            to read the file in, then modify the fields before re-saving.
+            but you can customise it by simply overwriting the ``hgrid.nc`` file in the
+            ``mom_run_dir`` directory after initialising an ``experiment``. To preserve the
+            metadata, it might be easiest to read the file in, then modify the fields before
+            re-saving.
         """
 
         assert (
@@ -922,7 +929,7 @@ class experiment:
                 dataset at ``bathymetry_path``. For example, for GEBCO bathymetry: ``'lon'`` (default).
             latitude_coordinate_name (Optional[str]): The name of the latitude coordinate in the bathymetry
                 dataset at ``bathymetry_path``. For example, for GEBCO bathymetry: ``'lat'`` (default).
-            vertical_coordinate_name (Optional[str]): The name of the height coordinate in the bathymetry
+            vertical_coordinate_name (Optional[str]): The name of the vertical coordinate in the bathymetry
                 dataset at ``bathymetry_path``. For example, for GEBCO bathymetry: ``'elevation'`` (default).
             fill_channels (Optional[bool]): Whether or not to fill in
                 diagonal channels. This removes more narrow inlets,
