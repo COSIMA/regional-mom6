@@ -57,6 +57,7 @@ To do that, we need to apply open boundary conditions at the region's boundaries
 For example, \autoref{fig:tasman} shows the surface currents from a regional ocean simulation of the Tasman sea that was configured using the `regional-mom6` package.
 The boundaries of the domain depicted in \autoref{fig:tasman} are forced with the ocean flow from a global data reanalysis product.
 Higher-resolution regional ocean models improve the representation of smaller-scale motions, such as tidal beams, mixing, mesoscale and sub-mesoscale circulation, as well as the oceanic response to smaller-scale bathymetric or coastal features (such as headlands, islands, sea-mounts, or submarine canyons) and surface forcing (such as atmospheric fronts and convective storms).
+Regional modelling further allows for the "downscaling" of coarse resolution global ocean or climate models, permitting the representation of the variation in local conditions that might otherwise be contained only within a few (or even a single) model grid cell in a global model.
 
 MOM6 is a widely-used open-source, general circulation ocean--sea ice model, written in Fortran [@Adcroft2019MOM6].
 MOM6 contains several improvements over its predecessor MOM5 [@griffies2014elements], including the implementation of the Arbitrary-Lagrangian-Eulerian vertical coordinates [@bleck2002gvc; @griffies2020ALE], more efficient tracer advection schemes, and state-of-the art parameterizations of sub-grid scale physics.
