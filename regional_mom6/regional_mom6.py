@@ -1716,10 +1716,19 @@ class segment:
         self.time_units = time_units
 
         ## Store other data
+        orientation = orientation.lower()
+        if orientation not in ("north", "south", "east", "west"):
+            raise ValueError(
+                "orientation must be one of: 'north', 'south', 'east', or 'west'"
+            )
+        self.orientation = orientation
+
+        if arakawa_grid not in ("A", "B", "C"):
+            raise ValueError("arakawa_grid must be one of: 'A', 'B', or 'C'")
+        self.arakawa_grid = arakawa_grid
+
         self.infile = infile
         self.outfolder = outfolder
-        self.orientation = orientation.lower()  ## might not be needed? NSEW
-        self.grid = arakawa_grid
         self.hgrid = hgrid
         self.segment_name = segment_name
         self.tidal_constituents = tidal_constituents
@@ -1772,7 +1781,7 @@ class segment:
 
         rawseg = xr.open_dataset(self.infile, decode_times=False, engine="netcdf4")
 
-        if self.grid == "A":
+        if self.arakawa_grid == "A":
             rawseg = rawseg.rename({self.x: "lon", self.y: "lat"})
             ## In this case velocities and tracers all on same points
             regridder = xe.Regridder(
@@ -1796,7 +1805,7 @@ class segment:
                 ]
             )
 
-        if self.grid == "B":
+        if self.arakawa_grid == "B":
             ## All tracers on one grid, all velocities on another
             regridder_velocity = xe.Regridder(
                 rawseg[self.u].rename({self.xq: "lon", self.yq: "lat"}),
@@ -1833,7 +1842,7 @@ class segment:
                 ]
             )
 
-        if self.grid == "C":
+        if self.arakawa_grid == "C":
             ## All tracers on one grid, all velocities on another
             regridder_uvelocity = xe.Regridder(
                 rawseg[self.u].rename({self.xq: "lon", self.yh: "lat"}),
