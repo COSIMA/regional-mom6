@@ -1,7 +1,7 @@
 Regional MOM6 Documentation
 ===========================
 
-*Python package for automatic generation of regional configurations for the `Modular Ocean Model 6`_.*
+Python package for automatic generation of regional configurations for the `Modular Ocean Model version 6`_ (MOM6).
 
 
 In brief...
@@ -55,7 +55,7 @@ What you need to get started
 Browse through the `demos <demos.html>`_.
 
 
-.. _Modular Ocean Model 6: https://github.com/mom-ocean/MOM6
+.. _Modular Ocean Model version 6: https://github.com/mom-ocean/MOM6
 .. _open a pull request: https://github.com/COSIMA/regional-mom6/pulls
 
 
