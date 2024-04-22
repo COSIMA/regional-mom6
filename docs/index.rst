@@ -1,7 +1,7 @@
 Regional MOM6 Documentation
 ===========================
 
-*Python package for automatic generation of regional configurations for the `Modular Ocean Model 6`_.*
+Python package for automatic generation of regional configurations for the `Modular Ocean Model version 6`_ (MOM6).
 
 
 In brief...
@@ -35,11 +35,11 @@ Features
 Limitations
 ------------
 
-- Only supports one type of regional horizontal grid, namely one that's equally spaced in longitude
-  and latitude. Users can provide their own grid, or ideally `open a pull request`_ with a method
-  that implements another type of horizontal grid!
+- Only generates regional horizontal grids with uniform spacing in longitude and latitude.
+  However, users can provide their own non-uniform grid, or ideally `open a pull request`_ with a method
+  that generates another type of horizontal grid.
 - Only boundary segments that are parallel to either lines of constant longitude or constant latitude
-  lines are supported.
+  are supported.
 
 
 What you need to get started
@@ -50,12 +50,12 @@ What you need to get started
 3. a bathymetry file that at least covers your domain,
 4. 3D ocean forcing files *of any resolution* on your choice of A, B, or C Arakawa grid,
 5. surface forcing files (e.g., from ERA or JRA reanalysis), and
-6. `GFDL's FRE tools <https://github.com/NOAA-GFDL/FRE-NCtools>`_ be downloaded and compiled on the machine you are using.
+6. `GFDL's FRE tools <https://github.com/NOAA-GFDL/FRE-NCtools>`_ downloaded and compiled on the machine you are using.
 
 Browse through the `demos <demos.html>`_.
 
 
-.. _Modular Ocean Model 6: https://github.com/mom-ocean/MOM6
+.. _Modular Ocean Model version 6: https://github.com/mom-ocean/MOM6
 .. _open a pull request: https://github.com/COSIMA/regional-mom6/pulls
 
 

@@ -10,7 +10,7 @@ how new docstrings or any new bits of documentation that you may have added look
 ## Testing
 
 To run the tests from a local clone of the repository we first need to create a conda
-environment with all the dependencies required. From the repositories local clone main
+environment with all the dependencies required. From the repository's local clone main
 directory do
 
 ```{code-block} bash
@@ -50,7 +50,6 @@ environment. Navigate to the `docs` directory of your local repository clone (e.
 and then 
 
 ```{code-block} bash
-cd docs
 conda create --name docs-env --file requirements.txt
 ```
 

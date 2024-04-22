@@ -1,6 +1,6 @@
 # regional-mom6
 
-*Python package for automatic generation of regional configurations for the [Modular Ocean Model 6](https://github.com/mom-ocean/MOM6).*
+*Python package for automatic generation of regional configurations for the [Modular Ocean Model version 6](https://github.com/mom-ocean/MOM6) (MOM6).*
 
 [![Repo status](https://www.repostatus.org/badges/latest/active.svg?style=flat-square)](https://www.repostatus.org/#active)
 [![conda forge](https://img.shields.io/conda/vn/conda-forge/regional-mom6.svg)](https://anaconda.org/conda-forge/regional-mom6)
@@ -52,11 +52,10 @@ Check out the [documentation](https://regional-mom6.readthedocs.io/en/latest/) a
 
 ## Installation
 
-We encourage creating a new or using an existing conda environment.
+#### Easy, clean, one liner
 
-#### Easy, clean, one liner via conda
-
-The easiest way to install `regional-mom6` is via [`conda`](https://anaconda.org/conda-forge/regional-mom6).
+The easiest way is to install `regional-mom6` via [`conda`](https://anaconda.org/conda-forge/regional-mom6).
+We encourage creating a new or using an existing conda environment and then simply
 
 ```bash
 conda install conda-forge::regional-mom6
@@ -66,7 +65,8 @@ That's it -- now enjoy!
 
 #### "*But I want `pip`, can't I install with `pip`*?"
 
-To install via `pip` is a bit more cumbersome.
+We can install via `pip` but it's a bit more cumbersome.
+Again, we encourage creating a new or using an existing conda environment.
 
 A prerequisite is the binary `esmpy` dependency, which provides regridding capabilities.
 The easiest way to install `esmpy` is via conda:
@@ -88,16 +88,17 @@ pip install regional-mom6
 
 The above installs the version of `regional-mom6` (plus any required dependencies) that corresponds to the latest tagged release of the package.
 
-#### "*I want to live on the edge! I want the latest developments*"
+#### "*I'd like to be on the cutting edge of the development*?"
 
-To install `regional-mom6` directly via GitHub using `pip`, first install `esmpy` as described above. Then:
+Alternatively, we can install directly `regional-mom6` directly via GitHub using `pip`.
+First install `esmpy` as described above and then:
 
 ```bash
 pip install git+https://github.com/COSIMA/regional-mom6.git
 ```
 
 to get the version that corresponds to the latest commit in GitHub.
-Alternatively, install the version that corresponds to a particular git commit using
+Or, install the version that corresponds to a particular git commit using (for example)
 
 ```bash
 pip install git+https://github.com/COSIMA/regional-mom6.git@061b0ef80c7cbc04de0566df329c4ea472002f7e
@@ -124,5 +125,5 @@ The [example notebooks](https://regional-mom6.readthedocs.io/en/latest/demos.htm
 the package using two different sets of input datasets.
 Please ensure that you can get at least one of these working on your setup with your MOM6 executable before trying modify the example to suit your domain with your bathymethry, forcing, and boundary conditions.
 
-You can download the notebooks [from Github](https://github.com/COSIMA/regional-mom6/tree/ncc/installation/demos) or by clicking on the download <img width="22" alt="download" src="https://github.com/COSIMA/regional-mom6/assets/7112768/2c1ae149-c6a8-4395-ab09-2f77588008d9"> button, e.g., at the top-right of the [regional tasmania forced by ERA5 example](https://regional-mom6.readthedocs.io/en/latest/demo_notebooks/reanalysis-forced.html).
+You can download the notebooks [from Github](https://github.com/COSIMA/regional-mom6/tree/main/demos) or by clicking on the download <img width="22" alt="download" src="https://github.com/COSIMA/regional-mom6/assets/7112768/2c1ae149-c6a8-4395-ab09-2f77588008d9"> button, e.g., at the top-right of the [regional tasmania forced by ERA5 example](https://regional-mom6.readthedocs.io/en/latest/demo_notebooks/reanalysis-forced.html).
 
