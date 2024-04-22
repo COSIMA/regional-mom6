@@ -323,15 +323,15 @@ def rectangular_hgrid(λ, φ):
         "y": {"standard_name": "geographic_latitude", "units": "degree_north"},
         "dx": {
             "standard_name": "grid_edge_x_distance",
-            "units": "metres",
+            "units": "meters",
         },
         "dy": {
             "standard_name": "grid_edge_y_distance",
-            "units": "metres",
+            "units": "meters",
         },
         "area": {
             "standard_name": "grid_cell_area",
-            "units": "m2",
+            "units": "m**2",
         },
         "angle_dx": {
             "standard_name": "grid_vertex_x_angle_WRT_geographic_east",
@@ -1033,7 +1033,7 @@ class experiment:
         bathymetry_output.lon.attrs["units"] = "degrees_east"
         bathymetry_output.lat.attrs["units"] = "degrees_north"
         bathymetry_output.elevation.attrs["_FillValue"] = -1e20
-        bathymetry_output.elevation.attrs["units"] = "m"
+        bathymetry_output.elevation.attrs["units"] = "meters"
         bathymetry_output.elevation.attrs["standard_name"] = (
             "height_above_reference_ellipsoid"
         )
@@ -1092,7 +1092,7 @@ class experiment:
         tgrid.lon.attrs["_FillValue"] = 1e20
         tgrid.lat.attrs["units"] = "degrees_north"
         tgrid.lat.attrs["_FillValue"] = 1e20
-        tgrid.elevation.attrs["units"] = "m"
+        tgrid.elevation.attrs["units"] = "meters"
         tgrid.elevation.attrs["coordinates"] = "lon lat"
         tgrid.to_netcdf(
             self.mom_input_dir / "bathymetry_unfinished.nc", mode="w", engine="netcdf4"
