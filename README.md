@@ -98,7 +98,7 @@ pip install git+https://github.com/COSIMA/regional-mom6.git
 ```
 
 to get the version that corresponds to the latest commit in GitHub.
-Or, install the version that corresponds to a particular git commit using
+Or, install the version that corresponds to a particular git commit using (for example)
 
 ```bash
 pip install git+https://github.com/COSIMA/regional-mom6.git@061b0ef80c7cbc04de0566df329c4ea472002f7e
