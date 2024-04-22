@@ -64,7 +64,7 @@ conda install conda-forge::regional-mom6
 
 That's it -- now enjoy!
 
-#### "*But I want `pip`, can't I install with `pip`*?"
+#### "*But I want pip, can't I install with pip*?"
 
 To install via `pip` is a bit more cumbersome.
 
