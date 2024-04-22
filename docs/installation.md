@@ -1,4 +1,5 @@
-# Installation
+Installation
+============
 
 We encourage creating a new or using an existing conda environment.
 
@@ -16,7 +17,7 @@ That's it -- now enjoy!
 
 To install via `pip` is a bit more cumbersome.
 
-A prerequisite is the binary `esmpy` dependency, which provides regridding capabilities.
+A prerequisite is the binary `esmpy` dependency, which provides re-gridding capabilities.
 The easiest way to install `esmpy` is via conda:
 
 ```bash
@@ -45,7 +46,7 @@ pip install git+https://github.com/COSIMA/regional-mom6.git
 ```
 
 to get the version that corresponds to the latest commit in GitHub.
-Alternatively, install the version that corresponds to a particular git commit using
+Alternatively, install the version that corresponds to a particular git commit using, for example,
 
 ```bash
 pip install git+https://github.com/COSIMA/regional-mom6.git@061b0ef80c7cbc04de0566df329c4ea472002f7e
