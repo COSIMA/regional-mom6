@@ -124,6 +124,6 @@ necessarily those used by the GFDL's [`MOM6_examples`](https://github.com/NOAA-G
 
 The [example notebooks](https://regional-mom6.readthedocs.io/en/latest/demos.html) walk you through how to use
 the package using two different sets of input datasets.
-Please ensure that you can get at least one of these working on your setup with your MOM6 executable before trying modify the example to suit your domain with your bathymetry, forcing, and boundary conditions.
+Please ensure that you can get at least one of these working on your setup with your MOM6 executable before trying to modify the example to suit your domain with your bathymetry, forcing, and boundary conditions.
 
 You can download the notebooks [from Github](https://github.com/COSIMA/regional-mom6/tree/main/demos) or by clicking on the download <img width="22" alt="download" src="https://github.com/COSIMA/regional-mom6/assets/7112768/2c1ae149-c6a8-4395-ab09-2f77588008d9"> button, e.g., at the top-right of the [regional Tasmania forced by ERA5 example](https://regional-mom6.readthedocs.io/en/latest/demo_notebooks/reanalysis-forced.html).
