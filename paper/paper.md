@@ -71,8 +71,7 @@ either by the user defining a desired resolution and choosing between pre-config
 or by the user providing a pre-existing horizontal and/or vertical MOM6 grids.
 The user can use MOM6's Arbitrary-Lagrangian-Eulerian vertical coordinates [@griffies2020ALE], regardless of the native vertical coordinates of the boundary forcing input.
 The package automates the re-gridding of all the required forcing input, takes care of all the metadata encoding, generates the regional grid, and ensures that the final input files are in the format expected by MOM6.
-Additionally, the tricky case of a regional configuration that includes the 'seam' in the longitude of the raw input data is handled automatically, removing the need for any preprocessing of the input data.
-(For example, such a 'seam'-related issue arises for a 10ᵒ-wide regional configuration centered at Fiji (178ᵒE) when forced by input with native longitude coordinate in the range between 180ᵒW and 180ᵒE.)
+Additionally, the tricky case of a regional configuration that includes the 'seam' in the longitude of the raw input data (e.g. a 10ᵒ-wide regional configuration centred at Fiji (178ᵒE) and forced by input with native longitude coordinate in the range 180ᵒW--180ᵒE) is handled automatically, removing the need for any preprocessing of the input data.
 This automation allows users to set up a regional MOM6 configuration using only Python and from the convenience of a single Jupyter notebook.
 @Herzfeld2011 provide rules of thumb to guide the user in setting regional grid parameters such as the resolution.
 
