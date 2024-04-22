@@ -50,11 +50,11 @@ def longitude_slicer(data, longitude_extent, longitude_coords):
       the information we have about the way the dataset was shifted/rolled.
 
     - Slice the ``data`` index-wise. We know that ``|longitude_extent[1] - longitude_extent[0]| / 360``
-      multiplied by the number of discrete longitude points will give
-      the total width of our slice, and we've already set the midpoint
+      multiplied by the number of discrete longitude points in the global input data will give
+      the number of longitude points in our slice, and we've already set the midpoint
       to be the middle of the target domain.
 
-    - Finally re-add the right multiple of 360 so the whole domain matches
+    - Finally re-add the correct multiple of 360 so the whole domain matches
       the target.
 
     Args:
@@ -120,7 +120,7 @@ def longitude_slicer(data, longitude_extent, longitude_coords):
 
                     new_lon[new_seam_index:] += 360
 
-                ## new_x is used to recentre the midpoint to match that of target domain
+                ## new_x is used to re-centre the midpoint to match that of target domain
                 new_lon -= i * 360
 
                 new_data = new_data.assign_coords({lon: new_lon})
@@ -163,7 +163,7 @@ def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
     ``(1 + ratio * exp(2π)) / (ratio + exp(2π))``. This slight departure comes about
     because of the value of the hyperbolic tangent profile at the end-points ``tanh(π)``,
     which is approximately 0.9963 and not 1. Note that because ``exp(2π)`` is much greater
-    than 1, the value of the actual ratio is not that different from prescribed value
+    than 1, the value of the actual ratio is not that different from the prescribed value
     ``ratio``, e.g., for ``ratio`` values between 1/100 and 100 the final ratio of the
     bottom-most layer to the top-most layer only departs from the prescribed ``ratio``
     by ±20%.
@@ -262,8 +262,8 @@ def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
 
 def rectangular_hgrid(λ, φ):
     """
-    Construct a horizontal grid with all the metadata required by MOM6 provided
-    an array of longitudes (``λ``) and latitudes (``φ``) on the supergrid.
+    Construct a horizontal grid with all the metadata required by MOM6, based on
+    arrays of longitudes (``λ``) and latitudes (``φ``) on the supergrid.
     Here, 'supergrid' refers to both cell edges and centres, meaning that there
     are twice as many points along each axis than for any individual field.
 
@@ -368,7 +368,7 @@ class experiment:
     from MOM6 variable/coordinate name to the name in the input dataset.
 
     The class can be used to generate the grids for a new experiment, or to read in
-    an existing one by providing with ``read_existing_grids=True``.
+    an existing one (with ``read_existing_grids=True``).
 
     Args:
         longitude_extent (Tuple[float]): Extent of the region in longitude in degrees.
@@ -467,16 +467,18 @@ class experiment:
     def _make_hgrid(self):
         """
         Set up a horizontal grid based on user's specification of the domain.
-        The default behaviour provides with a grid evenly spaced both in
-        longitude and in latitude.
+        The default behaviour generates a grid evenly spaced both in longitude
+        and in latitude.
 
-        The latitudinal resolution is scaled with the cosine of the central latitude of
-        the domain, i.e., ``Δφ = cos(φ_central) * Δλ``, where ``Δλ`` is the longitudinal
-        spacing. This way, and given that the domain is small enough, the linear
-        distances between grid points are nearly identical: ``Δx = R * cos(φ) * Δλ``
-        and ``Δy = R * Δφ = R * cos(φ_central) * Δλ``. That is, given that the domain is
-        small enough so that so that ``cos(φ_North_Side)`` is not much different from
-        ``cos(φ_South_Side)`` then ``Δx`` and ``Δy`` are similar.
+        The latitudinal resolution is scaled with the cosine of the central
+        latitude of the domain, i.e., ``Δφ = cos(φ_central) * Δλ``, where ``Δλ``
+        is the longitudinal spacing. This way, for a sufficiently small domain,
+        the linear distances between grid points are nearly identical:
+        ``Δx = R * cos(φ) * Δλ`` and ``Δy = R * Δφ = R * cos(φ_central) * Δλ``
+        (here ``R`` is Earth's radius and φ and Δλ are expressed in radians).
+        That is, if the domain is small enough that so that
+        ``cos(φ_North_Side)`` is not much different from ``cos(φ_South_Side)``,
+        then ``Δx`` and ``Δy`` are similar.
 
         Note:
             The intention is for the horizontal grid (``hgrid``) generation to be very flexible.
@@ -557,7 +559,7 @@ class experiment:
 
     def initial_condition(self, ic_path, varnames, gridtype="A", vcoord_type="height"):
         """
-        Read the initial condition files, interpolates to the model grid fixes
+        Reads the initial condition files, interpolates to the model grid, fixes
         up metadata and saves to the input directory.
 
         Args:
@@ -857,8 +859,8 @@ class experiment:
         self, path_to_bc, varnames, orientation, segment_number, arakawa_grid="A"
     ):
         """
-        Setup a boundary forcing file for a given orientation. Here the term 'rectangular'
-        implies boundaries along lines of constant latitude or longitude.
+        Set up a boundary forcing file for a given orientation. Here the term 'rectangular'
+        means boundaries along lines of constant latitude or longitude.
 
         Args:
             path_to_bc (str): Path to boundary forcing file. Ideally this should be a pre cut-out
@@ -918,9 +920,9 @@ class experiment:
             bathymetry_path (str): Path to the netCDF file with the bathymetry.
             longitude_coordinate_name (Optional[str]): The name of the longitude coordinate in the bathymetry
                 dataset at ``bathymetry_path``. For example, for GEBCO bathymetry: ``'lon'`` (default).
-            latitude_coordinate_name (Optional[str]): The name of the longitude coordinate in the bathymetry
+            latitude_coordinate_name (Optional[str]): The name of the latitude coordinate in the bathymetry
                 dataset at ``bathymetry_path``. For example, for GEBCO bathymetry: ``'lat'`` (default).
-            vertical_coordinate_name (Optional[str]): The name of the longitude coordinate in the bathymetry
+            vertical_coordinate_name (Optional[str]): The name of the height coordinate in the bathymetry
                 dataset at ``bathymetry_path``. For example, for GEBCO bathymetry: ``'elevation'`` (default).
             fill_channels (Optional[bool]): Whether or not to fill in
                 diagonal channels. This removes more narrow inlets,
@@ -1080,7 +1082,7 @@ class experiment:
             + "directly from a terminal in the input directory via\n\n"
             + "mpirun ESMF_Regrid -s bathymetry_original.nc -d bathymetry_unfinished.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\n\n"
             + "For details see https://xesmf.readthedocs.io/en/latest/large_problems_on_HPC.html\n\n"
-            + "Aftewards, we run 'tidy_bathymetry' method to skip the expensive interpolation step, and finishing metadata, encoding and cleanup."
+            + "Afterwards, we run 'tidy_bathymetry' method to skip the expensive interpolation step, and finishing metadata, encoding and cleanup."
         )
 
         # If we have a domain large enough for chunks, we'll run regridder with parallel=True
@@ -1113,19 +1115,19 @@ class experiment:
         method from :func:`~setup_bathymetry` allows for the regridding to be done separately,
         since regridding can be really expensive for large domains.
 
-        If the bathymetry is already regridded and what is left to be done is fixing the metadata,
-        or fill in some channels then call this function directly to read in the existing
+        If the bathymetry is already regridded and what is left to be done is fixing the metadata
+        or fill in some channels, then call this function directly to read in the existing
         ``bathymetry_unfinished.nc`` file that should be in the input directory.
 
         Args:
-            fill_channels (Optional[bool]): Whether or not to fill in
+            fill_channels (Optional[bool]): Whether to fill in
                 diagonal channels. This removes more narrow inlets,
                 but can also connect extra islands to land. Default: ``False``.
             minimum_layers (Optional[int]): The minimum depth allowed
                 as an integer number of layers. The default value of ``3``
                 layers means that anything shallower than the 3rd
                 layer (as specified by the ``vcoord``) is deemed land.
-            positive_down (Optional[bool]): If ``True`` (default), it assumes that
+            positive_down (Optional[bool]): If ``True`` (default), assume that
                 bathymetry vertical coordinate is positive down.
         """
 
@@ -1368,7 +1370,7 @@ class experiment:
         overwrite=False,
     ):
         """
-        Setup the run directory for MOM6. Either copy a pre-made set of files, or modify
+        Set up the run directory for MOM6. Either copy a pre-made set of files, or modify
         existing files in the 'rundir' directory for the experiment.
 
         Args:
@@ -1636,7 +1638,8 @@ class segment:
     from the provided startdate. Function ignores the time metadata
     and puts it on Julian calendar.
 
-    Only supports z-star (z*) vertical coordinate!
+    Note:
+        Only supports z-star (z*) vertical coordinate.
 
     Args:
         hgrid (xarray.Dataset): The horizontal grid used for domain.
@@ -1644,11 +1647,12 @@ class segment:
         outfolder (Union[str, Path]): Path to folder where the model inputs will
             be stored.
         varnames (Dict[str, str]): Mapping between the variable/dimension names and
-            standard naming convension of this pipeline, e.g., ``{"xq": "longitude,
+            standard naming convention of this pipeline, e.g., ``{"xq": "longitude,
             "yh": "latitude", "salt": "salinity", ...}``. Key "tracers" points to nested
             dictionary of tracers to include in boundary.
         segment_name (str): Name of the segment, e.g., ``'segment_001'``.
-        orientation (str): Cardinal direction (lowercase) of the boundary segment.
+        orientation (str): Cardinal direction (lowercase) of the boundary segment,
+            i.e., ``'east'``, ``'west'``, ``'north'``, or ``'south'``.
         startdate (str): The starting date to use in the segment calendar.
         gridtype (Optional[str]): Arakawa staggering of input grid, one of ``'A'``, ``'B'``,
             or ``'C'``
@@ -1713,9 +1717,8 @@ class segment:
 
     def rectangular_brushcut(self):
         """
-        Cut out and interpolates tracers. This method assumes that the boundary
-        is a simple Northern, Southern, Eastern, or Western boundary. Cuts out
-        and interpolates tracers.
+        Cut out and interpolate tracers. This method assumes that the boundary
+        is a simple Northern, Southern, Eastern, or Western boundary.
         """
         if self.orientation == "north":
             self.hgrid_seg = self.hgrid.isel(nyp=[-1])
