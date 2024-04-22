@@ -46,27 +46,27 @@ python -m pytest --doctest-modules tests/ regional_mom6/
 ## Documentation
 
 To build the docs from a local clone of the repository we first need to create a conda
-environment. Navigate to the `docs` directory of your local repository clone (e.g., `cd docs`)
-and then 
+environment after we first navigate to the `docs` directory of our local repository clone.
 
 ```{code-block} bash
+cd docs
 conda create --name docs-env --file requirements.txt
 ```
 
-Then activate this environment and install the package itself as an editable install (`pip install -e`).
+Then we activate this environment and install the package itself as an editable install (`pip install -e`).
 
 ```{code-block} bash
 conda activate docs-env
 pip install -e ..
 ```
 
-Now we can make the docs
+Now we can build the docs via `make`:
 
 ```{code-block} bash
 make html
 ```
 
-and open `_build/html/index.html` in your favorite browser.
+and open `_build/html/index.html` in our favorite browser.
 
 Alternatively, we can install the dependencies needed for the docs via `pip`; the rest is same, that is
 
