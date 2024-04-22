@@ -1,6 +1,6 @@
 # regional-mom6
 
-*Python package for automatic generation of regional configurations for the [Modular Ocean Model 6](https://github.com/mom-ocean/MOM6).*
+*Python package for automatic generation of regional configurations for the [Modular Ocean Model version 6](https://github.com/mom-ocean/MOM6) (MOM6).*
 
 [![Repo status](https://www.repostatus.org/badges/latest/active.svg?style=flat-square)](https://www.repostatus.org/#active)
 [![conda forge](https://img.shields.io/conda/vn/conda-forge/regional-mom6.svg)](https://anaconda.org/conda-forge/regional-mom6)
@@ -27,10 +27,12 @@ The idea behind this package is that it should let the user sidestep some of the
 
 ## Limitations
 
-- Only supports one type of regional horizontal grid, namely one that's equally spaced in longitude
-  and latitude. Users can provide their own grid, or ideally [open a pull request](https://github.com/COSIMA/regional-mom6/pulls) with a method that implements another type of horizontal grid!
-- Only boundary segments that are parallel to either lines of constant longitude or constant latitude
-  lines are supported.
+- Only generates regional horizontal grids with uniform spacing in longitude and latitude.
+  However, users can provide their own non-uniform grid, or ideally
+  [open a pull request](https://github.com/COSIMA/regional-mom6/pulls) with a method that
+  generates other types of horizontal grids.
+- Only supports boundary segments that are parallel to either lines of constant longitude or
+  lines of constant latitude.
 
 
 ## We want to hear from you
@@ -64,11 +66,11 @@ conda install conda-forge::regional-mom6
 
 That's it -- now enjoy!
 
-#### "*But I want `pip`, can't I install with `pip`*?"
+#### "*But I want pip, can't I install with pip*?"
 
 To install via `pip` is a bit more cumbersome.
 
-A prerequisite is the binary `esmpy` dependency, which provides regridding capabilities.
+A prerequisite is the binary `esmpy` dependency, which provides re-gridding capabilities.
 The easiest way to install `esmpy` is via conda:
 
 ```bash
@@ -97,7 +99,7 @@ pip install git+https://github.com/COSIMA/regional-mom6.git
 ```
 
 to get the version that corresponds to the latest commit in GitHub.
-Alternatively, install the version that corresponds to a particular git commit using
+Alternatively, install the version that corresponds to a particular git commit using, for example,
 
 ```bash
 pip install git+https://github.com/COSIMA/regional-mom6.git@061b0ef80c7cbc04de0566df329c4ea472002f7e
@@ -122,7 +124,6 @@ necessarily those used by the GFDL's [`MOM6_examples`](https://github.com/NOAA-G
 
 The [example notebooks](https://regional-mom6.readthedocs.io/en/latest/demos.html) walk you through how to use
 the package using two different sets of input datasets.
-Please ensure that you can get at least one of these working on your setup with your MOM6 executable before trying modify the example to suit your domain with your bathymethry, forcing, and boundary conditions.
+Please ensure that you can get at least one of these working on your setup with your MOM6 executable before trying to modify the example to suit your domain with your bathymetry, forcing, and boundary conditions.
 
-You can download the notebooks [from Github](https://github.com/COSIMA/regional-mom6/tree/ncc/installation/demos) or by clicking on the download <img width="22" alt="download" src="https://github.com/COSIMA/regional-mom6/assets/7112768/2c1ae149-c6a8-4395-ab09-2f77588008d9"> button, e.g., at the top-right of the [regional tasmania forced by ERA5 example](https://regional-mom6.readthedocs.io/en/latest/demo_notebooks/reanalysis-forced.html).
-
+You can download the notebooks [from Github](https://github.com/COSIMA/regional-mom6/tree/main/demos) or by clicking on the download <img width="22" alt="download" src="https://github.com/COSIMA/regional-mom6/assets/7112768/2c1ae149-c6a8-4395-ab09-2f77588008d9"> button, e.g., at the top-right of the [regional Tasmania forced by ERA5 example](https://regional-mom6.readthedocs.io/en/latest/demo_notebooks/reanalysis-forced.html).
