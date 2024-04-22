@@ -35,9 +35,9 @@ Features
 Limitations
 ------------
 
-- Only supports one type of regional horizontal grid, namely one that's equally spaced in longitude
-  and latitude. Users can provide their own grid, or ideally `open a pull request`_ with a method
-  that implements another type of horizontal grid!
+- Only generates regional horizontal grids with uniform spacing in longitude and latitude.
+  However, users can provide their own non-uniform grid, or ideally `open a pull request`_ with a method
+  that generates another type of horizontal grid.
 - Only boundary segments that are parallel to either lines of constant longitude or constant latitude
   are supported.
 
