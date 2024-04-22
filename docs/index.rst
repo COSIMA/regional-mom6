@@ -39,7 +39,7 @@ Limitations
   and latitude. Users can provide their own grid, or ideally `open a pull request`_ with a method
   that implements another type of horizontal grid!
 - Only boundary segments that are parallel to either lines of constant longitude or constant latitude
-  lines are supported.
+  are supported.
 
 
 What you need to get started
@@ -50,7 +50,7 @@ What you need to get started
 3. a bathymetry file that at least covers your domain,
 4. 3D ocean forcing files *of any resolution* on your choice of A, B, or C Arakawa grid,
 5. surface forcing files (e.g., from ERA or JRA reanalysis), and
-6. `GFDL's FRE tools <https://github.com/NOAA-GFDL/FRE-NCtools>`_ be downloaded and compiled on the machine you are using.
+6. `GFDL's FRE tools <https://github.com/NOAA-GFDL/FRE-NCtools>`_ downloaded and compiled on the machine you are using.
 
 Browse through the `demos <demos.html>`_.
 
