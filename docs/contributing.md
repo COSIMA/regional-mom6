@@ -10,20 +10,21 @@ how new docstrings or any new bits of documentation that you may have added look
 ## Testing
 
 To run the tests from a local clone of the repository we first need to create a conda
-environment with all the dependencies required. From the repository's local clone main
-directory do
+environment with all the required dependencies.
+
+We create the environment by calling
 
 ```{code-block} bash
 conda env create --prefix ./env --file environment-ci.yml
 ```
 
-and then activate it
+from the repository's local clone main directory. Then we activate it via
 
 ```{code-block} bash
 conda activate ./env
 ```
 
-Now we need to install the package in this environment as well as `pytest`
+We then install both the package in this environment as well as the `pytest` package:
 
 ```{code-block} bash
 python -m pip install .
@@ -36,8 +37,8 @@ Now we can run the tests with
 python -m pytest tests/
 ```
 
-If we also want to run the doctests (tests that appear as examples in various docstrings), we
-can use
+If we also want to run the doctests (that is, the tests that appear as examples in
+various docstrings), we can use
 
 ```{code-block} bash
 python -m pytest --doctest-modules tests/ regional_mom6/
@@ -53,7 +54,7 @@ cd docs
 conda create --name docs-env --file requirements.txt
 ```
 
-Then we activate this environment and install the package itself as an editable install (`pip install -e`).
+We activate this environment and install the package itself as an editable install (`pip install -e`).
 
 ```{code-block} bash
 conda activate docs-env
@@ -66,9 +67,11 @@ Now we can build the docs via `make`:
 make html
 ```
 
-and open `_build/html/index.html` in our favorite browser.
+and upon successful build, we preview the documentation by opening `_build/html/index.html`
+in our favorite browser.
 
-Alternatively, we can install the dependencies needed for the docs via `pip`; the rest is same, that is
+Alternatively, instead of creating a conda environment, we can install the required
+dependencies for the docs via `pip`; the rest is same, that is
 
 ```{code-block} bash
 cd docs
