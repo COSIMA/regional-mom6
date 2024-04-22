@@ -421,6 +421,7 @@ class experiment:
 
         self.mom_run_dir = Path(mom_run_dir)
         self.mom_input_dir = Path(mom_input_dir)
+        self.toolpath_dir = Path(toolpath_dir)
 
         self.mom_run_dir.mkdir(exist_ok=True)
         self.mom_input_dir.mkdir(exist_ok=True)
@@ -433,7 +434,6 @@ class experiment:
         self.number_vertical_layers = number_vertical_layers
         self.layer_thickness_ratio = layer_thickness_ratio
         self.depth = depth
-        self.toolpath_dir = Path(toolpath_dir)
         self.grid_type = grid_type
         self.repeat_year_forcing = repeat_year_forcing
         self.ocean_mask = None
@@ -443,7 +443,7 @@ class experiment:
                 self.vgrid = xr.open_dataset(self.mom_input_dir / "vcoord.nc")
             except:
                 print(
-                    "Error in reading in existing grids. Make sure you've got files called `hgrid.nc` and `vcoord.nc` in {self.mom_input_dir}"
+                    "Error while reading in existing grids! Make sure `hgrid.nc` and `vcoord.nc` exists in {self.mom_input_dir} directory."
                 )
                 raise ValueError
         else:
@@ -541,9 +541,10 @@ class experiment:
 
     def _make_vgrid(self):
         """
-        Generate a vertical grid based on the number of layers ``nlayers`` and
-        the prescribed ratio of the vertical layer thicknesses (``layer_thickness_ratio``)
-        specified at the class level.
+        Generates a vertical grid based on the ``number_vertical_layers``, the ratio
+        of largest to smallest layer thickness (``layer_thickness_ratio``) and the
+        total ``depth`` parameters.
+        (All these parameters are specified at the class level.)
         """
 
         thicknesses = hyperbolictan_thickness_profile(
@@ -564,17 +565,17 @@ class experiment:
 
         return vcoord
 
-    def initial_condition(self, ic_path, varnames, gridtype="A", vcoord_type="height"):
+    def initial_condition(self, ic_path, varnames, arakawa_grid="A", vcoord_type="height"):
         """
-        Reads the initial condition files, interpolates to the model grid, fixes
-        up metadata and saves to the input directory.
+        Reads the initial condition from files in ``ic_path``, interpolates to the
+        model grid, fixes up metadata, and saves back to the input directory.
 
         Args:
             ic_path (Union[str, Path]): Path to initial condition file.
             varnames (Dict[str, str]): Mapping from MOM6 variable/coordinate names to the names
                 in the input dataset. For example, ``{'xq': 'lonq', 'yh': 'lath', 'salt': 'so', ...}``.
-            gridtype (Optional[str]): Arakawa grid staggering of input; either ``'A'``, ``'B'``,
-                or ``'C'``.
+            arakawa_grid (Optional[str]): Arakawa grid staggering type of the initial condition.
+                Either ``'A'`` (default), ``'B'``, or ``'C'``.
             vcoord_type (Optional[str]): The type of vertical coordinate used in the forcing files.
                 Either ``'height'`` or ``'thickness'``.
         """
@@ -612,7 +613,7 @@ class experiment:
             )
 
         # Rename all coordinates to have 'lon' and 'lat' to work with the xesmf regridder
-        if gridtype == "A":
+        if arakawa_grid == "A":
             if (
                 "xh" in varnames.keys() and "yh" in varnames.keys()
             ):  ## Handle case where user has provided xh and yh rather than x & y
@@ -631,9 +632,9 @@ class experiment:
                 )
             else:
                 raise ValueError(
-                    "Can't find required coordinates in initial condition. Given that gridtype is 'A' the 'x' and 'y' coordinates should be provided in the varnames dictionary. E.g., {'x': 'lon','y': 'lat'}. Terminating"
+                    "Can't find required coordinates in initial condition. Given that arakawa_grid is 'A' the 'x' and 'y' coordinates should be provided in the varnames dictionary. E.g., {'x': 'lon','y': 'lat'}. Terminating"
                 )
-        if gridtype == "B":
+        if arakawa_grid == "B":
             if (
                 "xq" in varnames.keys()
                 and "yq" in varnames.keys()
@@ -654,9 +655,9 @@ class experiment:
                 )
             else:
                 raise ValueError(
-                    "Can't find coordinates in initial condition. Given that gridtype is 'B' the names of the cell centre ('xh' & 'yh') as well as the cell edge ('xq' & 'yq') coordinates should be provided in the varnames dictionary. E.g {'xh':'lonh','yh':'lath' etc }. Terminating"
+                    "Can't find coordinates in initial condition. Given that arakawa_grid is 'B' the names of the cell centre ('xh' & 'yh') as well as the cell edge ('xq' & 'yq') coordinates should be provided in the varnames dictionary. E.g {'xh':'lonh','yh':'lath' etc }. Terminating"
                 )
-        if gridtype == "C":
+        if arakawa_grid == "C":
             if (
                 "xq" in varnames.keys()
                 and "yq" in varnames.keys()
@@ -677,7 +678,7 @@ class experiment:
                 )
             else:
                 raise ValueError(
-                    "Can't find coordinates in initial condition. Given that gridtype is 'C' the names of the cell centre ('xh' & 'yh') as well as the cell edge ('xq' & 'yq') coordinates should be provided in the varnames dictionary. E.g {'xh':'lonh','yh':'lath' etc }. Terminating"
+                    "Can't find coordinates in initial condition. Given that arakawa_grid is 'C' the names of the cell centre ('xh' & 'yh') as well as the cell edge ('xq' & 'yq') coordinates should be provided in the varnames dictionary. E.g {'xh':'lonh','yh':'lath' etc }. Terminating"
                 )
         ## Construct the xq,yh and xh yq grids
         ugrid = (
@@ -894,7 +895,7 @@ class experiment:
             segment_name="segment_{:03d}".format(segment_number),
             orientation=orientation,  # orienataion
             startdate=self.date_range[0],
-            gridtype=arakawa_grid,
+            arakawa_grid=arakawa_grid,
             repeat_year_forcing=self.repeat_year_forcing,
         )
 
@@ -1661,8 +1662,8 @@ class segment:
         orientation (str): Cardinal direction (lowercase) of the boundary segment,
             i.e., ``'east'``, ``'west'``, ``'north'``, or ``'south'``.
         startdate (str): The starting date to use in the segment calendar.
-        gridtype (Optional[str]): Arakawa staggering of input grid, one of ``'A'``, ``'B'``,
-            or ``'C'``
+        arakawa_grid (Optional[str]): Arakawa grid staggering type of the boundary forcing.
+                Either ``'A'`` (default), ``'B'``, or ``'C'``.
         time_units (str): The units used by the raw forcing files, e.g., ``hours``,
             ``days`` (default).
         tidal_constituents (Optional[int]): An integer determining the number of tidal
@@ -1684,17 +1685,17 @@ class segment:
         segment_name,
         orientation,
         startdate,
-        gridtype="A",
+        arakawa_grid="A",
         time_units="days",
         tidal_constituents=None,
         repeat_year_forcing=False,
     ):
         ## Store coordinate names
-        if gridtype == "A":
+        if arakawa_grid == "A":
             self.x = varnames["x"]
             self.y = varnames["y"]
 
-        elif gridtype in ("B", "C"):
+        elif arakawa_grid in ("B", "C"):
             self.xq = varnames["xq"]
             self.xh = varnames["xh"]
             self.yq = varnames["yq"]
@@ -1716,7 +1717,7 @@ class segment:
         self.infile = infile
         self.outfolder = outfolder
         self.orientation = orientation.lower()  ## might not be needed? NSEW
-        self.grid = gridtype
+        self.grid = arakawa_grid
         self.hgrid = hgrid
         self.segment_name = segment_name
         self.tidal_constituents = tidal_constituents
