@@ -597,21 +597,21 @@ class experiment:
             ]
         except:
             raise ValueError(
-                "Error in reading in initial condition tracers. Terminating"
+                "Error in reading in initial condition tracers. Terminating!"
             )
         try:
             ic_raw_u = ic_raw[varnames["u"]]
             ic_raw_v = ic_raw[varnames["v"]]
         except:
             raise ValueError(
-                "Error in reading in initial condition tracers. Terminating"
+                "Error in reading in initial condition tracers. Terminating!"
             )
 
         try:
             ic_raw_eta = ic_raw[varnames["eta"]]
         except:
             raise ValueError(
-                "Error in reading in initial condition tracers. Terminating"
+                "Error in reading in initial condition tracers. Terminating!"
             )
 
         # Rename all coordinates to have 'lon' and 'lat' to work with the xesmf regridder
@@ -634,7 +634,10 @@ class experiment:
                 )
             else:
                 raise ValueError(
-                    "Can't find required coordinates in initial condition. Given that arakawa_grid is 'A' the 'x' and 'y' coordinates should be provided in the varnames dictionary. E.g., {'x': 'lon','y': 'lat'}. Terminating"
+                    "Can't find required coordinates in initial condition.\n\n"
+                    + "Given that arakawa_grid is 'A' the 'x' and 'y' coordinates should be provided"
+                    + "in the varnames dictionary. For example, {'x': 'lon', 'y': 'lat'}.\n\n"
+                    + "Terminating!"
                 )
         if arakawa_grid == "B":
             if (
@@ -657,7 +660,11 @@ class experiment:
                 )
             else:
                 raise ValueError(
-                    "Can't find coordinates in initial condition. Given that arakawa_grid is 'B' the names of the cell centre ('xh' & 'yh') as well as the cell edge ('xq' & 'yq') coordinates should be provided in the varnames dictionary. E.g {'xh':'lonh','yh':'lath' etc }. Terminating"
+                    "Can't find coordinates in initial condition.\n\n"
+                    + "Given that arakawa_grid is 'B' the names of the cell centers ('xh' & 'yh')"
+                    + "as well as the cell edges ('xq' & 'yq') coordinates should be provided in "
+                    + "the varnames dictionary. For example, {'xh': 'lonh', 'yh': 'lath', ...}.\n\n"
+                    + "Terminating!"
                 )
         if arakawa_grid == "C":
             if (
@@ -680,9 +687,13 @@ class experiment:
                 )
             else:
                 raise ValueError(
-                    "Can't find coordinates in initial condition. Given that arakawa_grid is 'C' the names of the cell centre ('xh' & 'yh') as well as the cell edge ('xq' & 'yq') coordinates should be provided in the varnames dictionary. E.g {'xh':'lonh','yh':'lath' etc }. Terminating"
+                    "Can't find coordinates in initial condition.\n\n"
+                    + "Given that arakawa_grid is 'C' the names of the cell centers ('xh' & 'yh')"
+                    + "as well as the cell edges ('xq' & 'yq') coordinates should be provided in "
+                    + "in the varnames dictionary. For example, {'xh': 'lonh', 'yh': 'lath', ...}.\n\n"
+                    + "Terminating!"
                 )
-        ## Construct the xq,yh and xh yq grids
+        ## Construct the xq, yh and xh, yq grids
         ugrid = (
             self.hgrid[["x", "y"]]
             .isel(nxp=slice(None, None, 2), nyp=slice(1, None, 2))
@@ -696,7 +707,7 @@ class experiment:
             .set_coords(["lat", "lon"])
         )
 
-        ## Construct the cell centre grid for tracers (xh,yh).
+        ## Construct the cell centre grid for tracers (xh, yh).
         tgrid = xr.Dataset(
             {
                 "lon": (
@@ -711,7 +722,8 @@ class experiment:
         )
 
         ### Drop NaNs to be re-added later
-        # NaNs might be here from the land mask of the model that the IC has come from. If they're not removed then the coastlines from this other grid will be retained!
+        # NaNs might be here from the land mask of the model that the IC has come from.
+        # If they're not removed then the coastlines from this other grid will be retained!
         ic_raw_tracers = (
             ic_raw_tracers.interpolate_na("lon", method="linear")
             .ffill("lon")
