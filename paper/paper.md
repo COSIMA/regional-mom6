@@ -54,6 +54,8 @@ Regional ocean models can be run at higher resolutions while limiting the requir
 
 A regional ocean model simulates the ocean only at a prescribed region, which is a subset of the global ocean.
 To do that, we need to apply open boundary conditions at the region's boundaries, that is, we need to impose conditions that mimic the oceanic flow that we are not simulating [@Orlanski1976].
+For example, \autoref{fig:tasman} shows the surface currents from a regional ocean simulation of the Tasman sea that was configured using the `regional-mom6` package.
+The boundaries of the domain depicted in \autoref{fig:tasman} are forced with the ocean flow from a global data reanalysis product.
 Higher-resolution regional ocean models improve the representation of smaller-scale motions, such as tidal beams, mixing, mesoscale and sub-mesoscale circulation, as well as the oceanic response to smaller-scale bathymetric or coastal features (such as headlands, islands, sea-mounts, or submarine canyons) and surface forcing (such as atmospheric fronts and convective storms).
 
 MOM6 is a widely-used open-source, general circulation ocean--sea ice model, written in Fortran [@Adcroft2019MOM6].
