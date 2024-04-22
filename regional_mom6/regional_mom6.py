@@ -565,7 +565,9 @@ class experiment:
 
         return vcoord
 
-    def initial_condition(self, ic_path, varnames, arakawa_grid="A", vcoord_type="height"):
+    def initial_condition(
+        self, ic_path, varnames, arakawa_grid="A", vcoord_type="height"
+    ):
         """
         Reads the initial condition from files in ``ic_path``, interpolates to the
         model grid, fixes up metadata, and saves back to the input directory.
