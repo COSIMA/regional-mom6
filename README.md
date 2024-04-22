@@ -54,7 +54,7 @@ Check out the [documentation](https://regional-mom6.readthedocs.io/en/latest/) a
 
 We encourage creating a new or using an existing conda environment.
 
-#### Easy, clean, one liner
+#### Easy, clean, one liner via conda
 
 The easiest way to install `regional-mom6` is via [`conda`](https://anaconda.org/conda-forge/regional-mom6).
 
