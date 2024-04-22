@@ -248,7 +248,7 @@ def test_ocean_forcing(
     expt.initial_condition(
         tmp_path / "ic_unprocessed",
         varnames,
-        gridtype="A",
+        arakawa_grid="A",
     )
 
 
