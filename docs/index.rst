@@ -36,10 +36,10 @@ Limitations
 ------------
 
 - Only generates regional horizontal grids with uniform spacing in longitude and latitude.
-  However, users can provide their own non-uniform grid, or ideally `open a pull request`_ with a method
-  that generates another type of horizontal grid.
-- Only boundary segments that are parallel to either lines of constant longitude or constant latitude
-  are supported.
+  However, users can provide their own non-uniform grid, or ideally `open a pull request`_
+  with a method that generates other types of horizontal grids.
+- Only supports boundary segments that are parallel to either lines of constant longitude or lines of
+  constant latitude.
 
 
 What you need to get started
