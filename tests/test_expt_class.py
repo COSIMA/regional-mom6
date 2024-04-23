@@ -160,31 +160,47 @@ def test_ocean_forcing(
 
     ## Generate some initial condition to test on
 
-    # initial condition includes, temp, salt, eta, u, v
+    # initial condition includes, temp, salt, u, v, and eta
 
     silly_lat = np.linspace(latitude_extent[0] - 5, latitude_extent[1] + 5, 100)
     silly_lon = np.linspace(longitude_extent[0] - 5, longitude_extent[1] + 5, 100)
     silly_depth = np.linspace(0, 1000, 10)
 
-    temp = xr.DataArray(
-        np.random.random((100, 100, 10)),
-        dims=["silly_lat", "silly_lon", "silly_depth"],
-        coords={
-            "silly_lat": silly_lat,
-            "silly_lon": silly_lon,
-            "silly_depth": silly_depth,
-        },
-    )
+    ## dims and coords for 3D variables
+
+    dims = ["silly_lat", "silly_lon", "silly_depth"]
+
+    coords = {
+        "silly_lat": silly_lat,
+        "silly_lon": silly_lon,
+        "silly_depth": silly_depth,
+    }
 
     temp = xr.DataArray(
         np.random.random((100, 100, 10)),
-        dims=["silly_lat", "silly_lon", "silly_depth"],
-        coords={
-            "silly_lat": silly_lat,
-            "silly_lon": silly_lon,
-            "silly_depth": silly_depth,
-        },
+        dims=dims,
+        coords=coords,
     )
+
+    salt = xr.DataArray(
+        np.random.random((100, 100, 10)),
+        dims=dims,
+        coords=coords,
+    )
+
+    u = xr.DataArray(
+        np.random.random((100, 100, 10)),
+        dims=dims,
+        coords=coords,
+    )
+
+    v = xr.DataArray(
+        np.random.random((100, 100, 10)),
+        dims=dims,
+        coords=coords,
+    )
+
+    ## free surface is 2D variable
 
     eta = xr.DataArray(
         np.random.random((100, 100)),
@@ -192,36 +208,6 @@ def test_ocean_forcing(
         coords={
             "silly_lat": silly_lat,
             "silly_lon": silly_lon,
-        },
-    )
-
-    salt = xr.DataArray(
-        np.random.random((100, 100, 10)),
-        dims=["silly_lat", "silly_lon", "silly_depth"],
-        coords={
-            "silly_lat": silly_lat,
-            "silly_lon": silly_lon,
-            "silly_depth": silly_depth,
-        },
-    )
-
-    u = xr.DataArray(
-        np.random.random((100, 100, 10)),
-        dims=["silly_lat", "silly_lon", "silly_depth"],
-        coords={
-            "silly_lat": silly_lat,
-            "silly_lon": silly_lon,
-            "silly_depth": silly_depth,
-        },
-    )
-
-    v = xr.DataArray(
-        np.random.random((100, 100, 10)),
-        dims=["silly_lat", "silly_lon", "silly_depth"],
-        coords={
-            "silly_lat": silly_lat,
-            "silly_lon": silly_lon,
-            "silly_depth": silly_depth,
         },
     )
 
