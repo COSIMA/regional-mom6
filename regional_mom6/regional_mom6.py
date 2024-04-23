@@ -592,28 +592,29 @@ class experiment:
         if varnames["time"] in ic_raw.coords:
             ic_raw = ic_raw.drop(varnames["time"])
 
-        # Separate out tracers from two velocity fields of IC
+        # Separate out IC's tracers, two velocities, and free surface
         try:
             ic_raw_tracers = ic_raw[
                 [varnames["tracers"][i] for i in varnames["tracers"]]
             ]
         except:
             raise ValueError(
-                "Error in reading in initial condition tracers. Terminating!"
+                "Error while reading initial conditions tracers. Terminating!"
             )
+
         try:
             ic_raw_u = ic_raw[varnames["u"]]
             ic_raw_v = ic_raw[varnames["v"]]
         except:
             raise ValueError(
-                "Error in reading in initial condition tracers. Terminating!"
+                "Error while reading initial condition velocities. Terminating!"
             )
 
         try:
             ic_raw_eta = ic_raw[varnames["eta"]]
         except:
             raise ValueError(
-                "Error in reading in initial condition tracers. Terminating!"
+                "Error while reading initial condition free surface. Terminating!"
             )
 
         # Rename all coordinates to have 'lon' and 'lat' to work with the xesmf regridder
