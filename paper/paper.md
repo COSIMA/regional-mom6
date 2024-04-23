@@ -16,16 +16,16 @@ authors:
   - name: Angus H. Gibson
     orcid: 0000-0001-7577-3604
     affiliation: 1
+  - name: Andrew E. Kiss
+    orcid: 0000-0001-8960-9557
+    affiliation: "1, 2"
   - name: Chris Chapman
     orcid: 0000-0002-6030-1951
     affiliation: 4
+  - name: John Reilly
+    affiliation: 5
   - name: Dhruv Bhagtani
     orcid: 0000-0002-1222-375X
-    affiliation: "1, 2"
-  - name: John Reily
-    affiliation: 5
-  - name: Andrew E. Kiss
-    orcid: 0000-0001-8960-9557
     affiliation: "1, 2"
 affiliations:
  - name: Australian National University, Australia
