@@ -6,6 +6,7 @@ codecov:
 comment: false
 
 ignore:
+  - "3/*"
   - "regional_mom6/tests/*"
 
 coverage:
