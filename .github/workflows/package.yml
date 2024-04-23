@@ -1,0 +1,24 @@
+name: Packaging
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build_and_upload:
+    name: Build sdist and wheels
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: pipx run build
+      - name: Publish package to TestPyPI
+        if: github.event_name == 'release' && github.event.release.prerelease
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+      - name: Publish package to PyPI
+        if: github.event_name == 'release' && ! github.event.release.prerelease
+        uses: pypa/gh-action-pypi-publish@release/v1

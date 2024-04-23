@@ -6,6 +6,7 @@ authors = [
   {name = "Ashley Barnes, COSIMA community, and contributors"},
 ]
 dynamic = ["version"]
+readme = "README.md"
 dependencies = [
   "bottleneck",
   "dask[array]",
