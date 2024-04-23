@@ -599,7 +599,7 @@ class experiment:
             ]
         except:
             raise ValueError(
-                "Error while reading initial conditions tracers. Terminating!"
+                "Error while reading initial condition tracers. Terminating!"
             )
 
         try:
