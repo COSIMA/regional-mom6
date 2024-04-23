@@ -1168,7 +1168,7 @@ class experiment:
             {"depth": (["ny", "nx"], bathymetry["elevation"].values)}
         )
         bathymetry.attrs["depth"] = "meters"
-        bathymetry.attrs["standard_name"] = "bathymetryraphic depth at T-cell centers"
+        bathymetry.attrs["standard_name"] = "bathymetric depth at T-cell centers"
         bathymetry.attrs["coordinates"] = "zi"
 
         bathymetry.expand_dims("tiles", 0)
@@ -1400,8 +1400,6 @@ class experiment:
         existing files in the 'rundir' directory for the experiment.
 
         Args:
-            regional_mom6_path (str): Path to the regional MOM6 source code that was cloned
-                from GitHub. Default is current path, ``'.'``.
             surface_forcing (Optional[str]): Specify the choice of surface forcing, one
                 of: ``'jra'`` or ``'era5'``. If not prescribed then constant fluxes are used.
             using_payu (Optional[bool]): Whether or not to use payu (https://github.com/payu-org/payu)
