@@ -1167,7 +1167,7 @@ class experiment:
             {"depth": (["ny", "nx"], bathymetry["elevation"].values)}
         )
         bathymetry.attrs["depth"] = "meters"
-        bathymetry.attrs["standard_name"] = "bathymetryraphic depth at T-cell centers"
+        bathymetry.attrs["standard_name"] = "bathymetric depth at T-cell centers"
         bathymetry.attrs["coordinates"] = "zi"
 
         bathymetry.expand_dims("tiles", 0)
