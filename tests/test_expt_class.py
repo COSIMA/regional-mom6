@@ -317,16 +317,24 @@ def test_ocean_forcing(
         arakawa_grid="A",
     )
 
+    # test whether ValueError is raised if IC is missing a variable
+    error_msg_missing_tracer = (
+        "Error while reading initial condition tracers. Terminating!"
+    )
+    error_msg_missing_velocity = (
+        "Error while reading initial condition velocities. Terminating!"
+    )
+    error_msg_missing_free_surface = (
+        "Error while reading initial condition free surface. Terminating!"
+    )
+
     with pytest.raises(ValueError) as excinfo:
         expt.initial_condition(
             tmp_path / "ic_without_u_unprocessed",
             varnames,
             arakawa_grid="A",
         )
-    assert (
-        str(excinfo.value)
-        == "Error while reading initial condition velocities. Terminating!"
-    )
+    assert str(excinfo.value) == error_msg_missing_velocity
 
     with pytest.raises(ValueError) as excinfo:
         expt.initial_condition(
@@ -334,10 +342,7 @@ def test_ocean_forcing(
             varnames,
             arakawa_grid="A",
         )
-    assert (
-        str(excinfo.value)
-        == "Error while reading initial condition velocities. Terminating!"
-    )
+    assert str(excinfo.value) == error_msg_missing_velocity
 
     with pytest.raises(ValueError) as excinfo:
         expt.initial_condition(
@@ -345,10 +350,7 @@ def test_ocean_forcing(
             varnames,
             arakawa_grid="A",
         )
-    assert (
-        str(excinfo.value)
-        == "Error while reading initial condition tracers. Terminating!"
-    )
+    assert str(excinfo.value) == error_msg_missing_tracer
 
     with pytest.raises(ValueError) as excinfo:
         expt.initial_condition(
@@ -356,10 +358,7 @@ def test_ocean_forcing(
             varnames,
             arakawa_grid="A",
         )
-    assert (
-        str(excinfo.value)
-        == "Error while reading initial condition tracers. Terminating!"
-    )
+    assert str(excinfo.value) == error_msg_missing_tracer
 
     with pytest.raises(ValueError) as excinfo:
         expt.initial_condition(
@@ -367,10 +366,7 @@ def test_ocean_forcing(
             varnames,
             arakawa_grid="A",
         )
-    assert (
-        str(excinfo.value)
-        == "Error while reading initial condition free surface. Terminating!"
-    )
+    assert str(excinfo.value) == error_msg_missing_free_surface
 
 
 @pytest.mark.parametrize(
