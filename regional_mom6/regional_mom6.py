@@ -296,7 +296,7 @@ def rectangular_hgrid(λ, φ):
         np.diff(λ), dλ * np.ones(np.size(λ) - 1)
     ), "provided array of longitudes must be uniformly spaced"
 
-    # dx = R * cos(φ) * np.deg2rad(dλ) / 2
+    # dx = R * cos(np.deg2rad(φ)) * np.deg2rad(dλ) / 2
     # Note: division by 2 because we're on the supergrid
     dx = np.broadcast_to(
         R * np.cos(np.deg2rad(φ)) * np.deg2rad(dλ) / 2,
@@ -364,7 +364,7 @@ class experiment:
 
     Methods in this class generate the various input files needed for a MOM6
     experiment forced with open boundary conditions (OBCs). The code is agnostic
-    to the user's choice of boundary forcing, bathymetry and surface forcing;
+    to the user's choice of boundary forcing, bathymetry, and surface forcing;
     users need to prescribe what variables are all called via mapping dictionaries
     from MOM6 variable/coordinate name to the name in the input dataset.
 
@@ -825,7 +825,8 @@ class experiment:
         eta_out.yh.attrs = ic_raw_tracers.lat.attrs
         eta_out.attrs = ic_raw_eta.attrs
 
-        # if temp units are K, convert to C
+        ## if min(temp) > 100 then assume that units must be degrees K
+        ## (otherwise we can't be on Earth) and convert to degrees C
         if np.min(tracers_out["temp"].isel({"zl": 0})) > 100:
             tracers_out["temp"] -= 273.15
 
@@ -898,8 +899,8 @@ class experiment:
                 ``'north'``, or ``'south'``.
             segment_number (int): Number the segments according to how they'll be specified in
                 the ``MOM_input``.
-            arakawa_grid (Optional[str]): Arakawa grid staggering of input; either ``'A'``, ``'B'``,
-                or ``'C'``.
+            arakawa_grid (Optional[str]): Arakawa grid staggering type of the boundary forcing.
+                Either ``'A'`` (default), ``'B'``, or ``'C'``.
         """
 
         print("Processing {} boundary...".format(orientation), end="")
@@ -1339,7 +1340,7 @@ class experiment:
             "Running GFDL's FRE Tools. The following information is all printed by the FRE tools themselves"
         )
         if not (self.mom_input_dir / "bathymetry.nc").exists():
-            print("No bathymetry file! Need to run .setup_bathymetry method first")
+            print("No bathymetry file! Need to run setup_bathymetry method first")
             return
 
         for p in self.mom_input_dir.glob("mask_table*"):
@@ -1753,7 +1754,7 @@ class segment:
 
     def rectangular_brushcut(self):
         """
-        Cut out and interpolate tracers. This method assumes that the boundary
+        Cut out and interpolate tracers. ``rectangular_brushcut`` assumes that the boundary
         is a simple Northern, Southern, Eastern, or Western boundary.
         """
         if self.orientation == "north":
@@ -1947,7 +1948,7 @@ class segment:
             },
         }
 
-        ### Generate our dz variable. This needs to be in layer thicknesses
+        ### Generate the dz variable; needs to be in layer thicknesses
         dz = segment_out[self.z].diff(self.z)
         dz.name = "dz"
         dz = xr.concat([dz, dz[-1]], dim=self.z)
