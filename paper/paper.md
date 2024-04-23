@@ -12,7 +12,7 @@ authors:
     affiliation: "1, 2" # (Multiple affiliations must be quoted)
   - name: Navid C. Constantinou
     orcid: 0000-0002-8149-4094
-    affiliation: "1, 2, 3"
+    affiliation: "1, 2, 3, 4"
   - name: Angus H. Gibson
     orcid: 0000-0001-7577-3604
     affiliation: 1
@@ -21,9 +21,9 @@ authors:
     affiliation: "1, 2"
   - name: Chris Chapman
     orcid: 0000-0002-6030-1951
-    affiliation: 4
-  - name: John Reilly
     affiliation: 5
+  - name: John Reilly
+    affiliation: 6
   - name: Dhruv Bhagtani
     orcid: 0000-0002-1222-375X
     affiliation: "1, 2"
@@ -32,12 +32,14 @@ affiliations:
    index: 1
  - name: ARC Centre of Excellence for Climate Extremes, Australia
    index: 2
- - name: ARC Centre of Excellence for the Weather of the 21st Century, Australia
+ - name: University of Melbourne, Australia
    index: 3
- - name: CSIRO Environment, Hobart, Tasmania, Australia
+ - name: ARC Centre of Excellence for the Weather of the 21st Century, Australia
    index: 4
- - name: University of Tasmania, Australia
+ - name: CSIRO Environment, Hobart, Tasmania, Australia
    index: 5
+ - name: University of Tasmania, Australia
+   index: 6
 
 date: 28 March 2024
 bibliography: paper.bib
