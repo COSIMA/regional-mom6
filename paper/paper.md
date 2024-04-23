@@ -51,7 +51,7 @@ bibliography: paper.bib
 `regional-mom6` is a Python package that provides an easy and versatile way to set up regional configurations of the Modular Ocean Model version 6 (MOM6).
 
 In the ocean, fast and small-scale motions (from ~100m to ~100km varying at time scales of hours to days) play an important role in shaping the large-scale ocean circulation and climate (length scales ~10,000km varying at decadal time scales) [@Melet2022ch2; @deLavergne2022ch3; @Gula2022ch8].
-Despite the increase in computational power and the use of graphical processing units that can bring breakthrough performance and speedup [@silvestri2023oceananigansjl], there are always processes, boundary, or forcing features that are smaller than the model's grid spacing and, thus, remain unresolved in operational ocean models.
+Despite the increase in computational power and the use of graphical processing units that can bring breakthrough performance and speedup [@silvestri2023oceananigansjl], there are always processes, boundary, or forcing features that are smaller than the model's grid spacing and, thus, remain unresolved in global ocean models.
 Regional ocean models can be run at higher resolutions while limiting the required computational resources.
 
 A regional ocean model simulates the ocean only in a prescribed region, which is a subset of the global ocean.
