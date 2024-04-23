@@ -112,7 +112,7 @@ With the technically-challenging aspects of setting up a regional configuration 
 
 # Acknowledgements
 
-We thank the Consortium for Ocean–Sea Ice Modeling in Australia ([cosima.org.au](https://cosima.org.au)), Josué Martínez-Moreno, and Callum Shakespeare for useful discussions during the development of this package.
+We thank the vibrant community of the Consortium for Ocean–Sea Ice Modeling in Australia ([cosima.org.au](https://cosima.org.au)) and also Josué Martínez-Moreno and Callum Shakespeare for useful discussions during the development of this package.
 We acknowledge support from the Australian Research Council under DECRA Fellowship DE210100749 (N.C.C.) and grant LP200100406 (A.E.K.).
 We would also like to acknowledge the code and notes by James Simkins, Andrew Ross, and Rob Cermak, which helped us to troubleshoot and improve the algorithms in our package.
 
