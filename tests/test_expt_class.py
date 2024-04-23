@@ -161,21 +161,24 @@ def test_ocean_forcing(
     ## Generate some initial condition to test on
 
     # initial condition includes, temp, salt, eta, u, v
+
+    silly_lat = np.linspace(latitude_extent[0] - 5, latitude_extent[1] + 5, 100)
+    silly_lon = np.linspace(longitude_extent[0] - 5, longitude_extent[1] + 5, 100)
+    silly_depth = np.linspace(0, 1000, 10)
+
+    temp = xr.DataArray(
+        np.random.random((100, 100, 10)),
+        dims=["silly_lat", "silly_lon", "silly_depth"],
+        coords={
+            "silly_lat": silly_lat,
+            "silly_lon": silly_lon,
+            "silly_depth": silly_depth,
+        },
+    )
+
     initial_cond = xr.Dataset(
         {
-            "temp": xr.DataArray(
-                np.random.random((100, 100, 10)),
-                dims=["silly_lat", "silly_lon", "silly_depth"],
-                coords={
-                    "silly_lat": np.linspace(
-                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
-                    ),
-                    "silly_lon": np.linspace(
-                        longitude_extent[0] - 5, longitude_extent[1] + 5, 100
-                    ),
-                    "silly_depth": np.linspace(0, 1000, 10),
-                },
-            ),
+            "temp": temp,
             "eta": xr.DataArray(
                 np.random.random((100, 100)),
                 dims=["silly_lat", "silly_lon"],
