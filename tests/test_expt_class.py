@@ -318,6 +318,47 @@ def test_ocean_forcing(
     )
 
 
+    with pytest.raises(ValueError) as excinfo:
+        expt.initial_condition(
+        tmp_path / "ic_without_u_unprocessed",
+        varnames,
+        arakawa_grid="A",
+    )
+    assert str(excinfo.value) == "Error while reading initial condition velocities. Terminating!"
+
+    with pytest.raises(ValueError) as excinfo:
+        expt.initial_condition(
+        tmp_path / "ic_without_v_unprocessed",
+        varnames,
+        arakawa_grid="A",
+    )
+    assert str(excinfo.value) == "Error while reading initial condition velocities. Terminating!"
+
+    with pytest.raises(ValueError) as excinfo:
+        expt.initial_condition(
+        tmp_path / "ic_without_temp_unprocessed",
+        varnames,
+        arakawa_grid="A",
+    )
+    assert str(excinfo.value) == "Error while reading initial condition tracers. Terminating!"
+
+    with pytest.raises(ValueError) as excinfo:
+        expt.initial_condition(
+        tmp_path / "ic_without_salt_unprocessed",
+        varnames,
+        arakawa_grid="A",
+    )
+    assert str(excinfo.value) == "Error while reading initial condition tracers. Terminating!"
+
+    with pytest.raises(ValueError) as excinfo:
+        expt.initial_condition(
+        tmp_path / "ic_without_eta_unprocessed",
+        varnames,
+        arakawa_grid="A",
+    )
+    assert str(excinfo.value) == "Error while reading initial condition free surface. Terminating!"
+
+
 @pytest.mark.parametrize(
     (
         "longitude_extent",
