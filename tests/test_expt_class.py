@@ -176,60 +176,107 @@ def test_ocean_forcing(
         },
     )
 
+    temp = xr.DataArray(
+        np.random.random((100, 100, 10)),
+        dims=["silly_lat", "silly_lon", "silly_depth"],
+        coords={
+            "silly_lat": silly_lat,
+            "silly_lon": silly_lon,
+            "silly_depth": silly_depth,
+        },
+    )
+
+    eta = xr.DataArray(
+        np.random.random((100, 100)),
+        dims=["silly_lat", "silly_lon"],
+        coords={
+            "silly_lat": silly_lat,
+            "silly_lon": silly_lon,
+        },
+    )
+
+    salt = xr.DataArray(
+        np.random.random((100, 100, 10)),
+        dims=["silly_lat", "silly_lon", "silly_depth"],
+        coords={
+            "silly_lat": silly_lat,
+            "silly_lon": silly_lon,
+            "silly_depth": silly_depth,
+        },
+    )
+
+    u = xr.DataArray(
+        np.random.random((100, 100, 10)),
+        dims=["silly_lat", "silly_lon", "silly_depth"],
+        coords={
+            "silly_lat": silly_lat,
+            "silly_lon": silly_lon,
+            "silly_depth": silly_depth,
+        },
+    )
+
+    v = xr.DataArray(
+        np.random.random((100, 100, 10)),
+        dims=["silly_lat", "silly_lon", "silly_depth"],
+        coords={
+            "silly_lat": silly_lat,
+            "silly_lon": silly_lon,
+            "silly_depth": silly_depth,
+        },
+    )
+
     initial_cond = xr.Dataset(
         {
             "temp": temp,
-            "eta": xr.DataArray(
-                np.random.random((100, 100)),
-                dims=["silly_lat", "silly_lon"],
-                coords={
-                    "silly_lat": np.linspace(
-                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
-                    ),
-                    "silly_lon": np.linspace(
-                        longitude_extent[0] - 5, longitude_extent[1] + 5, 100
-                    ),
-                },
-            ),
-            "salt": xr.DataArray(
-                np.random.random((100, 100, 10)),
-                dims=["silly_lat", "silly_lon", "silly_depth"],
-                coords={
-                    "silly_lat": np.linspace(
-                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
-                    ),
-                    "silly_lon": np.linspace(
-                        longitude_extent[0] - 5, longitude_extent[1] + 5, 100
-                    ),
-                    "silly_depth": np.linspace(0, 1000, 10),
-                },
-            ),
-            "u": xr.DataArray(
-                np.random.random((100, 100, 10)),
-                dims=["silly_lat", "silly_lon", "silly_depth"],
-                coords={
-                    "silly_lat": np.linspace(
-                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
-                    ),
-                    "silly_lon": np.linspace(
-                        longitude_extent[0] - 5, longitude_extent[1] + 5, 100
-                    ),
-                    "silly_depth": np.linspace(0, 1000, 10),
-                },
-            ),
-            "v": xr.DataArray(
-                np.random.random((100, 100, 10)),
-                dims=["silly_lat", "silly_lon", "silly_depth"],
-                coords={
-                    "silly_lat": np.linspace(
-                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
-                    ),
-                    "silly_lon": np.linspace(
-                        longitude_extent[0] - 5, longitude_extent[1] + 5, 100
-                    ),
-                    "silly_depth": np.linspace(0, 1000, 10),
-                },
-            ),
+            "eta": eta,
+            "salt": salt,
+            "u": u,
+            "v": v,
+        }
+    )
+
+    initial_cond_without_temp = xr.Dataset(
+        {
+            "eta": eta,
+            "salt": salt,
+            "u": u,
+            "v": v,
+        }
+    )
+
+    initial_cond_without_salt = xr.Dataset(
+        {
+            "temp": temp,
+            "eta": eta,
+            "u": u,
+            "v": v,
+        }
+    )
+
+    initial_cond_without_eta = xr.Dataset(
+        {
+            "temp": temp,
+            "salt": salt,
+            "u": u,
+            "v": v,
+        }
+    )
+
+    initial_cond_without_u = xr.Dataset(
+        {
+            "temp": temp,
+            "salt": salt,
+            "eta": eta,
+            "v": v,
+        }
+    )
+
+    initial_cond_without_v = xr.Dataset(
+        {
+            "temp": temp,
+            "salt": salt,
+            "eta": eta,
+            "u": u,
         }
     )
 
@@ -237,6 +284,22 @@ def test_ocean_forcing(
 
     initial_cond.to_netcdf(tmp_path / "ic_unprocessed")
     initial_cond.close()
+
+    initial_cond_without_temp.to_netcdf(tmp_path / "ic_without_temp_unprocessed")
+    initial_cond_without_temp.close()
+
+    initial_cond_without_salt.to_netcdf(tmp_path / "ic_without_salt_unprocessed")
+    initial_cond_without_salt.close()
+
+    initial_cond_without_eta.to_netcdf(tmp_path / "ic_without_eta_unprocessed")
+    initial_cond_without_eta.close()
+
+    initial_cond_without_u.to_netcdf(tmp_path / "ic_without_u_unprocessed")
+    initial_cond_without_u.close()
+
+    initial_cond_without_v.to_netcdf(tmp_path / "ic_without_v_unprocessed")
+    initial_cond_without_v.close()
+
     varnames = {
         "x": "silly_lon",
         "y": "silly_lat",
