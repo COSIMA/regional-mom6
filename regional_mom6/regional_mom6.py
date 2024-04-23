@@ -1950,7 +1950,7 @@ class segment:
             },
         }
 
-        ### Generate the dz variable; need needs to be in layer thicknesses
+        ### Generate the dz variable; needs to be in layer thicknesses
         dz = segment_out[self.z].diff(self.z)
         dz.name = "dz"
         dz = xr.concat([dz, dz[-1]], dim=self.z)
