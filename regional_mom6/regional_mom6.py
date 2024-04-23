@@ -33,8 +33,9 @@ __all__ = [
 
 def longitude_slicer(data, longitude_extent, longitude_coords):
     """
-    Slice longitudes, handling periodicity and 'seams' where the
-    data wraps around (commonly either in domain [0, 360], [-180, 180], or [-270, 90]).
+    Slice longitudes while handling periodicity and the 'seams', that is the
+    longitude values where the data wraps around in a global domain (for example,
+    longitudes are defined, usually, within domain [0, 360] or [-180, 180]).
 
     The algorithm works in five steps:
 
@@ -50,11 +51,11 @@ def longitude_slicer(data, longitude_extent, longitude_coords):
       the information we have about the way the dataset was shifted/rolled.
 
     - Slice the ``data`` index-wise. We know that ``|longitude_extent[1] - longitude_extent[0]| / 360``
-      multiplied by the number of discrete longitude points will give
-      the total width of our slice, and we've already set the midpoint
+      multiplied by the number of discrete longitude points in the global input data gives
+      the number of longitude points in our slice, and we've already set the midpoint
       to be the middle of the target domain.
 
-    - Finally re-add the right multiple of 360 so the whole domain matches
+    - Finally re-add the correct multiple of 360 so the whole domain matches
       the target.
 
     Args:
@@ -120,7 +121,7 @@ def longitude_slicer(data, longitude_extent, longitude_coords):
 
                     new_lon[new_seam_index:] += 360
 
-                ## new_x is used to recentre the midpoint to match that of target domain
+                ## new_lon is used to re-centre the midpoint to match that of target domain
                 new_lon -= i * 360
 
                 new_data = new_data.assign_coords({lon: new_lon})
@@ -163,7 +164,7 @@ def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
     ``(1 + ratio * exp(2π)) / (ratio + exp(2π))``. This slight departure comes about
     because of the value of the hyperbolic tangent profile at the end-points ``tanh(π)``,
     which is approximately 0.9963 and not 1. Note that because ``exp(2π)`` is much greater
-    than 1, the value of the actual ratio is not that different from prescribed value
+    than 1, the value of the actual ratio is not that different from the prescribed value
     ``ratio``, e.g., for ``ratio`` values between 1/100 and 100 the final ratio of the
     bottom-most layer to the top-most layer only departs from the prescribed ``ratio``
     by ±20%.
@@ -262,8 +263,8 @@ def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
 
 def rectangular_hgrid(λ, φ):
     """
-    Construct a horizontal grid with all the metadata required by MOM6 provided
-    an array of longitudes (``λ``) and latitudes (``φ``) on the supergrid.
+    Construct a horizontal grid with all the metadata required by MOM6, based on
+    arrays of longitudes (``λ``) and latitudes (``φ``) on the supergrid.
     Here, 'supergrid' refers to both cell edges and centres, meaning that there
     are twice as many points along each axis than for any individual field.
 
@@ -295,7 +296,7 @@ def rectangular_hgrid(λ, φ):
         np.diff(λ), dλ * np.ones(np.size(λ) - 1)
     ), "provided array of longitudes must be uniformly spaced"
 
-    # dx = R * cos(φ) * np.deg2rad(dλ) / 2
+    # dx = R * cos(np.deg2rad(φ)) * np.deg2rad(dλ) / 2
     # Note: division by 2 because we're on the supergrid
     dx = np.broadcast_to(
         R * np.cos(np.deg2rad(φ)) * np.deg2rad(dλ) / 2,
@@ -322,15 +323,15 @@ def rectangular_hgrid(λ, φ):
         "y": {"standard_name": "geographic_latitude", "units": "degree_north"},
         "dx": {
             "standard_name": "grid_edge_x_distance",
-            "units": "metres",
+            "units": "meters",
         },
         "dy": {
             "standard_name": "grid_edge_y_distance",
-            "units": "metres",
+            "units": "meters",
         },
         "area": {
             "standard_name": "grid_cell_area",
-            "units": "m2",
+            "units": "m**2",
         },
         "angle_dx": {
             "standard_name": "grid_vertex_x_angle_WRT_geographic_east",
@@ -363,18 +364,21 @@ class experiment:
 
     Methods in this class generate the various input files needed for a MOM6
     experiment forced with open boundary conditions (OBCs). The code is agnostic
-    to the user's choice of boundary forcing, bathymetry and surface forcing;
+    to the user's choice of boundary forcing, bathymetry, and surface forcing;
     users need to prescribe what variables are all called via mapping dictionaries
     from MOM6 variable/coordinate name to the name in the input dataset.
 
     The class can be used to generate the grids for a new experiment, or to read in
-    an existing one by providing with ``read_existing_grids=True``.
+    an existing one (when ``read_existing_grids=True``; see argument description below).
 
     Args:
-        longitude_extent (Tuple[float]): Extent of the region in longitude in degrees.
-        latitude_extent (Tuple[float]): Extent of the region in latitude in degrees.
-        date_range (Tuple[str]): Start and end dates of the boundary forcing window.
-        resolution (float): Lateral resolution of the domain, in degrees.
+        longitude_extent (Tuple[float]): Extent of the region in longitude (in degrees). For
+            example: ``(40.5, 50.0)``.
+        latitude_extent (Tuple[float]): Extent of the region in latitude (in degrees). For
+            example: ``(-20.0, 30.0)``.
+        date_range (Tuple[str]): Start and end dates of the boundary forcing window. For
+            example: ``("2003-01-01", "2003-01-31")``.
+        resolution (float): Lateral resolution of the domain (in degrees).
         number_vertical_layers (int): Number of vertical layers.
         layer_thickness_ratio (float): Ratio of largest to smallest layer thickness;
             used as input in :func:`~hyperbolictan_thickness_profile`.
@@ -388,8 +392,9 @@ class experiment:
         repeat_year_forcing (Optional[bool]): When ``True`` the experiment runs with
             repeat-year forcing. When ``False`` (default) then inter-annual forcing is used.
         read_existing_grids (Optional[Bool]): When ``True``, instead of generating the grids,
-            reads the grids and ocean mask from ``mom_input_dir`` and ``mom_run_dir``. Useful
-            for modifying or troubleshooting experiments. Default: ``False``.
+            the grids and the ocean mask are being read from within the ``mom_input_dir`` and
+            ``mom_run_dir`` directories. Useful for modifying or troubleshooting experiments.
+            Default: ``False``.
     """
 
     def __init__(
@@ -416,6 +421,7 @@ class experiment:
 
         self.mom_run_dir = Path(mom_run_dir)
         self.mom_input_dir = Path(mom_input_dir)
+        self.toolpath_dir = Path(toolpath_dir)
 
         self.mom_run_dir.mkdir(exist_ok=True)
         self.mom_input_dir.mkdir(exist_ok=True)
@@ -428,7 +434,6 @@ class experiment:
         self.number_vertical_layers = number_vertical_layers
         self.layer_thickness_ratio = layer_thickness_ratio
         self.depth = depth
-        self.toolpath_dir = Path(toolpath_dir)
         self.grid_type = grid_type
         self.repeat_year_forcing = repeat_year_forcing
         self.ocean_mask = None
@@ -438,7 +443,8 @@ class experiment:
                 self.vgrid = xr.open_dataset(self.mom_input_dir / "vcoord.nc")
             except:
                 print(
-                    "Error in reading in existing grids. Make sure you've got files called `hgrid.nc` and `vcoord.nc` in {self.mom_input_dir}"
+                    "Error while reading in existing grids!\n\n"
+                    + f"Make sure `hgrid.nc` and `vcoord.nc` exists in {self.mom_input_dir} directory."
                 )
                 raise ValueError
         else:
@@ -460,30 +466,34 @@ class experiment:
             method for method in dir(self) if not method.startswith("__")
         ]
         error_message = (
-            f"'{name}' method not found. Available methods are: {available_methods}"
+            f"{name} method not found. Available methods are: {available_methods}"
         )
         raise AttributeError(error_message)
 
     def _make_hgrid(self):
         """
         Set up a horizontal grid based on user's specification of the domain.
-        The default behaviour provides with a grid evenly spaced both in
-        longitude and in latitude.
+        The default behaviour generates a grid evenly spaced both in longitude
+        and in latitude.
 
-        The latitudinal resolution is scaled with the cosine of the central latitude of
-        the domain, i.e., ``Δφ = cos(φ_central) * Δλ``, where ``Δλ`` is the longitudinal
-        spacing. This way, and given that the domain is small enough, the linear
-        distances between grid points are nearly identical: ``Δx = R * cos(φ) * Δλ``
-        and ``Δy = R * Δφ = R * cos(φ_central) * Δλ``. That is, given that the domain is
-        small enough so that so that ``cos(φ_North_Side)`` is not much different from
-        ``cos(φ_South_Side)`` then ``Δx`` and ``Δy`` are similar.
+        The latitudinal resolution is scaled with the cosine of the central
+        latitude of the domain, i.e., ``Δφ = cos(φ_central) * Δλ``, where ``Δλ``
+        is the longitudinal spacing. This way, for a sufficiently small domain,
+        the linear distances between grid points are nearly identical:
+        ``Δx = R * cos(φ) * Δλ`` and ``Δy = R * Δφ = R * cos(φ_central) * Δλ``
+        (here ``R`` is Earth's radius and ``φ``, ``φ_central``, ``Δλ``, and ``Δφ``
+        are all expressed in radians).
+        That is, if the domain is small enough that so that ``cos(φ_North_Side)``
+        is not much different from ``cos(φ_South_Side)``, then ``Δx`` and ``Δy``
+        are similar.
 
         Note:
-            The intention is for the horizontal grid (``hgrid``) generation to be very flexible.
+            The intention is for the horizontal grid (``hgrid``) generation to be flexible.
             For now, there is only one implemented horizontal grid included in the package,
-            but you can customise it by simply overwriting the ``hgrid.nc`` file in the ``rundir``
-            after initialising an ``experiment``. To conserve the metadata, it might be easiest
-            to read the file in, then modify the fields before re-saving.
+            but you can customise it by simply overwriting the ``hgrid.nc`` file in the
+            ``mom_run_dir`` directory after initialising an ``experiment``. To preserve the
+            metadata, it might be easiest to read the file in, then modify the fields before
+            re-saving.
         """
 
         assert (
@@ -532,9 +542,10 @@ class experiment:
 
     def _make_vgrid(self):
         """
-        Generate a vertical grid based on the number of layers ``nlayers`` and
-        the prescribed ratio of the vertical layer thicknesses (``layer_thickness_ratio``)
-        specified at the class level.
+        Generates a vertical grid based on the ``number_vertical_layers``, the ratio
+        of largest to smallest layer thickness (``layer_thickness_ratio``) and the
+        total ``depth`` parameters.
+        (All these parameters are specified at the class level.)
         """
 
         thicknesses = hyperbolictan_thickness_profile(
@@ -555,22 +566,25 @@ class experiment:
 
         return vcoord
 
-    def initial_condition(self, ic_path, varnames, gridtype="A", vcoord_type="height"):
+    def initial_condition(
+        self, ic_path, varnames, arakawa_grid="A", vcoord_type="height"
+    ):
         """
-        Read the initial condition files, interpolates to the model grid fixes
-        up metadata and saves to the input directory.
+        Reads the initial condition from files in ``ic_path``, interpolates to the
+        model grid, fixes up metadata, and saves back to the input directory.
 
         Args:
             ic_path (Union[str, Path]): Path to initial condition file.
             varnames (Dict[str, str]): Mapping from MOM6 variable/coordinate names to the names
                 in the input dataset. For example, ``{'xq': 'lonq', 'yh': 'lath', 'salt': 'so', ...}``.
-            gridtype (Optional[str]): Arakawa grid staggering of input; either ``'A'``, ``'B'``,
-                or ``'C'``.
+            arakawa_grid (Optional[str]): Arakawa grid staggering type of the initial condition.
+                Either ``'A'`` (default), ``'B'``, or ``'C'``.
             vcoord_type (Optional[str]): The type of vertical coordinate used in the forcing files.
                 Either ``'height'`` or ``'thickness'``.
         """
 
-        # Remove time dimension if present in the IC. Assume that the first time dim is the intended on if more than one is present
+        # Remove time dimension if present in the IC.
+        # Assume that the first time dim is the intended on if more than one is present
 
         ic_raw = xr.open_dataset(ic_path)
         if varnames["time"] in ic_raw.dims:
@@ -585,25 +599,25 @@ class experiment:
             ]
         except:
             raise ValueError(
-                "Error in reading in initial condition tracers. Terminating"
+                "Error in reading in initial condition tracers. Terminating!"
             )
         try:
             ic_raw_u = ic_raw[varnames["u"]]
             ic_raw_v = ic_raw[varnames["v"]]
         except:
             raise ValueError(
-                "Error in reading in initial condition tracers. Terminating"
+                "Error in reading in initial condition tracers. Terminating!"
             )
 
         try:
             ic_raw_eta = ic_raw[varnames["eta"]]
         except:
             raise ValueError(
-                "Error in reading in initial condition tracers. Terminating"
+                "Error in reading in initial condition tracers. Terminating!"
             )
 
         # Rename all coordinates to have 'lon' and 'lat' to work with the xesmf regridder
-        if gridtype == "A":
+        if arakawa_grid == "A":
             if (
                 "xh" in varnames.keys() and "yh" in varnames.keys()
             ):  ## Handle case where user has provided xh and yh rather than x & y
@@ -622,9 +636,12 @@ class experiment:
                 )
             else:
                 raise ValueError(
-                    "Can't find required coordinates in initial condition. Given that gridtype is 'A' the 'x' and 'y' coordinates should be provided in the varnames dictionary. E.g., {'x': 'lon','y': 'lat'}. Terminating"
+                    "Can't find required coordinates in initial condition.\n\n"
+                    + "Given that arakawa_grid is 'A' the 'x' and 'y' coordinates should be provided"
+                    + "in the varnames dictionary. For example, {'x': 'lon', 'y': 'lat'}.\n\n"
+                    + "Terminating!"
                 )
-        if gridtype == "B":
+        if arakawa_grid == "B":
             if (
                 "xq" in varnames.keys()
                 and "yq" in varnames.keys()
@@ -645,9 +662,13 @@ class experiment:
                 )
             else:
                 raise ValueError(
-                    "Can't find coordinates in initial condition. Given that gridtype is 'B' the names of the cell centre ('xh' & 'yh') as well as the cell edge ('xq' & 'yq') coordinates should be provided in the varnames dictionary. E.g {'xh':'lonh','yh':'lath' etc }. Terminating"
+                    "Can't find coordinates in initial condition.\n\n"
+                    + "Given that arakawa_grid is 'B' the names of the cell centers ('xh' & 'yh')"
+                    + "as well as the cell edges ('xq' & 'yq') coordinates should be provided in "
+                    + "the varnames dictionary. For example, {'xh': 'lonh', 'yh': 'lath', ...}.\n\n"
+                    + "Terminating!"
                 )
-        if gridtype == "C":
+        if arakawa_grid == "C":
             if (
                 "xq" in varnames.keys()
                 and "yq" in varnames.keys()
@@ -668,9 +689,13 @@ class experiment:
                 )
             else:
                 raise ValueError(
-                    "Can't find coordinates in initial condition. Given that gridtype is 'C' the names of the cell centre ('xh' & 'yh') as well as the cell edge ('xq' & 'yq') coordinates should be provided in the varnames dictionary. E.g {'xh':'lonh','yh':'lath' etc }. Terminating"
+                    "Can't find coordinates in initial condition.\n\n"
+                    + "Given that arakawa_grid is 'C' the names of the cell centers ('xh' & 'yh')"
+                    + "as well as the cell edges ('xq' & 'yq') coordinates should be provided in "
+                    + "in the varnames dictionary. For example, {'xh': 'lonh', 'yh': 'lath', ...}.\n\n"
+                    + "Terminating!"
                 )
-        ## Construct the xq,yh and xh yq grids
+        ## Construct the xq, yh and xh, yq grids
         ugrid = (
             self.hgrid[["x", "y"]]
             .isel(nxp=slice(None, None, 2), nyp=slice(1, None, 2))
@@ -684,7 +709,7 @@ class experiment:
             .set_coords(["lat", "lon"])
         )
 
-        ## Construct the cell centre grid for tracers (xh,yh).
+        ## Construct the cell centre grid for tracers (xh, yh).
         tgrid = xr.Dataset(
             {
                 "lon": (
@@ -699,7 +724,8 @@ class experiment:
         )
 
         ### Drop NaNs to be re-added later
-        # NaNs might be here from the land mask of the model that the IC has come from. If they're not removed then the coastlines from this other grid will be retained!
+        # NaNs might be here from the land mask of the model that the IC has come from.
+        # If they're not removed then the coastlines from this other grid will be retained!
         ic_raw_tracers = (
             ic_raw_tracers.interpolate_na("lon", method="linear")
             .ffill("lon")
@@ -799,6 +825,8 @@ class experiment:
         eta_out.yh.attrs = ic_raw_tracers.lat.attrs
         eta_out.attrs = ic_raw_eta.attrs
 
+        ## if min(temp) > 100 then assume that units must be degrees K
+        ## (otherwise we can't be on Earth) and convert to degrees C
         if np.min(tracers_out["temp"].isel({"zl": 0})) > 100:
             tracers_out["temp"] -= 273.15
 
@@ -857,8 +885,8 @@ class experiment:
         self, path_to_bc, varnames, orientation, segment_number, arakawa_grid="A"
     ):
         """
-        Setup a boundary forcing file for a given orientation. Here the term 'rectangular'
-        implies boundaries along lines of constant latitude or longitude.
+        Set up a boundary forcing file for a given orientation. Here the term 'rectangular'
+        means boundaries along lines of constant latitude or longitude.
 
         Args:
             path_to_bc (str): Path to boundary forcing file. Ideally this should be a pre cut-out
@@ -871,8 +899,8 @@ class experiment:
                 ``'north'``, or ``'south'``.
             segment_number (int): Number the segments according to how they'll be specified in
                 the ``MOM_input``.
-            arakawa_grid (Optional[str]): Arakawa grid staggering of input; either ``'A'``, ``'B'``,
-                or ``'C'``.
+            arakawa_grid (Optional[str]): Arakawa grid staggering type of the boundary forcing.
+                Either ``'A'`` (default), ``'B'``, or ``'C'``.
         """
 
         print("Processing {} boundary...".format(orientation), end="")
@@ -885,7 +913,7 @@ class experiment:
             segment_name="segment_{:03d}".format(segment_number),
             orientation=orientation,  # orienataion
             startdate=self.date_range[0],
-            gridtype=arakawa_grid,
+            arakawa_grid=arakawa_grid,
             repeat_year_forcing=self.repeat_year_forcing,
         )
 
@@ -897,8 +925,8 @@ class experiment:
         self,
         *,
         bathymetry_path,
-        longitude_coordinate_name="lat",
-        latitude_coordinate_name="lon",
+        longitude_coordinate_name="lon",
+        latitude_coordinate_name="lat",
         vertical_coordinate_name="elevation",
         fill_channels=False,
         minimum_layers=3,
@@ -918,9 +946,9 @@ class experiment:
             bathymetry_path (str): Path to the netCDF file with the bathymetry.
             longitude_coordinate_name (Optional[str]): The name of the longitude coordinate in the bathymetry
                 dataset at ``bathymetry_path``. For example, for GEBCO bathymetry: ``'lon'`` (default).
-            latitude_coordinate_name (Optional[str]): The name of the longitude coordinate in the bathymetry
+            latitude_coordinate_name (Optional[str]): The name of the latitude coordinate in the bathymetry
                 dataset at ``bathymetry_path``. For example, for GEBCO bathymetry: ``'lat'`` (default).
-            vertical_coordinate_name (Optional[str]): The name of the longitude coordinate in the bathymetry
+            vertical_coordinate_name (Optional[str]): The name of the vertical coordinate in the bathymetry
                 dataset at ``bathymetry_path``. For example, for GEBCO bathymetry: ``'elevation'`` (default).
             fill_channels (Optional[bool]): Whether or not to fill in
                 diagonal channels. This removes more narrow inlets,
@@ -1006,7 +1034,7 @@ class experiment:
         bathymetry_output.lon.attrs["units"] = "degrees_east"
         bathymetry_output.lat.attrs["units"] = "degrees_north"
         bathymetry_output.elevation.attrs["_FillValue"] = -1e20
-        bathymetry_output.elevation.attrs["units"] = "m"
+        bathymetry_output.elevation.attrs["units"] = "meters"
         bathymetry_output.elevation.attrs["standard_name"] = (
             "height_above_reference_ellipsoid"
         )
@@ -1065,7 +1093,7 @@ class experiment:
         tgrid.lon.attrs["_FillValue"] = 1e20
         tgrid.lat.attrs["units"] = "degrees_north"
         tgrid.lat.attrs["_FillValue"] = 1e20
-        tgrid.elevation.attrs["units"] = "m"
+        tgrid.elevation.attrs["units"] = "meters"
         tgrid.elevation.attrs["coordinates"] = "lon lat"
         tgrid.to_netcdf(
             self.mom_input_dir / "bathymetry_unfinished.nc", mode="w", engine="netcdf4"
@@ -1080,7 +1108,7 @@ class experiment:
             + "directly from a terminal in the input directory via\n\n"
             + "mpirun ESMF_Regrid -s bathymetry_original.nc -d bathymetry_unfinished.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\n\n"
             + "For details see https://xesmf.readthedocs.io/en/latest/large_problems_on_HPC.html\n\n"
-            + "Aftewards, we run 'tidy_bathymetry' method to skip the expensive interpolation step, and finishing metadata, encoding and cleanup."
+            + "Afterwards, we run 'tidy_bathymetry' method to skip the expensive interpolation step, and finishing metadata, encoding and cleanup."
         )
 
         # If we have a domain large enough for chunks, we'll run regridder with parallel=True
@@ -1113,19 +1141,19 @@ class experiment:
         method from :func:`~setup_bathymetry` allows for the regridding to be done separately,
         since regridding can be really expensive for large domains.
 
-        If the bathymetry is already regridded and what is left to be done is fixing the metadata,
-        or fill in some channels then call this function directly to read in the existing
+        If the bathymetry is already regridded and what is left to be done is fixing the metadata
+        or fill in some channels, then call this function directly to read in the existing
         ``bathymetry_unfinished.nc`` file that should be in the input directory.
 
         Args:
-            fill_channels (Optional[bool]): Whether or not to fill in
+            fill_channels (Optional[bool]): Whether to fill in
                 diagonal channels. This removes more narrow inlets,
                 but can also connect extra islands to land. Default: ``False``.
             minimum_layers (Optional[int]): The minimum depth allowed
                 as an integer number of layers. The default value of ``3``
                 layers means that anything shallower than the 3rd
                 layer (as specified by the ``vcoord``) is deemed land.
-            positive_down (Optional[bool]): If ``True`` (default), it assumes that
+            positive_down (Optional[bool]): If ``True`` (default), assume that
                 bathymetry vertical coordinate is positive down.
         """
 
@@ -1312,7 +1340,7 @@ class experiment:
             "Running GFDL's FRE Tools. The following information is all printed by the FRE tools themselves"
         )
         if not (self.mom_input_dir / "bathymetry.nc").exists():
-            print("No bathymetry file! Need to run .setup_bathymetry method first")
+            print("No bathymetry file! Need to run setup_bathymetry method first")
             return
 
         for p in self.mom_input_dir.glob("mask_table*"):
@@ -1368,7 +1396,7 @@ class experiment:
         overwrite=False,
     ):
         """
-        Setup the run directory for MOM6. Either copy a pre-made set of files, or modify
+        Set up the run directory for MOM6. Either copy a pre-made set of files, or modify
         existing files in the 'rundir' directory for the experiment.
 
         Args:
@@ -1393,7 +1421,8 @@ class experiment:
         base_run_dir = premade_rundir_path / "common_files"
         if not premade_rundir_path.exists():
             raise ValueError(
-                f"Cannot find the premade run directory files at \n{premade_rundir_path}\n. Something is not right about how the package has been installed as these files are missing!"
+                f"Cannot find the premade run directory files at {premade_rundir_path}.\n\n"
+                + "These files missing might be indicating an error during the package installation!"
             )
         if surface_forcing:
             overwrite_run_dir = premade_rundir_path / f"{surface_forcing}_surface"
@@ -1454,11 +1483,14 @@ class experiment:
             ncpus = (x * y) - int(masked)
         if mask_table == None:
             print(
-                "No mask table found! This suggests the domain is mostly water, so there are no `non compute` cells that are entirely land. If this doesn't seem right, ensure you've already run .FRE_tools()."
+                "No mask table found! This suggests the domain is mostly water, so there are "
+                + "no `non compute` cells that are entirely land. If this doesn't seem right, "
+                + "ensure you've already run `FRE_tools`."
             )
             if not hasattr(self, "layout"):
                 raise AttributeError(
-                    "No layout information found. This suggests you haven't run .FRE_tools() yet. Please do so first so I know how many processors you'd like to use."
+                    "No layout information found. This suggests that `FRE_tools()` hasn't been called yet. "
+                    + "Please do so, in order for the number of processors required is computed."
                 )
             ncpus = self.layout[0] * self.layout[1]
         print("Number of CPUs required: ", ncpus)
@@ -1636,7 +1668,8 @@ class segment:
     from the provided startdate. Function ignores the time metadata
     and puts it on Julian calendar.
 
-    Only supports z-star (z*) vertical coordinate!
+    Note:
+        Only supports z-star (z*) vertical coordinate.
 
     Args:
         hgrid (xarray.Dataset): The horizontal grid used for domain.
@@ -1644,14 +1677,15 @@ class segment:
         outfolder (Union[str, Path]): Path to folder where the model inputs will
             be stored.
         varnames (Dict[str, str]): Mapping between the variable/dimension names and
-            standard naming convension of this pipeline, e.g., ``{"xq": "longitude,
+            standard naming convention of this pipeline, e.g., ``{"xq": "longitude,
             "yh": "latitude", "salt": "salinity", ...}``. Key "tracers" points to nested
             dictionary of tracers to include in boundary.
         segment_name (str): Name of the segment, e.g., ``'segment_001'``.
-        orientation (str): Cardinal direction (lowercase) of the boundary segment.
+        orientation (str): Cardinal direction (lowercase) of the boundary segment,
+            i.e., ``'east'``, ``'west'``, ``'north'``, or ``'south'``.
         startdate (str): The starting date to use in the segment calendar.
-        gridtype (Optional[str]): Arakawa staggering of input grid, one of ``'A'``, ``'B'``,
-            or ``'C'``
+        arakawa_grid (Optional[str]): Arakawa grid staggering type of the boundary forcing.
+                Either ``'A'`` (default), ``'B'``, or ``'C'``.
         time_units (str): The units used by the raw forcing files, e.g., ``hours``,
             ``days`` (default).
         tidal_constituents (Optional[int]): An integer determining the number of tidal
@@ -1673,17 +1707,17 @@ class segment:
         segment_name,
         orientation,
         startdate,
-        gridtype="A",
+        arakawa_grid="A",
         time_units="days",
         tidal_constituents=None,
         repeat_year_forcing=False,
     ):
         ## Store coordinate names
-        if gridtype == "A":
+        if arakawa_grid == "A":
             self.x = varnames["x"]
             self.y = varnames["y"]
 
-        elif gridtype in ("B", "C"):
+        elif arakawa_grid in ("B", "C"):
             self.xq = varnames["xq"]
             self.xh = varnames["xh"]
             self.yq = varnames["yq"]
@@ -1702,10 +1736,19 @@ class segment:
         self.time_units = time_units
 
         ## Store other data
+        orientation = orientation.lower()
+        if orientation not in ("north", "south", "east", "west"):
+            raise ValueError(
+                "orientation must be one of: 'north', 'south', 'east', or 'west'"
+            )
+        self.orientation = orientation
+
+        if arakawa_grid not in ("A", "B", "C"):
+            raise ValueError("arakawa_grid must be one of: 'A', 'B', or 'C'")
+        self.arakawa_grid = arakawa_grid
+
         self.infile = infile
         self.outfolder = outfolder
-        self.orientation = orientation.lower()  ## might not be needed? NSEW
-        self.grid = gridtype
         self.hgrid = hgrid
         self.segment_name = segment_name
         self.tidal_constituents = tidal_constituents
@@ -1713,9 +1756,8 @@ class segment:
 
     def rectangular_brushcut(self):
         """
-        Cut out and interpolates tracers. This method assumes that the boundary
-        is a simple Northern, Southern, Eastern, or Western boundary. Cuts out
-        and interpolates tracers.
+        Cut out and interpolate tracers. ``rectangular_brushcut`` assumes that the boundary
+        is a simple Northern, Southern, Eastern, or Western boundary.
         """
         if self.orientation == "north":
             self.hgrid_seg = self.hgrid.isel(nyp=[-1])
@@ -1759,7 +1801,7 @@ class segment:
 
         rawseg = xr.open_dataset(self.infile, decode_times=False, engine="netcdf4")
 
-        if self.grid == "A":
+        if self.arakawa_grid == "A":
             rawseg = rawseg.rename({self.x: "lon", self.y: "lat"})
             ## In this case velocities and tracers all on same points
             regridder = xe.Regridder(
@@ -1783,7 +1825,7 @@ class segment:
                 ]
             )
 
-        if self.grid == "B":
+        if self.arakawa_grid == "B":
             ## All tracers on one grid, all velocities on another
             regridder_velocity = xe.Regridder(
                 rawseg[self.u].rename({self.xq: "lon", self.yq: "lat"}),
@@ -1820,7 +1862,7 @@ class segment:
                 ]
             )
 
-        if self.grid == "C":
+        if self.arakawa_grid == "C":
             ## All tracers on one grid, all velocities on another
             regridder_uvelocity = xe.Regridder(
                 rawseg[self.u].rename({self.xq: "lon", self.yh: "lat"}),
@@ -1908,12 +1950,13 @@ class segment:
             },
         }
 
-        ### Generate our dz variable. This needs to be in layer thicknesses
+        ### Generate the dz variable; needs to be in layer thicknesses
         dz = segment_out[self.z].diff(self.z)
         dz.name = "dz"
         dz = xr.concat([dz, dz[-1]], dim=self.z)
 
-        # Here, keep in mind that 'var' keeps track of the mom6 variable names we want, and self.tracers[var] will return the name of the variable from the original data
+        # Here, keep in mind that 'var' keeps track of the mom6 variable names we want, and self.tracers[var]
+        # will return the name of the variable from the original data
 
         allfields = {
             **self.tracers,
