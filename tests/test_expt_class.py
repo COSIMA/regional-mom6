@@ -160,73 +160,109 @@ def test_ocean_forcing(
 
     ## Generate some initial condition to test on
 
-    # initial condition includes, temp, salt, eta, u, v
+    # initial condition includes, temp, salt, u, v, and eta
+
+    silly_lat = np.linspace(latitude_extent[0] - 5, latitude_extent[1] + 5, 100)
+    silly_lon = np.linspace(longitude_extent[0] - 5, longitude_extent[1] + 5, 100)
+    silly_depth = np.linspace(0, 1000, 10)
+
+    ## dims and coords for 3D variables
+
+    dims = ["silly_lat", "silly_lon", "silly_depth"]
+
+    coords = {
+        "silly_lat": silly_lat,
+        "silly_lon": silly_lon,
+        "silly_depth": silly_depth,
+    }
+
+    temp = xr.DataArray(
+        np.random.random((100, 100, 10)),
+        dims=dims,
+        coords=coords,
+    )
+
+    salt = xr.DataArray(
+        np.random.random((100, 100, 10)),
+        dims=dims,
+        coords=coords,
+    )
+
+    u = xr.DataArray(
+        np.random.random((100, 100, 10)),
+        dims=dims,
+        coords=coords,
+    )
+
+    v = xr.DataArray(
+        np.random.random((100, 100, 10)),
+        dims=dims,
+        coords=coords,
+    )
+
+    ## free surface is 2D variable
+
+    eta = xr.DataArray(
+        np.random.random((100, 100)),
+        dims=["silly_lat", "silly_lon"],
+        coords={
+            "silly_lat": silly_lat,
+            "silly_lon": silly_lon,
+        },
+    )
+
     initial_cond = xr.Dataset(
         {
-            "temp": xr.DataArray(
-                np.random.random((100, 100, 10)),
-                dims=["silly_lat", "silly_lon", "silly_depth"],
-                coords={
-                    "silly_lat": np.linspace(
-                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
-                    ),
-                    "silly_lon": np.linspace(
-                        longitude_extent[0] - 5, longitude_extent[1] + 5, 100
-                    ),
-                    "silly_depth": np.linspace(0, 1000, 10),
-                },
-            ),
-            "eta": xr.DataArray(
-                np.random.random((100, 100)),
-                dims=["silly_lat", "silly_lon"],
-                coords={
-                    "silly_lat": np.linspace(
-                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
-                    ),
-                    "silly_lon": np.linspace(
-                        longitude_extent[0] - 5, longitude_extent[1] + 5, 100
-                    ),
-                },
-            ),
-            "salt": xr.DataArray(
-                np.random.random((100, 100, 10)),
-                dims=["silly_lat", "silly_lon", "silly_depth"],
-                coords={
-                    "silly_lat": np.linspace(
-                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
-                    ),
-                    "silly_lon": np.linspace(
-                        longitude_extent[0] - 5, longitude_extent[1] + 5, 100
-                    ),
-                    "silly_depth": np.linspace(0, 1000, 10),
-                },
-            ),
-            "u": xr.DataArray(
-                np.random.random((100, 100, 10)),
-                dims=["silly_lat", "silly_lon", "silly_depth"],
-                coords={
-                    "silly_lat": np.linspace(
-                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
-                    ),
-                    "silly_lon": np.linspace(
-                        longitude_extent[0] - 5, longitude_extent[1] + 5, 100
-                    ),
-                    "silly_depth": np.linspace(0, 1000, 10),
-                },
-            ),
-            "v": xr.DataArray(
-                np.random.random((100, 100, 10)),
-                dims=["silly_lat", "silly_lon", "silly_depth"],
-                coords={
-                    "silly_lat": np.linspace(
-                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
-                    ),
-                    "silly_lon": np.linspace(
-                        longitude_extent[0] - 5, longitude_extent[1] + 5, 100
-                    ),
-                    "silly_depth": np.linspace(0, 1000, 10),
-                },
-            ),
+            "temp": temp,
+            "eta": eta,
+            "salt": salt,
+            "u": u,
+            "v": v,
+        }
+    )
+
+    initial_cond_without_temp = xr.Dataset(
+        {
+            "eta": eta,
+            "salt": salt,
+            "u": u,
+            "v": v,
+        }
+    )
+
+    initial_cond_without_salt = xr.Dataset(
+        {
+            "temp": temp,
+            "eta": eta,
+            "u": u,
+            "v": v,
+        }
+    )
+
+    initial_cond_without_eta = xr.Dataset(
+        {
+            "temp": temp,
+            "salt": salt,
+            "u": u,
+            "v": v,
+        }
+    )
+
+    initial_cond_without_u = xr.Dataset(
+        {
+            "temp": temp,
+            "salt": salt,
+            "eta": eta,
+            "v": v,
+        }
+    )
+
+    initial_cond_without_v = xr.Dataset(
+        {
+            "temp": temp,
+            "salt": salt,
+            "eta": eta,
+            "u": u,
         }
     )
 
@@ -234,6 +270,22 @@ def test_ocean_forcing(
 
     initial_cond.to_netcdf(tmp_path / "ic_unprocessed")
     initial_cond.close()
+
+    initial_cond_without_temp.to_netcdf(tmp_path / "ic_without_temp_unprocessed")
+    initial_cond_without_temp.close()
+
+    initial_cond_without_salt.to_netcdf(tmp_path / "ic_without_salt_unprocessed")
+    initial_cond_without_salt.close()
+
+    initial_cond_without_eta.to_netcdf(tmp_path / "ic_without_eta_unprocessed")
+    initial_cond_without_eta.close()
+
+    initial_cond_without_u.to_netcdf(tmp_path / "ic_without_u_unprocessed")
+    initial_cond_without_u.close()
+
+    initial_cond_without_v.to_netcdf(tmp_path / "ic_without_v_unprocessed")
+    initial_cond_without_v.close()
+
     varnames = {
         "x": "silly_lon",
         "y": "silly_lat",
@@ -250,6 +302,57 @@ def test_ocean_forcing(
         varnames,
         arakawa_grid="A",
     )
+
+    # test whether ValueError is raised if IC is missing a variable
+    error_msg_missing_tracer = (
+        "Error while reading initial condition tracers. Terminating!"
+    )
+    error_msg_missing_velocity = (
+        "Error while reading initial condition velocities. Terminating!"
+    )
+    error_msg_missing_free_surface = (
+        "Error while reading initial condition free surface. Terminating!"
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        expt.initial_condition(
+            tmp_path / "ic_without_u_unprocessed",
+            varnames,
+            arakawa_grid="A",
+        )
+    assert str(excinfo.value) == error_msg_missing_velocity
+
+    with pytest.raises(ValueError) as excinfo:
+        expt.initial_condition(
+            tmp_path / "ic_without_v_unprocessed",
+            varnames,
+            arakawa_grid="A",
+        )
+    assert str(excinfo.value) == error_msg_missing_velocity
+
+    with pytest.raises(ValueError) as excinfo:
+        expt.initial_condition(
+            tmp_path / "ic_without_temp_unprocessed",
+            varnames,
+            arakawa_grid="A",
+        )
+    assert str(excinfo.value) == error_msg_missing_tracer
+
+    with pytest.raises(ValueError) as excinfo:
+        expt.initial_condition(
+            tmp_path / "ic_without_salt_unprocessed",
+            varnames,
+            arakawa_grid="A",
+        )
+    assert str(excinfo.value) == error_msg_missing_tracer
+
+    with pytest.raises(ValueError) as excinfo:
+        expt.initial_condition(
+            tmp_path / "ic_without_eta_unprocessed",
+            varnames,
+            arakawa_grid="A",
+        )
+    assert str(excinfo.value) == error_msg_missing_free_surface
 
 
 @pytest.mark.parametrize(
