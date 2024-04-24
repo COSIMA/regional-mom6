@@ -1,6 +1,6 @@
 # regional-mom6
 
-*Python package for automatic generation of regional configurations for the [Modular Ocean Model version 6](https://github.com/mom-ocean/MOM6) (MOM6).*
+*Python package for automatic generation of regional configurations for the [Modular Ocean Model version 6](https://github.com/mom-ocean/MOM6) (MOM6)*
 
 [![Repo status](https://www.repostatus.org/badges/latest/active.svg?style=flat-square)](https://www.repostatus.org/#active)
 [![conda forge](https://img.shields.io/conda/vn/conda-forge/regional-mom6.svg)](https://anaconda.org/conda-forge/regional-mom6)

@@ -1,9 +1,9 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = "Regional MOM6"
-copyright = "2023, Ashley Barnes & COSIMA Contributors"
-author = "Ashley Barnes & COSIMA Contributors"
+project = "regional-mom6"
+copyright = "2024, COSIMA community and outside contributors"
+author = "COSIMA community and outside contributors"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
