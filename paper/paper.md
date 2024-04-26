@@ -22,11 +22,14 @@ authors:
   - name: Chris Chapman
     orcid: 0000-0002-6030-1951
     affiliation: 5
+    equal-contrib: true
   - name: John Reilly
     affiliation: 6
+    equal-contrib: true
   - name: Dhruv Bhagtani
     orcid: 0000-0002-1222-375X
     affiliation: "1, 2"
+    equal-contrib: true
 affiliations:
  - name: Australian National University, Australia
    index: 1
@@ -41,7 +44,7 @@ affiliations:
  - name: University of Tasmania, Australia
    index: 6
 
-date: 28 March 2024
+date: 26 April 2024
 bibliography: paper.bib
 ---
 
