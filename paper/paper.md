@@ -1,5 +1,5 @@
 ---
-title: 'regional-mom6: A Python package for Automatic generation of regional configurations for the Modular Ocean Model v6'
+title: 'regional-mom6: A Python package for automatic generation of regional configurations for the Modular Ocean Model v6'
 
 tags:
   - Python
