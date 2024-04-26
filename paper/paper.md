@@ -106,7 +106,7 @@ Also, there exist several regional configuration examples but they are hardcoded
 Until now there has been no one-stop-shop for users to learn how to get a regional MOM6 configuration up and running.
 Users are required to use several tools in several programming languages and then modify -- sometimes by hand -- some of the input metadata to bring everything into the format that MOM6 expects.
 Many parts of this process are not documented, requiring users to dig into the MOM6 Fortran source code.
-Recently, there is an attempt to gather these scattered tools into one repository [@CEFIregional].
+Recently, the Climate, Ecosystems and Fisheries Initiative gathered these scattered tools into a single repository [@CEFIregional] but at the moment they are tailored to a specific high-performance computing machines.
 Other ocean models have packages to aid in regional configuration setup, for example `Pyroms` [@pyroms] for the Regional Oceanic Modelling System (ROMS; @shchepetkin2005regional) and `MITgcm_python` [@mitgcmpy] for the Massachusetts Institute of Technology General Circulation Model (MITgcm; @marshall1997finite).
 With MOM6's growing user base for regional applications, there is a need for a platform that walks users through regional domain configuration from start to finish and, ideally, automates the process on the way.
 Other than reducing the barrier-to-entry, automating the regional configuration process renders the workflow much more reproducible; see discussion by @polton2023reproducible.
