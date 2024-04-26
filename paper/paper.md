@@ -76,7 +76,7 @@ either by the user defining a desired resolution and choosing between pre-config
 or by the user providing pre-existing horizontal and/or vertical MOM6 grids.
 The user can use MOM6's Arbitrary-Lagrangian-Eulerian vertical coordinates, regardless of the native vertical coordinates of the boundary forcing input.
 The package automates the re-gridding of all the required forcing input, takes care of all the metadata encoding, generates the regional grid, and ensures that the final input files are in the format expected by MOM6.
-Additionally, the tricky case of a regional configuration that includes the 'seam' in the longitude of the raw input data (e.g. a 10ᵒ-wide regional configuration centred at Fiji (178ᵒE) and forced by input with native longitude coordinate in the range 180ᵒW--180ᵒE) is handled automatically, removing the need for any preprocessing of the input data.
+Additionally, the tricky case of a regional configuration that includes the 'seam' in the longitude of the raw input data (e.g., a 10ᵒ-wide regional configuration centred at Fiji (178ᵒE) and forced by input with native longitude coordinate in the range 180ᵒW--180ᵒE) is handled automatically, removing the need for any preprocessing of the input data.
 This automation allows users to set up a regional MOM6 configuration using only Python and from the convenience of a single Jupyter notebook.
 @Herzfeld2011 provide rules of thumb to guide the user in setting regional grid parameters such as the resolution.
 
@@ -94,7 +94,7 @@ However, the package's code design and modularity make more complex configuratio
 
 The learning curve for setting up a regional ocean model can be steep, and it is not obvious for a new user what inputs are required, nor the appropriate format.
 In the case of MOM6, there are several tools scattered in Github repositories, for example those collected in Earth System Modeling Group grid tools [@gridtools].
-Also, there exist several regional configuration examples (e.g., [@gmd-16-6943-2023]) but they are hardcoded for particular domains, specific input files, and work only on specific high-performance computing machines.
+Also, there exist several regional configuration examples but they are hardcoded for particular domains, specific input files, and work only on specific high-performance computing machines (e.g., @gmd-16-6943-2023).
 
 Until now there has been no one-stop-shop for users to learn how to get a regional MOM6 configuration up and running.
 Users are required to use several tools in several programming languages and then modify -- sometimes by hand -- some of the input metadata to bring everything into the format that MOM6 expects.
