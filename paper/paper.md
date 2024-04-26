@@ -109,7 +109,7 @@ Many parts of this process are not documented, requiring users to dig into the M
 Recently, there is an attempt to gather these scattered tools into one repository [@CEFIregional].
 Other ocean models have packages to aid in regional configuration setup, for example `Pyroms` [@pyroms] for the Regional Oceanic Modelling System (ROMS; @shchepetkin2005regional) and `MITgcm_python` [@mitgcmpy] for the Massachusetts Institute of Technology General Circulation Model (MITgcm; @marshall1997finite).
 With MOM6's growing user base for regional applications, there is a need for a platform that walks users through regional domain configuration from start to finish and, ideally, automates the process on the way.
-Other than reducing the barrier-to-entry, automating the regional configuration renders the workflow much more reproducible; see discussion by @polton2023reproducible.
+Other than reducing the barrier-to-entry, automating the regional configuration process renders the workflow much more reproducible; see discussion by @polton2023reproducible.
 `regional-mom6` precisely meets these needs.
 
 By having a shared set of tools that the community can work with and contribute to, this package also facilitates collaboration and knowledge-sharing between different research groups.
