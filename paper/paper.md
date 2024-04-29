@@ -24,6 +24,7 @@ authors:
     affiliation: 5
     equal-contrib: true
   - name: John Reilly
+    orcid: 0000-0003-4001-0230
     affiliation: 6
     equal-contrib: true
   - name: Dhruv Bhagtani
