@@ -1573,7 +1573,7 @@ class experiment:
                 i for i in range(self.date_range[0].year, self.date_range[1].year + 1)
             ]
             # construct a list of all paths for all years to use for open_mfdataset
-            paths_per_year = [Path(f"{era5_path}/{fname}/{year}/") for i in years]
+            paths_per_year = [Path(f"{era5_path}/{fname}/{year}/") for year in years]
             all_files = []
             for path in paths_per_year:
                 # Use glob to find all files that match the pattern
