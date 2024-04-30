@@ -1577,7 +1577,7 @@ class experiment:
             all_files = []
             for path in paths_per_year:
                 # Use glob to find all files that match the pattern
-                files = list(path.glob(f'{fname}*.nc'))
+                files = list(path.glob(f"{fname}*.nc"))
                 # Add the files to the all_files list
                 all_files.extend(files)
 
@@ -1586,8 +1586,6 @@ class experiment:
                 decode_times=False,
                 chunks={"longitude": 100, "latitude": 100},
             )
-
-
 
             ## Cut out this variable to our domain size
             rawdata[fname] = longitude_slicer(
@@ -1619,12 +1617,8 @@ class experiment:
 
             if fname == "2d":
                 ## Calculate specific humidity from dewpoint temperature
-                dewpoint = 8.07131 - 1730.63 / (
-                    233.426 + rawdata["2d"]["d2m"] - 273.15
-                )
-                humidity = (
-                    (0.622 / rawdata["sp"]["sp"]) * (10**dewpoint) * 101325 / 760
-                )
+                dewpoint = 8.07131 - 1730.63 / (233.426 + rawdata["2d"]["d2m"] - 273.15)
+                humidity = (0.622 / rawdata["sp"]["sp"]) * (10**dewpoint) * 101325 / 760
                 q = xr.Dataset(data_vars={"q": humidity})
 
                 q.q.attrs = {"long_name": "Specific Humidity", "units": "kg/kg"}
@@ -1636,9 +1630,7 @@ class experiment:
             elif fname == "crr":
                 ## Calculate total rain rate from convective and total
                 trr = xr.Dataset(
-                    data_vars={
-                        "trr": rawdata["crr"]["crr"] + rawdata["lsrr"]["lsrr"]
-                    }
+                    data_vars={"trr": rawdata["crr"]["crr"] + rawdata["lsrr"]["lsrr"]}
                 )
 
                 trr.trr.attrs = {
