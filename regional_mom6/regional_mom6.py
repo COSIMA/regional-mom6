@@ -1572,85 +1572,94 @@ class experiment:
             years = [
                 i for i in range(self.date_range[0].year, self.date_range[1].year + 1)
             ]
-            # Loop through each year and read the corresponding files
-            for year in years:
-                ds = xr.open_mfdataset(
-                    f"{era5_path}/{fname}/{year}/{fname}*",
-                    decode_times=False,
-                    chunks={"longitude": 100, "latitude": 100},
+            # construct a list of all paths for all years to use for open_mfdataset
+            paths_per_year = [Path(f"{era5_path}/{fname}/{year}/") for i in years]
+            all_files = []
+            for path in paths_per_year:
+                # Use glob to find all files that match the pattern
+                files = list(path.glob(f'{fname}*.nc'))
+                # Add the files to the all_files list
+                all_files.extend(files)
+
+            ds = xr.open_mfdataset(
+                all_files,
+                decode_times=False,
+                chunks={"longitude": 100, "latitude": 100},
+            )
+
+
+
+            ## Cut out this variable to our domain size
+            rawdata[fname] = longitude_slicer(
+                ds,
+                self.longitude_extent,
+                "longitude",
+            ).sel(
+                latitude=slice(
+                    self.latitude_extent[1], self.latitude_extent[0]
+                )  ## This is because ERA5 has latitude in decreasing order (??)
+            )
+
+            ## Now fix up the latitude and time dimensions
+
+            rawdata[fname] = (
+                rawdata[fname]
+                .isel(latitude=slice(None, None, -1))  ## Flip latitude
+                .assign_coords(
+                    time=np.arange(
+                        0, rawdata[fname].time.shape[0], dtype=float
+                    )  ## Set the zero date of forcing to start of run
                 )
+            )
 
-                ## Cut out this variable to our domain size
-                rawdata[fname] = longitude_slicer(
-                    ds,
-                    self.longitude_extent,
-                    "longitude",
-                ).sel(
-                    latitude=slice(
-                        self.longitude_extent[1], self.longitude_extent[0]
-                    )  ## This is because ERA5 has latitude in decreasing order (??)
+            rawdata[fname].time.attrs = {
+                "calendar": "julian",
+                "units": f"hours since {self.date_range[0].strftime('%Y-%m-%d %H:%M:%S')}",
+            }  ## Fix up calendar to match
+
+            if fname == "2d":
+                ## Calculate specific humidity from dewpoint temperature
+                dewpoint = 8.07131 - 1730.63 / (
+                    233.426 + rawdata["2d"]["d2m"] - 273.15
                 )
-
-                ## Now fix up the latitude and time dimensions
-
-                rawdata[fname] = (
-                    rawdata[fname]
-                    .isel(latitude=slice(None, None, -1))  ## Flip latitude
-                    .assign_coords(
-                        time=np.arange(
-                            0, rawdata[fname].time.shape[0], dtype=float
-                        )  ## Set the zero date of forcing to start of run
-                    )
+                humidity = (
+                    (0.622 / rawdata["sp"]["sp"]) * (10**dewpoint) * 101325 / 760
                 )
+                q = xr.Dataset(data_vars={"q": humidity})
 
-                rawdata[fname].time.attrs = {
-                    "calendar": "julian",
-                    "units": f"hours since {self.date_range[0].strftime('%Y-%m-%d %H:%M:%S')}",
-                }  ## Fix up calendar to match
-
-                if fname == "2d":
-                    ## Calculate specific humidity from dewpoint temperature
-                    dewpoint = 8.07131 - 1730.63 / (
-                        233.426 + rawdata["2d"]["d2m"] - 273.15
-                    )
-                    humidity = (
-                        (0.622 / rawdata["sp"]["sp"]) * (10**dewpoint) * 101325 / 760
-                    )
-                    q = xr.Dataset(data_vars={"q": humidity})
-
-                    q.q.attrs = {"long_name": "Specific Humidity", "units": "kg/kg"}
-                    q.to_netcdf(
-                        f"{self.mom_input_dir}/forcing/q_ERA5.nc",
-                        unlimited_dims="time",
-                        encoding={"q": {"dtype": "double"}},
-                    )
-                elif fname == "crr":
-                    ## Calculate total rain rate from convective and total
-                    trr = xr.Dataset(
-                        data_vars={
-                            "trr": rawdata["crr"]["crr"] + rawdata["lsrr"]["lsrr"]
-                        }
-                    )
-
-                    trr.trr.attrs = {
-                        "long_name": "Total Rain Rate",
-                        "units": "kg m**-2 s**-1",
+                q.q.attrs = {"long_name": "Specific Humidity", "units": "kg/kg"}
+                q.to_netcdf(
+                    f"{self.mom_input_dir}/forcing/q_ERA5.nc",
+                    unlimited_dims="time",
+                    encoding={"q": {"dtype": "double"}},
+                )
+            elif fname == "crr":
+                ## Calculate total rain rate from convective and total
+                trr = xr.Dataset(
+                    data_vars={
+                        "trr": rawdata["crr"]["crr"] + rawdata["lsrr"]["lsrr"]
                     }
-                    trr.to_netcdf(
-                        f"{self.mom_input_dir}/forcing/trr_ERA5-{year}.nc",
-                        unlimited_dims="time",
-                        encoding={"trr": {"dtype": "double"}},
-                    )
+                )
 
-                elif fname == "lsrr":
-                    ## This is handled by crr as both are added together to calculate total rain rate.
-                    pass
-                else:
-                    rawdata[fname].to_netcdf(
-                        f"{self.mom_input_dir}/forcing/{fname}_ERA5-{year}.nc",
-                        unlimited_dims="time",
-                        encoding={vname: {"dtype": "double"}},
-                    )
+                trr.trr.attrs = {
+                    "long_name": "Total Rain Rate",
+                    "units": "kg m**-2 s**-1",
+                }
+                trr.to_netcdf(
+                    f"{self.mom_input_dir}/forcing/trr_ERA5.nc",
+                    unlimited_dims="time",
+                    encoding={"trr": {"dtype": "double"}},
+                )
+
+            elif fname == "lsrr":
+                ## This is handled by crr as both are added together to calculate total rain rate.
+                pass
+            else:
+                rawdata[fname].to_netcdf(
+                    f"{self.mom_input_dir}/forcing/{fname}_ERA5.nc",
+                    unlimited_dims="time",
+                    encoding={vname: {"dtype": "double"}},
+                )
 
 
 class segment:
