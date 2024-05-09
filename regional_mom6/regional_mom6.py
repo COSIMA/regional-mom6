@@ -567,7 +567,12 @@ class experiment:
         return vcoord
 
     def initial_condition(
-        self, ic_path, varnames, arakawa_grid="A", vcoord_type="height"
+        self,
+        ic_path,
+        varnames,
+        arakawa_grid="A",
+        vcoord_type="height",
+        boundaries=["south", "north", "west", "east"],
     ):
         """
         Reads the initial condition from files in ``ic_path``, interpolates to the
@@ -874,11 +879,23 @@ class experiment:
                 "eta_t": {"_FillValue": None},
             },
         )
-        print("done setting up initial condition.")
 
         self.ic_eta = eta_out
         self.ic_tracers = tracers_out
         self.ic_vels = vel_out
+
+        # Now iterate through our four boundaries
+        for i, orientation in enumerate(boundaries, start=1):
+            self.rectangular_boundary(
+                glorys_path / (orientation + "_unprocessed.nc"),
+                ocean_varnames,
+                orientation,  # The cardinal direction of the boundary
+                i,  # A number to identify the boundary; indexes from 1
+                arakawa_grid=arakawa_grid,
+            )
+
+        print("done setting up initial condition.")
+
         return
 
     def rectangular_boundary(
