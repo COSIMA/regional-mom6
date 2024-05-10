@@ -75,7 +75,7 @@ Pertinent for our discussion, MOM6 provides support for open boundary conditions
 However, setting up a regional configuration for MOM6 can be challenging, time consuming, and often involves using several programming languages, a few different tools, and also manually editing/tweaking some input files.
 The `regional-mom6` package overcomes these difficulties, automatically generating a regional MOM6 configuration of the user's choice with relatively simple domain geometry, that is, rectangular domains.
 
-![A snapshot of the surface ocean currents from a regional ocean simulation of the Tasman sea using MOM6. The simulation is forced by the GLORYS and ERA5 reanalysis datasets and configured with a horizontal resolution of 1/80th degree and 100 vertical levels (see @tasmantides for the source code). \label{fig:tasman}](tasman_speed.png){ width=80% }
+![A snapshot of the surface ocean currents from a regional ocean simulation of the Tasman sea using MOM6. The simulation is forced by the GLORYS and ERA5 reanalysis datasets and configured with a horizontal resolution of 1/80th degree and 100 vertical levels (see @tasmantides for the source code). \label{fig:tasman}](nested-regional-mom6.pdf){ width=90% }
 
 ## `regional-mom6`
 
