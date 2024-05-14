@@ -112,8 +112,10 @@ def generate_temperature_arrays(nx, ny, number_vertical_layers):
     temp_in_C = np.random.randn(ny, nx, number_vertical_layers)
 
     temp_in_C_masked = np.copy(temp_in_C)
-    if int(ny/4+4) < ny-1 and int(nx/3+4) < nx+1:
-        temp_in_C_masked[int(ny/3):int(ny/3+5), int(nx):int(nx/4+4), :] = float("nan")
+    if int(ny / 4 + 4) < ny - 1 and int(nx / 3 + 4) < nx + 1:
+        temp_in_C_masked[
+            int(ny / 3) : int(ny / 3 + 5), int(nx) : int(nx / 4 + 4), :
+        ] = float("nan")
     else:
         raise ValueError("use bigger domain")
 
