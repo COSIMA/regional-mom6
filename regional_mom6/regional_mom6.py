@@ -641,6 +641,7 @@ class experiment:
                     + "in the varnames dictionary. For example, {'x': 'lon', 'y': 'lat'}.\n\n"
                     + "Terminating!"
                 )
+
         if arakawa_grid == "B":
             if (
                 "xq" in varnames.keys()
@@ -695,6 +696,7 @@ class experiment:
                     + "in the varnames dictionary. For example, {'xh': 'lonh', 'yh': 'lath', ...}.\n\n"
                     + "Terminating!"
                 )
+
         ## Construct the xq, yh and xh, yq grids
         ugrid = (
             self.hgrid[["x", "y"]]
@@ -780,8 +782,11 @@ class experiment:
         )
 
         print("INITIAL CONDITIONS")
+
         ## Regrid all fields horizontally.
-        print("Regridding Velocities...", end="")
+
+        print("Regridding Velocities... ", end="")
+
         vel_out = xr.merge(
             [
                 regridder_u(ic_raw_u)
@@ -792,18 +797,22 @@ class experiment:
                 .rename("v"),
             ]
         )
-        print("Done.\nRegridding Tracers...")
+
+        print("Done.\nRegridding Tracers... ", end="")
+
         tracers_out = xr.merge(
             [
                 regridder_t(ic_raw_tracers[varnames["tracers"][i]]).rename(i)
                 for i in varnames["tracers"]
             ]
         ).rename({"lon": "xh", "lat": "yh", varnames["zl"]: "zl"})
-        print("Done.\nRegridding Free surface...")
+
+        print("Done.\nRegridding Free surface... ", end="")
 
         eta_out = (
             regridder_t(ic_raw_eta).rename({"lon": "xh", "lat": "yh"}).rename("eta_t")
         )  ## eta_t is the name set in MOM_input by default
+        print("Done.")
 
         ## Return attributes to arrays
 
@@ -827,7 +836,7 @@ class experiment:
 
         ## if min(temp) > 100 then assume that units must be degrees K
         ## (otherwise we can't be on Earth) and convert to degrees C
-        if np.nanmin(tracers_out["temp"].isel({"zl": 0})) > 100:
+        if np.min(tracers_out["temp"].isel({"zl": 0})) > 100:
             tracers_out["temp"] -= 273.15
 
         ## Regrid the fields vertically
@@ -1910,7 +1919,7 @@ class segment:
         del segment_out["lat"]
         ## Convert temperatures to celsius # use pint
         if (
-            np.nanmin(segment_out[self.tracers["temp"]].isel({self.time: 0, self.z: 0}))
+            np.min(segment_out[self.tracers["temp"]].isel({self.time: 0, self.z: 0}))
             > 100
         ):
             segment_out[self.tracers["temp"]] -= 273.15
