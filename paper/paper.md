@@ -79,6 +79,8 @@ Pertinent for our discussion, MOM6 provides support for open boundary conditions
 However, setting up a regional configuration for MOM6 can be challenging, time consuming, and often involves using several programming languages, a few different tools, and also manually editing/tweaking some input files.
 The `regional-mom6` package overcomes these difficulties, automatically generating a regional MOM6 configuration of the user's choice with relatively simple domain geometry, that is, rectangular domains.
 
+![Snapshot of the ocean surface speed from a two-tier, one-way nested regional ocean configurations of the East Australian Current. The outer regional configuration uses 1/10ᵒ horizontal resolution, 75 vertical levels, and is forced by the output from the global ocean--sea ice model at 1/10ᵒ horizontal resolution (ACCESS-OM2-01; @ACCESS-OM2). The inner regional configuration uses 1/30ᵒ horizontal resolution, 100 vertical levels, and is forced with the outer regional model. All simulations share a common inter-annual atmospheric forcing from 1990 to 2018 provided by the JRA55-do reanalysis [@Tsujino2018].\label{fig:tasman}](nested-regional-mom6.pdf){ width=80% }
+
 ## `regional-mom6`
 
 The `regional-mom6` package takes as input various datasets that contain the ocean initial condition, the boundary forcing (ocean and atmosphere) for the regional domain, and the seafloor topography.
@@ -91,8 +93,6 @@ The package automates the re-gridding of all the required forcing input, takes c
 Additionally, the tricky case of a regional configuration that includes the 'seam' in the longitude of the raw input data (e.g., a 10ᵒ-wide regional configuration centred at Fiji (178ᵒE) and forced by input with native longitude coordinate in the range 180ᵒW--180ᵒE) is handled automatically, removing the need for any preprocessing of the input data.
 This automation allows users to set up a regional MOM6 configuration using only Python and from the convenience of a single Jupyter notebook.
 @Herzfeld2011 provide rules of thumb to guide the user in setting regional grid parameters such as the resolution.
-
-![Snapshot of the ocean surface speed from a two-tier, one-way nested regional ocean configurations of the East Australian Current. The outer regional configuration uses 1/10ᵒ horizontal resolution, 75 vertical levels, and is forced by the output from the global ocean--sea ice model at 1/10ᵒ horizontal resolution (ACCESS-OM2-01; @ACCESS-OM2). The inner regional configuration uses 1/30ᵒ horizontal resolution, 100 vertical levels, and is forced with the outer regional model. All simulations share a common inter-annual atmospheric forcing from 1990 to 2018 provided by the JRA55-do reanalysis [@Tsujino2018].\label{fig:tasman}](nested-regional-mom6.pdf){ width=90% }
 
 `regional-mom6` is installable via `conda`, it is continuously tested, and comes with extensive documentation including tutorials and examples for setting up regional MOM6 configurations using publicly-available forcing and bathymetry datasets (namely, the GLORYS dataset for ocean boundary forcing [@glorys], the ERA5 reanalysis for atmospheric forcing [@era5], and the GEBCO dataset for seafloor topography [@gebco]).
 
