@@ -616,6 +616,11 @@ class experiment:
                 "Error in reading in initial condition tracers. Terminating!"
             )
 
+        ## if min(temp) > 100 then assume that units must be degrees K
+        ## (otherwise we can't be on Earth) and convert to degrees C
+        if np.nanmin(ic_raw["temp"]) > 100:
+            ic_raw["temp"] -= 273.15
+
         # Rename all coordinates to have 'lon' and 'lat' to work with the xesmf regridder
         if arakawa_grid == "A":
             if (
@@ -834,11 +839,6 @@ class experiment:
         eta_out.yh.attrs = ic_raw_tracers.lat.attrs
         eta_out.attrs = ic_raw_eta.attrs
 
-        ## if min(temp) > 100 then assume that units must be degrees K
-        ## (otherwise we can't be on Earth) and convert to degrees C
-        if np.min(tracers_out["temp"].isel({"zl": 0})) > 100:
-            tracers_out["temp"] -= 273.15
-
         ## Regrid the fields vertically
 
         if (
@@ -883,7 +883,7 @@ class experiment:
                 "eta_t": {"_FillValue": None},
             },
         )
-        print("done setting up initial condition.")
+        print("Done.\nFinished setting up initial condition.")
 
         self.ic_eta = eta_out
         self.ic_tracers = tracers_out
@@ -1919,7 +1919,7 @@ class segment:
         del segment_out["lat"]
         ## Convert temperatures to celsius # use pint
         if (
-            np.min(segment_out[self.tracers["temp"]].isel({self.time: 0, self.z: 0}))
+            np.nanmin(segment_out[self.tracers["temp"]].isel({self.time: 0, self.z: 0}))
             > 100
         ):
             segment_out[self.tracers["temp"]] -= 273.15
