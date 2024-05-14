@@ -827,7 +827,7 @@ class experiment:
 
         ## if min(temp) > 100 then assume that units must be degrees K
         ## (otherwise we can't be on Earth) and convert to degrees C
-        if np.min(tracers_out["temp"].isel({"zl": 0})) > 100:
+        if np.nanmin(tracers_out["temp"].isel({"zl": 0})) > 100:
             tracers_out["temp"] -= 273.15
 
         ## Regrid the fields vertically
@@ -1910,7 +1910,7 @@ class segment:
         del segment_out["lat"]
         ## Convert temperatures to celsius # use pint
         if (
-            np.min(segment_out[self.tracers["temp"]].isel({self.time: 0, self.z: 0}))
+            np.nanmin(segment_out[self.tracers["temp"]].isel({self.time: 0, self.z: 0}))
             > 100
         ):
             segment_out[self.tracers["temp"]] -= 273.15
