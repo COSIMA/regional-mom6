@@ -184,6 +184,7 @@ temp_K = xr.DataArray(temp_in_K, dims=dims, coords=coords)
 temp_C_masked = xr.DataArray(temp_in_C_masked, dims=dims, coords=coords)
 temp_K_masked = xr.DataArray(temp_in_K_masked, dims=dims, coords=coords)
 
+maximum_temperature_in_C = np.max(temp_in_C)
 
 @pytest.mark.parametrize(
     "temp_dataarray_initial_condition",
@@ -319,6 +320,8 @@ def test_ocean_forcing(
     # ensure that temperature is in degrees C
     assert np.nanmin(expt.ic_tracers["temp"]) < 100.0
 
+    # max(temp) can be less maximum_temperature_in_C due to re-gridding
+    assert np.nanmax(expt.ic_tracers["temp"]) <= maximum_temperature_in_C
 
 @pytest.mark.parametrize(
     (
