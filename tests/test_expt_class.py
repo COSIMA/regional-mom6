@@ -109,6 +109,7 @@ def number_of_gridpoints(longitude_extent, latitude_extent, resolution):
 
 def generate_temperature_arrays(nx, ny, number_vertical_layers):
 
+    # temperatures close to 0 ᵒC
     temp_in_C = np.random.randn(ny, nx, number_vertical_layers)
 
     temp_in_C_masked = np.copy(temp_in_C)
@@ -122,6 +123,7 @@ def generate_temperature_arrays(nx, ny, number_vertical_layers):
     temp_in_K = np.copy(temp_in_C) + 273.15
     temp_in_K_masked = np.copy(temp_in_C_masked) + 273.15
 
+    # ensure we didn't mask the minimum temperature
     if np.nanmin(temp_in_C_masked) == np.min(temp_in_C):
         return temp_in_C, temp_in_C_masked, temp_in_K, temp_in_K_masked
     else:
