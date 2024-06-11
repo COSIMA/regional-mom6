@@ -568,18 +568,17 @@ class experiment:
 
     def initial_condition(
         self,
-        ic_path,
+        raw_ic_path,
         varnames,
         arakawa_grid="A",
         vcoord_type="height",
-        boundaries=["south", "north", "west", "east"],
     ):
         """
         Reads the initial condition from files in ``ic_path``, interpolates to the
         model grid, fixes up metadata, and saves back to the input directory.
 
         Args:
-            ic_path (Union[str, Path]): Path to initial condition file.
+            raw_ic_path (Union[str, Path]): Path to raw initial condition file to read in.
             varnames (Dict[str, str]): Mapping from MOM6 variable/coordinate names to the names
                 in the input dataset. For example, ``{'xq': 'lonq', 'yh': 'lath', 'salt': 'so', ...}``.
             arakawa_grid (Optional[str]): Arakawa grid staggering type of the initial condition.
@@ -591,7 +590,7 @@ class experiment:
         # Remove time dimension if present in the IC.
         # Assume that the first time dim is the intended on if more than one is present
 
-        ic_raw = xr.open_dataset(ic_path)
+        ic_raw = xr.open_dataset(raw_ic_path)
         if varnames["time"] in ic_raw.dims:
             ic_raw = ic_raw.isel({varnames["time"]: 0})
         if varnames["time"] in ic_raw.coords:
@@ -766,7 +765,7 @@ class experiment:
             .bfill("lat")
         )
 
-        ## Make our three horizontal regrideers
+        ## Make our three horizontal regridders
         regridder_u = xe.Regridder(
             ic_raw_u,
             ugrid,
@@ -884,26 +883,53 @@ class experiment:
         self.ic_tracers = tracers_out
         self.ic_vels = vel_out
 
+        print("done setting up initial condition.")
+
+        return
+
+    def rectangular_boundaries(
+        self,
+        raw_boundaries_path,
+        varnames,
+        boundaries=["south", "north", "west", "east"],
+        arakawa_grid="A",
+    ):
+        """
+        This function is a wrapper for `simple_boundary`. Given a list of up to four cardinal directions,
+        it creates a boundary forcing file for each one. Ensure that the raw boundaries are all saved in the same directory,
+        and that they are named using the format `east_unprocessed.nc`
+
+        Args:
+            raw_boundaries_path (str): Path to the directory containing the raw boundary forcing files.
+            varnames (Dict[str, str]): Mapping from MOM6 variable/coordinate names to the name in the
+                input dataset.
+            boundaries (List[str]): List of cardinal directions for which to create boundary forcing files.
+                Default is `["south", "north", "west", "east"]`.
+            arakawa_grid (Optional[str]): Arakawa grid staggering type of the boundary forcing.
+                Either ``'A'`` (default), ``'B'``, or ``'C'``.
+        """
+        for i in boundaries:
+            if i not in ["south", "north", "west", "east"]:
+                raise ValueError(
+                    f"Invalid boundary direction: {i}. Must be one of ['south', 'north', 'west', 'east']"
+                )
+
         # Now iterate through our four boundaries
         for i, orientation in enumerate(boundaries, start=1):
-            self.rectangular_boundary(
-                glorys_path / (orientation + "_unprocessed.nc"),
-                ocean_varnames,
+            self.simple_boundary(
+                Path(raw_boundaries_path) / (orientation + "_unprocessed.nc"),
+                varnames,
                 orientation,  # The cardinal direction of the boundary
                 i,  # A number to identify the boundary; indexes from 1
                 arakawa_grid=arakawa_grid,
             )
 
-        print("done setting up initial condition.")
-
-        return
-
-    def rectangular_boundary(
+    def simple_boundary(
         self, path_to_bc, varnames, orientation, segment_number, arakawa_grid="A"
     ):
         """
-        Set up a boundary forcing file for a given orientation. Here the term 'rectangular'
-        means boundaries along lines of constant latitude or longitude.
+        Here 'simple' refers to boundaries that are parallel to lines of constant longitude or latitude.
+        Set up a boundary forcing file for a given orientation.
 
         Args:
             path_to_bc (str): Path to boundary forcing file. Ideally this should be a pre cut-out
@@ -921,7 +947,10 @@ class experiment:
         """
 
         print("Processing {} boundary...".format(orientation), end="")
-
+        if not path_to_bc.exists():
+            raise FileNotFoundError(
+                f"Boundary file not found at {path_to_bc}. Please ensure that the files are named in the format `east_unprocessed.nc`."
+            )
         seg = segment(
             hgrid=self.hgrid,
             infile=path_to_bc,  # location of raw boundary
