@@ -471,4 +471,4 @@ def test_rectangular_boundaries(
         "tracers": {"temp": "temp", "salt": "salt"},
     }
 
-    expt.rectangular_boundaries(tmp_path, varnames)
+    expt.rectangular_boundaries(tmp_path, varnames,["east"])
