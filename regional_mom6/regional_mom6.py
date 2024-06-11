@@ -1430,7 +1430,7 @@ class experiment:
             print("Perhaps the package was imported directly rather than installed with conda. Checking if this is the case... ")
         
             premade_rundir_path = Path(
-                importlib.resources.files("regional_mom6").parent() / "demos/premade_run_directories"
+                importlib.resources.files("regional_mom6").parent / "demos/premade_run_directories"
             )
             if not premade_rundir_path.exists():
                 raise ValueError(
