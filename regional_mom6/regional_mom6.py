@@ -620,6 +620,7 @@ class experiment:
         ## (otherwise we can't be on Earth) and convert to degrees C
         if np.nanmin(ic_raw[varnames["tracers"]["temp"]]) > 100:
             ic_raw[varnames["tracers"]["temp"]] -= 273.15
+            ic_raw[varnames["tracers"]["temp"]].attrs["units"] = "degrees Celsius"
 
         # Rename all coordinates to have 'lon' and 'lat' to work with the xesmf regridder
         if arakawa_grid == "A":
@@ -1924,6 +1925,7 @@ class segment:
             > 100
         ):
             segment_out[self.tracers["temp"]] -= 273.15
+            segment_out[self.tracers["temp"]].attrs["units"] = "degrees Celsius"
 
         # fill in NaNs
         segment_out = (
