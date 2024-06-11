@@ -355,7 +355,7 @@ def test_ocean_forcing(
         ),
     ],
 )
-def test_rectangular_boundary(
+def test_rectangular_boundaries(
     longitude_extent,
     latitude_extent,
     date_range,
@@ -471,4 +471,4 @@ def test_rectangular_boundary(
         "tracers": {"temp": "temp", "salt": "salt"},
     }
 
-    expt.rectangular_boundary(tmp_path / "east_unprocessed", varnames, "east", 1)
+    expt.rectangular_boundaries(tmp_path, varnames)
