@@ -620,6 +620,12 @@ class experiment:
                 "Error in reading in initial condition tracers. Terminating!"
             )
 
+        ## if min(temperature) > 100 then assume that units must be degrees K
+        ## (otherwise we can't be on Earth) and convert to degrees C
+        if np.nanmin(ic_raw[varnames["tracers"]["temp"]]) > 100:
+            ic_raw[varnames["tracers"]["temp"]] -= 273.15
+            ic_raw[varnames["tracers"]["temp"]].attrs["units"] = "degrees Celsius"
+
         # Rename all coordinates to have 'lon' and 'lat' to work with the xesmf regridder
         if arakawa_grid == "A":
             if (
@@ -645,6 +651,7 @@ class experiment:
                     + "in the varnames dictionary. For example, {'x': 'lon', 'y': 'lat'}.\n\n"
                     + "Terminating!"
                 )
+
         if arakawa_grid == "B":
             if (
                 "xq" in varnames.keys()
@@ -699,6 +706,7 @@ class experiment:
                     + "in the varnames dictionary. For example, {'xh': 'lonh', 'yh': 'lath', ...}.\n\n"
                     + "Terminating!"
                 )
+
         ## Construct the xq, yh and xh, yq grids
         ugrid = (
             self.hgrid[["x", "y"]]
@@ -727,9 +735,10 @@ class experiment:
             }
         )
 
-        ### Drop NaNs to be re-added later
         # NaNs might be here from the land mask of the model that the IC has come from.
         # If they're not removed then the coastlines from this other grid will be retained!
+        # The land mask comes from the bathymetry file, so we don't need NaNs
+        # to tell MOM6 where the land is.
         ic_raw_tracers = (
             ic_raw_tracers.interpolate_na("lon", method="linear")
             .ffill("lon")
@@ -784,8 +793,11 @@ class experiment:
         )
 
         print("INITIAL CONDITIONS")
+
         ## Regrid all fields horizontally.
-        print("Regridding Velocities...", end="")
+
+        print("Regridding Velocities... ", end="")
+
         vel_out = xr.merge(
             [
                 regridder_u(ic_raw_u)
@@ -796,18 +808,22 @@ class experiment:
                 .rename("v"),
             ]
         )
-        print("Done.\nRegridding Tracers...")
+
+        print("Done.\nRegridding Tracers... ", end="")
+
         tracers_out = xr.merge(
             [
                 regridder_t(ic_raw_tracers[varnames["tracers"][i]]).rename(i)
                 for i in varnames["tracers"]
             ]
         ).rename({"lon": "xh", "lat": "yh", varnames["zl"]: "zl"})
-        print("Done.\nRegridding Free surface...")
+
+        print("Done.\nRegridding Free surface... ", end="")
 
         eta_out = (
             regridder_t(ic_raw_eta).rename({"lon": "xh", "lat": "yh"}).rename("eta_t")
         )  ## eta_t is the name set in MOM_input by default
+        print("Done.")
 
         ## Return attributes to arrays
 
@@ -828,11 +844,6 @@ class experiment:
         eta_out.xh.attrs = ic_raw_tracers.lon.attrs
         eta_out.yh.attrs = ic_raw_tracers.lat.attrs
         eta_out.attrs = ic_raw_eta.attrs
-
-        ## if min(temp) > 100 then assume that units must be degrees K
-        ## (otherwise we can't be on Earth) and convert to degrees C
-        if np.min(tracers_out["temp"].isel({"zl": 0})) > 100:
-            tracers_out["temp"] -= 273.15
 
         ## Regrid the fields vertically
 
@@ -878,6 +889,7 @@ class experiment:
                 "eta_t": {"_FillValue": None},
             },
         )
+
 
         self.ic_eta = eta_out
         self.ic_tracers = tracers_out
@@ -1956,10 +1968,11 @@ class segment:
         del segment_out["lat"]
         ## Convert temperatures to celsius # use pint
         if (
-            np.min(segment_out[self.tracers["temp"]].isel({self.time: 0, self.z: 0}))
+            np.nanmin(segment_out[self.tracers["temp"]].isel({self.time: 0, self.z: 0}))
             > 100
         ):
             segment_out[self.tracers["temp"]] -= 273.15
+            segment_out[self.tracers["temp"]].attrs["units"] = "degrees Celsius"
 
         # fill in NaNs
         segment_out = (
