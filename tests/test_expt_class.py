@@ -443,7 +443,7 @@ def test_rectangular_boundaries(
             ),
         }
     )
-    eastern_boundary.to_netcdf(tmp_path / "east_unprocessed")
+    eastern_boundary.to_netcdf(tmp_path / "east_unprocessed.nc")
     eastern_boundary.close()
 
     expt = experiment(
