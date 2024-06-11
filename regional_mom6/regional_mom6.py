@@ -437,7 +437,7 @@ class experiment:
         self.grid_type = grid_type
         self.repeat_year_forcing = repeat_year_forcing
         self.ocean_mask = None
-        self.layout = None # This should be a tuple. Leaving in a dummy 'None' makes it easy to remind the user to provide a value later on.
+        self.layout = None  # This should be a tuple. Leaving in a dummy 'None' makes it easy to remind the user to provide a value later on.
         if read_existing_grids:
             try:
                 self.hgrid = xr.open_dataset(self.mom_input_dir / "hgrid.nc")
@@ -1428,10 +1428,13 @@ class experiment:
         )
         if not premade_rundir_path.exists():
             print("Could not find premade run directories at ", premade_rundir_path)
-            print("Perhaps the package was imported directly rather than installed with conda. Checking if this is the case... ")
-        
+            print(
+                "Perhaps the package was imported directly rather than installed with conda. Checking if this is the case... "
+            )
+
             premade_rundir_path = Path(
-                importlib.resources.files("regional_mom6").parent / "demos/premade_run_directories"
+                importlib.resources.files("regional_mom6").parent
+                / "demos/premade_run_directories"
             )
             if not premade_rundir_path.exists():
                 raise ValueError(
@@ -1503,24 +1506,30 @@ class experiment:
             mask_table = p.name
             x, y = (int(v) for v in layout.split("x"))
             ncpus = (x * y) - int(masked)
-            layout = (x, y) # This is a local variable keeping track of the layout as read from the mask table. Not to be confused with self.layout which is unchanged and may differ. 
+            layout = (
+                x,
+                y,
+            )  # This is a local variable keeping track of the layout as read from the mask table. Not to be confused with self.layout which is unchanged and may differ.
 
-            print(f"Mask table {p.name} read. Using this to infer the cpu layout {layout}, total masked out cells {masked}, and total number of CPUs {ncpus}.")
-
+            print(
+                f"Mask table {p.name} read. Using this to infer the cpu layout {layout}, total masked out cells {masked}, and total number of CPUs {ncpus}."
+            )
 
         if mask_table == None:
             if self.layout == None:
-                raise AttributeError("No mask table found, and the cpu layout has not been set. At least one of these is requiret to set up the experiment.")
+                raise AttributeError(
+                    "No mask table found, and the cpu layout has not been set. At least one of these is requiret to set up the experiment."
+                )
             print(
                 f"No mask table found, but the cpu layout has been set to {self.layout} This suggests the domain is mostly water, so there are "
                 + "no `non compute` cells that are entirely land. If this doesn't seem right, "
                 + "ensure you've already run the `FRE_tools` method which sets up the cpu mask table. Keep an eye on any errors that might print while"
                 + "the FRE tools (which run C++ in the background) are running."
             )
-            # Here we define a local copy of the layout just for use within this function. 
-            # This prevents the layout from being overwritten in the main class in case 
+            # Here we define a local copy of the layout just for use within this function.
+            # This prevents the layout from being overwritten in the main class in case
             # in case the user accidentally loads in the wrong mask table.
-            layout = self.layout 
+            layout = self.layout
             ncpus = layout[0] * layout[1]
 
         print("Number of CPUs required: ", ncpus)
