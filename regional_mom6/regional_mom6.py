@@ -890,7 +890,6 @@ class experiment:
             },
         )
 
-
         self.ic_eta = eta_out
         self.ic_tracers = tracers_out
         self.ic_vels = vel_out
