@@ -1425,6 +1425,18 @@ class experiment:
         premade_rundir_path = Path(
             importlib.resources.files("regional_mom6") / "demos/premade_run_directories"
         )
+        if not premade_rundir_path.exists():
+            print("Could not find premade run directories at ", premade_rundir_path)
+            print("Perhaps the package was imported directly rather than installed with conda. Checking if this is the case... ")
+        
+            premade_rundir_path = Path(
+                importlib.resources.files("regional_mom6").parent() / "demos/premade_run_directories"
+            )
+            if not premade_rundir_path.exists():
+                raise ValueError(
+                    f"Cannot find the premade run directory files at {premade_rundir_path} either.\n\n"
+                    + "There may be an issue with package installation. Check that the `premade_run_directory` folder is present in one of these two locations"
+                )
 
         # Define the locations of the directories we'll copy files across from. Base contains most of the files, and overwrite replaces files in the base directory.
         base_run_dir = premade_rundir_path / "common_files"
