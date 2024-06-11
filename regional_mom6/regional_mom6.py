@@ -925,6 +925,15 @@ class experiment:
                     f"Invalid boundary direction: {i}. Must be one of ['south', 'north', 'west', 'east']"
                 )
 
+        if len(boundaries) < 4:
+            print(
+                "NOTE: the 'setup_run_directories' method assumes that you have four boundaries. You'll need to modify the MOM_input file manually to reflect the number of boundaries you have, and their orientations. You should be able to find the relevant section in the MOM_input file by searching for 'segment_'. Ensure that the segment names match those in your inputdir/forcing folder"
+            )
+
+        if len(boundaries) > 4:
+            raise ValueError(
+                "This method only supports up to four boundaries. To set up more complex boundary shapes you can manually call the 'simple_boundary' method for each boundary."
+            )
         # Now iterate through our four boundaries
         for i, orientation in enumerate(boundaries, start=1):
             self.simple_boundary(
