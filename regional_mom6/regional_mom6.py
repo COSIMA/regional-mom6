@@ -732,7 +732,7 @@ class experiment:
 
         # NaNs might be here from the land mask of the model that the IC has come from.
         # If they're not removed then the coastlines from this other grid will be retained!
-        # The land mask comes from the bathymetry file, so we don't need NaNs 
+        # The land mask comes from the bathymetry file, so we don't need NaNs
         # to tell MOM6 where the land is.
         ic_raw_tracers = (
             ic_raw_tracers.interpolate_na("lon", method="linear")
