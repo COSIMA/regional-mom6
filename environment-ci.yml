@@ -3,3 +3,4 @@ channels:
   - conda-forge
 dependencies:
   - esmpy
+  - numpy<2.0.0

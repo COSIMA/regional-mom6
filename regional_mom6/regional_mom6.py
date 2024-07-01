@@ -437,6 +437,7 @@ class experiment:
         self.grid_type = grid_type
         self.repeat_year_forcing = repeat_year_forcing
         self.ocean_mask = None
+        self.layout = None  # This should be a tuple. Leaving in a dummy 'None' makes it easy to remind the user to provide a value later on.
         if read_existing_grids:
             try:
                 self.hgrid = xr.open_dataset(self.mom_input_dir / "hgrid.nc")
@@ -1480,6 +1481,21 @@ class experiment:
         premade_rundir_path = Path(
             importlib.resources.files("regional_mom6") / "demos/premade_run_directories"
         )
+        if not premade_rundir_path.exists():
+            print("Could not find premade run directories at ", premade_rundir_path)
+            print(
+                "Perhaps the package was imported directly rather than installed with conda. Checking if this is the case... "
+            )
+
+            premade_rundir_path = Path(
+                importlib.resources.files("regional_mom6").parent
+                / "demos/premade_run_directories"
+            )
+            if not premade_rundir_path.exists():
+                raise ValueError(
+                    f"Cannot find the premade run directory files at {premade_rundir_path} either.\n\n"
+                    + "There may be an issue with package installation. Check that the `premade_run_directory` folder is present in one of these two locations"
+                )
 
         # Define the locations of the directories we'll copy files across from. Base contains most of the files, and overwrite replaces files in the base directory.
         base_run_dir = premade_rundir_path / "common_files"
@@ -1545,18 +1561,32 @@ class experiment:
             mask_table = p.name
             x, y = (int(v) for v in layout.split("x"))
             ncpus = (x * y) - int(masked)
-        if mask_table == None:
+            layout = (
+                x,
+                y,
+            )  # This is a local variable keeping track of the layout as read from the mask table. Not to be confused with self.layout which is unchanged and may differ.
+
             print(
-                "No mask table found! This suggests the domain is mostly water, so there are "
-                + "no `non compute` cells that are entirely land. If this doesn't seem right, "
-                + "ensure you've already run `FRE_tools`."
+                f"Mask table {p.name} read. Using this to infer the cpu layout {layout}, total masked out cells {masked}, and total number of CPUs {ncpus}."
             )
-            if not hasattr(self, "layout"):
+
+        if mask_table == None:
+            if self.layout == None:
                 raise AttributeError(
-                    "No layout information found. This suggests that `FRE_tools()` hasn't been called yet. "
-                    + "Please do so, in order for the number of processors required is computed."
+                    "No mask table found, and the cpu layout has not been set. At least one of these is requiret to set up the experiment."
                 )
-            ncpus = self.layout[0] * self.layout[1]
+            print(
+                f"No mask table found, but the cpu layout has been set to {self.layout} This suggests the domain is mostly water, so there are "
+                + "no `non compute` cells that are entirely land. If this doesn't seem right, "
+                + "ensure you've already run the `FRE_tools` method which sets up the cpu mask table. Keep an eye on any errors that might print while"
+                + "the FRE tools (which run C++ in the background) are running."
+            )
+            # Here we define a local copy of the layout just for use within this function.
+            # This prevents the layout from being overwritten in the main class in case
+            # in case the user accidentally loads in the wrong mask table.
+            layout = self.layout
+            ncpus = layout[0] * layout[1]
+
         print("Number of CPUs required: ", ncpus)
 
         ## Modify the input namelists to give the correct layouts
@@ -1570,7 +1600,7 @@ class experiment:
                     else:
                         lines[jj] = "# MASKTABLE = no mask table"
                 if "LAYOUT =" in lines[jj] and "IO" not in lines[jj]:
-                    lines[jj] = f"LAYOUT = {self.layout[1]},{self.layout[0]}\n"
+                    lines[jj] = f"LAYOUT = {layout[1]},{layout[0]}\n"
 
                 if "NIGLOBAL" in lines[jj]:
                     lines[jj] = f"NIGLOBAL = {self.hgrid.nx.shape[0]//2}\n"
