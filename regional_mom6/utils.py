@@ -22,10 +22,10 @@ def angle_between(v1, v2, v3):
         >>> v2 = (1, 0, 0)
         >>> v3 = (0, 1, 0)
         >>> angle_between(v1, v2, v3)
-        1.5707963267948966
+        np.float64(1.5707963267948966)
         >>> from numpy import rad2deg
         >>> rad2deg(angle_between(v1, v2, v3))
-        90.0
+        np.float64(90.0)
     """
 
     v1xv2 = np.cross(v1, v2)
@@ -58,10 +58,10 @@ def quadrilateral_area(v1, v2, v3, v4):
         >>> v3 = latlon_to_cartesian(90, 0, R)
         >>> v4 = latlon_to_cartesian(0, -90, R)
         >>> quadrilateral_area(v1, v2, v3, v4)
-        592556.1793298927
+        np.float64(592556.1793298927)
         >>> from numpy import pi
         >>> quadrilateral_area(v1, v2, v3, v4) == pi * R**2
-        True
+        np.True_
     """
 
     v1 = np.array(v1)
@@ -106,14 +106,14 @@ def latlon_to_cartesian(lat, lon, R=1):
 
         >>> from regional_mom6.utils import latlon_to_cartesian
         >>> latlon_to_cartesian(0, 0)
-        (1.0, 0.0, 0.0)
+        (np.float64(1.0), np.float64(0.0), np.float64(0.0))
 
         Now let's do the same on a sphere with Earth's radius
 
         >>> from regional_mom6.utils import latlon_to_cartesian
         >>> R = 6371e3
         >>> latlon_to_cartesian(0, 0, R)
-        (6371000.0, 0.0, 0.0)
+        (np.float64(6371000.0), np.float64(0.0), np.float64(0.0))
     """
 
     x = R * np.cos(np.deg2rad(lat)) * np.cos(np.deg2rad(lon))
@@ -169,7 +169,7 @@ def quadrilateral_areas(lat, lon, R=1):
                [1.96911611e+13, 1.96911611e+13, 1.96911611e+13, 1.96911611e+13,
                 1.96911611e+13, 1.96911611e+13]])
         >>> np.isclose(areas.sum(), 4 * np.pi * R**2, atol=np.finfo(areas.dtype).eps)
-        True
+        np.True_
     """
 
     coords = np.dstack(latlon_to_cartesian(lat, lon, R))

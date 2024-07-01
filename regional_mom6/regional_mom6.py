@@ -198,9 +198,9 @@ def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
                54.91569316, 63.76993631, 70.3615673 , 74.6060059 , 77.08936249,
                78.46160957, 79.19600916, 79.58232451, 79.7836947 , 79.88816229])
         >>> dz.sum()
-        1000.0
+        np.float64(1000.0)
         >>> dz[-1] / dz[0]
-        3.9721960481753706
+        np.float64(3.9721960481753706)
 
         If we want the top layer to be thicker then we need to prescribe ``ratio < 1``.
 
@@ -214,9 +214,9 @@ def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
                45.08430684, 36.23006369, 29.6384327 , 25.3939941 , 22.91063751,
                21.53839043, 20.80399084, 20.41767549, 20.2163053 , 20.11183771])
         >>> dz.sum()
-        1000.0
+        np.float64(1000.0)
         >>> dz[-1] / dz[0]
-        0.25174991059652
+        np.float64(0.25174991059652)
 
         Now how about a grid with the same total depth as above but with equally-spaced
         layers.
