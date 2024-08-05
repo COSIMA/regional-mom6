@@ -437,6 +437,7 @@ class experiment:
         self.grid_type = grid_type
         self.repeat_year_forcing = repeat_year_forcing
         self.ocean_mask = None
+        self.layout = None  # This should be a tuple. Leaving in a dummy 'None' makes it easy to remind the user to provide a value later on.
         if read_existing_grids:
             try:
                 self.hgrid = xr.open_dataset(self.mom_input_dir / "hgrid.nc")
@@ -567,14 +568,18 @@ class experiment:
         return vcoord
 
     def initial_condition(
-        self, ic_path, varnames, arakawa_grid="A", vcoord_type="height"
+        self,
+        raw_ic_path,
+        varnames,
+        arakawa_grid="A",
+        vcoord_type="height",
     ):
         """
         Reads the initial condition from files in ``ic_path``, interpolates to the
         model grid, fixes up metadata, and saves back to the input directory.
 
         Args:
-            ic_path (Union[str, Path]): Path to initial condition file.
+            raw_ic_path (Union[str, Path]): Path to raw initial condition file to read in.
             varnames (Dict[str, str]): Mapping from MOM6 variable/coordinate names to the names
                 in the input dataset. For example, ``{'xq': 'lonq', 'yh': 'lath', 'salt': 'so', ...}``.
             arakawa_grid (Optional[str]): Arakawa grid staggering type of the initial condition.
@@ -586,7 +591,7 @@ class experiment:
         # Remove time dimension if present in the IC.
         # Assume that the first time dim is the intended on if more than one is present
 
-        ic_raw = xr.open_dataset(ic_path)
+        ic_raw = xr.open_dataset(raw_ic_path)
         if varnames["time"] in ic_raw.dims:
             ic_raw = ic_raw.isel({varnames["time"]: 0})
         if varnames["time"] in ic_raw.coords:
@@ -616,6 +621,12 @@ class experiment:
                 "Error in reading in initial condition tracers. Terminating!"
             )
 
+        ## if min(temperature) > 100 then assume that units must be degrees K
+        ## (otherwise we can't be on Earth) and convert to degrees C
+        if np.nanmin(ic_raw[varnames["tracers"]["temp"]]) > 100:
+            ic_raw[varnames["tracers"]["temp"]] -= 273.15
+            ic_raw[varnames["tracers"]["temp"]].attrs["units"] = "degrees Celsius"
+
         # Rename all coordinates to have 'lon' and 'lat' to work with the xesmf regridder
         if arakawa_grid == "A":
             if (
@@ -641,6 +652,7 @@ class experiment:
                     + "in the varnames dictionary. For example, {'x': 'lon', 'y': 'lat'}.\n\n"
                     + "Terminating!"
                 )
+
         if arakawa_grid == "B":
             if (
                 "xq" in varnames.keys()
@@ -695,6 +707,7 @@ class experiment:
                     + "in the varnames dictionary. For example, {'xh': 'lonh', 'yh': 'lath', ...}.\n\n"
                     + "Terminating!"
                 )
+
         ## Construct the xq, yh and xh, yq grids
         ugrid = (
             self.hgrid[["x", "y"]]
@@ -723,9 +736,10 @@ class experiment:
             }
         )
 
-        ### Drop NaNs to be re-added later
         # NaNs might be here from the land mask of the model that the IC has come from.
         # If they're not removed then the coastlines from this other grid will be retained!
+        # The land mask comes from the bathymetry file, so we don't need NaNs
+        # to tell MOM6 where the land is.
         ic_raw_tracers = (
             ic_raw_tracers.interpolate_na("lon", method="linear")
             .ffill("lon")
@@ -761,7 +775,7 @@ class experiment:
             .bfill("lat")
         )
 
-        ## Make our three horizontal regrideers
+        ## Make our three horizontal regridders
         regridder_u = xe.Regridder(
             ic_raw_u,
             ugrid,
@@ -780,8 +794,11 @@ class experiment:
         )
 
         print("INITIAL CONDITIONS")
+
         ## Regrid all fields horizontally.
-        print("Regridding Velocities...", end="")
+
+        print("Regridding Velocities... ", end="")
+
         vel_out = xr.merge(
             [
                 regridder_u(ic_raw_u)
@@ -792,18 +809,22 @@ class experiment:
                 .rename("v"),
             ]
         )
-        print("Done.\nRegridding Tracers...")
+
+        print("Done.\nRegridding Tracers... ", end="")
+
         tracers_out = xr.merge(
             [
                 regridder_t(ic_raw_tracers[varnames["tracers"][i]]).rename(i)
                 for i in varnames["tracers"]
             ]
         ).rename({"lon": "xh", "lat": "yh", varnames["zl"]: "zl"})
-        print("Done.\nRegridding Free surface...")
+
+        print("Done.\nRegridding Free surface... ", end="")
 
         eta_out = (
             regridder_t(ic_raw_eta).rename({"lon": "xh", "lat": "yh"}).rename("eta_t")
         )  ## eta_t is the name set in MOM_input by default
+        print("Done.")
 
         ## Return attributes to arrays
 
@@ -824,11 +845,6 @@ class experiment:
         eta_out.xh.attrs = ic_raw_tracers.lon.attrs
         eta_out.yh.attrs = ic_raw_tracers.lat.attrs
         eta_out.attrs = ic_raw_eta.attrs
-
-        ## if min(temp) > 100 then assume that units must be degrees K
-        ## (otherwise we can't be on Earth) and convert to degrees C
-        if np.min(tracers_out["temp"].isel({"zl": 0})) > 100:
-            tracers_out["temp"] -= 273.15
 
         ## Regrid the fields vertically
 
@@ -874,19 +890,67 @@ class experiment:
                 "eta_t": {"_FillValue": None},
             },
         )
-        print("done setting up initial condition.")
 
         self.ic_eta = eta_out
         self.ic_tracers = tracers_out
         self.ic_vels = vel_out
+
+        print("done setting up initial condition.")
+
         return
 
-    def rectangular_boundary(
+    def rectangular_boundaries(
+        self,
+        raw_boundaries_path,
+        varnames,
+        boundaries=["south", "north", "west", "east"],
+        arakawa_grid="A",
+    ):
+        """
+        This function is a wrapper for `simple_boundary`. Given a list of up to four cardinal directions,
+        it creates a boundary forcing file for each one. Ensure that the raw boundaries are all saved in the same directory,
+        and that they are named using the format `east_unprocessed.nc`
+
+        Args:
+            raw_boundaries_path (str): Path to the directory containing the raw boundary forcing files.
+            varnames (Dict[str, str]): Mapping from MOM6 variable/coordinate names to the name in the
+                input dataset.
+            boundaries (List[str]): List of cardinal directions for which to create boundary forcing files.
+                Default is `["south", "north", "west", "east"]`.
+            arakawa_grid (Optional[str]): Arakawa grid staggering type of the boundary forcing.
+                Either ``'A'`` (default), ``'B'``, or ``'C'``.
+        """
+        for i in boundaries:
+            if i not in ["south", "north", "west", "east"]:
+                raise ValueError(
+                    f"Invalid boundary direction: {i}. Must be one of ['south', 'north', 'west', 'east']"
+                )
+
+        if len(boundaries) < 4:
+            print(
+                "NOTE: the 'setup_run_directories' method assumes that you have four boundaries. You'll need to modify the MOM_input file manually to reflect the number of boundaries you have, and their orientations. You should be able to find the relevant section in the MOM_input file by searching for 'segment_'. Ensure that the segment names match those in your inputdir/forcing folder"
+            )
+
+        if len(boundaries) > 4:
+            raise ValueError(
+                "This method only supports up to four boundaries. To set up more complex boundary shapes you can manually call the 'simple_boundary' method for each boundary."
+            )
+        # Now iterate through our four boundaries
+        for i, orientation in enumerate(boundaries, start=1):
+            self.simple_boundary(
+                Path(raw_boundaries_path) / (orientation + "_unprocessed.nc"),
+                varnames,
+                orientation,  # The cardinal direction of the boundary
+                i,  # A number to identify the boundary; indexes from 1
+                arakawa_grid=arakawa_grid,
+            )
+
+    def simple_boundary(
         self, path_to_bc, varnames, orientation, segment_number, arakawa_grid="A"
     ):
         """
-        Set up a boundary forcing file for a given orientation. Here the term 'rectangular'
-        means boundaries along lines of constant latitude or longitude.
+        Here 'simple' refers to boundaries that are parallel to lines of constant longitude or latitude.
+        Set up a boundary forcing file for a given orientation.
 
         Args:
             path_to_bc (str): Path to boundary forcing file. Ideally this should be a pre cut-out
@@ -904,7 +968,10 @@ class experiment:
         """
 
         print("Processing {} boundary...".format(orientation), end="")
-
+        if not path_to_bc.exists():
+            raise FileNotFoundError(
+                f"Boundary file not found at {path_to_bc}. Please ensure that the files are named in the format `east_unprocessed.nc`."
+            )
         seg = segment(
             hgrid=self.hgrid,
             infile=path_to_bc,  # location of raw boundary
@@ -1414,6 +1481,21 @@ class experiment:
         premade_rundir_path = Path(
             importlib.resources.files("regional_mom6") / "demos/premade_run_directories"
         )
+        if not premade_rundir_path.exists():
+            print("Could not find premade run directories at ", premade_rundir_path)
+            print(
+                "Perhaps the package was imported directly rather than installed with conda. Checking if this is the case... "
+            )
+
+            premade_rundir_path = Path(
+                importlib.resources.files("regional_mom6").parent
+                / "demos/premade_run_directories"
+            )
+            if not premade_rundir_path.exists():
+                raise ValueError(
+                    f"Cannot find the premade run directory files at {premade_rundir_path} either.\n\n"
+                    + "There may be an issue with package installation. Check that the `premade_run_directory` folder is present in one of these two locations"
+                )
 
         # Define the locations of the directories we'll copy files across from. Base contains most of the files, and overwrite replaces files in the base directory.
         base_run_dir = premade_rundir_path / "common_files"
@@ -1479,18 +1561,32 @@ class experiment:
             mask_table = p.name
             x, y = (int(v) for v in layout.split("x"))
             ncpus = (x * y) - int(masked)
-        if mask_table == None:
+            layout = (
+                x,
+                y,
+            )  # This is a local variable keeping track of the layout as read from the mask table. Not to be confused with self.layout which is unchanged and may differ.
+
             print(
-                "No mask table found! This suggests the domain is mostly water, so there are "
-                + "no `non compute` cells that are entirely land. If this doesn't seem right, "
-                + "ensure you've already run `FRE_tools`."
+                f"Mask table {p.name} read. Using this to infer the cpu layout {layout}, total masked out cells {masked}, and total number of CPUs {ncpus}."
             )
-            if not hasattr(self, "layout"):
+
+        if mask_table == None:
+            if self.layout == None:
                 raise AttributeError(
-                    "No layout information found. This suggests that `FRE_tools()` hasn't been called yet. "
-                    + "Please do so, in order for the number of processors required is computed."
+                    "No mask table found, and the cpu layout has not been set. At least one of these is requiret to set up the experiment."
                 )
-            ncpus = self.layout[0] * self.layout[1]
+            print(
+                f"No mask table found, but the cpu layout has been set to {self.layout} This suggests the domain is mostly water, so there are "
+                + "no `non compute` cells that are entirely land. If this doesn't seem right, "
+                + "ensure you've already run the `FRE_tools` method which sets up the cpu mask table. Keep an eye on any errors that might print while"
+                + "the FRE tools (which run C++ in the background) are running."
+            )
+            # Here we define a local copy of the layout just for use within this function.
+            # This prevents the layout from being overwritten in the main class in case
+            # in case the user accidentally loads in the wrong mask table.
+            layout = self.layout
+            ncpus = layout[0] * layout[1]
+
         print("Number of CPUs required: ", ncpus)
 
         ## Modify the input namelists to give the correct layouts
@@ -1504,7 +1600,7 @@ class experiment:
                     else:
                         lines[jj] = "# MASKTABLE = no mask table"
                 if "LAYOUT =" in lines[jj] and "IO" not in lines[jj]:
-                    lines[jj] = f"LAYOUT = {self.layout[1]},{self.layout[0]}\n"
+                    lines[jj] = f"LAYOUT = {layout[1]},{layout[0]}\n"
 
                 if "NIGLOBAL" in lines[jj]:
                     lines[jj] = f"NIGLOBAL = {self.hgrid.nx.shape[0]//2}\n"
@@ -1572,85 +1668,86 @@ class experiment:
             years = [
                 i for i in range(self.date_range[0].year, self.date_range[1].year + 1)
             ]
-            # Loop through each year and read the corresponding files
-            for year in years:
-                ds = xr.open_mfdataset(
-                    f"{era5_path}/{fname}/{year}/{fname}*",
-                    decode_times=False,
-                    chunks={"longitude": 100, "latitude": 100},
+            # construct a list of all paths for all years to use for open_mfdataset
+            paths_per_year = [Path(f"{era5_path}/{fname}/{year}/") for year in years]
+            all_files = []
+            for path in paths_per_year:
+                # Use glob to find all files that match the pattern
+                files = list(path.glob(f"{fname}*.nc"))
+                # Add the files to the all_files list
+                all_files.extend(files)
+
+            ds = xr.open_mfdataset(
+                all_files,
+                decode_times=False,
+                chunks={"longitude": 100, "latitude": 100},
+            )
+
+            ## Cut out this variable to our domain size
+            rawdata[fname] = longitude_slicer(
+                ds,
+                self.longitude_extent,
+                "longitude",
+            ).sel(
+                latitude=slice(
+                    self.latitude_extent[1], self.latitude_extent[0]
+                )  ## This is because ERA5 has latitude in decreasing order (??)
+            )
+
+            ## Now fix up the latitude and time dimensions
+
+            rawdata[fname] = (
+                rawdata[fname]
+                .isel(latitude=slice(None, None, -1))  ## Flip latitude
+                .assign_coords(
+                    time=np.arange(
+                        0, rawdata[fname].time.shape[0], dtype=float
+                    )  ## Set the zero date of forcing to start of run
+                )
+            )
+
+            rawdata[fname].time.attrs = {
+                "calendar": "julian",
+                "units": f"hours since {self.date_range[0].strftime('%Y-%m-%d %H:%M:%S')}",
+            }  ## Fix up calendar to match
+
+            if fname == "2d":
+                ## Calculate specific humidity from dewpoint temperature
+                dewpoint = 8.07131 - 1730.63 / (233.426 + rawdata["2d"]["d2m"] - 273.15)
+                humidity = (0.622 / rawdata["sp"]["sp"]) * (10**dewpoint) * 101325 / 760
+                q = xr.Dataset(data_vars={"q": humidity})
+
+                q.q.attrs = {"long_name": "Specific Humidity", "units": "kg/kg"}
+                q.to_netcdf(
+                    f"{self.mom_input_dir}/forcing/q_ERA5.nc",
+                    unlimited_dims="time",
+                    encoding={"q": {"dtype": "double"}},
+                )
+            elif fname == "crr":
+                ## Calculate total rain rate from convective and total
+                trr = xr.Dataset(
+                    data_vars={"trr": rawdata["crr"]["crr"] + rawdata["lsrr"]["lsrr"]}
                 )
 
-                ## Cut out this variable to our domain size
-                rawdata[fname] = longitude_slicer(
-                    ds,
-                    self.longitude_extent,
-                    "longitude",
-                ).sel(
-                    latitude=slice(
-                        self.longitude_extent[1], self.longitude_extent[0]
-                    )  ## This is because ERA5 has latitude in decreasing order (??)
+                trr.trr.attrs = {
+                    "long_name": "Total Rain Rate",
+                    "units": "kg m**-2 s**-1",
+                }
+                trr.to_netcdf(
+                    f"{self.mom_input_dir}/forcing/trr_ERA5.nc",
+                    unlimited_dims="time",
+                    encoding={"trr": {"dtype": "double"}},
                 )
 
-                ## Now fix up the latitude and time dimensions
-
-                rawdata[fname] = (
-                    rawdata[fname]
-                    .isel(latitude=slice(None, None, -1))  ## Flip latitude
-                    .assign_coords(
-                        time=np.arange(
-                            0, rawdata[fname].time.shape[0], dtype=float
-                        )  ## Set the zero date of forcing to start of run
-                    )
+            elif fname == "lsrr":
+                ## This is handled by crr as both are added together to calculate total rain rate.
+                pass
+            else:
+                rawdata[fname].to_netcdf(
+                    f"{self.mom_input_dir}/forcing/{fname}_ERA5.nc",
+                    unlimited_dims="time",
+                    encoding={vname: {"dtype": "double"}},
                 )
-
-                rawdata[fname].time.attrs = {
-                    "calendar": "julian",
-                    "units": f"hours since {self.date_range[0].strftime('%Y-%m-%d %H:%M:%S')}",
-                }  ## Fix up calendar to match
-
-                if fname == "2d":
-                    ## Calculate specific humidity from dewpoint temperature
-                    dewpoint = 8.07131 - 1730.63 / (
-                        233.426 + rawdata["2d"]["d2m"] - 273.15
-                    )
-                    humidity = (
-                        (0.622 / rawdata["sp"]["sp"]) * (10**dewpoint) * 101325 / 760
-                    )
-                    q = xr.Dataset(data_vars={"q": humidity})
-
-                    q.q.attrs = {"long_name": "Specific Humidity", "units": "kg/kg"}
-                    q.to_netcdf(
-                        f"{self.mom_input_dir}/forcing/q_ERA5.nc",
-                        unlimited_dims="time",
-                        encoding={"q": {"dtype": "double"}},
-                    )
-                elif fname == "crr":
-                    ## Calculate total rain rate from convective and total
-                    trr = xr.Dataset(
-                        data_vars={
-                            "trr": rawdata["crr"]["crr"] + rawdata["lsrr"]["lsrr"]
-                        }
-                    )
-
-                    trr.trr.attrs = {
-                        "long_name": "Total Rain Rate",
-                        "units": "kg m**-2 s**-1",
-                    }
-                    trr.to_netcdf(
-                        f"{self.mom_input_dir}/forcing/trr_ERA5-{year}.nc",
-                        unlimited_dims="time",
-                        encoding={"trr": {"dtype": "double"}},
-                    )
-
-                elif fname == "lsrr":
-                    ## This is handled by crr as both are added together to calculate total rain rate.
-                    pass
-                else:
-                    rawdata[fname].to_netcdf(
-                        f"{self.mom_input_dir}/forcing/{fname}_ERA5-{year}.nc",
-                        unlimited_dims="time",
-                        encoding={vname: {"dtype": "double"}},
-                    )
 
 
 class segment:
@@ -1909,10 +2006,11 @@ class segment:
         del segment_out["lat"]
         ## Convert temperatures to celsius # use pint
         if (
-            np.min(segment_out[self.tracers["temp"]].isel({self.time: 0, self.z: 0}))
+            np.nanmin(segment_out[self.tracers["temp"]].isel({self.time: 0, self.z: 0}))
             > 100
         ):
             segment_out[self.tracers["temp"]] -= 273.15
+            segment_out[self.tracers["temp"]].attrs["units"] = "degrees Celsius"
 
         # fill in NaNs
         segment_out = (

@@ -100,6 +100,97 @@ def test_setup_bathymetry(
     bathymetry_file.unlink()
 
 
+def number_of_gridpoints(longitude_extent, latitude_extent, resolution):
+    nx = int((longitude_extent[-1] - longitude_extent[0]) / resolution)
+    ny = int((latitude_extent[-1] - latitude_extent[0]) / resolution)
+
+    return nx, ny
+
+
+def generate_temperature_arrays(nx, ny, number_vertical_layers):
+
+    # temperatures close to 0 ᵒC
+    temp_in_C = np.random.randn(ny, nx, number_vertical_layers)
+
+    temp_in_C_masked = np.copy(temp_in_C)
+    if int(ny / 4 + 4) < ny - 1 and int(nx / 3 + 4) < nx + 1:
+        temp_in_C_masked[
+            int(ny / 3) : int(ny / 3 + 5), int(nx) : int(nx / 4 + 4), :
+        ] = float("nan")
+    else:
+        raise ValueError("use bigger domain")
+
+    temp_in_K = np.copy(temp_in_C) + 273.15
+    temp_in_K_masked = np.copy(temp_in_C_masked) + 273.15
+
+    # ensure we didn't mask the minimum temperature
+    if np.nanmin(temp_in_C_masked) == np.min(temp_in_C):
+        return temp_in_C, temp_in_C_masked, temp_in_K, temp_in_K_masked
+    else:
+        return generate_temperature_arrays(nx, ny, number_vertical_layers)
+
+
+def generate_silly_coords(
+    longitude_extent, latitude_extent, resolution, depth, number_vertical_layers
+):
+    nx, ny = number_of_gridpoints(longitude_extent, latitude_extent, resolution)
+
+    horizontal_buffer = 5
+
+    silly_lat = np.linspace(
+        latitude_extent[0] - horizontal_buffer,
+        latitude_extent[1] + horizontal_buffer,
+        ny,
+    )
+    silly_lon = np.linspace(
+        longitude_extent[0] - horizontal_buffer,
+        longitude_extent[1] + horizontal_buffer,
+        nx,
+    )
+    silly_depth = np.linspace(0, depth, number_vertical_layers)
+
+    return silly_lat, silly_lon, silly_depth
+
+
+longitude_extent = [-5, 3]
+latitude_extent = (0, 10)
+date_range = ["2003-01-01 00:00:00", "2003-01-01 00:00:00"]
+resolution = 0.1
+number_vertical_layers = 5
+layer_thickness_ratio = 1
+depth = 1000
+
+silly_lat, silly_lon, silly_depth = generate_silly_coords(
+    longitude_extent, latitude_extent, resolution, depth, number_vertical_layers
+)
+
+dims = ["silly_lat", "silly_lon", "silly_depth"]
+
+coords = {"silly_lat": silly_lat, "silly_lon": silly_lon, "silly_depth": silly_depth}
+
+mom_run_dir = "rundir/"
+mom_input_dir = "inputdir/"
+toolpath_dir = "toolpath"
+grid_type = "even_spacing"
+
+nx, ny = number_of_gridpoints(longitude_extent, latitude_extent, resolution)
+
+temp_in_C, temp_in_C_masked, temp_in_K, temp_in_K_masked = generate_temperature_arrays(
+    nx, ny, number_vertical_layers
+)
+
+temp_C = xr.DataArray(temp_in_C, dims=dims, coords=coords)
+temp_K = xr.DataArray(temp_in_K, dims=dims, coords=coords)
+temp_C_masked = xr.DataArray(temp_in_C_masked, dims=dims, coords=coords)
+temp_K_masked = xr.DataArray(temp_in_K_masked, dims=dims, coords=coords)
+
+maximum_temperature_in_C = np.max(temp_in_C)
+
+
+@pytest.mark.parametrize(
+    "temp_dataarray_initial_condition",
+    [temp_C, temp_C_masked, temp_K, temp_K_masked],
+)
 @pytest.mark.parametrize(
     (
         "longitude_extent",
@@ -116,13 +207,13 @@ def test_setup_bathymetry(
     ),
     [
         (
-            [-5, 5],
-            (0, 10),
-            ["2003-01-01 00:00:00", "2003-01-01 00:00:00"],
-            0.1,
-            5,
-            1,
-            1000,
+            longitude_extent,
+            latitude_extent,
+            date_range,
+            resolution,
+            number_vertical_layers,
+            layer_thickness_ratio,
+            depth,
             "rundir/",
             "inputdir/",
             "toolpath",
@@ -142,8 +233,22 @@ def test_ocean_forcing(
     mom_input_dir,
     toolpath_dir,
     grid_type,
+    temp_dataarray_initial_condition,
     tmp_path,
 ):
+
+    silly_lat, silly_lon, silly_depth = generate_silly_coords(
+        longitude_extent, latitude_extent, resolution, depth, number_vertical_layers
+    )
+
+    dims = ["silly_lat", "silly_lon", "silly_depth"]
+
+    coords = {
+        "silly_lat": silly_lat,
+        "silly_lon": silly_lon,
+        "silly_depth": silly_depth,
+    }
+
     expt = experiment(
         longitude_extent=longitude_extent,
         latitude_extent=latitude_extent,
@@ -160,72 +265,34 @@ def test_ocean_forcing(
 
     ## Generate some initial condition to test on
 
+    nx, ny = number_of_gridpoints(longitude_extent, latitude_extent, resolution)
+
     # initial condition includes, temp, salt, eta, u, v
     initial_cond = xr.Dataset(
         {
-            "temp": xr.DataArray(
-                np.random.random((100, 100, 10)),
-                dims=["silly_lat", "silly_lon", "silly_depth"],
-                coords={
-                    "silly_lat": np.linspace(
-                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
-                    ),
-                    "silly_lon": np.linspace(
-                        longitude_extent[0] - 5, longitude_extent[1] + 5, 100
-                    ),
-                    "silly_depth": np.linspace(0, 1000, 10),
-                },
-            ),
             "eta": xr.DataArray(
-                np.random.random((100, 100)),
+                np.random.random((ny, nx)),
                 dims=["silly_lat", "silly_lon"],
                 coords={
-                    "silly_lat": np.linspace(
-                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
-                    ),
-                    "silly_lon": np.linspace(
-                        longitude_extent[0] - 5, longitude_extent[1] + 5, 100
-                    ),
+                    "silly_lat": silly_lat,
+                    "silly_lon": silly_lon,
                 },
             ),
+            "temp": temp_dataarray_initial_condition,
             "salt": xr.DataArray(
-                np.random.random((100, 100, 10)),
-                dims=["silly_lat", "silly_lon", "silly_depth"],
-                coords={
-                    "silly_lat": np.linspace(
-                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
-                    ),
-                    "silly_lon": np.linspace(
-                        longitude_extent[0] - 5, longitude_extent[1] + 5, 100
-                    ),
-                    "silly_depth": np.linspace(0, 1000, 10),
-                },
+                np.random.random((ny, nx, number_vertical_layers)),
+                dims=dims,
+                coords=coords,
             ),
             "u": xr.DataArray(
-                np.random.random((100, 100, 10)),
-                dims=["silly_lat", "silly_lon", "silly_depth"],
-                coords={
-                    "silly_lat": np.linspace(
-                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
-                    ),
-                    "silly_lon": np.linspace(
-                        longitude_extent[0] - 5, longitude_extent[1] + 5, 100
-                    ),
-                    "silly_depth": np.linspace(0, 1000, 10),
-                },
+                np.random.random((ny, nx, number_vertical_layers)),
+                dims=dims,
+                coords=coords,
             ),
             "v": xr.DataArray(
-                np.random.random((100, 100, 10)),
-                dims=["silly_lat", "silly_lon", "silly_depth"],
-                coords={
-                    "silly_lat": np.linspace(
-                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
-                    ),
-                    "silly_lon": np.linspace(
-                        longitude_extent[0] - 5, longitude_extent[1] + 5, 100
-                    ),
-                    "silly_depth": np.linspace(0, 1000, 10),
-                },
+                np.random.random((ny, nx, number_vertical_layers)),
+                dims=dims,
+                coords=coords,
             ),
         }
     )
@@ -250,6 +317,12 @@ def test_ocean_forcing(
         varnames,
         arakawa_grid="A",
     )
+
+    # ensure that temperature is in degrees C
+    assert np.nanmin(expt.ic_tracers["temp"]) < 100.0
+
+    # max(temp) can be less maximum_temperature_in_C due to re-gridding
+    assert np.nanmax(expt.ic_tracers["temp"]) <= maximum_temperature_in_C
 
 
 @pytest.mark.parametrize(
@@ -282,7 +355,7 @@ def test_ocean_forcing(
         ),
     ],
 )
-def test_rectangular_boundary(
+def test_rectangular_boundaries(
     longitude_extent,
     latitude_extent,
     date_range,
@@ -370,7 +443,7 @@ def test_rectangular_boundary(
             ),
         }
     )
-    eastern_boundary.to_netcdf(tmp_path / "east_unprocessed")
+    eastern_boundary.to_netcdf(tmp_path / "east_unprocessed.nc")
     eastern_boundary.close()
 
     expt = experiment(
@@ -398,4 +471,4 @@ def test_rectangular_boundary(
         "tracers": {"temp": "temp", "salt": "salt"},
     }
 
-    expt.rectangular_boundary(tmp_path / "east_unprocessed", varnames, "east", 1)
+    expt.rectangular_boundaries(tmp_path, varnames, ["east"])
