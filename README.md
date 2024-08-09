@@ -129,3 +129,27 @@ the package using two different sets of input datasets.
 Please ensure that you can get at least one of these working on your setup with your MOM6 executable before trying to modify the example to suit your domain with your bathymetry, forcing, and boundary conditions.
 
 You can download the notebooks [from Github](https://github.com/COSIMA/regional-mom6/tree/main/demos) or by clicking on the download <img width="22" alt="download" src="https://github.com/COSIMA/regional-mom6/assets/7112768/2c1ae149-c6a8-4395-ab09-2f77588008d9"> button, e.g., at the top-right of the [regional Tasmania forced by ERA5 example](https://regional-mom6.readthedocs.io/en/latest/demo_notebooks/reanalysis-forced.html).
+
+## Citing
+
+If you use regional-mom6 in research, teaching, or other activities, we would be grateful 
+if you could mention regional-mom6 and cite our paper in JOSS:
+
+> Barnes et al., (2024). A Python package for automatic generation of regional configurations for the Modular Ocean Model 6. _Journal of Open Source Software_, **9(100)**, 6857, doi:[10.21105/joss.06857](https://doi.org/10.21105/joss.06857).
+
+The bibtex entry for the paper is:
+
+```bibtex
+@article{regional-mom6-JOSS,
+  doi = {10.21105/joss.06857},
+  url = {https://doi.org/10.21105/joss.06857},
+  year = {2024},
+  publisher = {The Open Journal},
+  volume = {9},
+  number = {100},
+  pages = {6857},
+  author = {Ashley J. Barnes and Navid C. Constantinou and Angus H. Gibson and Andrew E. Kiss and Chris Chapman and John Reily and Dhruv Bhagtani and Luwei Yang},
+  title = {{A Python package for automatic generation of regional configurations for the Modular Ocean Model 6}},
+  journal = {Journal of Open Source Software}
+}
+```

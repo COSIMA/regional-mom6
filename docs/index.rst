@@ -53,6 +53,15 @@ What you need to get started
 
 Browse through the `demos <demos.html>`_.
 
+Citing
+------
+
+If you use regional-mom6 in research, teaching, or other activities, we would be grateful 
+if you could mention regional-mom6 and cite our paper in JOSS:
+
+> Barnes et al., (2024). A Python package for automatic generation of regional configurations for the Modular Ocean Model 6. *Journal of Open Source Software*, **9(100)**, 6857, doi:`10.21105/joss.06857 <https://doi.org/10.21105/joss.06857>`_.
+
+
 .. _regional-mom6: https://github.com/COSIMA/regional-mom6
 .. _Modular Ocean Model version 6: https://github.com/mom-ocean/MOM6
 .. _open a pull request: https://github.com/COSIMA/regional-mom6/pulls
