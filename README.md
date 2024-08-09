@@ -5,12 +5,13 @@
 [![Repo status](https://www.repostatus.org/badges/latest/active.svg?style=flat-square)](https://www.repostatus.org/#active)
 [![conda forge](https://img.shields.io/conda/vn/conda-forge/regional-mom6.svg)](https://anaconda.org/conda-forge/regional-mom6)
 [![pypi](https://badge.fury.io/py/regional-mom6.svg)](https://badge.fury.io/py/regional-mom6)
-[![status](https://joss.theoj.org/papers/d396435c09aae4c2f4b62cdbc1493c1e/status.svg)](https://joss.theoj.org/papers/d396435c09aae4c2f4b62cdbc1493c1e)
 [![Documentation Status](https://readthedocs.org/projects/regional-mom6/badge/?version=latest)](https://regional-mom6.readthedocs.io/en/latest/?badge=latest)
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://mit-license.org)
 [![codecov](https://codecov.io/gh/COSIMA/regional-mom6/branch/main/graph/badge.svg?token=7OEZ1UZRY4)](https://codecov.io/gh/COSIMA/regional-mom6)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
+[![status](https://joss.theoj.org/papers/d396435c09aae4c2f4b62cdbc1493c1e/status.svg)](https://joss.theoj.org/papers/d396435c09aae4c2f4b62cdbc1493c1e)
 
 Users just need to provide some information about where, when, and how big their domain is and also where raw input forcing files are. The package sorts out all the boring details and creates a set of MOM6-friendly input files along with setup directories ready to go! 
 
@@ -129,3 +130,27 @@ the package using two different sets of input datasets.
 Please ensure that you can get at least one of these working on your setup with your MOM6 executable before trying to modify the example to suit your domain with your bathymetry, forcing, and boundary conditions.
 
 You can download the notebooks [from Github](https://github.com/COSIMA/regional-mom6/tree/main/demos) or by clicking on the download <img width="22" alt="download" src="https://github.com/COSIMA/regional-mom6/assets/7112768/2c1ae149-c6a8-4395-ab09-2f77588008d9"> button, e.g., at the top-right of the [regional Tasmania forced by ERA5 example](https://regional-mom6.readthedocs.io/en/latest/demo_notebooks/reanalysis-forced.html).
+
+## Citing
+
+If you use regional-mom6 in research, teaching, or other activities, we would be grateful 
+if you could mention regional-mom6 and cite our paper in JOSS:
+
+> Barnes et al., (2024). regional-mom6: A Python package for automatic generation of regional configurations for the Modular Ocean Model 6. _Journal of Open Source Software_, **9(100)**, 6857, doi:[10.21105/joss.06857](https://doi.org/10.21105/joss.06857).
+
+The bibtex entry for the paper is:
+
+```bibtex
+@article{regional-mom6-JOSS,
+  doi = {10.21105/joss.06857},
+  url = {https://doi.org/10.21105/joss.06857},
+  year = {2024},
+  publisher = {The Open Journal},
+  volume = {9},
+  number = {100},
+  pages = {6857},
+  author = {Ashley J. Barnes and Navid C. Constantinou and Angus H. Gibson and Andrew E. Kiss and Chris Chapman and John Reily and Dhruv Bhagtani and Luwei Yang},
+  title = {{regional-mom6: A Python package for automatic generation of regional configurations for the Modular Ocean Model 6}},
+  journal = {Journal of Open Source Software}
+}
+```

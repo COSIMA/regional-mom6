@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - '**'
+      - '!joss-paper'
 
 jobs:
   formatting:
