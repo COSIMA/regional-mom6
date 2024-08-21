@@ -183,7 +183,7 @@ def get_glorys_data(
 
     lines.append(
         f"""
-copernicusmarine subset --dataset-id cmems_mod_glo_phy_my_0.083deg_P1D-m --variable so --variable thetao --variable uo --variable vo --variable zos --start-datetime {timerange[0].replace(" ","T")} --end-datetime {timerange[1].replace(" ","T")} --minimum-longitude {longitude_extent[0]} --maximum-longitude {longitude_extent[1]} --minimum-latitude {latitude_extent[0]} --maximum-latitude {latitude_extent[1]} --minimum-depth 0 --maximum-depth 6000 -o {str(path)} -f {segment_name}.nc --force-download\n
+copernicusmarine subset --dataset-id cmems_mod_glo_phy_my_0.083deg_P1D-m --variable so --variable thetao --variable uo --variable vo --variable zos --start-datetime {str(timerange[0]).replace(" ","T")} --end-datetime {str(timerange[1]).replace(" ","T")} --minimum-longitude {longitude_extent[0]} --maximum-longitude {longitude_extent[1]} --minimum-latitude {latitude_extent[0]} --maximum-latitude {latitude_extent[1]} --minimum-depth 0 --maximum-depth 6000 -o {str(path)} -f {segment_name}.nc --force-download\n
 """
     )
     file.writelines(lines)
@@ -1003,7 +1003,7 @@ class experiment:
             )
 
         print(
-            f"script `get_glorys_data.sh` has been greated at {raw_boundaries_path}. Run this script via bash to download the data from a terminal with internet access. You will need to enter your Copernicus Marine username and password. If you don't have an account, make one here:\nhttps://data.marine.copernicus.eu/register"
+            f"script `get_glorys_data.sh` has been greated at {raw_boundaries_path}.\n Run this script via bash to download the data from a terminal with internet access. \nYou will need to enter your Copernicus Marine username and password.\nIf you don't have an account, make one here:\nhttps://data.marine.copernicus.eu/register"
         )
         return
 
