@@ -169,9 +169,9 @@ def get_glorys_data(
         modify_existing (bool): Whether to add to an existing script or start a new one
         buffer (int): number of degrees to add to pad the file with to ensure that interpolation onto desired domain doesn't fail.
     """
+    path = Path(download_path)
 
     if modify_existing:
-        path = Path(download_path)
         file = open(path / "get_glorysdata.sh", "r")
         lines = file.readlines()
         file.close()
