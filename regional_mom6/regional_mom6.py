@@ -1001,10 +1001,10 @@ class experiment:
                 raw_boundaries_path,
             )
 
-    print(
-        f"script `get_glorys_data.sh` has been greated at {raw_boundaries_path}. Run this script via bash to download the data from a terminal with internet access. You will need to enter your Copernicus Marine username and password. If you don't have an account, make one here:\nhttps://data.marine.copernicus.eu/register"
-    )
-    return
+        print(
+            f"script `get_glorys_data.sh` has been greated at {raw_boundaries_path}. Run this script via bash to download the data from a terminal with internet access. You will need to enter your Copernicus Marine username and password. If you don't have an account, make one here:\nhttps://data.marine.copernicus.eu/register"
+        )
+        return
 
     def rectangular_boundaries(
         self,
