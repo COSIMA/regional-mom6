@@ -961,8 +961,7 @@ class experiment:
             self.latitude_extent,
             [
                 self.date_range[0],
-                datetime.datetime.strptime(self.date_range[0], "%Y-%m-%d %H:%M:%S")
-                + datetime.timedelta(days=1),
+                self.date_range[0] + datetime.timedelta(days=1),
             ],
             "ic_unprocessed",
             raw_boundaries_path,
