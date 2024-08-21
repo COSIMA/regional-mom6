@@ -144,16 +144,18 @@ def longitude_slicer(data, longitude_extent, longitude_coords):
 
     return data
 
+
 from pathlib import Path
+
 
 def get_glorys_data(
     longitude_extent,
     latitude_extent,
     timerange,
     segment_name,
-    download_path,  
-    modify_existing = True,
-    buffer = 1
+    download_path,
+    modify_existing=True,
+    buffer=1,
 ):
     """
     Generates a bash script to download all of the required ocean forcing data.
@@ -168,20 +170,14 @@ def get_glorys_data(
         buffer (int): number of degrees to add to pad the file with to ensure that interpolation onto desired domain doesn't fail.
     """
     path = Path(download_path)
-    file = open(
-        path / "get_glorysdata.sh",
-        "r"
-    )
+    file = open(path / "get_glorysdata.sh", "r")
 
     if modify_existing:
         lines = file.readlines()
     else:
         lines = ["#!/bin/bash\ncopernicusmarine login"]
     file.close()
-    file = open(
-        path / "get_glorysdata.sh",
-        "w"
-    )
+    file = open(path / "get_glorysdata.sh", "w")
 
     lines.append(
         f"""
@@ -190,7 +186,7 @@ copernicusmarine subset --dataset-id cmems_mod_glo_phy_my_0.083deg_P1D-m --varia
     )
     file.writelines(lines)
     file.close()
-    return 
+    return
 
 
 def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
@@ -948,9 +944,7 @@ class experiment:
         return
 
     def get_glorys_rectangular(
-        self,
-        raw_boundaries_path,
-        boundaries=["south", "north", "west", "east"]
+        self, raw_boundaries_path, boundaries=["south", "north", "west", "east"]
     ):
         """
         This function is a wrapper for `get_glorys_data`, calling this function once for each of the rectangular boundary segments and the initial condition. For more complex boundary shapes, call `get_glorys_data` directly for each of your boundaries that aren't parallel to lines of constant latitude or longitude.
@@ -965,45 +959,51 @@ class experiment:
         get_glorys_data(
             self.longitude_extent,
             self.latitude_extent,
-            [self.date_range[0],datetime.datetime.strptime(self.date_range[0], "%Y-%m-%d %H:%M:%S") + datetime.timedelta(days=1)],
+            [
+                self.date_range[0],
+                datetime.datetime.strptime(self.date_range[0], "%Y-%m-%d %H:%M:%S")
+                + datetime.timedelta(days=1),
+            ],
             "ic_unprocessed",
             raw_boundaries_path,
-            modify_existing=False
-            )
+            modify_existing=False,
+        )
         if "east" in boundaries:
             get_glorys_data(
-                [self.longitude_extent[1] - 1,self.longitude_extent[1] + 1],
-                [self.latitude_extent[0] -1, self.latitude_extent[1] + 1],
+                [self.longitude_extent[1] - 1, self.longitude_extent[1] + 1],
+                [self.latitude_extent[0] - 1, self.latitude_extent[1] + 1],
                 self.date_range,
                 "east_unprocessed",
                 raw_boundaries_path,
             )
         if "west" in boundaries:
             get_glorys_data(
-                [self.longitude_extent[0] - 1,self.longitude_extent[0] + 1],
-                [self.latitude_extent[0] -1, self.latitude_extent[1] + 1],
+                [self.longitude_extent[0] - 1, self.longitude_extent[0] + 1],
+                [self.latitude_extent[0] - 1, self.latitude_extent[1] + 1],
                 self.date_range,
                 "west_unprocessed",
                 raw_boundaries_path,
             )
         if "north" in boundaries:
             get_glorys_data(
-                [self.longitude_extent[0] - 1,self.longitude_extent[1] + 1],
-                [self.latitude_extent[1] -1, self.latitude_extent[1] + 1],
+                [self.longitude_extent[0] - 1, self.longitude_extent[1] + 1],
+                [self.latitude_extent[1] - 1, self.latitude_extent[1] + 1],
                 self.date_range,
                 "north_unprocessed",
                 raw_boundaries_path,
             )
         if "south" in boundaries:
             get_glorys_data(
-                [self.longitude_extent[0] - 1,self.longitude_extent[1] + 1],
-                [self.latitude_extent[0] -1, self.latitude_extent[0] + 1],
+                [self.longitude_extent[0] - 1, self.longitude_extent[1] + 1],
+                [self.latitude_extent[0] - 1, self.latitude_extent[0] + 1],
                 self.date_range,
                 "south_unprocessed",
                 raw_boundaries_path,
             )
 
-    print(f"script `get_glorys_data.sh` has been greated at {raw_boundaries_path}. Run this script via bash to download the data from a terminal with internet access. You will need to enter your Copernicus Marine username and password. If you don't have an account, make one here:\nhttps://data.marine.copernicus.eu/register")
+    print(
+        f"script `get_glorys_data.sh` has been greated at {raw_boundaries_path}. Run this script via bash to download the data from a terminal with internet access. You will need to enter your Copernicus Marine username and password. If you don't have an account, make one here:\nhttps://data.marine.copernicus.eu/register"
+    )
     return
 
     def rectangular_boundaries(
