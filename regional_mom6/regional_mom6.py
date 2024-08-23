@@ -155,7 +155,6 @@ def get_glorys_data(
     segment_name,
     download_path,
     modify_existing=True,
-    buffer=1,
 ):
     """
     Generates a bash script to download all of the required ocean forcing data.
@@ -167,8 +166,10 @@ def get_glorys_data(
         segment_range (str): name of the segment (minus .nc extension, eg east_unprocessed)
         download_path (str): Location of where this script is saved
         modify_existing (bool): Whether to add to an existing script or start a new one
-        buffer (int): number of degrees to add to pad the file with to ensure that interpolation onto desired domain doesn't fail.
+        buffer (float): number of
     """
+    buffer = 0.24  # Pads downloads to ensure that interpolation onto desired domain doesn't fail. Default of 0.24 is twice Glorys cell width (12th degree)
+
     path = Path(download_path)
 
     if modify_existing:
@@ -183,7 +184,7 @@ def get_glorys_data(
 
     lines.append(
         f"""
-copernicusmarine subset --dataset-id cmems_mod_glo_phy_my_0.083deg_P1D-m --variable so --variable thetao --variable uo --variable vo --variable zos --start-datetime {str(timerange[0]).replace(" ","T")} --end-datetime {str(timerange[1]).replace(" ","T")} --minimum-longitude {longitude_extent[0]} --maximum-longitude {longitude_extent[1]} --minimum-latitude {latitude_extent[0]} --maximum-latitude {latitude_extent[1]} --minimum-depth 0 --maximum-depth 6000 -o {str(path)} -f {segment_name}.nc --force-download\n
+copernicusmarine subset --dataset-id cmems_mod_glo_phy_my_0.083deg_P1D-m --variable so --variable thetao --variable uo --variable vo --variable zos --start-datetime {str(timerange[0]).replace(" ","T")} --end-datetime {str(timerange[1]).replace(" ","T")} --minimum-longitude {longitude_extent[0] - buffer} --maximum-longitude {longitude_extent[1] + buffer} --minimum-latitude {latitude_extent[0] - buffer} --maximum-latitude {latitude_extent[1] + buffer} --minimum-depth 0 --maximum-depth 6000 -o {str(path)} -f {segment_name}.nc --force-download\n
 """
     )
     file.writelines(lines)
@@ -971,32 +972,32 @@ class experiment:
         )
         if "east" in boundaries:
             get_glorys_data(
-                [self.longitude_extent[1] - 1, self.longitude_extent[1] + 1],
-                [self.latitude_extent[0] - 1, self.latitude_extent[1] + 1],
+                [self.longitude_extent[1], self.longitude_extent[1]],
+                [self.latitude_extent[0], self.latitude_extent[1]],
                 self.date_range,
                 "east_unprocessed",
                 raw_boundaries_path,
             )
         if "west" in boundaries:
             get_glorys_data(
-                [self.longitude_extent[0] - 1, self.longitude_extent[0] + 1],
-                [self.latitude_extent[0] - 1, self.latitude_extent[1] + 1],
+                [self.longitude_extent[0], self.longitude_extent[0]],
+                [self.latitude_extent[0], self.latitude_extent[1]],
                 self.date_range,
                 "west_unprocessed",
                 raw_boundaries_path,
             )
         if "north" in boundaries:
             get_glorys_data(
-                [self.longitude_extent[0] - 1, self.longitude_extent[1] + 1],
-                [self.latitude_extent[1] - 1, self.latitude_extent[1] + 1],
+                [self.longitude_extent[0], self.longitude_extent[1]],
+                [self.latitude_extent[1], self.latitude_extent[1]],
                 self.date_range,
                 "north_unprocessed",
                 raw_boundaries_path,
             )
         if "south" in boundaries:
             get_glorys_data(
-                [self.longitude_extent[0] - 1, self.longitude_extent[1] + 1],
-                [self.latitude_extent[0] - 1, self.latitude_extent[0] + 1],
+                [self.longitude_extent[0], self.longitude_extent[1]],
+                [self.latitude_extent[0], self.latitude_extent[0]],
                 self.date_range,
                 "south_unprocessed",
                 raw_boundaries_path,
