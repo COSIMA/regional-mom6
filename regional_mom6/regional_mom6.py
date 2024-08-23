@@ -13,7 +13,7 @@ import warnings
 import shutil
 import os
 import importlib.resources
-
+import datetime
 from .utils import quadrilateral_areas
 
 
@@ -143,6 +143,53 @@ def longitude_slicer(data, longitude_extent, longitude_coords):
         )
 
     return data
+
+
+from pathlib import Path
+
+
+def get_glorys_data(
+    longitude_extent,
+    latitude_extent,
+    timerange,
+    segment_name,
+    download_path,
+    modify_existing=True,
+):
+    """
+    Generates a bash script to download all of the required ocean forcing data.
+
+    Args:
+        longitude_extent (tuple of floats): Westward and Eastward extents of the segment
+        latitude_extent (tuple of floats): Southward and Northward extents of the segment
+        timerange (tule of datetime strings): Start and end of the segment in format %Y-%m-%d %H:%M:%S
+        segment_range (str): name of the segment (minus .nc extension, eg east_unprocessed)
+        download_path (str): Location of where this script is saved
+        modify_existing (bool): Whether to add to an existing script or start a new one
+        buffer (float): number of
+    """
+    buffer = 0.24  # Pads downloads to ensure that interpolation onto desired domain doesn't fail. Default of 0.24 is twice Glorys cell width (12th degree)
+
+    path = Path(download_path)
+
+    if modify_existing:
+        file = open(path / "get_glorysdata.sh", "r")
+        lines = file.readlines()
+        file.close()
+
+    else:
+        lines = ["#!/bin/bash\ncopernicusmarine login"]
+
+    file = open(path / "get_glorysdata.sh", "w")
+
+    lines.append(
+        f"""
+copernicusmarine subset --dataset-id cmems_mod_glo_phy_my_0.083deg_P1D-m --variable so --variable thetao --variable uo --variable vo --variable zos --start-datetime {str(timerange[0]).replace(" ","T")} --end-datetime {str(timerange[1]).replace(" ","T")} --minimum-longitude {longitude_extent[0] - buffer} --maximum-longitude {longitude_extent[1] + buffer} --minimum-latitude {latitude_extent[0] - buffer} --maximum-latitude {latitude_extent[1] + buffer} --minimum-depth 0 --maximum-depth 6000 -o {str(path)} -f {segment_name}.nc --force-download\n
+"""
+    )
+    file.writelines(lines)
+    file.close()
+    return
 
 
 def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
@@ -897,6 +944,68 @@ class experiment:
 
         print("done setting up initial condition.")
 
+        return
+
+    def get_glorys_rectangular(
+        self, raw_boundaries_path, boundaries=["south", "north", "west", "east"]
+    ):
+        """
+        This function is a wrapper for `get_glorys_data`, calling this function once for each of the rectangular boundary segments and the initial condition. For more complex boundary shapes, call `get_glorys_data` directly for each of your boundaries that aren't parallel to lines of constant latitude or longitude.
+
+        args:
+            raw_boundaries_path (str): Path to the directory containing the raw boundary forcing files.
+            boundaries (List[str]): List of cardinal directions for which to create boundary forcing files.
+                Default is `["south", "north", "west", "east"]`.
+        """
+
+        # Initial Condition
+        get_glorys_data(
+            self.longitude_extent,
+            self.latitude_extent,
+            [
+                self.date_range[0],
+                self.date_range[0] + datetime.timedelta(days=1),
+            ],
+            "ic_unprocessed",
+            raw_boundaries_path,
+            modify_existing=False,
+        )
+        if "east" in boundaries:
+            get_glorys_data(
+                [self.longitude_extent[1], self.longitude_extent[1]],
+                [self.latitude_extent[0], self.latitude_extent[1]],
+                self.date_range,
+                "east_unprocessed",
+                raw_boundaries_path,
+            )
+        if "west" in boundaries:
+            get_glorys_data(
+                [self.longitude_extent[0], self.longitude_extent[0]],
+                [self.latitude_extent[0], self.latitude_extent[1]],
+                self.date_range,
+                "west_unprocessed",
+                raw_boundaries_path,
+            )
+        if "north" in boundaries:
+            get_glorys_data(
+                [self.longitude_extent[0], self.longitude_extent[1]],
+                [self.latitude_extent[1], self.latitude_extent[1]],
+                self.date_range,
+                "north_unprocessed",
+                raw_boundaries_path,
+            )
+        if "south" in boundaries:
+            get_glorys_data(
+                [self.longitude_extent[0], self.longitude_extent[1]],
+                [self.latitude_extent[0], self.latitude_extent[0]],
+                self.date_range,
+                "south_unprocessed",
+                raw_boundaries_path,
+            )
+
+        print(
+            f"script `get_glorys_data.sh` has been greated at {raw_boundaries_path}.\n Run this script via bash to download the data from a terminal with internet access. \nYou will need to enter your Copernicus Marine username and password.\nIf you don't have an account, make one here:\nhttps://data.marine.copernicus.eu/register"
+        )
         return
 
     def rectangular_boundaries(
