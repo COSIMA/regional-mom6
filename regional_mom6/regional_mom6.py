@@ -485,6 +485,7 @@ class experiment:
         self.repeat_year_forcing = repeat_year_forcing
         self.ocean_mask = None
         self.layout = None  # This should be a tuple. Leaving in a dummy 'None' makes it easy to remind the user to provide a value later on.
+        self.min_depth = 0.0 # Minimum depth. Shallower water will be masked out. This value is overwritten when running "setup_bathymetry" method.
         if read_existing_grids:
             try:
                 self.hgrid = xr.open_dataset(self.mom_input_dir / "hgrid.nc")
@@ -1356,7 +1357,7 @@ class experiment:
         ## REMOVE INLAND LAKES
 
         min_depth = self.vgrid.zi[minimum_layers]
-
+        self.min_depth = min_depth
         ocean_mask = bathymetry.copy(deep=True).depth.where(
             bathymetry.depth <= min_depth, 1
         )
@@ -1698,7 +1699,7 @@ class experiment:
 
         print("Number of CPUs required: ", ncpus)
 
-        ## Modify the input namelists to give the correct layouts
+        ## Modify the MOM_layout file to have correct horizontal dimensions and CPU layout
         # TODO Re-implement with package that works for this file type? or at least tidy up code
         with open(self.mom_run_dir / "MOM_layout", "r") as file:
             lines = file.readlines()
@@ -1716,9 +1717,20 @@ class experiment:
 
                 if "NJGLOBAL" in lines[jj]:
                     lines[jj] = f"NJGLOBAL = {self.hgrid.ny.shape[0]//2}\n"
-
         with open(self.mom_run_dir / "MOM_layout", "w") as f:
             f.writelines(lines)
+
+        # Overwrite values pertaining to vertical structure in the MOM_input file
+        with open(self.mom_run_dir / "MOM_input", "r") as file:
+            lines = file.readlines()
+            for jj in range(len(lines)):
+                if "MINIMUM_DEPTH" in lines[jj]:
+                    lines[jj] = f'MINIMUM_DEPTH = "{self.min_depth}"\n'
+                if "NK =" in lines[jj]:
+                    lines[jj] = f'NK = {len(self.vgrid.zl.values)}\n'
+        with open(self.mom_run_dir / "MOM_input", "w") as f:
+            f.writelines(lines)
+
 
         ## If using payu to run the model, create a payu configuration file
         if not using_payu and os.path.exists(f"{self.mom_run_dir}/config.yaml"):
