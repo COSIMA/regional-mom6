@@ -485,7 +485,7 @@ class experiment:
         self.repeat_year_forcing = repeat_year_forcing
         self.ocean_mask = None
         self.layout = None  # This should be a tuple. Leaving in a dummy 'None' makes it easy to remind the user to provide a value later on.
-        self.min_depth = 0.0 # Minimum depth. Shallower water will be masked out. This value is overwritten when running "setup_bathymetry" method.
+        self.min_depth = 0.0  # Minimum depth. Shallower water will be masked out. This value is overwritten when running "setup_bathymetry" method.
         if read_existing_grids:
             try:
                 self.hgrid = xr.open_dataset(self.mom_input_dir / "hgrid.nc")
@@ -1727,10 +1727,9 @@ class experiment:
                 if "MINIMUM_DEPTH" in lines[jj]:
                     lines[jj] = f'MINIMUM_DEPTH = "{self.min_depth}"\n'
                 if "NK =" in lines[jj]:
-                    lines[jj] = f'NK = {len(self.vgrid.zl.values)}\n'
+                    lines[jj] = f"NK = {len(self.vgrid.zl.values)}\n"
         with open(self.mom_run_dir / "MOM_input", "w") as f:
             f.writelines(lines)
-
 
         ## If using payu to run the model, create a payu configuration file
         if not using_payu and os.path.exists(f"{self.mom_run_dir}/config.yaml"):
