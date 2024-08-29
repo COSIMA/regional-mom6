@@ -1685,19 +1685,20 @@ class experiment:
                 print(
                     "WARNING: No mask table found, and the cpu layout has not been set. At least one of these is requiret to set up the experiment if you're running MOM6 standalone with the FMS coupler. If you're running within CESM, ignore this message."
                 )
-            print(
-                f"No mask table found, but the cpu layout has been set to {self.layout} This suggests the domain is mostly water, so there are "
-                + "no `non compute` cells that are entirely land. If this doesn't seem right, "
-                + "ensure you've already run the `FRE_tools` method which sets up the cpu mask table. Keep an eye on any errors that might print while"
-                + "the FRE tools (which run C++ in the background) are running."
-            )
-            # Here we define a local copy of the layout just for use within this function.
-            # This prevents the layout from being overwritten in the main class in case
-            # in case the user accidentally loads in the wrong mask table.
-            layout = self.layout
-            ncpus = layout[0] * layout[1]
+            else:
+                print(
+                    f"No mask table found, but the cpu layout has been set to {self.layout} This suggests the domain is mostly water, so there are "
+                    + "no `non compute` cells that are entirely land. If this doesn't seem right, "
+                    + "ensure you've already run the `FRE_tools` method which sets up the cpu mask table. Keep an eye on any errors that might print while"
+                    + "the FRE tools (which run C++ in the background) are running."
+                )
+                # Here we define a local copy of the layout just for use within this function.
+                # This prevents the layout from being overwritten in the main class in case
+                # in case the user accidentally loads in the wrong mask table.
+                layout = self.layout
+                ncpus = layout[0] * layout[1]
 
-        print("Number of CPUs required: ", ncpus)
+                print("Number of CPUs required: ", ncpus)
 
         ## Modify the MOM_layout file to have correct horizontal dimensions and CPU layout
         # TODO Re-implement with package that works for this file type? or at least tidy up code
@@ -1734,7 +1735,8 @@ class experiment:
         ## If using payu to run the model, create a payu configuration file
         if not using_payu and os.path.exists(f"{self.mom_run_dir}/config.yaml"):
             os.remove(f"{self.mom_run_dir}/config.yaml")
-
+        elif ncpus == None:
+            print("WARNING: Layout has not been set! Cannot create payu configuration file. Run the FRE_tools first.")
         else:
             with open(f"{self.mom_run_dir}/config.yaml", "r") as file:
                 lines = file.readlines()
