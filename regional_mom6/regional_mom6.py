@@ -1682,8 +1682,8 @@ class experiment:
 
         if mask_table == None:
             if self.layout == None:
-                raise AttributeError(
-                    "No mask table found, and the cpu layout has not been set. At least one of these is requiret to set up the experiment."
+                print(
+                    "WARNING: No mask table found, and the cpu layout has not been set. At least one of these is requiret to set up the experiment if you're running MOM6 standalone with the FMS coupler. If you're running within CESM, ignore this message."
                 )
             print(
                 f"No mask table found, but the cpu layout has been set to {self.layout} This suggests the domain is mostly water, so there are "
