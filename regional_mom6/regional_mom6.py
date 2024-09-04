@@ -461,7 +461,7 @@ class experiment:
         grid_type="even_spacing",
         repeat_year_forcing=False,
         read_existing_grids=False,
-        minimum_depth = 4
+        minimum_depth=4,
     ):
         ## in case list was given, convert to tuples
         self.longitude_extent = tuple(longitude_extent)
@@ -487,7 +487,9 @@ class experiment:
         self.repeat_year_forcing = repeat_year_forcing
         self.ocean_mask = None
         self.layout = None  # This should be a tuple. Leaving in a dummy 'None' makes it easy to remind the user to provide a value later on.
-        self.min_depth = minimum_depth  # Minimum depth. Shallower water will be masked out. 
+        self.min_depth = (
+            minimum_depth  # Minimum depth. Shallower water will be masked out.
+        )
         if read_existing_grids:
             try:
                 self.hgrid = xr.open_dataset(self.mom_input_dir / "hgrid.nc")
@@ -1306,9 +1308,7 @@ class experiment:
 
         self.tidy_bathymetry(fill_channels, positive_down)
 
-    def tidy_bathymetry(
-        self, fill_channels=False, positive_down=True
-    ):
+    def tidy_bathymetry(self, fill_channels=False, positive_down=True):
         """
         An auxiliary function for bathymetry used to fix up the metadata and remove inland
         lakes after regridding the bathymetry. Having `tidy_bathymetry` as a separate
@@ -1688,7 +1688,6 @@ class experiment:
                     + "the FRE tools (which run C++ in the background) are running."
                 )
 
-
                 ncpus = layout[0] * layout[1]
                 print("Number of CPUs required: ", ncpus)
 
@@ -1728,7 +1727,9 @@ class experiment:
         if not using_payu and os.path.exists(f"{self.mom_run_dir}/config.yaml"):
             os.remove(f"{self.mom_run_dir}/config.yaml")
         elif ncpus == None:
-            print("WARNING: Layout has not been set! Cannot create payu configuration file. Run the FRE_tools first.")
+            print(
+                "WARNING: Layout has not been set! Cannot create payu configuration file. Run the FRE_tools first."
+            )
         else:
             with open(f"{self.mom_run_dir}/config.yaml", "r") as file:
                 lines = file.readlines()
