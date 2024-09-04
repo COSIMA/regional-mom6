@@ -1726,7 +1726,7 @@ class experiment:
         with open(self.mom_run_dir / "MOM_input", "r") as file:
             lines = file.readlines()
             for jj in range(len(lines)):
-                if "MINIMUM_DEPTH" in lines[jj]:
+                if "MINIMUM_DEPTH = " in lines[jj]:
                     lines[jj] = f'MINIMUM_DEPTH = "{self.min_depth}"\n'
                 if "NK =" in lines[jj]:
                     lines[jj] = f"NK = {len(self.vgrid.zl.values)}\n"
