@@ -59,7 +59,24 @@ Citing
 If you use regional-mom6 in research, teaching, or other activities, we would be grateful 
 if you could mention regional-mom6 and cite our paper in JOSS:
 
-Barnes et al., (2024). regional-mom6: A Python package for automatic generation of regional configurations for the Modular Ocean Model 6. *Journal of Open Source Software*, **9(100)**, 6857, doi:`10.21105/joss.06857 <https://doi.org/10.21105/joss.06857>`_.
+    Barnes et al., (2024). regional-mom6: A Python package for automatic generation of regional configurations for the Modular Ocean Model 6. *Journal of Open Source Software*, **9(100)**, 6857, doi:`10.21105/joss.06857 <https://doi.org/10.21105/joss.06857>`_.
+
+The bibtex entry for the paper is:
+
+.. code-block:: bibtex
+
+    @article{regional-mom6-JOSS,
+      doi = {10.21105/joss.06857},
+      url = {https://doi.org/10.21105/joss.06857},
+      year = {2024},
+      publisher = {The Open Journal},
+      volume = {9},
+      number = {100},
+      pages = {6857},
+      author = {Ashley J. Barnes and Navid C. Constantinou and Angus H. Gibson and Andrew E. Kiss and Chris Chapman and John Reily and Dhruv Bhagtani and Luwei Yang},
+      title = {{regional-mom6: A Python package for automatic generation of regional configurations for the Modular Ocean Model 6}},
+      journal = {Journal of Open Source Software}
+    }
 
 
 .. _regional-mom6: https://github.com/COSIMA/regional-mom6
