@@ -1624,7 +1624,7 @@ class experiment:
         if not overwrite:
             for file in base_run_dir.glob(
                 "*"
-            ):  ## copy each file individually if it doesn't already exist OR overwrite = True
+            ):  ## copy each file individually if it doesn't already exist
                 if not os.path.exists(self.mom_run_dir / file.name):
                     ## Check whether this file exists in an override directory or not
                     if (
@@ -1637,7 +1637,7 @@ class experiment:
         else:
             shutil.copytree(base_run_dir, self.mom_run_dir, dirs_exist_ok=True)
             if overwrite_run_dir != False:
-                shutil.copy(base_run_dir / file, self.mom_run_dir)
+                shutil.copytree(base_run_dir, self.mom_run_dir, dirs_exist_ok=True)
 
         ## Make symlinks between run and input directories
         inputdir_in_rundir = self.mom_run_dir / "inputdir"
