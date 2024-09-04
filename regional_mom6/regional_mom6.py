@@ -442,6 +442,7 @@ class experiment:
             the grids and the ocean mask are being read from within the ``mom_input_dir`` and
             ``mom_run_dir`` directories. Useful for modifying or troubleshooting experiments.
             Default: ``False``.
+        minimum_depth (Optional[int]): The minimum depth in meters of a grid cell allowed before it is masked out and treated as land.
     """
 
     def __init__(
@@ -460,6 +461,7 @@ class experiment:
         grid_type="even_spacing",
         repeat_year_forcing=False,
         read_existing_grids=False,
+        minimum_depth = 4
     ):
         ## in case list was given, convert to tuples
         self.longitude_extent = tuple(longitude_extent)
@@ -485,7 +487,7 @@ class experiment:
         self.repeat_year_forcing = repeat_year_forcing
         self.ocean_mask = None
         self.layout = None  # This should be a tuple. Leaving in a dummy 'None' makes it easy to remind the user to provide a value later on.
-        self.min_depth = 0.0  # Minimum depth. Shallower water will be masked out. This value is overwritten when running "setup_bathymetry" method.
+        self.min_depth = minimum_depth  # Minimum depth. Shallower water will be masked out. 
         if read_existing_grids:
             try:
                 self.hgrid = xr.open_dataset(self.mom_input_dir / "hgrid.nc")
@@ -1106,7 +1108,6 @@ class experiment:
         latitude_coordinate_name="lat",
         vertical_coordinate_name="elevation",
         fill_channels=False,
-        minimum_layers=3,
         positive_down=False,
         chunks="auto",
     ):
@@ -1130,10 +1131,6 @@ class experiment:
             fill_channels (Optional[bool]): Whether or not to fill in
                 diagonal channels. This removes more narrow inlets,
                 but can also connect extra islands to land. Default: ``False``.
-            minimum_layers (Optional[int]): The minimum depth allowed as an integer
-                number of layers. Anything shallower than the ``minimum_layers``
-                (as specified by the vertical coordinate file ``vcoord.nc``) is deemed land.
-                Default: 3.
             positive_down (Optional[bool]): If ``True``, it assumes that
                 bathymetry vertical coordinate is positive down. Default: ``False``.
             chunks (Optional Dict[str, str]): Horizontal chunking scheme for the bathymetry, e.g.,
@@ -1307,10 +1304,10 @@ class experiment:
             "Regridding finished. Now calling `tidy_bathymetry` method for some finishing touches..."
         )
 
-        self.tidy_bathymetry(fill_channels, minimum_layers, positive_down)
+        self.tidy_bathymetry(fill_channels, positive_down)
 
     def tidy_bathymetry(
-        self, fill_channels=False, minimum_layers=3, positive_down=True
+        self, fill_channels=False, positive_down=True
     ):
         """
         An auxiliary function for bathymetry used to fix up the metadata and remove inland
@@ -1326,10 +1323,6 @@ class experiment:
             fill_channels (Optional[bool]): Whether to fill in
                 diagonal channels. This removes more narrow inlets,
                 but can also connect extra islands to land. Default: ``False``.
-            minimum_layers (Optional[int]): The minimum depth allowed
-                as an integer number of layers. The default value of ``3``
-                layers means that anything shallower than the 3rd
-                layer (as specified by the ``vcoord``) is deemed land.
             positive_down (Optional[bool]): If ``True`` (default), assume that
                 bathymetry vertical coordinate is positive down.
         """
@@ -1356,10 +1349,8 @@ class experiment:
 
         ## REMOVE INLAND LAKES
 
-        min_depth = self.vgrid.zi[minimum_layers]
-        self.min_depth = min_depth
         ocean_mask = bathymetry.copy(deep=True).depth.where(
-            bathymetry.depth <= min_depth, 1
+            bathymetry.depth <= self.min_depth, 1
         )
         land_mask = np.abs(ocean_mask - 1)
 
