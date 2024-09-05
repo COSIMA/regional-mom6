@@ -1349,8 +1349,7 @@ class experiment:
 
         ## REMOVE INLAND LAKES
 
-        ocean_mask = bathymetry.copy(deep=True).depth.where(
-            bathymetry.depth <= self.min_depth, 1
+        ocean_mask = xr.where(bathymetry.copy(deep=True).depth <= self.min_depth, 0,1
         )
         land_mask = np.abs(ocean_mask - 1)
 
@@ -1717,7 +1716,7 @@ class experiment:
             lines = file.readlines()
             for jj in range(len(lines)):
                 if "MINIMUM_DEPTH = " in lines[jj]:
-                    lines[jj] = f'MINIMUM_DEPTH = "{self.min_depth}"\n'
+                    lines[jj] = f'MINIMUM_DEPTH = {float(self.min_depth)}\n'
                 if "NK =" in lines[jj]:
                     lines[jj] = f"NK = {len(self.vgrid.zl.values)}\n"
         with open(self.mom_run_dir / "MOM_input", "w") as f:
