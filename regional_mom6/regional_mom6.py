@@ -1101,7 +1101,51 @@ class experiment:
         seg.rectangular_brushcut()
         print("Done.")
         return
+    
+    def setup_tides(
+        self, path_to_td, segment_number, arakawa_grid="A"
+    ):
+        """
+        Here, we subset our tidal data and generate more boundary files!
 
+        Args:
+            path_to_td (str): Path to boundary tidal file. Ideally this should be a pre cut-out
+                netCDF file containing only the boundary region and 3 extra boundary points on either
+                side. Users can also provide a large dataset containing their entire domain but this
+                will be slower.
+            segment_number (int): Number the segments according to how they'll be specified in
+                the ``MOM_input``.
+            arakawa_grid (Optional[str]): Arakawa grid staggering type of the boundary forcing.
+                Either ``'A'`` (default), ``'B'``, or ``'C'``.
+        Returns:
+            *.nc files
+                Tidal input files for the boundaries from the TPXO dataaset
+        """
+        orientation = ["North", "South", "West","East"]
+        tidal_constituents = ["M1"]
+        for o in orientation:
+            for t in tidal_constituents:
+
+                print("Processing tides at {} boundary...".format(orientation), end="")
+                if not path_to_td.exists():
+                    raise FileNotFoundError(
+                        f"Boundary file not found at {path_to_td}. Please ensure that the files are named in the format `FILLIN`."
+                    )
+                seg = segment(
+                    hgrid=self.hgrid,
+                    infile_td=path_to_td,  # location of raw boundary
+                    outfolder=self.mom_input_dir,
+                    varnames=None,
+                    segment_name="segment_{:03d}".format(segment_number),
+                    orientation=orientation,  # orienataion
+                    startdate=self.date_range[0],
+                    arakawa_grid=arakawa_grid,
+                    repeat_year_forcing=self.repeat_year_forcing,
+                )
+
+                seg.regrid_tides()
+                print("Done.")
+                return
     def setup_bathymetry(
         self,
         *,
@@ -1866,8 +1910,8 @@ class experiment:
 
 class segment:
     """
-    Class to turn raw boundary segment data into MOM6 boundary
-    segments.
+    Class to turn raw boundary and tidal segment data into MOM6 boundary
+    and tidal segments.
 
     Boundary segments should only contain the necessary data for that
     segment. No horizontal chunking is done here, so big fat segments
@@ -1882,7 +1926,8 @@ class segment:
 
     Args:
         hgrid (xarray.Dataset): The horizontal grid used for domain.
-        infile (Union[str, Path]): Path to the raw, unprocessed boundary segment.
+        infile_bc (Union[str, Path]): Path to the raw, unprocessed boundary segment.
+        infile_td (Union[str, Path]): Path to the raw, unprocessed tidal segment.
         outfolder (Union[str, Path]): Path to folder where the model inputs will
             be stored.
         varnames (Dict[str, str]): Mapping between the variable/dimension names and
@@ -1910,7 +1955,7 @@ class segment:
         self,
         *,
         hgrid,
-        infile,
+        infile_bc,
         outfolder,
         varnames,
         segment_name,
@@ -1918,6 +1963,7 @@ class segment:
         startdate,
         arakawa_grid="A",
         time_units="days",
+        infile_td = None,
         tidal_constituents=None,
         repeat_year_forcing=False,
     ):
@@ -1956,7 +2002,8 @@ class segment:
             raise ValueError("arakawa_grid must be one of: 'A', 'B', or 'C'")
         self.arakawa_grid = arakawa_grid
 
-        self.infile = infile
+        self.infile_bc = infile_bc
+        self.infile_td = infile_td
         self.outfolder = outfolder
         self.hgrid = hgrid
         self.segment_name = segment_name
@@ -2008,7 +2055,7 @@ class segment:
             }
         ).set_coords(["lat", "lon"])
 
-        rawseg = xr.open_dataset(self.infile, decode_times=False, engine="netcdf4")
+        rawseg = xr.open_dataset(self.infile_bc, decode_times=False, engine="netcdf4")
 
         if self.arakawa_grid == "A":
             rawseg = rawseg.rename({self.x: "lon", self.y: "lat"})
@@ -2279,3 +2326,194 @@ class segment:
             )
 
         return segment_out, encoding_dict
+    
+    def ap2ep(uc, vc):
+        """Convert complex tidal u and v to tidal ellipse.
+        Adapted from ap2ep.m for matlab
+        Original copyright notice:
+        %Authorship Copyright:
+        %
+        %    The author retains the copyright of this program, while  you are welcome
+        % to use and distribute it as long as you credit the author properly and respect
+        % the program name itself. Particularly, you are expected to retain the original
+        % author's name in this original version or any of its modified version that
+        % you might make. You are also expected not to essentially change the name of
+        % the programs except for adding possible extension for your own version you
+        % might create, e.g. ap2ep_xx is acceptable.  Any suggestions are welcome and
+        % enjoy my program(s)!
+        %
+        %
+        %Author Info:
+        %_______________________________________________________________________
+        %  Zhigang Xu, Ph.D.
+        %  (pronounced as Tsi Gahng Hsu)
+        %  Research Scientist
+        %  Coastal Circulation
+        %  Bedford Institute of Oceanography
+        %  1 Challenge Dr.
+        %  P.O. Box 1006                    Phone  (902) 426-2307 (o)
+        %  Dartmouth, Nova Scotia           Fax    (902) 426-7827
+        %  CANADA B2Y 4A2                   email xuz@dfo-mpo.gc.ca
+        %_______________________________________________________________________
+        %
+        % Release Date: Nov. 2000, Revised on May. 2002 to adopt Foreman's northern semi
+        % major axis convention.
+
+        Args:
+            uc: complex tidal u velocity
+            vc: complex tidal v velocity
+
+        Returns:
+            (semi-major axis, eccentricity, inclination [radians], phase [radians])
+        """
+        wp = (uc + 1j * vc) / 2.0
+        wm = np.conj(uc - 1j * vc) / 2.0
+
+        Wp = np.abs(wp)
+        Wm = np.abs(wm)
+        THETAp = np.angle(wp)
+        THETAm = np.angle(wm)
+
+        SEMA = Wp + Wm
+        SEMI = Wp - Wm
+        ECC = SEMI / SEMA
+        PHA = (THETAm - THETAp) / 2.0
+        INC = (THETAm + THETAp) / 2.0
+
+        return SEMA, ECC, INC, PHA
+
+    def ep2ap(SEMA, ECC, INC, PHA):
+        """Convert tidal ellipse to real u and v amplitude and phase.
+        Adapted from ep2ap.m for matlab.
+        Original copyright notice:
+        %Authorship Copyright:
+        %
+        %    The author of this program retains the copyright of this program, while
+        % you are welcome to use and distribute this program as long as you credit
+        % the author properly and respect the program name itself. Particularly,
+        % you are expected to retain the original author's name in this original
+        % version of the program or any of its modified version that you might make.
+        % You are also expected not to essentially change the name of the programs
+        % except for adding possible extension for your own version you might create,
+        % e.g. app2ep_xx is acceptable.  Any suggestions are welcome and enjoy my
+        % program(s)!
+        %
+        %
+        %Author Info:
+        %_______________________________________________________________________
+        %  Zhigang Xu, Ph.D.
+        %  (pronounced as Tsi Gahng Hsu)
+        %  Research Scientist
+        %  Coastal Circulation
+        %  Bedford Institute of Oceanography
+        %  1 Challenge Dr.
+        %  P.O. Box 1006                    Phone  (902) 426-2307 (o)
+        %  Dartmouth, Nova Scotia           Fax    (902) 426-7827
+        %  CANADA B2Y 4A2                   email xuz@dfo-mpo.gc.ca
+        %_______________________________________________________________________
+        %
+        %Release Date: Nov. 2000
+
+        Args:
+            SEMA: semi-major axis
+            ECC: eccentricity
+            INC: inclination [radians]
+            PHA: phase [radians]
+
+        Returns:
+            (u amplitude, u phase [radians], v amplitude, v phase [radians])
+
+        """
+        Wp = (1 + ECC) / 2. * SEMA
+        Wm = (1 - ECC) / 2. * SEMA
+        THETAp = INC - PHA
+        THETAm = INC + PHA
+
+        wp = Wp * np.exp(1j * THETAp)
+        wm = Wm * np.exp(1j * THETAm)
+
+        cu = wp + np.conj(wm)
+        cv = -1j * (wp - np.conj(wm))
+
+        ua = np.abs(cu)
+        va = np.abs(cv)
+        up = -np.angle(cu)
+        vp = -np.angle(cv)
+
+        return ua, va, up, vp
+
+    def regrid_tides(self):
+        """
+        The function regrids and interpolates the tidal data for MOM6, originally inspired by GFDL NWA25 repo code & edited by Ashley. It accomplishes:
+        - Read in raw tidal data (all constituents)
+        - Perform minor transformations/conversions
+        - Regridded the tidal elevation, and tidal velocity
+        - Encoding the output
+
+        Parameters (taken at initialization)
+        -------------------------------------
+        infile_td : str
+            Raw Tidal File/Dir
+        tidal_constituents: list[str]
+            Specific tidal constiuents we are setting it up for 
+        Returns
+        -------
+        *.nc files
+            Regridded tidal velocity and elevation files in 'inputdir/forcing'
+        """
+
+        # Check if parameters are valid
+        if type(self.infile_td) != type("Sample String") or len(self.tidal_constituents) == 0 or type(self.tidal_constituents[0]) != type("Sample String"):
+            raise ValueError(
+                "The input parameters for tides were empty or not valid! (tidal_constituents, infile_td), try reinitializing Segment or recalling setup_tides with different parameters"
+            )
+        if not os.path.exists(self.infile_td):
+            raise ValueError (
+                "Tidal Files don't exist:" + self.infile_td
+            )
+
+
+        # Read raw tidal data
+        tpxo_ds = xr.open_dataset(self.infile_td, engine="netcdf4")
+
+
+        return
+    
+    def encode_tidal_files_and_output(self, ds, filename):
+        """Like GFDL NWA25 changed to RM6 segment class, add metadata to tidal files, format, and output them.
+
+        Parameters (taken at initialization)
+        -------------------------------------
+        self.outfolder: str/path
+            The output folder to save the tidal files into
+        dataset : xarray.Dataset
+            The processed tidal dataset
+        filename: str
+            The output file name
+        Returns
+        -------
+        *.nc files
+            Regridded [FILENAME] files in 'self.outfolder/[filename]_[num].nc'
+
+        """
+        for v in ds:
+            ds[v].encoding['_FillValue']= 1.0e20
+        fname = f'{filename}_{self.segment_name}.nc'
+        # Set format and attributes for coordinates, including time if it does not already have calendar attribute
+        # (may change this to detect whether time is a time type or a float).
+        # Need to include the fillvalue or it will be back to nan
+        encoding = {
+            'time': dict(_FillValue=1.0e20),
+            f'lon_{self.segstr}': dict(dtype='float64', _FillValue=1.0e20),
+            f'lat_{self.segstr}': dict(dtype='float64', _FillValue=1.0e20)
+        }
+        if 'calendar' not in ds['time'].attrs and 'modulo' not in ds['time'].attrs:
+            encoding.update({'time': dict(dtype='float64', calendar='gregorian', _FillValue=1.0e20)})
+        ds.to_netcdf(
+            os.path.join(self.outfolder, fname),
+            engine='netcdf4',
+            encoding=encoding,
+            unlimited_dims='time'
+        )
+        return
+
