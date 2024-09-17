@@ -15,7 +15,7 @@ import os
 import importlib.resources
 import datetime
 from .utils import quadrilateral_areas
-
+import pandas as pd
 
 warnings.filterwarnings("ignore")
 
@@ -1103,7 +1103,7 @@ class experiment:
         return
     
     def setup_tides(
-        self, path_to_td, segment_number, arakawa_grid="A"
+        self, path_to_td,filename, horizontal_subset, arakawa_grid="A"
     ):
         """
         Here, we subset our tidal data and generate more boundary files!
@@ -1113,39 +1113,69 @@ class experiment:
                 netCDF file containing only the boundary region and 3 extra boundary points on either
                 side. Users can also provide a large dataset containing their entire domain but this
                 will be slower.
-            segment_number (int): Number the segments according to how they'll be specified in
-                the ``MOM_input``.
+            filename(str): Name of the tpxo product that's used in the filename. Should be h_{filename}, u_{filename}
             arakawa_grid (Optional[str]): Arakawa grid staggering type of the boundary forcing.
                 Either ``'A'`` (default), ``'B'``, or ``'C'``.
+            
         Returns:
-            *.nc files
+            *.nc files in inputdir/forcing
                 Tidal input files for the boundaries from the TPXO dataaset
         """
-        orientation = ["North", "South", "West","East"]
-        tidal_constituents = ["M1"]
-        for o in orientation:
-            for t in tidal_constituents:
 
-                print("Processing tides at {} boundary...".format(orientation), end="")
-                if not path_to_td.exists():
-                    raise FileNotFoundError(
-                        f"Boundary file not found at {path_to_td}. Please ensure that the files are named in the format `FILLIN`."
-                    )
+        if not os.path.exists(path_to_td) or not os.path.exists(os.path.join(path_to_td,"h_"+filename)) or not os.path.exists(os.path.join(path_to_td,"u_"+filename)) :
+            raise ValueError (
+                "Tidal Files don't exist at " + path_to_td+"/h[or]u_"+filename
+            )
+        tidal_constituents = [0]
+        tpxo_h = (
+            xr.open_dataset(os.path.join(path_to_td, f'h_{filename}'))
+            .rename({'lon_z': 'lon', 'lat_z': 'lat', 'nc': 'constituent'})
+            .isel(constituent=tidal_constituents, **horizontal_subset)
+        )
+        h = tpxo_h['ha'] * np.exp(-1j * np.radians(tpxo_h['hp']))
+        tpxo_h['hRe'] = np.real(h)
+        tpxo_h['hIm'] = np.imag(h)
+        tpxo_u = (
+            xr.open_dataset(os.path.join(path_to_td, f'u_{filename}'))
+            .rename({'lon_u': 'lon', 'lat_u': 'lat', 'nc': 'constituent'})
+            .isel(constituent=tidal_constituents, **horizontal_subset)
+        )
+        tpxo_u['ua'] *= 0.01  # convert to m/s
+        u = tpxo_u['ua'] * np.exp(-1j * np.radians(tpxo_u['up']))
+        tpxo_u['uRe'] = np.real(u)
+        tpxo_u['uIm'] = np.imag(u)
+        tpxo_v = (
+            xr.open_dataset(os.path.join(path_to_td, f'u_{filename}'))
+            .rename({'lon_v': 'lon', 'lat_v': 'lat', 'nc': 'constituent'})
+            .isel(constituent=tidal_constituents, **horizontal_subset)
+        )
+        tpxo_v['va'] *= 0.01  # convert to m/s
+        v = tpxo_v['va'] * np.exp(-1j * np.radians(tpxo_v['vp']))
+        tpxo_v['vRe'] = np.real(v)
+        tpxo_v['vIm'] = np.imag(v)
+        times = xr.DataArray(
+            pd.date_range(self.date_range[0], periods=1), # Import pandas for this shouldn't be a big deal b/c it's already required in rm6 dependencies
+            dims=['time']
+        )
+        orientations = ["south", "north", "west", "east"]
+        for ind,o in enumerate(orientations):
+                print("Processing tides at {} boundary...".format(o), end="")
                 seg = segment(
                     hgrid=self.hgrid,
-                    infile_td=path_to_td,  # location of raw boundary
+                    infile_bc = None, # location of raw boundary
                     outfolder=self.mom_input_dir,
                     varnames=None,
-                    segment_name="segment_{:03d}".format(segment_number),
-                    orientation=orientation,  # orienataion
+                    segment_name="segment_{:03d}".format(ind),
+                    orientation=o,  # orienataion
                     startdate=self.date_range[0],
                     arakawa_grid=arakawa_grid,
                     repeat_year_forcing=self.repeat_year_forcing,
+                    tidal_constituents=tidal_constituents
                 )
 
-                seg.regrid_tides()
+                seg.regrid_tides(filename, tpxo_v, tpxo_u, tpxo_h, times)
                 print("Done.")
-                return
+        return
     def setup_bathymetry(
         self,
         *,
@@ -1963,12 +1993,11 @@ class segment:
         startdate,
         arakawa_grid="A",
         time_units="days",
-        infile_td = None,
         tidal_constituents=None,
         repeat_year_forcing=False,
     ):
         ## Store coordinate names
-        if arakawa_grid == "A":
+        if arakawa_grid == "A" and varnames is not None:
             self.x = varnames["x"]
             self.y = varnames["y"]
 
@@ -1979,15 +2008,17 @@ class segment:
             self.yh = varnames["yh"]
 
         ## Store velocity names
-        self.u = varnames["u"]
-        self.v = varnames["v"]
-        self.z = varnames["zl"]
-        self.eta = varnames["eta"]
-        self.time = varnames["time"]
+        if varnames is not None:
+            self.u = varnames["u"]
+            self.v = varnames["v"]
+            self.z = varnames["zl"]
+            self.eta = varnames["eta"]
+            self.time = varnames["time"]
         self.startdate = startdate
 
         ## Store tracer names
-        self.tracers = varnames["tracers"]
+        if varnames is not None:
+            self.tracers = varnames["tracers"]
         self.time_units = time_units
 
         ## Store other data
@@ -2003,13 +2034,51 @@ class segment:
         self.arakawa_grid = arakawa_grid
 
         self.infile_bc = infile_bc
-        self.infile_td = infile_td
         self.outfolder = outfolder
         self.hgrid = hgrid
         self.segment_name = segment_name
         self.tidal_constituents = tidal_constituents
         self.repeat_year_forcing = repeat_year_forcing
 
+    @property
+    def coords(self):
+        # Rename nxp and nyp to locations
+        if self.orientation == 'south':
+            rcoord = xr.Dataset({
+                'lon': self.hgrid['x'].isel(nyp=0),
+                'lat': self.hgrid['y'].isel(nyp=0),
+                'angle': self.hgrid['angle_dx'].isel(nyp=0)
+            })
+            rcoord = rcoord.rename_dims({'nxp': 'locations'})
+        elif self.orientation == 'north':
+            rcoord = xr.Dataset({
+                'lon': self.hgrid['x'].isel(nyp=-1),
+                'lat': self.hgrid['y'].isel(nyp=-1),
+                'angle': self.hgrid['angle_dx'].isel(nyp=-1)
+            })
+            rcoord = rcoord.rename_dims({'nxp': 'locations'})
+        elif self.orientation == 'west':
+            rcoord = xr.Dataset({
+                'lon': self.hgrid['x'].isel(nxp=0),
+                'lat': self.hgrid['y'].isel(nxp=0),
+                'angle': self.hgrid['angle_dx'].isel(nxp=0)
+            })
+            rcoord = rcoord.rename_dims({'nyp': 'locations'})
+        elif self.orientation == 'east':
+            rcoord = xr.Dataset({
+                'lon': self.hgrid['x'].isel(nxp=-1),
+                'lat': self.hgrid['y'].isel(nxp=-1),
+                'angle': self.hgrid['angle_dx'].isel(nxp=-1)
+            })
+            rcoord = rcoord.rename_dims({'nyp': 'locations'})
+
+        # Make lat and lon coordinates
+        rcoord = rcoord.assign_coords(
+            lat=rcoord['lat'],
+            lon=rcoord['lon']
+        )
+
+        return rcoord
     def rectangular_brushcut(self):
         """
         Cut out and interpolate tracers. ``rectangular_brushcut`` assumes that the boundary
@@ -2327,7 +2396,238 @@ class segment:
 
         return segment_out, encoding_dict
     
-    def ap2ep(uc, vc):
+
+    def regrid_tides(self, filename, tpxo_v, tpxo_u, tpxo_h, times, 
+                method='nearest_s2d', periodic=False):
+        """
+        The function regrids and interpolates the tidal data for MOM6, originally inspired by GFDL NWA25 repo code & edited by Ashley. It accomplishes:
+        - Read in raw tidal data (all constituents)
+        - Perform minor transformations/conversions
+        - Regridded the tidal elevation, and tidal velocity
+        - Encoding the output
+
+        Parameters (taken at initialization)
+        -------------------------------------
+        infile_td : str
+            Raw Tidal File/Dir
+        tidal_constituents: list[str]
+            Specific tidal constiuents we are setting it up for 
+        filename: str
+            The specific product name used in the tpxo 
+        Returns
+        -------
+        *.nc files
+            Regridded tidal velocity and elevation files in 'inputdir/forcing'
+        """
+
+        # Check if parameters are valid
+        if len(self.tidal_constituents) == 0:
+            raise ValueError(
+                "The input parameters for tides were empty or not valid! (tidal_constituents, infile_td), try reinitializing Segment or recalling setup_tides with different parameters"
+            )
+                
+        # Tidal Elevation: Horizontally interpolate elevation components
+        regrid = xe.Regridder(
+            tpxo_h[['lon', 'lat', 'hRe']],
+            self.coords,
+            method='nearest_s2d',
+            locstream_out=True,
+            periodic=False,
+            filename=os.path.join(self.outfolder,"forcing", f'regrid_{self.segment_name}_tidal_elev.nc'),
+            reuse_weights=False
+        )
+        redest = regrid(tpxo_h[['lon', 'lat', 'hRe']])
+        imdest = regrid(tpxo_h[['lon', 'lat', 'hIm']])
+
+        # Fill missing data.
+        # Need to do this first because complex would get converted to real
+        redest = redest.ffill(dim="locations", limit=None)['hRe']
+        imdest = imdest.ffill(dim="locations", limit=None)['hIm']
+
+        # Convert complex
+        cplex = redest + 1j * imdest
+
+        # Convert to real amplitude and phase.
+        ds_ap = xr.Dataset({
+            f'zamp_{self.segment_name}': np.abs(cplex)
+        })
+        # np.angle doesn't return dataarray
+        ds_ap[f'zphase_{self.segment_name}'] =  (('constituent', 'locations'), -1 * np.angle(cplex))  # radians
+
+        # Add time coordinate and transpose so that time is first,
+        # so that it can be the unlimited dimension
+        ds_ap, _ = xr.broadcast(ds_ap, times)
+        ds_ap = ds_ap.transpose('time', 'constituent', 'locations')
+
+        ds_ap = self.expand_dims(ds_ap)
+        ds_ap = self.rename_dims(ds_ap)
+
+        self.encode_tidal_files_and_output(ds_ap, 'tz')
+           
+        # Regrid Tidal Velocity:
+        regrid_u = xe.Regridder(
+            tpxo_u[['lon', 'lat', 'uRe']],
+            self.coords,
+            method=method,
+            locstream_out=True,
+            periodic=periodic,
+            reuse_weights=False
+        )
+
+        regrid_v = xe.Regridder(
+            tpxo_v[['lon', 'lat', 'vRe']],
+            self.coords,
+            method=method,
+            locstream_out=True,
+            periodic=periodic,
+            reuse_weights=False
+        )
+
+        # Interpolate each real and imaginary parts to segment.
+        uredest = regrid_u(tpxo_u[['lon', 'lat', 'uRe']])['uRe']
+        uimdest = regrid_u(tpxo_u[['lon', 'lat', 'uIm']])['uIm']
+        vredest = regrid_v(tpxo_v[['lon', 'lat', 'vRe']])['vRe']
+        vimdest = regrid_v(tpxo_v[['lon', 'lat', 'vIm']])['vIm']
+
+        # Fill missing data.
+        # Need to do this first because complex would get converted to real
+        uredest = uredest.ffill(dim="locations", limit=None)
+        uimdest = uimdest.ffill(dim="locations", limit=None)
+        vredest = vredest.ffill(dim="locations", limit=None)
+        vimdest = vimdest.ffill(dim="locations", limit=None)
+
+        # Convert to complex, remaining separate for u and v.
+        ucplex = uredest + 1j * uimdest
+        vcplex = vredest + 1j * vimdest
+
+        # Convert complex u and v to ellipse,
+        # rotate ellipse from earth-relative to model-relative,
+        # and convert ellipse back to amplitude and phase.
+        # There is probably a complicated trig identity for this? But
+        # this works too. 
+        # if self.border in ['south', 'north']:
+        #     angle = self.coords['angle'].rename({'nxp': 'locations'})
+        # elif self.border in ['west', 'east']:
+        #     angle = self.coords['angle'].rename({'nyp': 'locations'})
+        SEMA, ECC, INC, PHA = ap2ep(ucplex, vcplex)
+
+
+
+        # Rotate to the model grid by adjusting the inclination.
+        # Requries that angle is in radians.
+        # INC is np array but angle is xr
+        # INC -= angle.data[np.newaxis, :]
+        ua, va, up, vp = ep2ap(SEMA, ECC, INC, PHA)
+
+        ds_ap = xr.Dataset({
+            f'uamp_{self.segment_name}': ua,
+            f'vamp_{self.segment_name}': va
+        })
+        # up, vp aren't dataarrays
+        ds_ap[f'uphase_{self.segment_name}'] =  (('constituent', 'locations'), up)  # radians
+        ds_ap[f'vphase_{self.segment_name}'] =  (('constituent', 'locations'), vp)  # radians
+
+        ds_ap, _ = xr.broadcast(ds_ap, times)
+
+        # Need to transpose so that time is first,
+        # so that it can be the unlimited dimension
+        ds_ap = ds_ap.transpose('time', 'constituent', 'locations')
+
+        # Some things may have become missing during the transformation
+        ds_ap = ds_ap.ffill(dim="locations", limit=None)
+
+        ds_ap = self.expand_dims(ds_ap)
+        ds_ap = self.rename_dims(ds_ap)
+
+        self.encode_tidal_files_and_output(ds_ap, 'tu')
+            
+
+        return
+    
+    def encode_tidal_files_and_output(self, ds, filename):
+        """Like GFDL NWA25 changed to RM6 segment class, add metadata to tidal files, format, and output them.
+
+        Parameters (taken at initialization)
+        -------------------------------------
+        self.outfolder: str/path
+            The output folder to save the tidal files into
+        dataset : xarray.Dataset
+            The processed tidal dataset
+        filename: str
+            The output file name
+        Returns
+        -------
+        *.nc files
+            Regridded [FILENAME] files in 'self.outfolder/[filename]_[num].nc'
+
+        """
+        for v in ds:
+            ds[v].encoding['_FillValue']= 1.0e20
+        fname = f'{filename}_{self.segment_name}.nc'
+        # Set format and attributes for coordinates, including time if it does not already have calendar attribute
+        # (may change this to detect whether time is a time type or a float).
+        # Need to include the fillvalue or it will be back to nan
+        encoding = {
+            'time': dict(_FillValue=1.0e20),
+            f'lon_{self.segment_name}': dict(dtype='float64', _FillValue=1.0e20),
+            f'lat_{self.segment_name}': dict(dtype='float64', _FillValue=1.0e20)
+        }
+        if 'calendar' not in ds['time'].attrs and 'modulo' not in ds['time'].attrs:
+            encoding.update({'time': dict(dtype='float64', calendar='gregorian', _FillValue=1.0e20)})
+        ds.to_netcdf(
+            os.path.join(self.outfolder,"forcing", fname),
+            engine='netcdf4',
+            encoding=encoding,
+            unlimited_dims='time'
+        )
+        return
+    
+    def expand_dims(self, ds):
+            """Add a length-1 dimension to the variables in a boundary dataset or array.
+            Named 'ny_segment_{self.segment_name}' if the border runs west to east (a south or north boundary),
+            or 'nx_segment_{self.segment_name}' if the border runs north to south (an east or west boundary).
+
+            Args:
+                ds: boundary array with dimensions <time, (z or constituent), y, x>
+
+            Returns:
+                modified array with new length-1 dimension.
+            """
+            # having z or constituent as second dimension is optional, so offset determines where to place
+            # added dim
+            if 'z' in ds.coords or 'constituent' in ds.dims:
+                offset = 0
+            else:
+                offset = 1
+            if self.orientation in ['south', 'north']:
+                return ds.expand_dims(f'ny_{self.segment_name}', 2-offset)
+            elif self.orientation in ['west', 'east']:
+                return ds.expand_dims(f'nx_{self.segment_name}', 3-offset)
+
+    def rename_dims(self, ds):
+        """Rename dimensions to be unique to the segment.
+
+        Args:
+            ds (xarray.Dataset): Dataset that might contain 'lon', 'lat', 'z', and/or 'locations'.
+
+        Returns:
+            xarray.Dataset: Dataset with dimensions renamed to include the segment identifier and to 
+                match MOM6 expectations.
+        """
+        ds = ds.rename({
+            'lon': f'lon_{self.segment_name}',
+            'lat': f'lat_{self.segment_name}'
+        })
+        if 'z' in ds.coords:
+            ds = ds.rename({
+                'z': f'nz_{self.segment_name}'
+            })
+        if self.orientation in ['south', 'north']:
+            return ds.rename({'locations': f'nx_{self.segment_name}'})
+        elif self.orientation in ['west', 'east']:
+            return ds.rename({'locations': f'ny_{self.segment_name}'})
+    
+def ap2ep(uc, vc):
         """Convert complex tidal u and v to tidal ellipse.
         Adapted from ap2ep.m for matlab
         Original copyright notice:
@@ -2382,7 +2682,7 @@ class segment:
 
         return SEMA, ECC, INC, PHA
 
-    def ep2ap(SEMA, ECC, INC, PHA):
+def ep2ap(SEMA, ECC, INC, PHA):
         """Convert tidal ellipse to real u and v amplitude and phase.
         Adapted from ep2ap.m for matlab.
         Original copyright notice:
@@ -2442,78 +2742,4 @@ class segment:
 
         return ua, va, up, vp
 
-    def regrid_tides(self):
-        """
-        The function regrids and interpolates the tidal data for MOM6, originally inspired by GFDL NWA25 repo code & edited by Ashley. It accomplishes:
-        - Read in raw tidal data (all constituents)
-        - Perform minor transformations/conversions
-        - Regridded the tidal elevation, and tidal velocity
-        - Encoding the output
-
-        Parameters (taken at initialization)
-        -------------------------------------
-        infile_td : str
-            Raw Tidal File/Dir
-        tidal_constituents: list[str]
-            Specific tidal constiuents we are setting it up for 
-        Returns
-        -------
-        *.nc files
-            Regridded tidal velocity and elevation files in 'inputdir/forcing'
-        """
-
-        # Check if parameters are valid
-        if type(self.infile_td) != type("Sample String") or len(self.tidal_constituents) == 0 or type(self.tidal_constituents[0]) != type("Sample String"):
-            raise ValueError(
-                "The input parameters for tides were empty or not valid! (tidal_constituents, infile_td), try reinitializing Segment or recalling setup_tides with different parameters"
-            )
-        if not os.path.exists(self.infile_td):
-            raise ValueError (
-                "Tidal Files don't exist:" + self.infile_td
-            )
-
-
-        # Read raw tidal data
-        tpxo_ds = xr.open_dataset(self.infile_td, engine="netcdf4")
-
-
-        return
-    
-    def encode_tidal_files_and_output(self, ds, filename):
-        """Like GFDL NWA25 changed to RM6 segment class, add metadata to tidal files, format, and output them.
-
-        Parameters (taken at initialization)
-        -------------------------------------
-        self.outfolder: str/path
-            The output folder to save the tidal files into
-        dataset : xarray.Dataset
-            The processed tidal dataset
-        filename: str
-            The output file name
-        Returns
-        -------
-        *.nc files
-            Regridded [FILENAME] files in 'self.outfolder/[filename]_[num].nc'
-
-        """
-        for v in ds:
-            ds[v].encoding['_FillValue']= 1.0e20
-        fname = f'{filename}_{self.segment_name}.nc'
-        # Set format and attributes for coordinates, including time if it does not already have calendar attribute
-        # (may change this to detect whether time is a time type or a float).
-        # Need to include the fillvalue or it will be back to nan
-        encoding = {
-            'time': dict(_FillValue=1.0e20),
-            f'lon_{self.segstr}': dict(dtype='float64', _FillValue=1.0e20),
-            f'lat_{self.segstr}': dict(dtype='float64', _FillValue=1.0e20)
-        }
-        if 'calendar' not in ds['time'].attrs and 'modulo' not in ds['time'].attrs:
-            encoding.update({'time': dict(dtype='float64', calendar='gregorian', _FillValue=1.0e20)})
-        ds.to_netcdf(
-            os.path.join(self.outfolder, fname),
-            engine='netcdf4',
-            encoding=encoding,
-            unlimited_dims='time'
-        )
-        return
 
