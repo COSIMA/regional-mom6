@@ -14,7 +14,7 @@ import shutil
 import os
 import importlib.resources
 import datetime
-from .utils import quadrilateral_areas
+from .utils import quadrilateral_areas, ap2ep, ep2ap
 import pandas as pd
 
 warnings.filterwarnings("ignore")
@@ -144,6 +144,30 @@ def longitude_slicer(data, longitude_extent, longitude_coords):
 
     return data
 
+def find_MOM6_orientation(input):
+    """
+    Convert between MOM6 boundary and the specific segment number needed, or the inverse
+    """
+    direction_dir = {
+        "south": 1,
+        "north": 2,
+        "west": 3,
+        "east": 4,
+    }
+    direction_dir_inv = {v: k for k, v in direction_dir.items()}
+
+    if type(input) == str:
+        try:
+            return direction_dir[input]
+        except:
+            raise ValueError("Invalid Input. Did you spell the direction wrong, it should be lowercase?")
+    elif type(input) == int:
+        try:
+            return direction_dir_inv[input]
+        except:
+            raise ValueError("Invalid Input. Did you pick a number 1 through 4?")
+    else:
+        raise ValueError("Invalid type of Input, can only be string or int.")
 
 from pathlib import Path
 
@@ -513,6 +537,7 @@ class experiment:
         input_rundir = self.mom_input_dir / "rundir"
         if not input_rundir.exists():
             input_rundir.symlink_to(self.mom_run_dir.resolve())
+        self.segments = {} # Holds segements for use in setting up the ocean state boundary conditions (GLORYS) and the tidal boundary conditions (TPXO)
 
     def __getattr__(self, name):
         available_methods = [
@@ -1050,12 +1075,12 @@ class experiment:
                 "This method only supports up to four boundaries. To set up more complex boundary shapes you can manually call the 'simple_boundary' method for each boundary."
             )
         # Now iterate through our four boundaries
-        for i, orientation in enumerate(boundaries, start=1):
+        for orientation in boundaries:
             self.simple_boundary(
                 Path(raw_boundaries_path) / (orientation + "_unprocessed.nc"),
                 varnames,
                 orientation,  # The cardinal direction of the boundary
-                i,  # A number to identify the boundary; indexes from 1
+                find_MOM6_orientation(orientation),  # A number to identify the boundary; indexes from 1
                 arakawa_grid=arakawa_grid,
             )
 
@@ -1099,11 +1124,14 @@ class experiment:
         )
 
         seg.rectangular_brushcut()
+
+        # Save Segment to Experiment
+        self.segments[orientation] = seg
         print("Done.")
         return
     
     def setup_tides(
-        self, path_to_td,filename, horizontal_subset, arakawa_grid="A"
+        self, path_to_td,tidal_filename, horizontal_subset,
     ):
         """
         Here, we subset our tidal data and generate more boundary files!
@@ -1113,22 +1141,20 @@ class experiment:
                 netCDF file containing only the boundary region and 3 extra boundary points on either
                 side. Users can also provide a large dataset containing their entire domain but this
                 will be slower.
-            filename(str): Name of the tpxo product that's used in the filename. Should be h_{filename}, u_{filename}
-            arakawa_grid (Optional[str]): Arakawa grid staggering type of the boundary forcing.
-                Either ``'A'`` (default), ``'B'``, or ``'C'``.
+            tidal_filename(str): Name of the tpxo product that's used in the tidal_filename. Should be h_{tidal_filename}, u_{tidal_filename}
             
         Returns:
             *.nc files in inputdir/forcing
                 Tidal input files for the boundaries from the TPXO dataaset
         """
 
-        if not os.path.exists(path_to_td) or not os.path.exists(os.path.join(path_to_td,"h_"+filename)) or not os.path.exists(os.path.join(path_to_td,"u_"+filename)) :
+        if not os.path.exists(path_to_td) or not os.path.exists(os.path.join(path_to_td,"h_"+tidal_filename)) or not os.path.exists(os.path.join(path_to_td,"u_"+tidal_filename)) :
             raise ValueError (
-                "Tidal Files don't exist at " + path_to_td+"/h[or]u_"+filename
+                "Tidal Files don't exist at " + path_to_td+"/[h.or.u]_"+tidal_filename+".nc"
             )
         tidal_constituents = [0]
         tpxo_h = (
-            xr.open_dataset(os.path.join(path_to_td, f'h_{filename}'))
+            xr.open_dataset(os.path.join(path_to_td, f'h_{tidal_filename}'))
             .rename({'lon_z': 'lon', 'lat_z': 'lat', 'nc': 'constituent'})
             .isel(constituent=tidal_constituents, **horizontal_subset)
         )
@@ -1136,7 +1162,7 @@ class experiment:
         tpxo_h['hRe'] = np.real(h)
         tpxo_h['hIm'] = np.imag(h)
         tpxo_u = (
-            xr.open_dataset(os.path.join(path_to_td, f'u_{filename}'))
+            xr.open_dataset(os.path.join(path_to_td, f'u_{tidal_filename}'))
             .rename({'lon_u': 'lon', 'lat_u': 'lat', 'nc': 'constituent'})
             .isel(constituent=tidal_constituents, **horizontal_subset)
         )
@@ -1145,7 +1171,7 @@ class experiment:
         tpxo_u['uRe'] = np.real(u)
         tpxo_u['uIm'] = np.imag(u)
         tpxo_v = (
-            xr.open_dataset(os.path.join(path_to_td, f'u_{filename}'))
+            xr.open_dataset(os.path.join(path_to_td, f'u_{tidal_filename}'))
             .rename({'lon_v': 'lon', 'lat_v': 'lat', 'nc': 'constituent'})
             .isel(constituent=tidal_constituents, **horizontal_subset)
         )
@@ -1157,25 +1183,27 @@ class experiment:
             pd.date_range(self.date_range[0], periods=1), # Import pandas for this shouldn't be a big deal b/c it's already required in rm6 dependencies
             dims=['time']
         )
-        orientations = ["south", "north", "west", "east"]
-        for ind,o in enumerate(orientations):
-                print("Processing tides at {} boundary...".format(o), end="")
+        boundaries = ["south", "north", "west", "east"]
+        for b in enumerate(boundaries):
+            if b not in self.segments:
                 seg = segment(
-                    hgrid=self.hgrid,
-                    infile_bc = None, # location of raw boundary
-                    outfolder=self.mom_input_dir,
-                    varnames=None,
-                    segment_name="segment_{:03d}".format(ind),
-                    orientation=o,  # orienataion
-                    startdate=self.date_range[0],
-                    arakawa_grid=arakawa_grid,
-                    repeat_year_forcing=self.repeat_year_forcing,
-                    tidal_constituents=tidal_constituents
+                hgrid=self.hgrid,
+                infile=None,  # location of raw boundary
+                outfolder=self.mom_input_dir,
+                varnames=None,
+                segment_name="segment_{:03d}".format(find_MOM6_orientation(b)),
+                orientation=b,  # orienataion
+                startdate=self.date_range[0],
+                arakawa_grid=None,
+                repeat_year_forcing=self.repeat_year_forcing,
                 )
+            else:
+                seg = self.segments[b]
+            seg.regrid_tides(tpxo_v, tpxo_u,tpxo_h, times)
 
-                seg.regrid_tides(filename, tpxo_v, tpxo_u, tpxo_h, times)
-                print("Done.")
-        return
+        
+
+    
     def setup_bathymetry(
         self,
         *,
@@ -1993,11 +2021,10 @@ class segment:
         startdate,
         arakawa_grid="A",
         time_units="days",
-        tidal_constituents=None,
         repeat_year_forcing=False,
     ):
         ## Store coordinate names
-        if arakawa_grid == "A" and varnames is not None:
+        if arakawa_grid == "A" and infile_bc is not None:
             self.x = varnames["x"]
             self.y = varnames["y"]
 
@@ -2008,7 +2035,7 @@ class segment:
             self.yh = varnames["yh"]
 
         ## Store velocity names
-        if varnames is not None:
+        if infile_bc is not None:
             self.u = varnames["u"]
             self.v = varnames["v"]
             self.z = varnames["zl"]
@@ -2017,7 +2044,7 @@ class segment:
         self.startdate = startdate
 
         ## Store tracer names
-        if varnames is not None:
+        if infile_bc is not None:
             self.tracers = varnames["tracers"]
         self.time_units = time_units
 
@@ -2037,11 +2064,13 @@ class segment:
         self.outfolder = outfolder
         self.hgrid = hgrid
         self.segment_name = segment_name
-        self.tidal_constituents = tidal_constituents
         self.repeat_year_forcing = repeat_year_forcing
 
     @property
     def coords(self):
+        """
+        This function allows us to call the self.coords for use in the xesmf.Regridder in the regrid_tides function.
+        """
         # Rename nxp and nyp to locations
         if self.orientation == 'south':
             rcoord = xr.Dataset({
@@ -2135,7 +2164,7 @@ class segment:
                 "bilinear",
                 locstream_out=True,
                 reuse_weights=False,
-                filename=self.outfolder
+                tidal_filename=self.outfolder
                 / f"weights/bilinear_velocity_weights_{self.orientation}.nc",
             )
 
@@ -2397,7 +2426,7 @@ class segment:
         return segment_out, encoding_dict
     
 
-    def regrid_tides(self, filename, tpxo_v, tpxo_u, tpxo_h, times, 
+    def regrid_tides(self, tpxo_v, tpxo_u, tpxo_h, times, 
                 method='nearest_s2d', periodic=False):
         """
         The function regrids and interpolates the tidal data for MOM6, originally inspired by GFDL NWA25 repo code & edited by Ashley. It accomplishes:
@@ -2410,23 +2439,17 @@ class segment:
         -------------------------------------
         infile_td : str
             Raw Tidal File/Dir
-        tidal_constituents: list[str]
-            Specific tidal constiuents we are setting it up for 
-        filename: str
-            The specific product name used in the tpxo 
+        tpxo_v, tpxo_u, tpxo_h: xr.Datasets
+            Specific adjusted for MOM6 tpxo datasets (Adjusted with setup_tides)
+        times: list[pd datetime]
+            The start date of our model period
         Returns
         -------
         *.nc files
             Regridded tidal velocity and elevation files in 'inputdir/forcing'
         """
 
-        # Check if parameters are valid
-        if len(self.tidal_constituents) == 0:
-            raise ValueError(
-                "The input parameters for tides were empty or not valid! (tidal_constituents, infile_td), try reinitializing Segment or recalling setup_tides with different parameters"
-            )
-                
-        # Tidal Elevation: Horizontally interpolate elevation components
+        ########## Tidal Elevation: Horizontally interpolate elevation components ############
         regrid = xe.Regridder(
             tpxo_h[['lon', 'lat', 'hRe']],
             self.coords,
@@ -2459,12 +2482,12 @@ class segment:
         ds_ap, _ = xr.broadcast(ds_ap, times)
         ds_ap = ds_ap.transpose('time', 'constituent', 'locations')
 
-        ds_ap = self.expand_dims(ds_ap)
-        ds_ap = self.rename_dims(ds_ap)
+        ds_ap = self.expand_tidal_dims(ds_ap)
+        ds_ap = self.rename_tidal_dims(ds_ap)
 
         self.encode_tidal_files_and_output(ds_ap, 'tz')
            
-        # Regrid Tidal Velocity:
+        ########### Regrid Tidal Velocity ######################
         regrid_u = xe.Regridder(
             tpxo_u[['lon', 'lat', 'uRe']],
             self.coords,
@@ -2503,20 +2526,13 @@ class segment:
         # Convert complex u and v to ellipse,
         # rotate ellipse from earth-relative to model-relative,
         # and convert ellipse back to amplitude and phase.
-        # There is probably a complicated trig identity for this? But
-        # this works too. 
-        # if self.border in ['south', 'north']:
-        #     angle = self.coords['angle'].rename({'nxp': 'locations'})
-        # elif self.border in ['west', 'east']:
-        #     angle = self.coords['angle'].rename({'nyp': 'locations'})
         SEMA, ECC, INC, PHA = ap2ep(ucplex, vcplex)
 
 
 
         # Rotate to the model grid by adjusting the inclination.
         # Requries that angle is in radians.
-        # INC is np array but angle is xr
-        # INC -= angle.data[np.newaxis, :]
+
         ua, va, up, vp = ep2ap(SEMA, ECC, INC, PHA)
 
         ds_ap = xr.Dataset({
@@ -2536,8 +2552,8 @@ class segment:
         # Some things may have become missing during the transformation
         ds_ap = ds_ap.ffill(dim="locations", limit=None)
 
-        ds_ap = self.expand_dims(ds_ap)
-        ds_ap = self.rename_dims(ds_ap)
+        ds_ap = self.expand_tidal_dims(ds_ap)
+        ds_ap = self.rename_tidal_dims(ds_ap)
 
         self.encode_tidal_files_and_output(ds_ap, 'tu')
             
@@ -2582,7 +2598,7 @@ class segment:
         )
         return
     
-    def expand_dims(self, ds):
+    def expand_tidal_dims(self, ds):
             """Add a length-1 dimension to the variables in a boundary dataset or array.
             Named 'ny_segment_{self.segment_name}' if the border runs west to east (a south or north boundary),
             or 'nx_segment_{self.segment_name}' if the border runs north to south (an east or west boundary).
@@ -2604,7 +2620,7 @@ class segment:
             elif self.orientation in ['west', 'east']:
                 return ds.expand_dims(f'nx_{self.segment_name}', 3-offset)
 
-    def rename_dims(self, ds):
+    def rename_tidal_dims(self, ds):
         """Rename dimensions to be unique to the segment.
 
         Args:
@@ -2627,119 +2643,3 @@ class segment:
         elif self.orientation in ['west', 'east']:
             return ds.rename({'locations': f'ny_{self.segment_name}'})
     
-def ap2ep(uc, vc):
-        """Convert complex tidal u and v to tidal ellipse.
-        Adapted from ap2ep.m for matlab
-        Original copyright notice:
-        %Authorship Copyright:
-        %
-        %    The author retains the copyright of this program, while  you are welcome
-        % to use and distribute it as long as you credit the author properly and respect
-        % the program name itself. Particularly, you are expected to retain the original
-        % author's name in this original version or any of its modified version that
-        % you might make. You are also expected not to essentially change the name of
-        % the programs except for adding possible extension for your own version you
-        % might create, e.g. ap2ep_xx is acceptable.  Any suggestions are welcome and
-        % enjoy my program(s)!
-        %
-        %
-        %Author Info:
-        %_______________________________________________________________________
-        %  Zhigang Xu, Ph.D.
-        %  (pronounced as Tsi Gahng Hsu)
-        %  Research Scientist
-        %  Coastal Circulation
-        %  Bedford Institute of Oceanography
-        %  1 Challenge Dr.
-        %  P.O. Box 1006                    Phone  (902) 426-2307 (o)
-        %  Dartmouth, Nova Scotia           Fax    (902) 426-7827
-        %  CANADA B2Y 4A2                   email xuz@dfo-mpo.gc.ca
-        %_______________________________________________________________________
-        %
-        % Release Date: Nov. 2000, Revised on May. 2002 to adopt Foreman's northern semi
-        % major axis convention.
-
-        Args:
-            uc: complex tidal u velocity
-            vc: complex tidal v velocity
-
-        Returns:
-            (semi-major axis, eccentricity, inclination [radians], phase [radians])
-        """
-        wp = (uc + 1j * vc) / 2.0
-        wm = np.conj(uc - 1j * vc) / 2.0
-
-        Wp = np.abs(wp)
-        Wm = np.abs(wm)
-        THETAp = np.angle(wp)
-        THETAm = np.angle(wm)
-
-        SEMA = Wp + Wm
-        SEMI = Wp - Wm
-        ECC = SEMI / SEMA
-        PHA = (THETAm - THETAp) / 2.0
-        INC = (THETAm + THETAp) / 2.0
-
-        return SEMA, ECC, INC, PHA
-
-def ep2ap(SEMA, ECC, INC, PHA):
-        """Convert tidal ellipse to real u and v amplitude and phase.
-        Adapted from ep2ap.m for matlab.
-        Original copyright notice:
-        %Authorship Copyright:
-        %
-        %    The author of this program retains the copyright of this program, while
-        % you are welcome to use and distribute this program as long as you credit
-        % the author properly and respect the program name itself. Particularly,
-        % you are expected to retain the original author's name in this original
-        % version of the program or any of its modified version that you might make.
-        % You are also expected not to essentially change the name of the programs
-        % except for adding possible extension for your own version you might create,
-        % e.g. app2ep_xx is acceptable.  Any suggestions are welcome and enjoy my
-        % program(s)!
-        %
-        %
-        %Author Info:
-        %_______________________________________________________________________
-        %  Zhigang Xu, Ph.D.
-        %  (pronounced as Tsi Gahng Hsu)
-        %  Research Scientist
-        %  Coastal Circulation
-        %  Bedford Institute of Oceanography
-        %  1 Challenge Dr.
-        %  P.O. Box 1006                    Phone  (902) 426-2307 (o)
-        %  Dartmouth, Nova Scotia           Fax    (902) 426-7827
-        %  CANADA B2Y 4A2                   email xuz@dfo-mpo.gc.ca
-        %_______________________________________________________________________
-        %
-        %Release Date: Nov. 2000
-
-        Args:
-            SEMA: semi-major axis
-            ECC: eccentricity
-            INC: inclination [radians]
-            PHA: phase [radians]
-
-        Returns:
-            (u amplitude, u phase [radians], v amplitude, v phase [radians])
-
-        """
-        Wp = (1 + ECC) / 2. * SEMA
-        Wm = (1 - ECC) / 2. * SEMA
-        THETAp = INC - PHA
-        THETAm = INC + PHA
-
-        wp = Wp * np.exp(1j * THETAp)
-        wm = Wm * np.exp(1j * THETAm)
-
-        cu = wp + np.conj(wm)
-        cv = -1j * (wp - np.conj(wm))
-
-        ua = np.abs(cu)
-        va = np.abs(cv)
-        up = -np.angle(cu)
-        vp = -np.angle(cv)
-
-        return ua, va, up, vp
-
-
