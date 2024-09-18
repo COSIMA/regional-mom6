@@ -293,4 +293,10 @@ def ep2ap(SEMA, ECC, INC, PHA):
 
         return ua, va, up, vp
 
-
+def find_roughly_nearest_ny_nx(lat, lon, ds):
+    """
+     Accepts a lat lon and returns a ROUGH closest ny,nx. in ds
+    """
+    ny = (np.abs(ds.lat.values - lat)).argmin(axis=1)[0] # We're looking for an nx, I know it's not exact, but this works 
+    nx = (np.abs(ds.lon.values - lon)).argmin(axis=0)[0] 
+    return ny,nx

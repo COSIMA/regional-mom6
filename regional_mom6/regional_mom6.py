@@ -14,7 +14,7 @@ import shutil
 import os
 import importlib.resources
 import datetime
-from .utils import quadrilateral_areas, ap2ep, ep2ap
+from .utils import quadrilateral_areas, ap2ep, ep2ap,find_roughly_nearest_ny_nx
 import pandas as pd
 
 warnings.filterwarnings("ignore")
@@ -527,6 +527,9 @@ class experiment:
         else:
             self.hgrid = self._make_hgrid()
             self.vgrid = self._make_vgrid()
+
+        self.segments = {} # Holds segements for use in setting up the ocean state boundary conditions (GLORYS) and the tidal boundary conditions (TPXO)
+
         # create additional directories and links
         (self.mom_input_dir / "weights").mkdir(exist_ok=True)
         (self.mom_input_dir / "forcing").mkdir(exist_ok=True)
@@ -537,7 +540,6 @@ class experiment:
         input_rundir = self.mom_input_dir / "rundir"
         if not input_rundir.exists():
             input_rundir.symlink_to(self.mom_run_dir.resolve())
-        self.segments = {} # Holds segements for use in setting up the ocean state boundary conditions (GLORYS) and the tidal boundary conditions (TPXO)
 
     def __getattr__(self, name):
         available_methods = [
@@ -1045,6 +1047,18 @@ class experiment:
         boundaries=["south", "north", "west", "east"],
         arakawa_grid="A",
     ):
+        warnings.filterwarnings("default") # Set warnings back to on
+        warnings.warn("rectangular_boundaries is changed in favor of a verb format, more description, and to accomodate tides. Drop-in replace with \"setup_ocean_state_rectangular_boundaries\"")
+        warnings.filterwarnings("ignore") # Set warnings back off
+        return self.setup_ocean_state_rectangular_boundaries(  raw_boundaries_path,varnames, boundaries=boundaries,arakawa_grid=arakawa_grid)
+
+    def setup_ocean_state_rectangular_boundaries(
+        self,
+        raw_boundaries_path,
+        varnames,
+        boundaries=["south", "north", "west", "east"],
+        arakawa_grid="A",
+    ):
         """
         This function is a wrapper for `simple_boundary`. Given a list of up to four cardinal directions,
         it creates a boundary forcing file for each one. Ensure that the raw boundaries are all saved in the same directory,
@@ -1076,7 +1090,7 @@ class experiment:
             )
         # Now iterate through our four boundaries
         for orientation in boundaries:
-            self.simple_boundary(
+            self.setup_ocean_state_simple_boundary(
                 Path(raw_boundaries_path) / (orientation + "_unprocessed.nc"),
                 varnames,
                 orientation,  # The cardinal direction of the boundary
@@ -1085,6 +1099,14 @@ class experiment:
             )
 
     def simple_boundary(
+        self, path_to_bc, varnames, orientation, segment_number, arakawa_grid="A"
+    ):
+        warnings.filterwarnings("default") # Set warnings back to on
+        warnings.warn("simple_boundary is changed in favor of a verb format, more description, and to accomodate tides. Drop-in replace with \"setup_ocean_state_simple_boundary\"")
+        warnings.filterwarnings("ignore") # Turn warnings off
+        return self.setup_ocean_state_simple_boundary( path_to_bc, varnames, orientation, segment_number, arakawa_grid="A")
+
+    def setup_ocean_state_simple_boundary(
         self, path_to_bc, varnames, orientation, segment_number, arakawa_grid="A"
     ):
         """
@@ -1130,8 +1152,8 @@ class experiment:
         print("Done.")
         return
     
-    def setup_tides(
-        self, path_to_td,tidal_filename, horizontal_subset,
+    def setup_tides_rectangle_boundaries(
+        self, path_to_td,tidal_filename,
     ):
         """
         Here, we subset our tidal data and generate more boundary files!
@@ -1152,12 +1174,21 @@ class experiment:
             raise ValueError (
                 "Tidal Files don't exist at " + path_to_td+"/[h.or.u]_"+tidal_filename+".nc"
             )
+        
+        ### Find Rough Horizontal Subset (with 0.5 Buffer)###
         tidal_constituents = [0]
         tpxo_h = (
             xr.open_dataset(os.path.join(path_to_td, f'h_{tidal_filename}'))
             .rename({'lon_z': 'lon', 'lat_z': 'lat', 'nc': 'constituent'})
-            .isel(constituent=tidal_constituents, **horizontal_subset)
+            .isel(constituent=tidal_constituents)
         )
+        ny0,nx0 = find_roughly_nearest_ny_nx(self.latitude_extent[0]-0.5,self.longitude_extent[0]-0.5,tpxo_h )
+        ny1,nx1 = find_roughly_nearest_ny_nx(self.latitude_extent[1]+0.5,self.longitude_extent[1]+0.5,tpxo_h)
+        horizontal_subset = dict(ny=slice(ny0,ny1), nx=slice(nx0,nx1))
+
+        tpxo_h = tpxo_h.isel( **horizontal_subset)
+        
+        
         h = tpxo_h['ha'] * np.exp(-1j * np.radians(tpxo_h['hp']))
         tpxo_h['hRe'] = np.real(h)
         tpxo_h['hIm'] = np.imag(h)
@@ -1184,7 +1215,12 @@ class experiment:
             dims=['time']
         )
         boundaries = ["south", "north", "west", "east"]
-        for b in enumerate(boundaries):
+
+        # Initialize or find boundary segment
+        for b in boundaries:
+            print("Processing {} boundary...".format(b), end="")
+
+            # If the GLORYS ocean_state has already created segments, we don't create them again.
             if b not in self.segments:
                 seg = segment(
                 hgrid=self.hgrid,
@@ -1194,16 +1230,15 @@ class experiment:
                 segment_name="segment_{:03d}".format(find_MOM6_orientation(b)),
                 orientation=b,  # orienataion
                 startdate=self.date_range[0],
-                arakawa_grid=None,
                 repeat_year_forcing=self.repeat_year_forcing,
                 )
             else:
                 seg = self.segments[b]
+
+            # Output and regrid tides
             seg.regrid_tides(tpxo_v, tpxo_u,tpxo_h, times)
+            print("Done")
 
-        
-
-    
     def setup_bathymetry(
         self,
         *,
@@ -1984,8 +2019,7 @@ class segment:
 
     Args:
         hgrid (xarray.Dataset): The horizontal grid used for domain.
-        infile_bc (Union[str, Path]): Path to the raw, unprocessed boundary segment.
-        infile_td (Union[str, Path]): Path to the raw, unprocessed tidal segment.
+        infile (Union[str, Path]): Path to the raw, unprocessed boundary segment.
         outfolder (Union[str, Path]): Path to folder where the model inputs will
             be stored.
         varnames (Dict[str, str]): Mapping between the variable/dimension names and
@@ -2000,11 +2034,6 @@ class segment:
                 Either ``'A'`` (default), ``'B'``, or ``'C'``.
         time_units (str): The units used by the raw forcing files, e.g., ``hours``,
             ``days`` (default).
-        tidal_constituents (Optional[int]): An integer determining the number of tidal
-            constituents to be included from the list: *M*:sub:`2`, *S*:sub:`2`, *N*:sub:`2`,
-            *K*:sub:`2`, *K*:sub:`1`, *O*:sub:`2`, *P*:sub:`1`, *Q*:sub:`1`, *Mm*,
-            *Mf*, and *M*:sub:`4`. For example, specifying ``1`` only includes *M*:sub:`2`;
-            specifying ``2`` includes *M*:sub:`2` and *S*:sub:`2`, etc. Default: ``None``.
         repeat_year_forcing (Optional[bool]): When ``True`` the experiment runs with repeat-year
             forcing. When ``False`` (default) then inter-annual forcing is used.
     """
@@ -2013,7 +2042,7 @@ class segment:
         self,
         *,
         hgrid,
-        infile_bc,
+        infile,
         outfolder,
         varnames,
         segment_name,
@@ -2024,7 +2053,7 @@ class segment:
         repeat_year_forcing=False,
     ):
         ## Store coordinate names
-        if arakawa_grid == "A" and infile_bc is not None:
+        if arakawa_grid == "A" and infile is not None:
             self.x = varnames["x"]
             self.y = varnames["y"]
 
@@ -2035,7 +2064,7 @@ class segment:
             self.yh = varnames["yh"]
 
         ## Store velocity names
-        if infile_bc is not None:
+        if infile is not None:
             self.u = varnames["u"]
             self.v = varnames["v"]
             self.z = varnames["zl"]
@@ -2044,7 +2073,7 @@ class segment:
         self.startdate = startdate
 
         ## Store tracer names
-        if infile_bc is not None:
+        if infile is not None:
             self.tracers = varnames["tracers"]
         self.time_units = time_units
 
@@ -2060,7 +2089,7 @@ class segment:
             raise ValueError("arakawa_grid must be one of: 'A', 'B', or 'C'")
         self.arakawa_grid = arakawa_grid
 
-        self.infile_bc = infile_bc
+        self.infile = infile
         self.outfolder = outfolder
         self.hgrid = hgrid
         self.segment_name = segment_name
@@ -2153,7 +2182,7 @@ class segment:
             }
         ).set_coords(["lat", "lon"])
 
-        rawseg = xr.open_dataset(self.infile_bc, decode_times=False, engine="netcdf4")
+        rawseg = xr.open_dataset(self.infile, decode_times=False, engine="netcdf4")
 
         if self.arakawa_grid == "A":
             rawseg = rawseg.rename({self.x: "lon", self.y: "lat"})
@@ -2164,7 +2193,7 @@ class segment:
                 "bilinear",
                 locstream_out=True,
                 reuse_weights=False,
-                tidal_filename=self.outfolder
+                filename=self.outfolder
                 / f"weights/bilinear_velocity_weights_{self.orientation}.nc",
             )
 
@@ -2609,7 +2638,7 @@ class segment:
             Returns:
                 modified array with new length-1 dimension.
             """
-            # having z or constituent as second dimension is optional, so offset determines where to place
+            #  having z or constituent as second dimension is optional, so offset determines where to place
             # added dim
             if 'z' in ds.coords or 'constituent' in ds.dims:
                 offset = 0
