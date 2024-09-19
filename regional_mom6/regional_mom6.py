@@ -1156,18 +1156,29 @@ class experiment:
         self, path_to_td,tidal_filename,
     ):
         """
-        Here, we subset our tidal data and generate more boundary files!
+        This function:
+        We subset our tidal data and generate more boundary files!
 
         Args:
-            path_to_td (str): Path to boundary tidal file. Ideally this should be a pre cut-out
-                netCDF file containing only the boundary region and 3 extra boundary points on either
-                side. Users can also provide a large dataset containing their entire domain but this
-                will be slower.
-            tidal_filename(str): Name of the tpxo product that's used in the tidal_filename. Should be h_{tidal_filename}, u_{tidal_filename}
-            
+            path_to_td (str): Path to boundary tidal file. 
+            tidal_filename: Name of the tpxo product that's used in the tidal_filename. Should be h_{tidal_filename}, u_{tidal_filename}
         Returns:
-            *.nc files in inputdir/forcing
-                Tidal input files for the boundaries from the TPXO dataaset
+            *.nc files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
+
+        General Description: 
+        This tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
+         - Converted code for RM6 segment class
+         - Implemented Horizontal Subsetting
+         - Combined all functions of NWA25 into a four function process (in the style of rm6) (expt.setup_tides_rectangular_boundaries, segment.coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
+         
+
+        Original Code was sourced from:
+        Author(s): GFDL, James Simkins, Rob Cermak, etc..
+        Year: 2022
+        Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
+        Version: N/A
+        Type: Python Functions, Source Code
+        Web Address: https://github.com/jsimkins2/nwa25    
         """
 
         if not os.path.exists(path_to_td) or not os.path.exists(os.path.join(path_to_td,"h_"+tidal_filename)) or not os.path.exists(os.path.join(path_to_td,"u_"+tidal_filename)) :
@@ -2115,7 +2126,31 @@ class segment:
     @property
     def coords(self):
         """
-        This function allows us to call the self.coords for use in the xesmf.Regridder in the regrid_tides function.
+        
+
+        This function:
+        Allows us to call the self.coords for use in the xesmf.Regridder in the regrid_tides function. self.coords gives us the subset of the hgrid based on the orientation.
+
+        Args:
+            None
+        Returns:
+            xr.Dataset: The correct coordinate space for the orientation
+
+        General Description: 
+        This tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
+         - Converted code for RM6 segment class
+         - Implemented Horizontal Subsetting
+         - Combined all functions of NWA25 into a four function process (in the style of rm6) (expt.setup_tides_rectangular_boundaries, segment.coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
+         
+
+        Original Code was sourced from:
+        Author(s): GFDL, James Simkins, Rob Cermak, etc..
+        Year: 2022
+        Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
+        Version: N/A
+        Type: Python Functions, Source Code
+        Web Address: https://github.com/jsimkins2/nwa25       
+
         """
         # Rename nxp and nyp to locations
         if self.orientation == 'south':
@@ -2475,24 +2510,34 @@ class segment:
     def regrid_tides(self, tpxo_v, tpxo_u, tpxo_h, times, 
                 method='nearest_s2d', periodic=False):
         """
-        The function regrids and interpolates the tidal data for MOM6, originally inspired by GFDL NWA25 repo code & edited by Ashley. It accomplishes:
+        This function:
+        Regrids and interpolates the tidal data for MOM6, originally inspired by GFDL NWA25 repo code & edited by Ashley.
         - Read in raw tidal data (all constituents)
         - Perform minor transformations/conversions
         - Regridded the tidal elevation, and tidal velocity
         - Encoding the output
 
-        Parameters (taken at initialization)
-        -------------------------------------
-        infile_td : str
-            Raw Tidal File/Dir
-        tpxo_v, tpxo_u, tpxo_h: xr.Datasets
-            Specific adjusted for MOM6 tpxo datasets (Adjusted with setup_tides)
-        times: list[pd datetime]
-            The start date of our model period
-        Returns
-        -------
-        *.nc files
-            Regridded tidal velocity and elevation files in 'inputdir/forcing'
+        Args:
+            infile_td (str): Raw Tidal File/Dir
+            tpxo_v, tpxo_u, tpxo_h (xarray.Dataset): Specific adjusted for MOM6 tpxo datasets (Adjusted with setup_tides)
+            times (pd.DateRange): The start date of our model period
+        Returns:
+            *.nc files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
+
+        General Description: 
+        This tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
+         - Converted code for RM6 segment class
+         - Implemented Horizontal Subsetting
+         - Combined all functions of NWA25 into a four function process (in the style of rm6) (expt.setup_tides_rectangular_boundaries, segment.coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
+         
+
+        Original Code was sourced from:
+        Author(s): GFDL, James Simkins, Rob Cermak, etc..
+        Year: 2022
+        Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
+        Version: N/A
+        Type: Python Functions, Source Code
+        Web Address: https://github.com/jsimkins2/nwa25     
         """
 
         ########## Tidal Elevation: Horizontally interpolate elevation components ############
@@ -2528,8 +2573,7 @@ class segment:
         ds_ap, _ = xr.broadcast(ds_ap, times)
         ds_ap = ds_ap.transpose('time', 'constituent', 'locations')
 
-        ds_ap = self.expand_tidal_dims(ds_ap)
-        ds_ap = self.rename_tidal_dims(ds_ap)
+
 
         self.encode_tidal_files_and_output(ds_ap, 'tz')
            
@@ -2598,31 +2642,69 @@ class segment:
         # Some things may have become missing during the transformation
         ds_ap = ds_ap.ffill(dim="locations", limit=None)
 
-        ds_ap = self.expand_tidal_dims(ds_ap)
-        ds_ap = self.rename_tidal_dims(ds_ap)
-
         self.encode_tidal_files_and_output(ds_ap, 'tu')
             
 
         return
     
     def encode_tidal_files_and_output(self, ds, filename):
-        """Like GFDL NWA25 changed to RM6 segment class, add metadata to tidal files, format, and output them.
+        """
+        This function:
+         - Expands the dimensions (with the segment name)
+         - Renames some dimensions to be more specific to the segment
+         - Provides an output file encoding
+         - Exports the files.
 
-        Parameters (taken at initialization)
-        -------------------------------------
-        self.outfolder: str/path
-            The output folder to save the tidal files into
-        dataset : xarray.Dataset
-            The processed tidal dataset
-        filename: str
-            The output file name
-        Returns
-        -------
-        *.nc files
-            Regridded [FILENAME] files in 'self.outfolder/[filename]_[num].nc'
+        Args:
+            self.outfolder (str/path): The output folder to save the tidal files into
+            dataset (xarray.Dataset): The processed tidal dataset
+            filename (str): The output file name
+        Returns:
+            *.nc files: Regridded [FILENAME] files in 'self.outfolder/forcing/[filename]_[segmentname].nc'
+
+        General Description: 
+        This tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
+         - Converted code for RM6 segment class
+         - Implemented Horizontal Subsetting
+         - Combined all functions of NWA25 into a four function process (in the style of rm6) (expt.setup_tides_rectangular_boundaries, segment.coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
+         
+
+        Original Code was sourced from:
+        Author(s): GFDL, James Simkins, Rob Cermak, etc..
+        Year: 2022
+        Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
+        Version: N/A
+        Type: Python Functions, Source Code
+        Web Address: https://github.com/jsimkins2/nwa25        
+
 
         """
+
+        ## Expand Tidal Dimensions ##
+        if 'z' in ds.coords or 'constituent' in ds.dims:
+            offset = 0
+        else:
+            offset = 1
+        if self.orientation in ['south', 'north']:
+            ds = ds.expand_dims(f'ny_{self.segment_name}', 2-offset)
+        elif self.orientation in ['west', 'east']:
+            ds = ds.expand_dims(f'nx_{self.segment_name}', 3-offset)
+
+        ## Rename Tidal Dimensions ##
+        ds = ds.rename({
+            'lon': f'lon_{self.segment_name}',
+            'lat': f'lat_{self.segment_name}'
+        })
+        if 'z' in ds.coords:
+            ds = ds.rename({
+                'z': f'nz_{self.segment_name}'
+            })
+        if self.orientation in ['south', 'north']:
+            ds =  ds.rename({'locations': f'nx_{self.segment_name}'})
+        elif self.orientation in ['west', 'east']:
+            ds =  ds.rename({'locations': f'ny_{self.segment_name}'})
+        
+        ## Perform Encoding ##
         for v in ds:
             ds[v].encoding['_FillValue']= 1.0e20
         fname = f'{filename}_{self.segment_name}.nc'
@@ -2636,6 +2718,8 @@ class segment:
         }
         if 'calendar' not in ds['time'].attrs and 'modulo' not in ds['time'].attrs:
             encoding.update({'time': dict(dtype='float64', calendar='gregorian', _FillValue=1.0e20)})
+
+        ## Export Files ##
         ds.to_netcdf(
             os.path.join(self.outfolder,"forcing", fname),
             engine='netcdf4',
@@ -2644,48 +2728,4 @@ class segment:
         )
         return
     
-    def expand_tidal_dims(self, ds):
-            """Add a length-1 dimension to the variables in a boundary dataset or array.
-            Named 'ny_segment_{self.segment_name}' if the border runs west to east (a south or north boundary),
-            or 'nx_segment_{self.segment_name}' if the border runs north to south (an east or west boundary).
-
-            Args:
-                ds: boundary array with dimensions <time, (z or constituent), y, x>
-
-            Returns:
-                modified array with new length-1 dimension.
-            """
-            #  having z or constituent as second dimension is optional, so offset determines where to place
-            # added dim
-            if 'z' in ds.coords or 'constituent' in ds.dims:
-                offset = 0
-            else:
-                offset = 1
-            if self.orientation in ['south', 'north']:
-                return ds.expand_dims(f'ny_{self.segment_name}', 2-offset)
-            elif self.orientation in ['west', 'east']:
-                return ds.expand_dims(f'nx_{self.segment_name}', 3-offset)
-
-    def rename_tidal_dims(self, ds):
-        """Rename dimensions to be unique to the segment.
-
-        Args:
-            ds (xarray.Dataset): Dataset that might contain 'lon', 'lat', 'z', and/or 'locations'.
-
-        Returns:
-            xarray.Dataset: Dataset with dimensions renamed to include the segment identifier and to 
-                match MOM6 expectations.
-        """
-        ds = ds.rename({
-            'lon': f'lon_{self.segment_name}',
-            'lat': f'lat_{self.segment_name}'
-        })
-        if 'z' in ds.coords:
-            ds = ds.rename({
-                'z': f'nz_{self.segment_name}'
-            })
-        if self.orientation in ['south', 'north']:
-            return ds.rename({'locations': f'nx_{self.segment_name}'})
-        elif self.orientation in ['west', 'east']:
-            return ds.rename({'locations': f'ny_{self.segment_name}'})
     
