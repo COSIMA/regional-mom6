@@ -194,7 +194,7 @@ def get_glorys_data(
     """
     buffer = 0.24  # Pads downloads to ensure that interpolation onto desired domain doesn't fail. Default of 0.24 is twice Glorys cell width (12th degree)
 
-    path = Path(download_path)
+    path = os.path.join(download_path)
 
     if modify_existing:
         file = open(path / "get_glorysdata.sh", "r")
@@ -1036,7 +1036,7 @@ class experiment:
             )
 
         print(
-            f"script `get_glorys_data.sh` has been greated at {raw_boundaries_path}.\n Run this script via bash to download the data from a terminal with internet access. \nYou will need to enter your Copernicus Marine username and password.\nIf you don't have an account, make one here:\nhttps://data.marine.copernicus.eu/register"
+            f"script `get_glorys_data.sh` has been created at {raw_boundaries_path}.\n Run this script via bash to download the data from a terminal with internet access. \nYou will need to enter your Copernicus Marine username and password.\nIf you don't have an account, make one here:\nhttps://data.marine.copernicus.eu/register"
         )
         return
 
@@ -1048,7 +1048,7 @@ class experiment:
         arakawa_grid="A",
     ):
         warnings.filterwarnings("default") # Set warnings back to on
-        warnings.warn("rectangular_boundaries is changed in favor of a verb format, more description, and to accomodate tides. Drop-in replace with \"setup_ocean_state_rectangular_boundaries\"")
+        warnings.warn("The rectangular_boundaries function has been changed in favor of a verb format, more description, and to accomodate tides. Drop-in replace with \"setup_ocean_state_rectangular_boundaries\"")
         warnings.filterwarnings("ignore") # Set warnings back off
         return self.setup_ocean_state_rectangular_boundaries(  raw_boundaries_path,varnames, boundaries=boundaries,arakawa_grid=arakawa_grid)
 
@@ -1091,7 +1091,7 @@ class experiment:
         # Now iterate through our four boundaries
         for orientation in boundaries:
             self.setup_ocean_state_simple_boundary(
-                Path(raw_boundaries_path) / (orientation + "_unprocessed.nc"),
+                Path(os.path.join((raw_boundaries_path),(orientation + "_unprocessed.nc"))),
                 varnames,
                 orientation,  # The cardinal direction of the boundary
                 find_MOM6_orientation(orientation),  # A number to identify the boundary; indexes from 1
@@ -1102,7 +1102,7 @@ class experiment:
         self, path_to_bc, varnames, orientation, segment_number, arakawa_grid="A"
     ):
         warnings.filterwarnings("default") # Set warnings back to on
-        warnings.warn("simple_boundary is changed in favor of a verb format, more description, and to accomodate tides. Drop-in replace with \"setup_ocean_state_simple_boundary\"")
+        warnings.warn("The simple_boundary function has been changed in favor of a verb format, more description, and to accomodate tides. Drop-in replace with \"setup_ocean_state_simple_boundary\"")
         warnings.filterwarnings("ignore") # Turn warnings off
         return self.setup_ocean_state_simple_boundary( path_to_bc, varnames, orientation, segment_number, arakawa_grid="A")
 
@@ -1715,36 +1715,36 @@ class experiment:
         """
 
         ## Get the path to the regional_mom package on this computer
-        premade_rundir_path = Path(
-            importlib.resources.files("regional_mom6") / "demos/premade_run_directories"
-        )
+        premade_rundir_path = Path(os.path.join(
+            importlib.resources.files("regional_mom6"), "demos","premade_run_directories"
+        ))
         if not premade_rundir_path.exists():
             print("Could not find premade run directories at ", premade_rundir_path)
             print(
                 "Perhaps the package was imported directly rather than installed with conda. Checking if this is the case... "
             )
 
-            premade_rundir_path = Path(
+            premade_rundir_path = Path(os.path.join(
                 importlib.resources.files("regional_mom6").parent
-                / "demos/premade_run_directories"
-            )
+                , "demos","premade_run_directories"
+            ))
             if not premade_rundir_path.exists():
                 raise ValueError(
                     f"Cannot find the premade run directory files at {premade_rundir_path} either.\n\n"
                     + "There may be an issue with package installation. Check that the `premade_run_directory` folder is present in one of these two locations"
                 )
             else:
-                print("Found Premade Run Directories!")
+                print("It is! Found them!")
 
         # Define the locations of the directories we'll copy files across from. Base contains most of the files, and overwrite replaces files in the base directory.
-        base_run_dir = premade_rundir_path / "common_files"
+        base_run_dir = Path(os.path.join(premade_rundir_path , "common_files"))
         if not premade_rundir_path.exists():
             raise ValueError(
                 f"Cannot find the premade run directory files at {premade_rundir_path}.\n\n"
                 + "These files missing might be indicating an error during the package installation!"
             )
         if surface_forcing:
-            overwrite_run_dir = premade_rundir_path / f"{surface_forcing}_surface"
+            overwrite_run_dir = Path(os.path.join(premade_rundir_path ,f"{surface_forcing}_surface"))
             if not overwrite_run_dir.exists():
                 available = [x for x in premade_rundir_path.iterdir() if x.is_dir()]
                 raise ValueError(
@@ -1937,7 +1937,7 @@ class experiment:
                 i for i in range(self.date_range[0].year, self.date_range[1].year + 1)
             ]
             # construct a list of all paths for all years to use for open_mfdataset
-            paths_per_year = [Path(f"{era5_path}/{fname}/{year}/") for year in years]
+            paths_per_year = [os.path.join(era5_path,fname,year) for year in years]
             all_files = []
             for path in paths_per_year:
                 # Use glob to find all files that match the pattern
