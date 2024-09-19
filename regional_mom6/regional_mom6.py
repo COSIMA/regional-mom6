@@ -1733,6 +1733,8 @@ class experiment:
                     f"Cannot find the premade run directory files at {premade_rundir_path} either.\n\n"
                     + "There may be an issue with package installation. Check that the `premade_run_directory` folder is present in one of these two locations"
                 )
+            else:
+                print("Found Premade Run Directories!")
 
         # Define the locations of the directories we'll copy files across from. Base contains most of the files, and overwrite replaces files in the base directory.
         base_run_dir = premade_rundir_path / "common_files"
@@ -1896,6 +1898,21 @@ class experiment:
             0,
         ]
         nml.write(self.mom_run_dir / "input.nml", force=True)
+
+
+    def write_MOM_input(self, variable_dict):
+            """
+            Write MOM Input based on specific file variable format i.e. Var = Value"""
+        # Overwrite values pertaining to vertical structure in the MOM_input file
+            with open(self.mom_run_dir / "MOM_input", "r") as file:
+                lines = file.readlines()
+                for jj in range(len(lines)):
+                    for var in variable_dict.keys():
+                        if "{} = ".format(var) in lines[jj]:
+                            lines[jj] = f'{var} = {variable_dict[var]}\n'
+            with open(self.mom_run_dir / "MOM_input", "w") as f:
+                f.writelines(lines)
+    
 
     def setup_era5(self, era5_path):
         """
@@ -2137,6 +2154,7 @@ class segment:
         )
 
         return rcoord
+    
     def rectangular_brushcut(self):
         """
         Cut out and interpolate tracers. ``rectangular_brushcut`` assumes that the boundary
@@ -2453,7 +2471,6 @@ class segment:
             )
 
         return segment_out, encoding_dict
-    
 
     def regrid_tides(self, tpxo_v, tpxo_u, tpxo_h, times, 
                 method='nearest_s2d', periodic=False):
