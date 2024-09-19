@@ -16,7 +16,7 @@ import importlib.resources
 import datetime
 from .utils import quadrilateral_areas, ap2ep, ep2ap,find_roughly_nearest_ny_nx
 import pandas as pd
-
+import re 
 warnings.filterwarnings("ignore")
 
 __all__ = [
@@ -197,14 +197,14 @@ def get_glorys_data(
     path = os.path.join(download_path)
 
     if modify_existing:
-        file = open(path / "get_glorysdata.sh", "r")
+        file = open(os.path.join(path, "get_glorysdata.sh"), "r")
         lines = file.readlines()
         file.close()
 
     else:
         lines = ["#!/bin/bash\ncopernicusmarine login"]
 
-    file = open(path / "get_glorysdata.sh", "w")
+    file = open(os.path.join(path, "get_glorysdata.sh"), "w")
 
     lines.append(
         f"""
@@ -1153,7 +1153,7 @@ class experiment:
         return
     
     def setup_tides_rectangle_boundaries(
-        self, path_to_td,tidal_filename,
+        self, path_to_td,tidal_filename,tidal_constituents = [0]
     ):
         """
         This function:
@@ -1162,6 +1162,7 @@ class experiment:
         Args:
             path_to_td (str): Path to boundary tidal file. 
             tidal_filename: Name of the tpxo product that's used in the tidal_filename. Should be h_{tidal_filename}, u_{tidal_filename}
+            tidal_constiuents: List of tidal constituents to include in the regridding. Default is [0] which is the M2 constituent.
         Returns:
             *.nc files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
 
@@ -1187,7 +1188,8 @@ class experiment:
             )
         
         ### Find Rough Horizontal Subset (with 0.5 Buffer)###
-        tidal_constituents = [0]
+        
+        self.tidal_constituents = tidal_constituents
         tpxo_h = (
             xr.open_dataset(os.path.join(path_to_td, f'h_{tidal_filename}'))
             .rename({'lon_z': 'lon', 'lat_z': 'lat', 'nc': 'constituent'})
@@ -1709,6 +1711,7 @@ class experiment:
         surface_forcing=None,
         using_payu=False,
         overwrite=False,
+        with_tides = False
     ):
         """
         Set up the run directory for MOM6. Either copy a pre-made set of files, or modify
@@ -1764,6 +1767,14 @@ class experiment:
         else:
             ## In case there is additional forcing (e.g., tides) then we need to modify the run dir to include the additional forcing.
             overwrite_run_dir = False
+
+        # Check if we can implement tides
+        if with_tides:
+            tidal_files_exist = any("tidal" in filename for filename in os.listdir(os.path.join(self.mom_input_dir, "forcing")))
+            if not tidal_files_exist:
+                raise ValueError("No files with 'tidal' in their names found in the forcing directory. If you meant to use tides, please run the setup_tides_rectangle_boundaries method first. That does output some tidal files.")
+
+
 
         # 3 different cases to handle:
         #   1. User is creating a new run directory from scratch. Here we copy across all files and modify.
@@ -1861,6 +1872,20 @@ class experiment:
         with open(self.mom_run_dir / "MOM_layout", "w") as f:
             f.writelines(lines)
 
+
+        MOM_input_dict = self.read_MOM_file_as_dict("MOM_input")
+        MOM_input_dict["MINIMUM_DEPTH"] = float(self.min_depth)
+        MOM_input_dict["NK"] = len(self.vgrid.zl.values)
+        if with_tides:
+            MOM_input_dict["TIDES"] = "True"
+            MOM_input_dict["OBC_TIDE_N_CONSTITUENTS"] = self.tidal_constituents
+            MOM_input_dict["OBC_SEGMENT_001_DATA"] = "\"U=file:forcing/forcing_obc_segment_001.nc(u),V=file:forcing/forcing_obc_segment_001.nc(v),SSH=file:forcing/forcing_obc_segment_001.nc(eta),TEMP=file:forcing/forcing_obc_segment_001.nc(temp),SALT=file:forcing/forcing_obc_segment_001.nc(salt),Uamp=file:forcing/tu_segment_001.nc(uamp),Uphase=file:forcing/tu_segment_001.nc(uphase),Vamp=file:forcing/tu_segment_001.nc(vamp),Vphase=file:forcing/tu_segment_001.nc(vphase),SSHamp=file:forcing/tz_segment_001.nc(zamp),SSHphase=file:forcing/tz_segment_001.nc(zphase)\""
+            MOM_input_dict["OBC_SEGMENT_002_DATA"] = "\"U=file:forcing/forcing_obc_segment_002.nc(u),V=file:forcing/forcing_obc_segment_002.nc(v),SSH=file:forcing/forcing_obc_segment_002.nc(eta),TEMP=file:forcing/forcing_obc_segment_002.nc(temp),SALT=file:forcing/forcing_obc_segment_002.nc(salt),Uamp=file:forcing/tu_segment_002.nc(uamp),Uphase=file:forcing/tu_segment_002.nc(uphase),Vamp=file:forcing/tu_segment_002.nc(vamp),Vphase=file:forcing/tu_segment_002.nc(vphase),SSHamp=file:forcing/tz_segment_002.nc(zamp),SSHphase=file:forcing/tz_segment_002.nc(zphase)\""
+            MOM_input_dict["OBC_SEGMENT_003_DATA"] = "\"U=file:forcing/forcing_obc_segment_003.nc(u),V=file:forcing/forcing_obc_segment_003.nc(v),SSH=file:forcing/forcing_obc_segment_003.nc(eta),TEMP=file:forcing/forcing_obc_segment_003.nc(temp),SALT=file:forcing/forcing_obc_segment_003.nc(salt),Uamp=file:forcing/tu_segment_003.nc(uamp),Uphase=file:forcing/tu_segment_003.nc(uphase),Vamp=file:forcing/tu_segment_003.nc(vamp),Vphase=file:forcing/tu_segment_003.nc(vphase),SSHamp=file:forcing/tz_segment_003.nc(zamp),SSHphase=file:forcing/tz_segment_003.nc(zphase)\""
+            MOM_input_dict["OBC_SEGMENT_004_DATA"] = "\"U=file:forcing/forcing_obc_segment_004.nc(u),V=file:forcing/forcing_obc_segment_004.nc(v),SSH=file:forcing/forcing_obc_segment_004.nc(eta),TEMP=file:forcing/forcing_obc_segment_004.nc(temp),SALT=file:forcing/forcing_obc_segment_004.nc(salt),Uamp=file:forcing/tu_segment_004.nc(uamp),Uphase=file:forcing/tu_segment_004.nc(uphase),Vamp=file:forcing/tu_segment_004.nc(vamp),Vphase=file:forcing/tu_segment_004.nc(vphase),SSHamp=file:forcing/tz_segment_004.nc(zamp),SSHphase=file:forcing/tz_segment_004.nc(zphase)\""
+
+        self.write_MOM_file(MOM_input_dict)
+        
         # Overwrite values pertaining to vertical structure in the MOM_input file
         with open(self.mom_run_dir / "MOM_input", "r") as file:
             lines = file.readlines()
@@ -1910,19 +1935,51 @@ class experiment:
         ]
         nml.write(self.mom_run_dir / "input.nml", force=True)
 
+    def read_MOM_file_as_dict(self, filename):
+        """
+        Read the MOM_input file and return a dictionary of the variables and their values.
+        """
+        with open(os.path.join(self.mom_run_dir , filename), "r") as file:
+            lines = file.readlines()
+            MOM_file_dict = {"filename": filename}
+            for jj in range(len(lines)):
+                if "=" in lines[jj]:
+                    var, value = lines[jj].split("=")
+                    value = value.split("!")[0].strip() # Remove Comments
+                    MOM_file_dict[var.strip()] = value.strip()
 
-    def write_MOM_input(self, variable_dict):
-            """
-            Write MOM Input based on specific file variable format i.e. Var = Value"""
-        # Overwrite values pertaining to vertical structure in the MOM_input file
-            with open(self.mom_run_dir / "MOM_input", "r") as file:
-                lines = file.readlines()
-                for jj in range(len(lines)):
-                    for var in variable_dict.keys():
-                        if "{} = ".format(var) in lines[jj]:
-                            lines[jj] = f'{var} = {variable_dict[var]}\n'
-            with open(self.mom_run_dir / "MOM_input", "w") as f:
-                f.writelines(lines)
+            # Save a copy of the original dictionary
+            MOM_file_dict["original"] = MOM_file_dict.copy()
+        return MOM_file_dict
+
+    def write_MOM_file(self, MOM_file_dict):
+        """
+        Write the MOM_input file from a dictionary of variables and their values. Does not support removing fields.
+        """
+        # Replace specific variable values
+        original_MOM_file_dict = MOM_file_dict.pop("original")
+        with open(os.path.join(self.mom_run_dir , MOM_file_dict["filename"]), "r") as file:
+            lines = file.readlines()
+            for jj in range(len(lines)):
+                if "=" in lines[jj]:
+                    var = lines[jj].split("=")[0].strip()
+                    if var in MOM_file_dict.keys() and  MOM_file_dict[var] != original_MOM_file_dict[var]:
+                            lines[jj] = f"{var} = {MOM_file_dict[var]}\n"
+                            print("Changed", var, "from", original_MOM_file_dict[var], "to", MOM_file_dict[var], "in {}!".format(MOM_file_dict["filename"]))
+                        
+        # Add new fields
+        for key in MOM_file_dict.keys():
+            if key not in original_MOM_file_dict.keys():
+                lines.append(f"{key} = {MOM_file_dict[key]}\n")
+                print("Added", key, "to", MOM_file_dict["filename"], "with value", MOM_file_dict[key]) 
+
+        # Check any fields removed
+        for key in original_MOM_file_dict.keys():
+            if key not in MOM_file_dict.keys():
+                print("WARNING: Field", key, "was not found in the new dictionary. Keeping the original value of", original_MOM_file_dict[key])
+                        
+        with open(os.path.join(self.mom_run_dir ,MOM_file_dict["filename"]), "w") as f:
+            f.writelines(lines) 
     
 
     def setup_era5(self, era5_path):
