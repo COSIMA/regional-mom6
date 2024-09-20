@@ -14,7 +14,7 @@ import shutil
 import os
 import importlib.resources
 import datetime
-from .utils import quadrilateral_areas, ap2ep, ep2ap,find_roughly_nearest_ny_nx
+from .utils import quadrilateral_areas, ap2ep, ep2ap,find_roughly_nearest_ny_nx,convert_lon_180_to_360
 import pandas as pd
 import re 
 warnings.filterwarnings("ignore")
@@ -1195,8 +1195,9 @@ class experiment:
             .rename({'lon_z': 'lon', 'lat_z': 'lat', 'nc': 'constituent'})
             .isel(constituent=tidal_constituents)
         )
-        ny0,nx0 = find_roughly_nearest_ny_nx(self.latitude_extent[0]-0.5,self.longitude_extent[0]-0.5,tpxo_h )
-        ny1,nx1 = find_roughly_nearest_ny_nx(self.latitude_extent[1]+0.5,self.longitude_extent[1]+0.5,tpxo_h)
+        tidal_360_lon = [convert_lon_180_to_360(self.longitude_extent[0]),convert_lon_180_to_360(self.longitude_extent[1])]
+        ny0,nx0 = find_roughly_nearest_ny_nx(self.latitude_extent[0]-0.5,tidal_360_lon[0]-0.5,tpxo_h )
+        ny1,nx1 = find_roughly_nearest_ny_nx(self.latitude_extent[1]+0.5,tidal_360_lon[1]+0.5,tpxo_h)
         horizontal_subset = dict(ny=slice(ny0,ny1), nx=slice(nx0,nx1))
 
         tpxo_h = tpxo_h.isel( **horizontal_subset)
@@ -1929,7 +1930,7 @@ class experiment:
             MOM_file_dict = {"filename": filename}
             for jj in range(len(lines)):
                 if "=" in lines[jj] and not "===" in lines[jj]:
-                    split =  lines[jj].split("=")
+                    split =  lines[jj].split("=",1)
                     var = split[0]
                     value = split[1]
                     value = value.split("!")[0].strip() # Remove Comments
@@ -1949,7 +1950,7 @@ class experiment:
             lines = file.readlines()
             for jj in range(len(lines)):
                 if "=" in lines[jj] and not "===" in lines[jj]:
-                    var = lines[jj].split("=")[0].strip()
+                    var = lines[jj].split("=",1)[0].strip()
                     if var in MOM_file_dict.keys() and  (str(MOM_file_dict[var])) != original_MOM_file_dict[var]:
                             lines[jj] = lines[jj].replace(original_MOM_file_dict[var], str(MOM_file_dict[var]))
                             print("Changed", var, "from", original_MOM_file_dict[var], "to", MOM_file_dict[var], "in {}!".format(MOM_file_dict["filename"]))

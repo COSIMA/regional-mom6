@@ -300,3 +300,9 @@ def find_roughly_nearest_ny_nx(lat, lon, ds):
     ny = (np.abs(ds.lat.values - lat)).argmin(axis=1)[0] # We're looking for an nx, I know it's not exact, but this works 
     nx = (np.abs(ds.lon.values - lon)).argmin(axis=0)[0] 
     return ny,nx
+
+def convert_lon_180_to_360(lon):
+    """
+    Converts a longitude from -180 to 180 to 0 to 360
+    """
+    return lon + 180
