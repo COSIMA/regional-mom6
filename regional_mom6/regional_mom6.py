@@ -1853,24 +1853,19 @@ class experiment:
 
         ## Modify the MOM_layout file to have correct horizontal dimensions and CPU layout
         # TODO Re-implement with package that works for this file type? or at least tidy up code
-        with open(self.mom_run_dir / "MOM_layout", "r") as file:
-            lines = file.readlines()
-            for jj in range(len(lines)):
-                if "MASKTABLE" in lines[jj]:
-                    if mask_table != None:
-                        lines[jj] = f'MASKTABLE = "{mask_table}"\n'
-                    else:
-                        lines[jj] = "# MASKTABLE = no mask table"
-                if "LAYOUT =" in lines[jj] and "IO" not in lines[jj] and layout != None:
-                    lines[jj] = f"LAYOUT = {layout[1]},{layout[0]}\n"
-
-                if "NIGLOBAL" in lines[jj]:
-                    lines[jj] = f"NIGLOBAL = {self.hgrid.nx.shape[0]//2}\n"
-
-                if "NJGLOBAL" in lines[jj]:
-                    lines[jj] = f"NJGLOBAL = {self.hgrid.ny.shape[0]//2}\n"
-        with open(self.mom_run_dir / "MOM_layout", "w") as f:
-            f.writelines(lines)
+        MOM_layout_dict = self.read_MOM_file_as_dict("MOM_layout")
+        if "MASKTABLE" in MOM_layout_dict.keys():
+            if mask_table != None:
+                MOM_layout_dict["MASKTABLE"] = mask_table
+            else:
+                MOM_layout_dict["MASKTABLE"] = "# MASKTABLE = no mask table"
+        if "LAYOUT" in MOM_layout_dict.keys() and "IO" not in MOM_layout_dict.keys() and layout != None:
+            MOM_layout_dict["LAYOUT"] = str(layout[1])+","+str(layout[0])
+        if "NIGLOBAL" in MOM_layout_dict.keys():
+            MOM_layout_dict["NIGLOBAL"] = self.hgrid.nx.shape[0]//2
+        if "NJGLOBAL" in MOM_layout_dict.keys():
+            MOM_layout_dict["NJGLOBAL"] = self.hgrid.ny.shape[0]//2
+        self.write_MOM_file(MOM_layout_dict)
 
 
         MOM_input_dict = self.read_MOM_file_as_dict("MOM_input")
@@ -1885,17 +1880,6 @@ class experiment:
             MOM_input_dict["OBC_SEGMENT_004_DATA"] = "\"U=file:forcing/forcing_obc_segment_004.nc(u),V=file:forcing/forcing_obc_segment_004.nc(v),SSH=file:forcing/forcing_obc_segment_004.nc(eta),TEMP=file:forcing/forcing_obc_segment_004.nc(temp),SALT=file:forcing/forcing_obc_segment_004.nc(salt),Uamp=file:forcing/tu_segment_004.nc(uamp),Uphase=file:forcing/tu_segment_004.nc(uphase),Vamp=file:forcing/tu_segment_004.nc(vamp),Vphase=file:forcing/tu_segment_004.nc(vphase),SSHamp=file:forcing/tz_segment_004.nc(zamp),SSHphase=file:forcing/tz_segment_004.nc(zphase)\""
 
         self.write_MOM_file(MOM_input_dict)
-        
-        # Overwrite values pertaining to vertical structure in the MOM_input file
-        with open(self.mom_run_dir / "MOM_input", "r") as file:
-            lines = file.readlines()
-            for jj in range(len(lines)):
-                if "MINIMUM_DEPTH = " in lines[jj]:
-                    lines[jj] = f'MINIMUM_DEPTH = {float(self.min_depth)}\n'
-                if "NK =" in lines[jj]:
-                    lines[jj] = f"NK = {len(self.vgrid.zl.values)}\n"
-        with open(self.mom_run_dir / "MOM_input", "w") as f:
-            f.writelines(lines)
 
         ## If using payu to run the model, create a payu configuration file
         if not using_payu and os.path.exists(f"{self.mom_run_dir}/config.yaml"):
@@ -1934,6 +1918,7 @@ class experiment:
             0,
         ]
         nml.write(self.mom_run_dir / "input.nml", force=True)
+        return
 
     def read_MOM_file_as_dict(self, filename):
         """
@@ -1941,11 +1926,12 @@ class experiment:
         """
         with open(os.path.join(self.mom_run_dir , filename), "r") as file:
             lines = file.readlines()
-            filtered_lines = [line for line in lines if '===' not in line]
             MOM_file_dict = {"filename": filename}
-            for jj in range(len(filtered_lines)):
-                if "=" in lines[jj]:
-                    var, value,_ = filtered_lines[jj].split("=")
+            for jj in range(len(lines)):
+                if "=" in lines[jj] and not "===" in lines[jj]:
+                    split =  lines[jj].split("=")
+                    var = split[0]
+                    value = split[1]
                     value = value.split("!")[0].strip() # Remove Comments
                     MOM_file_dict[var.strip()] = value.strip()
 
@@ -1961,15 +1947,15 @@ class experiment:
         original_MOM_file_dict = MOM_file_dict.pop("original")
         with open(os.path.join(self.mom_run_dir , MOM_file_dict["filename"]), "r") as file:
             lines = file.readlines()
-            filtered_lines = [line for line in lines if '===' not in line]
-            for jj in range(len(filtered_lines)):
-                if "=" in filtered_lines[jj]:
-                    var = filtered_lines[jj].split("=")[0].strip()
-                    if var in MOM_file_dict.keys() and  MOM_file_dict[var] != original_MOM_file_dict[var]:
-                            filtered_lines[jj] = f"{var} = {MOM_file_dict[var]}\n"
+            for jj in range(len(lines)):
+                if "=" in lines[jj] and not "===" in lines[jj]:
+                    var = lines[jj].split("=")[0].strip()
+                    if var in MOM_file_dict.keys() and  (str(MOM_file_dict[var])) != original_MOM_file_dict[var]:
+                            lines[jj] = lines[jj].replace(original_MOM_file_dict[var], str(MOM_file_dict[var]))
                             print("Changed", var, "from", original_MOM_file_dict[var], "to", MOM_file_dict[var], "in {}!".format(MOM_file_dict["filename"]))
                         
         # Add new fields
+        lines.append("! === Added with RM6 ===\n")
         for key in MOM_file_dict.keys():
             if key not in original_MOM_file_dict.keys():
                 lines.append(f"{key} = {MOM_file_dict[key]}\n")
@@ -1981,7 +1967,7 @@ class experiment:
                 print("WARNING: Field", key, "was not found in the new dictionary. Keeping the original value of", original_MOM_file_dict[key])
                         
         with open(os.path.join(self.mom_run_dir ,MOM_file_dict["filename"]), "w") as f:
-            f.writelines(filtered_lines) 
+            f.writelines(lines) 
     
 
     def setup_era5(self, era5_path):
