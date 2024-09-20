@@ -1878,7 +1878,7 @@ class experiment:
         MOM_input_dict["NK"] = len(self.vgrid.zl.values)
         if with_tides:
             MOM_input_dict["TIDES"] = "True"
-            MOM_input_dict["OBC_TIDE_N_CONSTITUENTS"] = self.tidal_constituents
+            MOM_input_dict["OBC_TIDE_N_CONSTITUENTS"] = len(self.tidal_constituents)
             MOM_input_dict["OBC_SEGMENT_001_DATA"] = "\"U=file:forcing/forcing_obc_segment_001.nc(u),V=file:forcing/forcing_obc_segment_001.nc(v),SSH=file:forcing/forcing_obc_segment_001.nc(eta),TEMP=file:forcing/forcing_obc_segment_001.nc(temp),SALT=file:forcing/forcing_obc_segment_001.nc(salt),Uamp=file:forcing/tu_segment_001.nc(uamp),Uphase=file:forcing/tu_segment_001.nc(uphase),Vamp=file:forcing/tu_segment_001.nc(vamp),Vphase=file:forcing/tu_segment_001.nc(vphase),SSHamp=file:forcing/tz_segment_001.nc(zamp),SSHphase=file:forcing/tz_segment_001.nc(zphase)\""
             MOM_input_dict["OBC_SEGMENT_002_DATA"] = "\"U=file:forcing/forcing_obc_segment_002.nc(u),V=file:forcing/forcing_obc_segment_002.nc(v),SSH=file:forcing/forcing_obc_segment_002.nc(eta),TEMP=file:forcing/forcing_obc_segment_002.nc(temp),SALT=file:forcing/forcing_obc_segment_002.nc(salt),Uamp=file:forcing/tu_segment_002.nc(uamp),Uphase=file:forcing/tu_segment_002.nc(uphase),Vamp=file:forcing/tu_segment_002.nc(vamp),Vphase=file:forcing/tu_segment_002.nc(vphase),SSHamp=file:forcing/tz_segment_002.nc(zamp),SSHphase=file:forcing/tz_segment_002.nc(zphase)\""
             MOM_input_dict["OBC_SEGMENT_003_DATA"] = "\"U=file:forcing/forcing_obc_segment_003.nc(u),V=file:forcing/forcing_obc_segment_003.nc(v),SSH=file:forcing/forcing_obc_segment_003.nc(eta),TEMP=file:forcing/forcing_obc_segment_003.nc(temp),SALT=file:forcing/forcing_obc_segment_003.nc(salt),Uamp=file:forcing/tu_segment_003.nc(uamp),Uphase=file:forcing/tu_segment_003.nc(uphase),Vamp=file:forcing/tu_segment_003.nc(vamp),Vphase=file:forcing/tu_segment_003.nc(vphase),SSHamp=file:forcing/tz_segment_003.nc(zamp),SSHphase=file:forcing/tz_segment_003.nc(zphase)\""
@@ -1941,10 +1941,11 @@ class experiment:
         """
         with open(os.path.join(self.mom_run_dir , filename), "r") as file:
             lines = file.readlines()
+            filtered_lines = [line for line in lines if '===' not in line]
             MOM_file_dict = {"filename": filename}
-            for jj in range(len(lines)):
+            for jj in range(len(filtered_lines)):
                 if "=" in lines[jj]:
-                    var, value = lines[jj].split("=")
+                    var, value,_ = filtered_lines[jj].split("=")
                     value = value.split("!")[0].strip() # Remove Comments
                     MOM_file_dict[var.strip()] = value.strip()
 
@@ -1960,11 +1961,12 @@ class experiment:
         original_MOM_file_dict = MOM_file_dict.pop("original")
         with open(os.path.join(self.mom_run_dir , MOM_file_dict["filename"]), "r") as file:
             lines = file.readlines()
-            for jj in range(len(lines)):
-                if "=" in lines[jj]:
-                    var = lines[jj].split("=")[0].strip()
+            filtered_lines = [line for line in lines if '===' not in line]
+            for jj in range(len(filtered_lines)):
+                if "=" in filtered_lines[jj]:
+                    var = filtered_lines[jj].split("=")[0].strip()
                     if var in MOM_file_dict.keys() and  MOM_file_dict[var] != original_MOM_file_dict[var]:
-                            lines[jj] = f"{var} = {MOM_file_dict[var]}\n"
+                            filtered_lines[jj] = f"{var} = {MOM_file_dict[var]}\n"
                             print("Changed", var, "from", original_MOM_file_dict[var], "to", MOM_file_dict[var], "in {}!".format(MOM_file_dict["filename"]))
                         
         # Add new fields
@@ -1979,7 +1981,7 @@ class experiment:
                 print("WARNING: Field", key, "was not found in the new dictionary. Keeping the original value of", original_MOM_file_dict[key])
                         
         with open(os.path.join(self.mom_run_dir ,MOM_file_dict["filename"]), "w") as f:
-            f.writelines(lines) 
+            f.writelines(filtered_lines) 
     
 
     def setup_era5(self, era5_path):
