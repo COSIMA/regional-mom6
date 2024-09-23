@@ -178,7 +178,7 @@ def get_glorys_data(
         file.close()
 
     else:
-        lines = ["#!/bin/bash\ncopernicusmarine login"]
+        lines = ["#!/bin/bash\n"]
 
     file = open(path / "get_glorysdata.sh", "w")
 
@@ -625,13 +625,14 @@ class experiment:
         varnames,
         arakawa_grid="A",
         vcoord_type="height",
+
     ):
         """
         Reads the initial condition from files in ``ic_path``, interpolates to the
         model grid, fixes up metadata, and saves back to the input directory.
 
         Args:
-            raw_ic_path (Union[str, Path]): Path to raw initial condition file to read in.
+            raw_ic_path (Union[str, Path,list of str]): Path(s) to raw initial condition file(s) to read in.
             varnames (Dict[str, str]): Mapping from MOM6 variable/coordinate names to the names
                 in the input dataset. For example, ``{'xq': 'lonq', 'yh': 'lath', 'salt': 'so', ...}``.
             arakawa_grid (Optional[str]): Arakawa grid staggering type of the initial condition.
@@ -643,7 +644,7 @@ class experiment:
         # Remove time dimension if present in the IC.
         # Assume that the first time dim is the intended on if more than one is present
 
-        ic_raw = xr.open_dataset(raw_ic_path)
+        ic_raw = xr.open_mfdataset(raw_ic_path)
         if varnames["time"] in ic_raw.dims:
             ic_raw = ic_raw.isel({varnames["time"]: 0})
         if varnames["time"] in ic_raw.coords:
