@@ -14,9 +14,16 @@ import shutil
 import os
 import importlib.resources
 import datetime
-from .utils import quadrilateral_areas, ap2ep, ep2ap,find_roughly_nearest_ny_nx,convert_lon_180_to_360
+from .utils import (
+    quadrilateral_areas,
+    ap2ep,
+    ep2ap,
+    find_roughly_nearest_ny_nx,
+    convert_lon_180_to_360,
+)
 import pandas as pd
-import re 
+import re
+
 warnings.filterwarnings("ignore")
 
 __all__ = [
@@ -144,6 +151,7 @@ def longitude_slicer(data, longitude_extent, longitude_coords):
 
     return data
 
+
 def find_MOM6_orientation(input):
     """
     Convert between MOM6 boundary and the specific segment number needed, or the inverse
@@ -160,7 +168,9 @@ def find_MOM6_orientation(input):
         try:
             return direction_dir[input]
         except:
-            raise ValueError("Invalid Input. Did you spell the direction wrong, it should be lowercase?")
+            raise ValueError(
+                "Invalid Input. Did you spell the direction wrong, it should be lowercase?"
+            )
     elif type(input) == int:
         try:
             return direction_dir_inv[input]
@@ -168,6 +178,7 @@ def find_MOM6_orientation(input):
             raise ValueError("Invalid Input. Did you pick a number 1 through 4?")
     else:
         raise ValueError("Invalid type of Input, can only be string or int.")
+
 
 from pathlib import Path
 
@@ -528,7 +539,9 @@ class experiment:
             self.hgrid = self._make_hgrid()
             self.vgrid = self._make_vgrid()
 
-        self.segments = {} # Holds segements for use in setting up the ocean state boundary conditions (GLORYS) and the tidal boundary conditions (TPXO)
+        self.segments = (
+            {}
+        )  # Holds segements for use in setting up the ocean state boundary conditions (GLORYS) and the tidal boundary conditions (TPXO)
 
         # create additional directories and links
         (self.mom_input_dir / "weights").mkdir(exist_ok=True)
@@ -652,7 +665,6 @@ class experiment:
         varnames,
         arakawa_grid="A",
         vcoord_type="height",
-
     ):
         """
         Reads the initial condition from files in ``ic_path``, interpolates to the
@@ -1048,10 +1060,17 @@ class experiment:
         boundaries=["south", "north", "west", "east"],
         arakawa_grid="A",
     ):
-        warnings.filterwarnings("default") # Set warnings back to on
-        warnings.warn("The rectangular_boundaries function has been changed in favor of a verb format, more description, and to accomodate tides. Drop-in replace with \"setup_ocean_state_rectangular_boundaries\"")
-        warnings.filterwarnings("ignore") # Set warnings back off
-        return self.setup_ocean_state_rectangular_boundaries(  raw_boundaries_path,varnames, boundaries=boundaries,arakawa_grid=arakawa_grid)
+        warnings.filterwarnings("default")  # Set warnings back to on
+        warnings.warn(
+            'The rectangular_boundaries function has been changed in favor of a verb format, more description, and to accomodate tides. Drop-in replace with "setup_ocean_state_rectangular_boundaries"'
+        )
+        warnings.filterwarnings("ignore")  # Set warnings back off
+        return self.setup_ocean_state_rectangular_boundaries(
+            raw_boundaries_path,
+            varnames,
+            boundaries=boundaries,
+            arakawa_grid=arakawa_grid,
+        )
 
     def setup_ocean_state_rectangular_boundaries(
         self,
@@ -1092,20 +1111,30 @@ class experiment:
         # Now iterate through our four boundaries
         for orientation in boundaries:
             self.setup_ocean_state_simple_boundary(
-                Path(os.path.join((raw_boundaries_path),(orientation + "_unprocessed.nc"))),
+                Path(
+                    os.path.join(
+                        (raw_boundaries_path), (orientation + "_unprocessed.nc")
+                    )
+                ),
                 varnames,
                 orientation,  # The cardinal direction of the boundary
-                find_MOM6_orientation(orientation),  # A number to identify the boundary; indexes from 1
+                find_MOM6_orientation(
+                    orientation
+                ),  # A number to identify the boundary; indexes from 1
                 arakawa_grid=arakawa_grid,
             )
 
     def simple_boundary(
         self, path_to_bc, varnames, orientation, segment_number, arakawa_grid="A"
     ):
-        warnings.filterwarnings("default") # Set warnings back to on
-        warnings.warn("The simple_boundary function has been changed in favor of a verb format, more description, and to accomodate tides. Drop-in replace with \"setup_ocean_state_simple_boundary\"")
-        warnings.filterwarnings("ignore") # Turn warnings off
-        return self.setup_ocean_state_simple_boundary( path_to_bc, varnames, orientation, segment_number, arakawa_grid="A")
+        warnings.filterwarnings("default")  # Set warnings back to on
+        warnings.warn(
+            'The simple_boundary function has been changed in favor of a verb format, more description, and to accomodate tides. Drop-in replace with "setup_ocean_state_simple_boundary"'
+        )
+        warnings.filterwarnings("ignore")  # Turn warnings off
+        return self.setup_ocean_state_simple_boundary(
+            path_to_bc, varnames, orientation, segment_number, arakawa_grid="A"
+        )
 
     def setup_ocean_state_simple_boundary(
         self, path_to_bc, varnames, orientation, segment_number, arakawa_grid="A"
@@ -1152,27 +1181,27 @@ class experiment:
         self.segments[orientation] = seg
         print("Done.")
         return
-    
+
     def setup_tides_rectangle_boundaries(
-        self, path_to_td,tidal_filename,tidal_constituents = [0]
+        self, path_to_td, tidal_filename, tidal_constituents=[0]
     ):
         """
         This function:
         We subset our tidal data and generate more boundary files!
 
         Args:
-            path_to_td (str): Path to boundary tidal file. 
+            path_to_td (str): Path to boundary tidal file.
             tidal_filename: Name of the tpxo product that's used in the tidal_filename. Should be h_{tidal_filename}, u_{tidal_filename}
             tidal_constiuents: List of tidal constituents to include in the regridding. Default is [0] which is the M2 constituent.
         Returns:
             *.nc files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
 
-        General Description: 
+        General Description:
         This tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
          - Converted code for RM6 segment class
          - Implemented Horizontal Subsetting
          - Combined all functions of NWA25 into a four function process (in the style of rm6) (expt.setup_tides_rectangular_boundaries, segment.coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
-         
+
 
         Original Code was sourced from:
         Author(s): GFDL, James Simkins, Rob Cermak, etc..
@@ -1180,54 +1209,70 @@ class experiment:
         Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
         Version: N/A
         Type: Python Functions, Source Code
-        Web Address: https://github.com/jsimkins2/nwa25    
+        Web Address: https://github.com/jsimkins2/nwa25
         """
 
-        if not os.path.exists(path_to_td) or not os.path.exists(os.path.join(path_to_td,"h_"+tidal_filename)) or not os.path.exists(os.path.join(path_to_td,"u_"+tidal_filename)) :
-            raise ValueError (
-                "Tidal Files don't exist at " + path_to_td+"/[h.or.u]_"+tidal_filename+".nc"
+        if (
+            not os.path.exists(path_to_td)
+            or not os.path.exists(os.path.join(path_to_td, "h_" + tidal_filename))
+            or not os.path.exists(os.path.join(path_to_td, "u_" + tidal_filename))
+        ):
+            raise ValueError(
+                "Tidal Files don't exist at "
+                + path_to_td
+                + "/[h.or.u]_"
+                + tidal_filename
+                + ".nc"
             )
-        
+
         ### Find Rough Horizontal Subset (with 0.5 Buffer)###
-        
+
         self.tidal_constituents = tidal_constituents
         tpxo_h = (
-            xr.open_dataset(os.path.join(path_to_td, f'h_{tidal_filename}'))
-            .rename({'lon_z': 'lon', 'lat_z': 'lat', 'nc': 'constituent'})
+            xr.open_dataset(os.path.join(path_to_td, f"h_{tidal_filename}"))
+            .rename({"lon_z": "lon", "lat_z": "lat", "nc": "constituent"})
             .isel(constituent=tidal_constituents)
         )
-        tidal_360_lon = [convert_lon_180_to_360(self.longitude_extent[0]),convert_lon_180_to_360(self.longitude_extent[1])]
-        ny0,nx0 = find_roughly_nearest_ny_nx(self.latitude_extent[0]-0.5,tidal_360_lon[0]-0.5,tpxo_h )
-        ny1,nx1 = find_roughly_nearest_ny_nx(self.latitude_extent[1]+0.5,tidal_360_lon[1]+0.5,tpxo_h)
-        horizontal_subset = dict(ny=slice(ny0,ny1), nx=slice(nx0,nx1))
+        tidal_360_lon = [
+            convert_lon_180_to_360(self.longitude_extent[0]),
+            convert_lon_180_to_360(self.longitude_extent[1]),
+        ]
+        ny0, nx0 = find_roughly_nearest_ny_nx(
+            self.latitude_extent[0] - 0.5, tidal_360_lon[0] - 0.5, tpxo_h
+        )
+        ny1, nx1 = find_roughly_nearest_ny_nx(
+            self.latitude_extent[1] + 0.5, tidal_360_lon[1] + 0.5, tpxo_h
+        )
+        horizontal_subset = dict(ny=slice(ny0, ny1), nx=slice(nx0, nx1))
 
-        tpxo_h = tpxo_h.isel( **horizontal_subset)
-        
-        
-        h = tpxo_h['ha'] * np.exp(-1j * np.radians(tpxo_h['hp']))
-        tpxo_h['hRe'] = np.real(h)
-        tpxo_h['hIm'] = np.imag(h)
+        tpxo_h = tpxo_h.isel(**horizontal_subset)
+
+        h = tpxo_h["ha"] * np.exp(-1j * np.radians(tpxo_h["hp"]))
+        tpxo_h["hRe"] = np.real(h)
+        tpxo_h["hIm"] = np.imag(h)
         tpxo_u = (
-            xr.open_dataset(os.path.join(path_to_td, f'u_{tidal_filename}'))
-            .rename({'lon_u': 'lon', 'lat_u': 'lat', 'nc': 'constituent'})
+            xr.open_dataset(os.path.join(path_to_td, f"u_{tidal_filename}"))
+            .rename({"lon_u": "lon", "lat_u": "lat", "nc": "constituent"})
             .isel(constituent=tidal_constituents, **horizontal_subset)
         )
-        tpxo_u['ua'] *= 0.01  # convert to m/s
-        u = tpxo_u['ua'] * np.exp(-1j * np.radians(tpxo_u['up']))
-        tpxo_u['uRe'] = np.real(u)
-        tpxo_u['uIm'] = np.imag(u)
+        tpxo_u["ua"] *= 0.01  # convert to m/s
+        u = tpxo_u["ua"] * np.exp(-1j * np.radians(tpxo_u["up"]))
+        tpxo_u["uRe"] = np.real(u)
+        tpxo_u["uIm"] = np.imag(u)
         tpxo_v = (
-            xr.open_dataset(os.path.join(path_to_td, f'u_{tidal_filename}'))
-            .rename({'lon_v': 'lon', 'lat_v': 'lat', 'nc': 'constituent'})
+            xr.open_dataset(os.path.join(path_to_td, f"u_{tidal_filename}"))
+            .rename({"lon_v": "lon", "lat_v": "lat", "nc": "constituent"})
             .isel(constituent=tidal_constituents, **horizontal_subset)
         )
-        tpxo_v['va'] *= 0.01  # convert to m/s
-        v = tpxo_v['va'] * np.exp(-1j * np.radians(tpxo_v['vp']))
-        tpxo_v['vRe'] = np.real(v)
-        tpxo_v['vIm'] = np.imag(v)
+        tpxo_v["va"] *= 0.01  # convert to m/s
+        v = tpxo_v["va"] * np.exp(-1j * np.radians(tpxo_v["vp"]))
+        tpxo_v["vRe"] = np.real(v)
+        tpxo_v["vIm"] = np.imag(v)
         times = xr.DataArray(
-            pd.date_range(self.date_range[0], periods=1), # Import pandas for this shouldn't be a big deal b/c it's already required in rm6 dependencies
-            dims=['time']
+            pd.date_range(
+                self.date_range[0], periods=1
+            ),  # Import pandas for this shouldn't be a big deal b/c it's already required in rm6 dependencies
+            dims=["time"],
         )
         boundaries = ["south", "north", "west", "east"]
 
@@ -1238,20 +1283,20 @@ class experiment:
             # If the GLORYS ocean_state has already created segments, we don't create them again.
             if b not in self.segments:
                 seg = segment(
-                hgrid=self.hgrid,
-                infile=None,  # location of raw boundary
-                outfolder=self.mom_input_dir,
-                varnames=None,
-                segment_name="segment_{:03d}".format(find_MOM6_orientation(b)),
-                orientation=b,  # orienataion
-                startdate=self.date_range[0],
-                repeat_year_forcing=self.repeat_year_forcing,
+                    hgrid=self.hgrid,
+                    infile=None,  # location of raw boundary
+                    outfolder=self.mom_input_dir,
+                    varnames=None,
+                    segment_name="segment_{:03d}".format(find_MOM6_orientation(b)),
+                    orientation=b,  # orienataion
+                    startdate=self.date_range[0],
+                    repeat_year_forcing=self.repeat_year_forcing,
                 )
             else:
                 seg = self.segments[b]
 
             # Output and regrid tides
-            seg.regrid_tides(tpxo_v, tpxo_u,tpxo_h, times)
+            seg.regrid_tides(tpxo_v, tpxo_u, tpxo_h, times)
             print("Done")
 
     def setup_bathymetry(
@@ -1501,8 +1546,7 @@ class experiment:
 
         ## REMOVE INLAND LAKES
 
-        ocean_mask = xr.where(bathymetry.copy(deep=True).depth <= self.min_depth, 0,1
-        )
+        ocean_mask = xr.where(bathymetry.copy(deep=True).depth <= self.min_depth, 0, 1)
         land_mask = np.abs(ocean_mask - 1)
 
         changed = True  ## keeps track of whether solution has converged or not
@@ -1709,11 +1753,7 @@ class experiment:
         return
 
     def setup_run_directory(
-        self,
-        surface_forcing=None,
-        using_payu=False,
-        overwrite=False,
-        with_tides = False
+        self, surface_forcing=None, using_payu=False, overwrite=False, with_tides=False
     ):
         """
         Set up the run directory for MOM6. Either copy a pre-made set of files, or modify
@@ -1731,19 +1771,26 @@ class experiment:
         """
 
         ## Get the path to the regional_mom package on this computer
-        premade_rundir_path = Path(os.path.join(
-            importlib.resources.files("regional_mom6"), "demos","premade_run_directories"
-        ))
+        premade_rundir_path = Path(
+            os.path.join(
+                importlib.resources.files("regional_mom6"),
+                "demos",
+                "premade_run_directories",
+            )
+        )
         if not premade_rundir_path.exists():
             print("Could not find premade run directories at ", premade_rundir_path)
             print(
                 "Perhaps the package was imported directly rather than installed with conda. Checking if this is the case... "
             )
 
-            premade_rundir_path = Path(os.path.join(
-                importlib.resources.files("regional_mom6").parent
-                , "demos","premade_run_directories"
-            ))
+            premade_rundir_path = Path(
+                os.path.join(
+                    importlib.resources.files("regional_mom6").parent,
+                    "demos",
+                    "premade_run_directories",
+                )
+            )
             if not premade_rundir_path.exists():
                 raise ValueError(
                     f"Cannot find the premade run directory files at {premade_rundir_path} either.\n\n"
@@ -1753,14 +1800,16 @@ class experiment:
                 print("It is! Found them!")
 
         # Define the locations of the directories we'll copy files across from. Base contains most of the files, and overwrite replaces files in the base directory.
-        base_run_dir = Path(os.path.join(premade_rundir_path , "common_files"))
+        base_run_dir = Path(os.path.join(premade_rundir_path, "common_files"))
         if not premade_rundir_path.exists():
             raise ValueError(
                 f"Cannot find the premade run directory files at {premade_rundir_path}.\n\n"
                 + "These files missing might be indicating an error during the package installation!"
             )
         if surface_forcing:
-            overwrite_run_dir = Path(os.path.join(premade_rundir_path ,f"{surface_forcing}_surface"))
+            overwrite_run_dir = Path(
+                os.path.join(premade_rundir_path, f"{surface_forcing}_surface")
+            )
             if not overwrite_run_dir.exists():
                 available = [x for x in premade_rundir_path.iterdir() if x.is_dir()]
                 raise ValueError(
@@ -1772,11 +1821,14 @@ class experiment:
 
         # Check if we can implement tides
         if with_tides:
-            tidal_files_exist = any("tidal" in filename for filename in os.listdir(os.path.join(self.mom_input_dir, "forcing")))
+            tidal_files_exist = any(
+                "tidal" in filename
+                for filename in os.listdir(os.path.join(self.mom_input_dir, "forcing"))
+            )
             if not tidal_files_exist:
-                raise ValueError("No files with 'tidal' in their names found in the forcing directory. If you meant to use tides, please run the setup_tides_rectangle_boundaries method first. That does output some tidal files.")
-
-
+                raise ValueError(
+                    "No files with 'tidal' in their names found in the forcing directory. If you meant to use tides, please run the setup_tides_rectangle_boundaries method first. That does output some tidal files."
+                )
 
         # 3 different cases to handle:
         #   1. User is creating a new run directory from scratch. Here we copy across all files and modify.
@@ -1861,14 +1913,17 @@ class experiment:
                 MOM_layout_dict["MASKTABLE"] = mask_table
             else:
                 MOM_layout_dict["MASKTABLE"] = "# MASKTABLE = no mask table"
-        if "LAYOUT" in MOM_layout_dict.keys() and "IO" not in MOM_layout_dict.keys() and layout != None:
-            MOM_layout_dict["LAYOUT"] = str(layout[1])+","+str(layout[0])
+        if (
+            "LAYOUT" in MOM_layout_dict.keys()
+            and "IO" not in MOM_layout_dict.keys()
+            and layout != None
+        ):
+            MOM_layout_dict["LAYOUT"] = str(layout[1]) + "," + str(layout[0])
         if "NIGLOBAL" in MOM_layout_dict.keys():
-            MOM_layout_dict["NIGLOBAL"] = self.hgrid.nx.shape[0]//2
+            MOM_layout_dict["NIGLOBAL"] = self.hgrid.nx.shape[0] // 2
         if "NJGLOBAL" in MOM_layout_dict.keys():
-            MOM_layout_dict["NJGLOBAL"] = self.hgrid.ny.shape[0]//2
+            MOM_layout_dict["NJGLOBAL"] = self.hgrid.ny.shape[0] // 2
         self.write_MOM_file(MOM_layout_dict)
-
 
         MOM_input_dict = self.read_MOM_file_as_dict("MOM_input")
         MOM_input_dict["MINIMUM_DEPTH"] = float(self.min_depth)
@@ -1876,10 +1931,18 @@ class experiment:
         if with_tides:
             MOM_input_dict["TIDES"] = "True"
             MOM_input_dict["OBC_TIDE_N_CONSTITUENTS"] = len(self.tidal_constituents)
-            MOM_input_dict["OBC_SEGMENT_001_DATA"] = "\"U=file:forcing/forcing_obc_segment_001.nc(u),V=file:forcing/forcing_obc_segment_001.nc(v),SSH=file:forcing/forcing_obc_segment_001.nc(eta),TEMP=file:forcing/forcing_obc_segment_001.nc(temp),SALT=file:forcing/forcing_obc_segment_001.nc(salt),Uamp=file:forcing/tu_segment_001.nc(uamp),Uphase=file:forcing/tu_segment_001.nc(uphase),Vamp=file:forcing/tu_segment_001.nc(vamp),Vphase=file:forcing/tu_segment_001.nc(vphase),SSHamp=file:forcing/tz_segment_001.nc(zamp),SSHphase=file:forcing/tz_segment_001.nc(zphase)\""
-            MOM_input_dict["OBC_SEGMENT_002_DATA"] = "\"U=file:forcing/forcing_obc_segment_002.nc(u),V=file:forcing/forcing_obc_segment_002.nc(v),SSH=file:forcing/forcing_obc_segment_002.nc(eta),TEMP=file:forcing/forcing_obc_segment_002.nc(temp),SALT=file:forcing/forcing_obc_segment_002.nc(salt),Uamp=file:forcing/tu_segment_002.nc(uamp),Uphase=file:forcing/tu_segment_002.nc(uphase),Vamp=file:forcing/tu_segment_002.nc(vamp),Vphase=file:forcing/tu_segment_002.nc(vphase),SSHamp=file:forcing/tz_segment_002.nc(zamp),SSHphase=file:forcing/tz_segment_002.nc(zphase)\""
-            MOM_input_dict["OBC_SEGMENT_003_DATA"] = "\"U=file:forcing/forcing_obc_segment_003.nc(u),V=file:forcing/forcing_obc_segment_003.nc(v),SSH=file:forcing/forcing_obc_segment_003.nc(eta),TEMP=file:forcing/forcing_obc_segment_003.nc(temp),SALT=file:forcing/forcing_obc_segment_003.nc(salt),Uamp=file:forcing/tu_segment_003.nc(uamp),Uphase=file:forcing/tu_segment_003.nc(uphase),Vamp=file:forcing/tu_segment_003.nc(vamp),Vphase=file:forcing/tu_segment_003.nc(vphase),SSHamp=file:forcing/tz_segment_003.nc(zamp),SSHphase=file:forcing/tz_segment_003.nc(zphase)\""
-            MOM_input_dict["OBC_SEGMENT_004_DATA"] = "\"U=file:forcing/forcing_obc_segment_004.nc(u),V=file:forcing/forcing_obc_segment_004.nc(v),SSH=file:forcing/forcing_obc_segment_004.nc(eta),TEMP=file:forcing/forcing_obc_segment_004.nc(temp),SALT=file:forcing/forcing_obc_segment_004.nc(salt),Uamp=file:forcing/tu_segment_004.nc(uamp),Uphase=file:forcing/tu_segment_004.nc(uphase),Vamp=file:forcing/tu_segment_004.nc(vamp),Vphase=file:forcing/tu_segment_004.nc(vphase),SSHamp=file:forcing/tz_segment_004.nc(zamp),SSHphase=file:forcing/tz_segment_004.nc(zphase)\""
+            MOM_input_dict["OBC_SEGMENT_001_DATA"] = (
+                '"U=file:forcing/forcing_obc_segment_001.nc(u),V=file:forcing/forcing_obc_segment_001.nc(v),SSH=file:forcing/forcing_obc_segment_001.nc(eta),TEMP=file:forcing/forcing_obc_segment_001.nc(temp),SALT=file:forcing/forcing_obc_segment_001.nc(salt),Uamp=file:forcing/tu_segment_001.nc(uamp),Uphase=file:forcing/tu_segment_001.nc(uphase),Vamp=file:forcing/tu_segment_001.nc(vamp),Vphase=file:forcing/tu_segment_001.nc(vphase),SSHamp=file:forcing/tz_segment_001.nc(zamp),SSHphase=file:forcing/tz_segment_001.nc(zphase)"'
+            )
+            MOM_input_dict["OBC_SEGMENT_002_DATA"] = (
+                '"U=file:forcing/forcing_obc_segment_002.nc(u),V=file:forcing/forcing_obc_segment_002.nc(v),SSH=file:forcing/forcing_obc_segment_002.nc(eta),TEMP=file:forcing/forcing_obc_segment_002.nc(temp),SALT=file:forcing/forcing_obc_segment_002.nc(salt),Uamp=file:forcing/tu_segment_002.nc(uamp),Uphase=file:forcing/tu_segment_002.nc(uphase),Vamp=file:forcing/tu_segment_002.nc(vamp),Vphase=file:forcing/tu_segment_002.nc(vphase),SSHamp=file:forcing/tz_segment_002.nc(zamp),SSHphase=file:forcing/tz_segment_002.nc(zphase)"'
+            )
+            MOM_input_dict["OBC_SEGMENT_003_DATA"] = (
+                '"U=file:forcing/forcing_obc_segment_003.nc(u),V=file:forcing/forcing_obc_segment_003.nc(v),SSH=file:forcing/forcing_obc_segment_003.nc(eta),TEMP=file:forcing/forcing_obc_segment_003.nc(temp),SALT=file:forcing/forcing_obc_segment_003.nc(salt),Uamp=file:forcing/tu_segment_003.nc(uamp),Uphase=file:forcing/tu_segment_003.nc(uphase),Vamp=file:forcing/tu_segment_003.nc(vamp),Vphase=file:forcing/tu_segment_003.nc(vphase),SSHamp=file:forcing/tz_segment_003.nc(zamp),SSHphase=file:forcing/tz_segment_003.nc(zphase)"'
+            )
+            MOM_input_dict["OBC_SEGMENT_004_DATA"] = (
+                '"U=file:forcing/forcing_obc_segment_004.nc(u),V=file:forcing/forcing_obc_segment_004.nc(v),SSH=file:forcing/forcing_obc_segment_004.nc(eta),TEMP=file:forcing/forcing_obc_segment_004.nc(temp),SALT=file:forcing/forcing_obc_segment_004.nc(salt),Uamp=file:forcing/tu_segment_004.nc(uamp),Uphase=file:forcing/tu_segment_004.nc(uphase),Vamp=file:forcing/tu_segment_004.nc(vamp),Vphase=file:forcing/tu_segment_004.nc(vphase),SSHamp=file:forcing/tz_segment_004.nc(zamp),SSHphase=file:forcing/tz_segment_004.nc(zphase)"'
+            )
 
         self.write_MOM_file(MOM_input_dict)
 
@@ -1926,15 +1989,15 @@ class experiment:
         """
         Read the MOM_input file and return a dictionary of the variables and their values.
         """
-        with open(os.path.join(self.mom_run_dir , filename), "r") as file:
+        with open(os.path.join(self.mom_run_dir, filename), "r") as file:
             lines = file.readlines()
             MOM_file_dict = {"filename": filename}
             for jj in range(len(lines)):
                 if "=" in lines[jj] and not "===" in lines[jj]:
-                    split =  lines[jj].split("=",1)
+                    split = lines[jj].split("=", 1)
                     var = split[0]
                     value = split[1]
-                    value = value.split("!")[0].strip() # Remove Comments
+                    value = value.split("!")[0].strip()  # Remove Comments
                     MOM_file_dict[var.strip()] = value.strip()
 
             # Save a copy of the original dictionary
@@ -1947,30 +2010,56 @@ class experiment:
         """
         # Replace specific variable values
         original_MOM_file_dict = MOM_file_dict.pop("original")
-        with open(os.path.join(self.mom_run_dir , MOM_file_dict["filename"]), "r") as file:
+        with open(
+            os.path.join(self.mom_run_dir, MOM_file_dict["filename"]), "r"
+        ) as file:
             lines = file.readlines()
             for jj in range(len(lines)):
                 if "=" in lines[jj] and not "===" in lines[jj]:
-                    var = lines[jj].split("=",1)[0].strip()
-                    if var in MOM_file_dict.keys() and  (str(MOM_file_dict[var])) != original_MOM_file_dict[var]:
-                            lines[jj] = lines[jj].replace(original_MOM_file_dict[var], str(MOM_file_dict[var]))
-                            print("Changed", var, "from", original_MOM_file_dict[var], "to", MOM_file_dict[var], "in {}!".format(MOM_file_dict["filename"]))
-                        
+                    var = lines[jj].split("=", 1)[0].strip()
+                    if (
+                        var in MOM_file_dict.keys()
+                        and (str(MOM_file_dict[var])) != original_MOM_file_dict[var]
+                    ):
+                        lines[jj] = lines[jj].replace(
+                            original_MOM_file_dict[var], str(MOM_file_dict[var])
+                        )
+                        print(
+                            "Changed",
+                            var,
+                            "from",
+                            original_MOM_file_dict[var],
+                            "to",
+                            MOM_file_dict[var],
+                            "in {}!".format(MOM_file_dict["filename"]),
+                        )
+
         # Add new fields
         lines.append("! === Added with RM6 ===\n")
         for key in MOM_file_dict.keys():
             if key not in original_MOM_file_dict.keys():
                 lines.append(f"{key} = {MOM_file_dict[key]}\n")
-                print("Added", key, "to", MOM_file_dict["filename"], "with value", MOM_file_dict[key]) 
+                print(
+                    "Added",
+                    key,
+                    "to",
+                    MOM_file_dict["filename"],
+                    "with value",
+                    MOM_file_dict[key],
+                )
 
         # Check any fields removed
         for key in original_MOM_file_dict.keys():
             if key not in MOM_file_dict.keys():
-                print("WARNING: Field", key, "was not found in the new dictionary. Keeping the original value of", original_MOM_file_dict[key])
-                        
-        with open(os.path.join(self.mom_run_dir ,MOM_file_dict["filename"]), "w") as f:
-            f.writelines(lines) 
-    
+                print(
+                    "WARNING: Field",
+                    key,
+                    "was not found in the new dictionary. Keeping the original value of",
+                    original_MOM_file_dict[key],
+                )
+
+        with open(os.path.join(self.mom_run_dir, MOM_file_dict["filename"]), "w") as f:
+            f.writelines(lines)
 
     def setup_era5(self, era5_path):
         """
@@ -1995,7 +2084,7 @@ class experiment:
                 i for i in range(self.date_range[0].year, self.date_range[1].year + 1)
             ]
             # construct a list of all paths for all years to use for open_mfdataset
-            paths_per_year = [os.path.join(era5_path,fname,year) for year in years]
+            paths_per_year = [os.path.join(era5_path, fname, year) for year in years]
             all_files = []
             for path in paths_per_year:
                 # Use glob to find all files that match the pattern
@@ -2173,7 +2262,7 @@ class segment:
     @property
     def coords(self):
         """
-        
+
 
         This function:
         Allows us to call the self.coords for use in the xesmf.Regridder in the regrid_tides function. self.coords gives us the subset of the hgrid based on the orientation.
@@ -2183,12 +2272,12 @@ class segment:
         Returns:
             xr.Dataset: The correct coordinate space for the orientation
 
-        General Description: 
+        General Description:
         This tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
          - Converted code for RM6 segment class
          - Implemented Horizontal Subsetting
          - Combined all functions of NWA25 into a four function process (in the style of rm6) (expt.setup_tides_rectangular_boundaries, segment.coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
-         
+
 
         Original Code was sourced from:
         Author(s): GFDL, James Simkins, Rob Cermak, etc..
@@ -2196,47 +2285,52 @@ class segment:
         Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
         Version: N/A
         Type: Python Functions, Source Code
-        Web Address: https://github.com/jsimkins2/nwa25       
+        Web Address: https://github.com/jsimkins2/nwa25
 
         """
         # Rename nxp and nyp to locations
-        if self.orientation == 'south':
-            rcoord = xr.Dataset({
-                'lon': self.hgrid['x'].isel(nyp=0),
-                'lat': self.hgrid['y'].isel(nyp=0),
-                'angle': self.hgrid['angle_dx'].isel(nyp=0)
-            })
-            rcoord = rcoord.rename_dims({'nxp': 'locations'})
-        elif self.orientation == 'north':
-            rcoord = xr.Dataset({
-                'lon': self.hgrid['x'].isel(nyp=-1),
-                'lat': self.hgrid['y'].isel(nyp=-1),
-                'angle': self.hgrid['angle_dx'].isel(nyp=-1)
-            })
-            rcoord = rcoord.rename_dims({'nxp': 'locations'})
-        elif self.orientation == 'west':
-            rcoord = xr.Dataset({
-                'lon': self.hgrid['x'].isel(nxp=0),
-                'lat': self.hgrid['y'].isel(nxp=0),
-                'angle': self.hgrid['angle_dx'].isel(nxp=0)
-            })
-            rcoord = rcoord.rename_dims({'nyp': 'locations'})
-        elif self.orientation == 'east':
-            rcoord = xr.Dataset({
-                'lon': self.hgrid['x'].isel(nxp=-1),
-                'lat': self.hgrid['y'].isel(nxp=-1),
-                'angle': self.hgrid['angle_dx'].isel(nxp=-1)
-            })
-            rcoord = rcoord.rename_dims({'nyp': 'locations'})
+        if self.orientation == "south":
+            rcoord = xr.Dataset(
+                {
+                    "lon": self.hgrid["x"].isel(nyp=0),
+                    "lat": self.hgrid["y"].isel(nyp=0),
+                    "angle": self.hgrid["angle_dx"].isel(nyp=0),
+                }
+            )
+            rcoord = rcoord.rename_dims({"nxp": "locations"})
+        elif self.orientation == "north":
+            rcoord = xr.Dataset(
+                {
+                    "lon": self.hgrid["x"].isel(nyp=-1),
+                    "lat": self.hgrid["y"].isel(nyp=-1),
+                    "angle": self.hgrid["angle_dx"].isel(nyp=-1),
+                }
+            )
+            rcoord = rcoord.rename_dims({"nxp": "locations"})
+        elif self.orientation == "west":
+            rcoord = xr.Dataset(
+                {
+                    "lon": self.hgrid["x"].isel(nxp=0),
+                    "lat": self.hgrid["y"].isel(nxp=0),
+                    "angle": self.hgrid["angle_dx"].isel(nxp=0),
+                }
+            )
+            rcoord = rcoord.rename_dims({"nyp": "locations"})
+        elif self.orientation == "east":
+            rcoord = xr.Dataset(
+                {
+                    "lon": self.hgrid["x"].isel(nxp=-1),
+                    "lat": self.hgrid["y"].isel(nxp=-1),
+                    "angle": self.hgrid["angle_dx"].isel(nxp=-1),
+                }
+            )
+            rcoord = rcoord.rename_dims({"nyp": "locations"})
 
         # Make lat and lon coordinates
-        rcoord = rcoord.assign_coords(
-            lat=rcoord['lat'],
-            lon=rcoord['lon']
-        )
+        rcoord = rcoord.assign_coords(lat=rcoord["lat"], lon=rcoord["lon"])
 
         return rcoord
-    
+
     def rectangular_brushcut(self):
         """
         Cut out and interpolate tracers. ``rectangular_brushcut`` assumes that the boundary
@@ -2554,8 +2648,9 @@ class segment:
 
         return segment_out, encoding_dict
 
-    def regrid_tides(self, tpxo_v, tpxo_u, tpxo_h, times, 
-                method='nearest_s2d', periodic=False):
+    def regrid_tides(
+        self, tpxo_v, tpxo_u, tpxo_h, times, method="nearest_s2d", periodic=False
+    ):
         """
         This function:
         Regrids and interpolates the tidal data for MOM6, originally inspired by GFDL NWA25 repo code & edited by Ashley.
@@ -2571,12 +2666,12 @@ class segment:
         Returns:
             *.nc files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
 
-        General Description: 
+        General Description:
         This tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
          - Converted code for RM6 segment class
          - Implemented Horizontal Subsetting
          - Combined all functions of NWA25 into a four function process (in the style of rm6) (expt.setup_tides_rectangular_boundaries, segment.coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
-         
+
 
         Original Code was sourced from:
         Author(s): GFDL, James Simkins, Rob Cermak, etc..
@@ -2584,70 +2679,71 @@ class segment:
         Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
         Version: N/A
         Type: Python Functions, Source Code
-        Web Address: https://github.com/jsimkins2/nwa25     
+        Web Address: https://github.com/jsimkins2/nwa25
         """
 
         ########## Tidal Elevation: Horizontally interpolate elevation components ############
         regrid = xe.Regridder(
-            tpxo_h[['lon', 'lat', 'hRe']],
+            tpxo_h[["lon", "lat", "hRe"]],
             self.coords,
-            method='nearest_s2d',
+            method="nearest_s2d",
             locstream_out=True,
             periodic=False,
-            filename=os.path.join(self.outfolder,"forcing", f'regrid_{self.segment_name}_tidal_elev.nc'),
-            reuse_weights=False
+            filename=os.path.join(
+                self.outfolder, "forcing", f"regrid_{self.segment_name}_tidal_elev.nc"
+            ),
+            reuse_weights=False,
         )
-        redest = regrid(tpxo_h[['lon', 'lat', 'hRe']])
-        imdest = regrid(tpxo_h[['lon', 'lat', 'hIm']])
+        redest = regrid(tpxo_h[["lon", "lat", "hRe"]])
+        imdest = regrid(tpxo_h[["lon", "lat", "hIm"]])
 
         # Fill missing data.
         # Need to do this first because complex would get converted to real
-        redest = redest.ffill(dim="locations", limit=None)['hRe']
-        imdest = imdest.ffill(dim="locations", limit=None)['hIm']
+        redest = redest.ffill(dim="locations", limit=None)["hRe"]
+        imdest = imdest.ffill(dim="locations", limit=None)["hIm"]
 
         # Convert complex
         cplex = redest + 1j * imdest
 
         # Convert to real amplitude and phase.
-        ds_ap = xr.Dataset({
-            f'zamp_{self.segment_name}': np.abs(cplex)
-        })
+        ds_ap = xr.Dataset({f"zamp_{self.segment_name}": np.abs(cplex)})
         # np.angle doesn't return dataarray
-        ds_ap[f'zphase_{self.segment_name}'] =  (('constituent', 'locations'), -1 * np.angle(cplex))  # radians
+        ds_ap[f"zphase_{self.segment_name}"] = (
+            ("constituent", "locations"),
+            -1 * np.angle(cplex),
+        )  # radians
 
         # Add time coordinate and transpose so that time is first,
         # so that it can be the unlimited dimension
         ds_ap, _ = xr.broadcast(ds_ap, times)
-        ds_ap = ds_ap.transpose('time', 'constituent', 'locations')
+        ds_ap = ds_ap.transpose("time", "constituent", "locations")
 
+        self.encode_tidal_files_and_output(ds_ap, "tz")
 
-
-        self.encode_tidal_files_and_output(ds_ap, 'tz')
-           
         ########### Regrid Tidal Velocity ######################
         regrid_u = xe.Regridder(
-            tpxo_u[['lon', 'lat', 'uRe']],
+            tpxo_u[["lon", "lat", "uRe"]],
             self.coords,
             method=method,
             locstream_out=True,
             periodic=periodic,
-            reuse_weights=False
+            reuse_weights=False,
         )
 
         regrid_v = xe.Regridder(
-            tpxo_v[['lon', 'lat', 'vRe']],
+            tpxo_v[["lon", "lat", "vRe"]],
             self.coords,
             method=method,
             locstream_out=True,
             periodic=periodic,
-            reuse_weights=False
+            reuse_weights=False,
         )
 
         # Interpolate each real and imaginary parts to segment.
-        uredest = regrid_u(tpxo_u[['lon', 'lat', 'uRe']])['uRe']
-        uimdest = regrid_u(tpxo_u[['lon', 'lat', 'uIm']])['uIm']
-        vredest = regrid_v(tpxo_v[['lon', 'lat', 'vRe']])['vRe']
-        vimdest = regrid_v(tpxo_v[['lon', 'lat', 'vIm']])['vIm']
+        uredest = regrid_u(tpxo_u[["lon", "lat", "uRe"]])["uRe"]
+        uimdest = regrid_u(tpxo_u[["lon", "lat", "uIm"]])["uIm"]
+        vredest = regrid_v(tpxo_v[["lon", "lat", "vRe"]])["vRe"]
+        vimdest = regrid_v(tpxo_v[["lon", "lat", "vIm"]])["vIm"]
 
         # Fill missing data.
         # Need to do this first because complex would get converted to real
@@ -2665,35 +2761,37 @@ class segment:
         # and convert ellipse back to amplitude and phase.
         SEMA, ECC, INC, PHA = ap2ep(ucplex, vcplex)
 
-
-
         # Rotate to the model grid by adjusting the inclination.
         # Requries that angle is in radians.
 
         ua, va, up, vp = ep2ap(SEMA, ECC, INC, PHA)
 
-        ds_ap = xr.Dataset({
-            f'uamp_{self.segment_name}': ua,
-            f'vamp_{self.segment_name}': va
-        })
+        ds_ap = xr.Dataset(
+            {f"uamp_{self.segment_name}": ua, f"vamp_{self.segment_name}": va}
+        )
         # up, vp aren't dataarrays
-        ds_ap[f'uphase_{self.segment_name}'] =  (('constituent', 'locations'), up)  # radians
-        ds_ap[f'vphase_{self.segment_name}'] =  (('constituent', 'locations'), vp)  # radians
+        ds_ap[f"uphase_{self.segment_name}"] = (
+            ("constituent", "locations"),
+            up,
+        )  # radians
+        ds_ap[f"vphase_{self.segment_name}"] = (
+            ("constituent", "locations"),
+            vp,
+        )  # radians
 
         ds_ap, _ = xr.broadcast(ds_ap, times)
 
         # Need to transpose so that time is first,
         # so that it can be the unlimited dimension
-        ds_ap = ds_ap.transpose('time', 'constituent', 'locations')
+        ds_ap = ds_ap.transpose("time", "constituent", "locations")
 
         # Some things may have become missing during the transformation
         ds_ap = ds_ap.ffill(dim="locations", limit=None)
 
-        self.encode_tidal_files_and_output(ds_ap, 'tu')
-            
+        self.encode_tidal_files_and_output(ds_ap, "tu")
 
         return
-    
+
     def encode_tidal_files_and_output(self, ds, filename):
         """
         This function:
@@ -2709,12 +2807,12 @@ class segment:
         Returns:
             *.nc files: Regridded [FILENAME] files in 'self.outfolder/forcing/[filename]_[segmentname].nc'
 
-        General Description: 
+        General Description:
         This tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
          - Converted code for RM6 segment class
          - Implemented Horizontal Subsetting
          - Combined all functions of NWA25 into a four function process (in the style of rm6) (expt.setup_tides_rectangular_boundaries, segment.coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
-         
+
 
         Original Code was sourced from:
         Author(s): GFDL, James Simkins, Rob Cermak, etc..
@@ -2722,57 +2820,54 @@ class segment:
         Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
         Version: N/A
         Type: Python Functions, Source Code
-        Web Address: https://github.com/jsimkins2/nwa25        
+        Web Address: https://github.com/jsimkins2/nwa25
 
 
         """
 
         ## Expand Tidal Dimensions ##
-        if 'z' in ds.coords or 'constituent' in ds.dims:
+        if "z" in ds.coords or "constituent" in ds.dims:
             offset = 0
         else:
             offset = 1
-        if self.orientation in ['south', 'north']:
-            ds = ds.expand_dims(f'ny_{self.segment_name}', 2-offset)
-        elif self.orientation in ['west', 'east']:
-            ds = ds.expand_dims(f'nx_{self.segment_name}', 3-offset)
+        if self.orientation in ["south", "north"]:
+            ds = ds.expand_dims(f"ny_{self.segment_name}", 2 - offset)
+        elif self.orientation in ["west", "east"]:
+            ds = ds.expand_dims(f"nx_{self.segment_name}", 3 - offset)
 
         ## Rename Tidal Dimensions ##
-        ds = ds.rename({
-            'lon': f'lon_{self.segment_name}',
-            'lat': f'lat_{self.segment_name}'
-        })
-        if 'z' in ds.coords:
-            ds = ds.rename({
-                'z': f'nz_{self.segment_name}'
-            })
-        if self.orientation in ['south', 'north']:
-            ds =  ds.rename({'locations': f'nx_{self.segment_name}'})
-        elif self.orientation in ['west', 'east']:
-            ds =  ds.rename({'locations': f'ny_{self.segment_name}'})
-        
+        ds = ds.rename(
+            {"lon": f"lon_{self.segment_name}", "lat": f"lat_{self.segment_name}"}
+        )
+        if "z" in ds.coords:
+            ds = ds.rename({"z": f"nz_{self.segment_name}"})
+        if self.orientation in ["south", "north"]:
+            ds = ds.rename({"locations": f"nx_{self.segment_name}"})
+        elif self.orientation in ["west", "east"]:
+            ds = ds.rename({"locations": f"ny_{self.segment_name}"})
+
         ## Perform Encoding ##
         for v in ds:
-            ds[v].encoding['_FillValue']= 1.0e20
-        fname = f'{filename}_{self.segment_name}.nc'
+            ds[v].encoding["_FillValue"] = 1.0e20
+        fname = f"{filename}_{self.segment_name}.nc"
         # Set format and attributes for coordinates, including time if it does not already have calendar attribute
         # (may change this to detect whether time is a time type or a float).
         # Need to include the fillvalue or it will be back to nan
         encoding = {
-            'time': dict(_FillValue=1.0e20),
-            f'lon_{self.segment_name}': dict(dtype='float64', _FillValue=1.0e20),
-            f'lat_{self.segment_name}': dict(dtype='float64', _FillValue=1.0e20)
+            "time": dict(_FillValue=1.0e20),
+            f"lon_{self.segment_name}": dict(dtype="float64", _FillValue=1.0e20),
+            f"lat_{self.segment_name}": dict(dtype="float64", _FillValue=1.0e20),
         }
-        if 'calendar' not in ds['time'].attrs and 'modulo' not in ds['time'].attrs:
-            encoding.update({'time': dict(dtype='float64', calendar='gregorian', _FillValue=1.0e20)})
+        if "calendar" not in ds["time"].attrs and "modulo" not in ds["time"].attrs:
+            encoding.update(
+                {"time": dict(dtype="float64", calendar="gregorian", _FillValue=1.0e20)}
+            )
 
         ## Export Files ##
         ds.to_netcdf(
-            os.path.join(self.outfolder,"forcing", fname),
-            engine='netcdf4',
+            os.path.join(self.outfolder, "forcing", fname),
+            engine="netcdf4",
             encoding=encoding,
-            unlimited_dims='time'
+            unlimited_dims="time",
         )
         return
-    
-    
