@@ -177,3 +177,132 @@ def quadrilateral_areas(lat, lon, R=1):
     return quadrilateral_area(
         coords[:-1, :-1, :], coords[:-1, 1:, :], coords[1:, 1:, :], coords[1:, :-1, :]
     )
+
+def ap2ep(uc, vc):
+        """Convert complex tidal u and v to tidal ellipse.
+        Adapted from ap2ep.m for matlab
+        Original copyright notice:
+        %Authorship Copyright:
+        %
+        %    The author retains the copyright of this program, while  you are welcome
+        % to use and distribute it as long as you credit the author properly and respect
+        % the program name itself. Particularly, you are expected to retain the original
+        % author's name in this original version or any of its modified version that
+        % you might make. You are also expected not to essentially change the name of
+        % the programs except for adding possible extension for your own version you
+        % might create, e.g. ap2ep_xx is acceptable.  Any suggestions are welcome and
+        % enjoy my program(s)!
+        %
+        %
+        %Author Info:
+        %_______________________________________________________________________
+        %  Zhigang Xu, Ph.D.
+        %  (pronounced as Tsi Gahng Hsu)
+        %  Research Scientist
+        %  Coastal Circulation
+        %  Bedford Institute of Oceanography
+        %  1 Challenge Dr.
+        %  P.O. Box 1006                    Phone  (902) 426-2307 (o)
+        %  Dartmouth, Nova Scotia           Fax    (902) 426-7827
+        %  CANADA B2Y 4A2                   email xuz@dfo-mpo.gc.ca
+        %_______________________________________________________________________
+        %
+        % Release Date: Nov. 2000, Revised on May. 2002 to adopt Foreman's northern semi
+        % major axis convention.
+
+        Args:
+            uc: complex tidal u velocity
+            vc: complex tidal v velocity
+
+        Returns:
+            (semi-major axis, eccentricity, inclination [radians], phase [radians])
+        """
+        wp = (uc + 1j * vc) / 2.0
+        wm = np.conj(uc - 1j * vc) / 2.0
+
+        Wp = np.abs(wp)
+        Wm = np.abs(wm)
+        THETAp = np.angle(wp)
+        THETAm = np.angle(wm)
+
+        SEMA = Wp + Wm
+        SEMI = Wp - Wm
+        ECC = SEMI / SEMA
+        PHA = (THETAm - THETAp) / 2.0
+        INC = (THETAm + THETAp) / 2.0
+
+        return SEMA, ECC, INC, PHA
+
+def ep2ap(SEMA, ECC, INC, PHA):
+        """Convert tidal ellipse to real u and v amplitude and phase.
+        Adapted from ep2ap.m for matlab.
+        Original copyright notice:
+        %Authorship Copyright:
+        %
+        %    The author of this program retains the copyright of this program, while
+        % you are welcome to use and distribute this program as long as you credit
+        % the author properly and respect the program name itself. Particularly,
+        % you are expected to retain the original author's name in this original
+        % version of the program or any of its modified version that you might make.
+        % You are also expected not to essentially change the name of the programs
+        % except for adding possible extension for your own version you might create,
+        % e.g. app2ep_xx is acceptable.  Any suggestions are welcome and enjoy my
+        % program(s)!
+        %
+        %
+        %Author Info:
+        %_______________________________________________________________________
+        %  Zhigang Xu, Ph.D.
+        %  (pronounced as Tsi Gahng Hsu)
+        %  Research Scientist
+        %  Coastal Circulation
+        %  Bedford Institute of Oceanography
+        %  1 Challenge Dr.
+        %  P.O. Box 1006                    Phone  (902) 426-2307 (o)
+        %  Dartmouth, Nova Scotia           Fax    (902) 426-7827
+        %  CANADA B2Y 4A2                   email xuz@dfo-mpo.gc.ca
+        %_______________________________________________________________________
+        %
+        %Release Date: Nov. 2000
+
+        Args:
+            SEMA: semi-major axis
+            ECC: eccentricity
+            INC: inclination [radians]
+            PHA: phase [radians]
+
+        Returns:
+            (u amplitude, u phase [radians], v amplitude, v phase [radians])
+
+        """
+        Wp = (1 + ECC) / 2. * SEMA
+        Wm = (1 - ECC) / 2. * SEMA
+        THETAp = INC - PHA
+        THETAm = INC + PHA
+
+        wp = Wp * np.exp(1j * THETAp)
+        wm = Wm * np.exp(1j * THETAm)
+
+        cu = wp + np.conj(wm)
+        cv = -1j * (wp - np.conj(wm))
+
+        ua = np.abs(cu)
+        va = np.abs(cv)
+        up = -np.angle(cu)
+        vp = -np.angle(cv)
+
+        return ua, va, up, vp
+
+def find_roughly_nearest_ny_nx(lat, lon, ds):
+    """
+     Accepts a lat lon and returns a ROUGH closest ny,nx. in ds
+    """
+    ny = (np.abs(ds.lat.values - lat)).argmin(axis=1)[0] # We're looking for an nx, I know it's not exact, but this works 
+    nx = (np.abs(ds.lon.values - lon)).argmin(axis=0)[0] 
+    return ny,nx
+
+def convert_lon_180_to_360(lon):
+    """
+    Converts a longitude from -180 to 180 to 0 to 360
+    """
+    return lon + 180
