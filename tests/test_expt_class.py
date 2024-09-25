@@ -470,4 +470,4 @@ def test_rectangular_boundaries(
         "tracers": {"temp": "temp", "salt": "salt"},
     }
 
-    expt.rectangular_boundaries(tmp_path, varnames, ["east"])
+    expt.setup_ocean_state_rectangular_boundaries(tmp_path, varnames, ["east"])

@@ -1053,25 +1053,6 @@ class experiment:
         )
         return
 
-    def rectangular_boundaries(
-        self,
-        raw_boundaries_path,
-        varnames,
-        boundaries=["south", "north", "west", "east"],
-        arakawa_grid="A",
-    ):
-        warnings.filterwarnings("default")  # Set warnings back to on
-        warnings.warn(
-            'The rectangular_boundaries function has been changed in favor of a verb format, more description, and to accomodate tides. Drop-in replace with "setup_ocean_state_rectangular_boundaries"'
-        )
-        warnings.filterwarnings("ignore")  # Set warnings back off
-        return self.setup_ocean_state_rectangular_boundaries(
-            raw_boundaries_path,
-            varnames,
-            boundaries=boundaries,
-            arakawa_grid=arakawa_grid,
-        )
-
     def setup_ocean_state_rectangular_boundaries(
         self,
         raw_boundaries_path,
@@ -1123,18 +1104,6 @@ class experiment:
                 ),  # A number to identify the boundary; indexes from 1
                 arakawa_grid=arakawa_grid,
             )
-
-    def simple_boundary(
-        self, path_to_bc, varnames, orientation, segment_number, arakawa_grid="A"
-    ):
-        warnings.filterwarnings("default")  # Set warnings back to on
-        warnings.warn(
-            'The simple_boundary function has been changed in favor of a verb format, more description, and to accomodate tides. Drop-in replace with "setup_ocean_state_simple_boundary"'
-        )
-        warnings.filterwarnings("ignore")  # Turn warnings off
-        return self.setup_ocean_state_simple_boundary(
-            path_to_bc, varnames, orientation, segment_number, arakawa_grid="A"
-        )
 
     def setup_ocean_state_simple_boundary(
         self, path_to_bc, varnames, orientation, segment_number, arakawa_grid="A"
