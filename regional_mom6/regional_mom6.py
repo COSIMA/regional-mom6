@@ -366,8 +366,12 @@ def rectangular_hgrid(lons, lats):
         xarray.Dataset: An FMS-compatible horizontal grid (``hgrid``) that includes all required attributes.
     """
 
-    assert np.all(np.diff(lons) > 0), "longitudes array lons must be monotonically increasing"
-    assert np.all(np.diff(lats) > 0), "latitudes array lats must be monotonically increasing"
+    assert np.all(
+        np.diff(lons) > 0
+    ), "longitudes array lons must be monotonically increasing"
+    assert np.all(
+        np.diff(lats) > 0
+    ), "latitudes array lats must be monotonically increasing"
 
     R = 6371e3  # mean radius of the Earth; https://en.wikipedia.org/wiki/Earth_radius
 
@@ -387,7 +391,9 @@ def rectangular_hgrid(lons, lats):
 
     # dy = R * np.deg2rad(dlats) / 2
     # Note: division by 2 because we're on the supergrid
-    dy = np.broadcast_to(R * np.deg2rad(np.diff(lats)) / 2, (lons.shape[0], lats.shape[0] - 1)).T
+    dy = np.broadcast_to(
+        R * np.deg2rad(np.diff(lats)) / 2, (lons.shape[0], lats.shape[0] - 1)
+    ).T
 
     lon, lat = np.meshgrid(lons, lats)
 
