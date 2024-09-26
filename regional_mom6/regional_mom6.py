@@ -503,7 +503,7 @@ class experiment:
         repeat_year_forcing=False,
         read_existing_grids=False,
         minimum_depth=4,
-        tidal_constituents=[],
+        tidal_constituents=[0],
     ):
         ## in case list was given, convert to tuples
         self.longitude_extent = tuple(longitude_extent)
@@ -1204,12 +1204,12 @@ class experiment:
 
         ### Find Rough Horizontal Subset (with 0.5 Buffer)###
 
-        if tidal_constituents != "`read_from_expt_init`":
+        if tidal_constituents != 'read_from_expt_init':
             self.tidal_constituents = tidal_constituents
         tpxo_h = (
             xr.open_dataset(os.path.join(path_to_td, f"h_{tidal_filename}"))
             .rename({"lon_z": "lon", "lat_z": "lat", "nc": "constituent"})
-            .isel(constituent=tidal_constituents)
+            .isel(constituent=self.tidal_constituents)
         )
         tidal_360_lon = [
             self.longitude_extent[0],
@@ -1231,7 +1231,7 @@ class experiment:
         tpxo_u = (
             xr.open_dataset(os.path.join(path_to_td, f"u_{tidal_filename}"))
             .rename({"lon_u": "lon", "lat_u": "lat", "nc": "constituent"})
-            .isel(constituent=tidal_constituents, **horizontal_subset)
+            .isel(constituent=self.tidal_constituents, **horizontal_subset)
         )
         tpxo_u["ua"] *= 0.01  # convert to m/s
         u = tpxo_u["ua"] * np.exp(-1j * np.radians(tpxo_u["up"]))
@@ -1240,7 +1240,7 @@ class experiment:
         tpxo_v = (
             xr.open_dataset(os.path.join(path_to_td, f"u_{tidal_filename}"))
             .rename({"lon_v": "lon", "lat_v": "lat", "nc": "constituent"})
-            .isel(constituent=tidal_constituents, **horizontal_subset)
+            .isel(constituent=self.tidal_constituents, **horizontal_subset)
         )
         tpxo_v["va"] *= 0.01  # convert to m/s
         v = tpxo_v["va"] * np.exp(-1j * np.radians(tpxo_v["vp"]))
@@ -2281,7 +2281,11 @@ class segment:
                     "angle": self.hgrid["angle_dx"].isel(nyp=0),
                 }
             )
-            rcoord = rcoord.rename_dims({"nxp": "locations"})
+            rcoord = rcoord.rename_dims({"nxp": f"nx_{self.segment_name}"})
+            rcoord.attrs["perpendicular"] = "ny"
+            rcoord.attrs["parallel"] = "nx"
+            rcoord.attrs["axis_to_expand"] = 2         ## Need to keep track of which axis the 'main' coordinate corresponds to for rectangular_brushcut on when re-adding the 'secondary' axis
+            rcoord.attrs["locations_name"] = f"nx_{self.segment_name}" # Legacy name of nx_... was locations. This provides a clear transform in regrid_tides
         elif self.orientation == "north":
             rcoord = xr.Dataset(
                 {
@@ -2290,7 +2294,11 @@ class segment:
                     "angle": self.hgrid["angle_dx"].isel(nyp=-1),
                 }
             )
-            rcoord = rcoord.rename_dims({"nxp": "locations"})
+            rcoord = rcoord.rename_dims({"nxp": f"nx_{self.segment_name}"})
+            rcoord.attrs["perpendicular"] = "ny"
+            rcoord.attrs["parallel"] = "nx"
+            rcoord.attrs["axis_to_expand"] = 2
+            rcoord.attrs["locations_name"] = f"nx_{self.segment_name}"
         elif self.orientation == "west":
             rcoord = xr.Dataset(
                 {
@@ -2299,7 +2307,11 @@ class segment:
                     "angle": self.hgrid["angle_dx"].isel(nxp=0),
                 }
             )
-            rcoord = rcoord.rename_dims({"nyp": "locations"})
+            rcoord = rcoord.rename_dims({"nyp": f"ny_{self.segment_name}"})
+            rcoord.attrs["perpendicular"] = "nx"
+            rcoord.attrs["parallel"] = "ny"
+            rcoord.attrs["axis_to_expand"] = 3
+            rcoord.attrs["locations_name"] = f"ny_{self.segment_name}"
         elif self.orientation == "east":
             rcoord = xr.Dataset(
                 {
@@ -2308,8 +2320,12 @@ class segment:
                     "angle": self.hgrid["angle_dx"].isel(nxp=-1),
                 }
             )
-            rcoord = rcoord.rename_dims({"nyp": "locations"})
-
+            rcoord = rcoord.rename_dims({"nyp": f"ny_{self.segment_name}"})
+            rcoord.attrs["perpendicular"] = "nx"
+            rcoord.attrs["parallel"] = "ny"
+            rcoord.attrs["axis_to_expand"] = 3
+            rcoord.attrs["locations_name"] = f"ny_{self.segment_name}"
+            
         # Make lat and lon coordinates
         rcoord = rcoord.assign_coords(lat=rcoord["lat"], lon=rcoord["lon"])
 
@@ -2320,45 +2336,6 @@ class segment:
         Cut out and interpolate tracers. ``rectangular_brushcut`` assumes that the boundary
         is a simple Northern, Southern, Eastern, or Western boundary.
         """
-        if self.orientation == "north":
-            self.hgrid_seg = self.hgrid.isel(nyp=[-1])
-            self.perpendicular = "ny"
-            self.parallel = "nx"
-
-        if self.orientation == "south":
-            self.hgrid_seg = self.hgrid.isel(nyp=[0])
-            self.perpendicular = "ny"
-            self.parallel = "nx"
-
-        if self.orientation == "east":
-            self.hgrid_seg = self.hgrid.isel(nxp=[-1])
-            self.perpendicular = "nx"
-            self.parallel = "ny"
-
-        if self.orientation == "west":
-            self.hgrid_seg = self.hgrid.isel(nxp=[0])
-            self.perpendicular = "nx"
-            self.parallel = "ny"
-
-        ## Need to keep track of which axis the 'main' coordinate corresponds to for later on when re-adding the 'secondary' axis
-        if self.perpendicular == "ny":
-            self.axis_to_expand = 2
-        else:
-            self.axis_to_expand = 3
-
-        ## Grid for interpolating our fields
-        self.interp_grid = xr.Dataset(
-            {
-                "lat": (
-                    [f"{self.parallel}_{self.segment_name}"],
-                    self.hgrid_seg.y.squeeze().data,
-                ),
-                "lon": (
-                    [f"{self.parallel}_{self.segment_name}"],
-                    self.hgrid_seg.x.squeeze().data,
-                ),
-            }
-        ).set_coords(["lat", "lon"])
 
         rawseg = xr.open_dataset(self.infile, decode_times=False, engine="netcdf4")
 
@@ -2367,7 +2344,7 @@ class segment:
             ## In this case velocities and tracers all on same points
             regridder = xe.Regridder(
                 rawseg[self.u],
-                self.interp_grid,
+                self.coords,
                 "bilinear",
                 locstream_out=True,
                 reuse_weights=False,
@@ -2390,7 +2367,7 @@ class segment:
             ## All tracers on one grid, all velocities on another
             regridder_velocity = xe.Regridder(
                 rawseg[self.u].rename({self.xq: "lon", self.yq: "lat"}),
-                self.interp_grid,
+                self.coords,
                 "bilinear",
                 locstream_out=True,
                 reuse_weights=False,
@@ -2400,7 +2377,7 @@ class segment:
 
             regridder_tracer = xe.Regridder(
                 rawseg[self.tracers["salt"]].rename({self.xh: "lon", self.yh: "lat"}),
-                self.interp_grid,
+                self.coords,
                 "bilinear",
                 locstream_out=True,
                 reuse_weights=False,
@@ -2427,7 +2404,7 @@ class segment:
             ## All tracers on one grid, all velocities on another
             regridder_uvelocity = xe.Regridder(
                 rawseg[self.u].rename({self.xq: "lon", self.yh: "lat"}),
-                self.interp_grid,
+                self.coords,
                 "bilinear",
                 locstream_out=True,
                 reuse_weights=False,
@@ -2437,7 +2414,7 @@ class segment:
 
             regridder_vvelocity = xe.Regridder(
                 rawseg[self.v].rename({self.xh: "lon", self.yq: "lat"}),
-                self.interp_grid,
+                self.coords,
                 "bilinear",
                 locstream_out=True,
                 reuse_weights=False,
@@ -2447,7 +2424,7 @@ class segment:
 
             regridder_tracer = xe.Regridder(
                 rawseg[self.tracers["salt"]].rename({self.xh: "lon", self.yh: "lat"}),
-                self.interp_grid,
+                self.coords,
                 "bilinear",
                 locstream_out=True,
                 reuse_weights=False,
@@ -2481,9 +2458,9 @@ class segment:
         # fill in NaNs
         segment_out = (
             segment_out.ffill(self.z)
-            .interpolate_na(f"{self.parallel}_{self.segment_name}")
-            .ffill(f"{self.parallel}_{self.segment_name}")
-            .bfill(f"{self.parallel}_{self.segment_name}")
+            .interpolate_na(f"{self.coords.attrs["parallel"]}_{self.segment_name}")
+            .ffill(f"{self.coords.attrs["parallel"]}_{self.segment_name}")
+            .bfill(f"{self.coords.attrs["parallel"]}_{self.segment_name}")
         )
 
         time = np.arange(
@@ -2547,7 +2524,7 @@ class segment:
 
             ## Re-add the secondary dimension (even though it represents one value..)
             segment_out[v] = segment_out[v].expand_dims(
-                f"{self.perpendicular}_{self.segment_name}", axis=self.axis_to_expand
+                f"{self.coords.attrs["perpendicular"]}_{self.segment_name}", axis=self.coords.attrs["axis_to_expand"]
             )
 
             ## Add the layer thicknesses
@@ -2592,23 +2569,42 @@ class segment:
         segment_out[f"eta_{self.segment_name}"] = segment_out[
             f"eta_{self.segment_name}"
         ].expand_dims(
-            f"{self.perpendicular}_{self.segment_name}", axis=self.axis_to_expand - 1
+            f"{self.coords.attrs["perpendicular"]}_{self.segment_name}", axis=self.coords.attrs["axis_to_expand"] - 1
         )
 
         # Overwrite the actual lat/lon values in the dimensions, replace with incrementing integers
-        segment_out[f"{self.parallel}_{self.segment_name}"] = np.arange(
-            segment_out[f"{self.parallel}_{self.segment_name}"].size
+        segment_out[f"{self.coords.attrs["parallel"]}_{self.segment_name}"] = np.arange(
+            segment_out[f"{self.coords.attrs["parallel"]}_{self.segment_name}"].size
         )
-        segment_out[f"{self.perpendicular}_{self.segment_name}"] = [0]
+        segment_out[f"{self.coords.attrs["perpendicular"]}_{self.segment_name}"] = [0]
+        if self.orientation == "north":
+            self.hgrid_seg = self.hgrid.isel(nyp=[-1])
+            self.perpendicular = "ny"
+            self.parallel = "nx"
+
+        if self.orientation == "south":
+            self.hgrid_seg = self.hgrid.isel(nyp=[0])
+            self.perpendicular = "ny"
+            self.parallel = "nx"
+
+        if self.orientation == "east":
+            self.hgrid_seg = self.hgrid.isel(nxp=[-1])
+            self.perpendicular = "nx"
+            self.parallel = "ny"
+
+        if self.orientation == "west":
+            self.hgrid_seg = self.hgrid.isel(nxp=[0])
+            self.perpendicular = "nx"
+            self.parallel = "ny"
 
         # Store actual lat/lon values here as variables rather than coordinates
         segment_out[f"lon_{self.segment_name}"] = (
             [f"ny_{self.segment_name}", f"nx_{self.segment_name}"],
-            self.hgrid_seg.x.data,
+            self.coords.lon.expand_dims(dim="blank",axis=self.coords.attrs["axis_to_expand"] - 2).data,
         )
         segment_out[f"lat_{self.segment_name}"] = (
             [f"ny_{self.segment_name}", f"nx_{self.segment_name}"],
-            self.hgrid_seg.y.data,
+            self.coords.lon.expand_dims(dim="blank",axis=self.coords.attrs["axis_to_expand"] - 2).data,
         )
 
         # Add units to the lat / lon to keep the `categorize_axis_from_units` checker happy
@@ -2683,8 +2679,8 @@ class segment:
 
         # Fill missing data.
         # Need to do this first because complex would get converted to real
-        redest = redest.ffill(dim="locations", limit=None)["hRe"]
-        imdest = imdest.ffill(dim="locations", limit=None)["hIm"]
+        redest = redest.ffill(dim=self.coords.attrs["locations_name"], limit=None)["hRe"]
+        imdest = imdest.ffill(dim=self.coords.attrs["locations_name"], limit=None)["hIm"]
 
         # Convert complex
         cplex = redest + 1j * imdest
@@ -2693,14 +2689,14 @@ class segment:
         ds_ap = xr.Dataset({f"zamp_{self.segment_name}": np.abs(cplex)})
         # np.angle doesn't return dataarray
         ds_ap[f"zphase_{self.segment_name}"] = (
-            ("constituent", "locations"),
+            ("constituent", self.coords.attrs["locations_name"]),
             -1 * np.angle(cplex),
         )  # radians
 
         # Add time coordinate and transpose so that time is first,
         # so that it can be the unlimited dimension
         ds_ap, _ = xr.broadcast(ds_ap, times)
-        ds_ap = ds_ap.transpose("time", "constituent", "locations")
+        ds_ap = ds_ap.transpose("time", "constituent", self.coords.attrs["locations_name"])
 
         self.encode_tidal_files_and_output(ds_ap, "tz")
 
@@ -2731,10 +2727,10 @@ class segment:
 
         # Fill missing data.
         # Need to do this first because complex would get converted to real
-        uredest = uredest.ffill(dim="locations", limit=None)
-        uimdest = uimdest.ffill(dim="locations", limit=None)
-        vredest = vredest.ffill(dim="locations", limit=None)
-        vimdest = vimdest.ffill(dim="locations", limit=None)
+        uredest = uredest.ffill(dim=self.coords.attrs["locations_name"], limit=None)
+        uimdest = uimdest.ffill(dim=self.coords.attrs["locations_name"], limit=None)
+        vredest = vredest.ffill(dim=self.coords.attrs["locations_name"], limit=None)
+        vimdest = vimdest.ffill(dim=self.coords.attrs["locations_name"], limit=None)
 
         # Convert to complex, remaining separate for u and v.
         ucplex = uredest + 1j * uimdest
@@ -2755,11 +2751,11 @@ class segment:
         )
         # up, vp aren't dataarrays
         ds_ap[f"uphase_{self.segment_name}"] = (
-            ("constituent", "locations"),
+            ("constituent", self.coords.attrs["locations_name"]),
             up,
         )  # radians
         ds_ap[f"vphase_{self.segment_name}"] = (
-            ("constituent", "locations"),
+            ("constituent", self.coords.attrs["locations_name"]),
             vp,
         )  # radians
 
@@ -2767,10 +2763,10 @@ class segment:
 
         # Need to transpose so that time is first,
         # so that it can be the unlimited dimension
-        ds_ap = ds_ap.transpose("time", "constituent", "locations")
+        ds_ap = ds_ap.transpose("time", "constituent", self.coords.attrs["locations_name"])
 
         # Some things may have become missing during the transformation
-        ds_ap = ds_ap.ffill(dim="locations", limit=None)
+        ds_ap = ds_ap.ffill(dim=self.coords.attrs["locations_name"], limit=None)
 
         self.encode_tidal_files_and_output(ds_ap, "tu")
 
@@ -2826,9 +2822,9 @@ class segment:
         if "z" in ds.coords:
             ds = ds.rename({"z": f"nz_{self.segment_name}"})
         if self.orientation in ["south", "north"]:
-            ds = ds.rename({"locations": f"nx_{self.segment_name}"})
+            ds = ds.rename({self.coords.attrs["locations_name"]: f"nx_{self.segment_name}"})
         elif self.orientation in ["west", "east"]:
-            ds = ds.rename({"locations": f"ny_{self.segment_name}"})
+            ds = ds.rename({self.coords.attrs["locations_name"]: f"ny_{self.segment_name}"})
 
         ## Perform Encoding ##
         for v in ds:
