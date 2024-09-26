@@ -497,7 +497,7 @@ class experiment:
         repeat_year_forcing=False,
         read_existing_grids=False,
         minimum_depth=4,
-        tidal_constituents = [],
+        tidal_constituents=[],
     ):
         ## in case list was given, convert to tuples
         self.longitude_extent = tuple(longitude_extent)
@@ -1725,7 +1725,11 @@ class experiment:
         return
 
     def setup_run_directory(
-        self, surface_forcing=None, using_payu=False, overwrite=False, with_tides_rectangular=False
+        self,
+        surface_forcing=None,
+        using_payu=False,
+        overwrite=False,
+        with_tides_rectangular=False,
     ):
         """
         Set up the run directory for MOM6. Either copy a pre-made set of files, or modify
