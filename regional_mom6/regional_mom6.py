@@ -2462,9 +2462,9 @@ class segment:
         # fill in NaNs
         segment_out = (
             segment_out.ffill(self.z)
-            .interpolate_na(f"{self.coords.attrs["parallel"]}_{self.segment_name}")
-            .ffill(f"{self.coords.attrs["parallel"]}_{self.segment_name}")
-            .bfill(f"{self.coords.attrs["parallel"]}_{self.segment_name}")
+            .interpolate_na(f"{self.coords.attrs['parallel']}_{self.segment_name}")
+            .ffill(f"{self.coords.attrs['parallel']}_{self.segment_name}")
+            .bfill(f"{self.coords.attrs['parallel']}_{self.segment_name}")
         )
 
         time = np.arange(
@@ -2528,7 +2528,7 @@ class segment:
 
             ## Re-add the secondary dimension (even though it represents one value..)
             segment_out[v] = segment_out[v].expand_dims(
-                f"{self.coords.attrs["perpendicular"]}_{self.segment_name}",
+                f"{self.coords.attrs['perpendicular']}_{self.segment_name}",
                 axis=self.coords.attrs["axis_to_expand"],
             )
 
@@ -2574,15 +2574,15 @@ class segment:
         segment_out[f"eta_{self.segment_name}"] = segment_out[
             f"eta_{self.segment_name}"
         ].expand_dims(
-            f"{self.coords.attrs["perpendicular"]}_{self.segment_name}",
+            f"{self.coords.attrs['perpendicular']}_{self.segment_name}",
             axis=self.coords.attrs["axis_to_expand"] - 1,
         )
 
         # Overwrite the actual lat/lon values in the dimensions, replace with incrementing integers
-        segment_out[f"{self.coords.attrs["parallel"]}_{self.segment_name}"] = np.arange(
-            segment_out[f"{self.coords.attrs["parallel"]}_{self.segment_name}"].size
+        segment_out[f"{self.coords.attrs['parallel']}_{self.segment_name}"] = np.arange(
+            segment_out[f"{self.coords.attrs['parallel']}_{self.segment_name}"].size
         )
-        segment_out[f"{self.coords.attrs["perpendicular"]}_{self.segment_name}"] = [0]
+        segment_out[f"{self.coords.attrs['perpendicular']}_{self.segment_name}"] = [0]
         if self.orientation == "north":
             self.hgrid_seg = self.hgrid.isel(nyp=[-1])
             self.perpendicular = "ny"
