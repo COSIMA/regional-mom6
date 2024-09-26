@@ -152,7 +152,7 @@ def longitude_slicer(data, longitude_extent, longitude_coords):
     return data
 
 
-def find_MOM6_orientation(input):
+def find_MOM6_rectangular_orientation(input):
     """
     Convert between MOM6 boundary and the specific segment number needed, or the inverse
     """
@@ -1101,7 +1101,7 @@ class experiment:
                 ),
                 varnames,
                 orientation,  # The cardinal direction of the boundary
-                find_MOM6_orientation(
+                find_MOM6_rectangular_orientation(
                     orientation
                 ),  # A number to identify the boundary; indexes from 1
                 arakawa_grid=arakawa_grid,
@@ -1259,7 +1259,9 @@ class experiment:
                     infile=None,  # location of raw boundary
                     outfolder=self.mom_input_dir,
                     varnames=None,
-                    segment_name="segment_{:03d}".format(find_MOM6_orientation(b)),
+                    segment_name="segment_{:03d}".format(
+                        find_MOM6_rectangular_orientation(b)
+                    ),
                     orientation=b,  # orienataion
                     startdate=self.date_range[0],
                     repeat_year_forcing=self.repeat_year_forcing,
