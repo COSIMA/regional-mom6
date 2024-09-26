@@ -84,11 +84,11 @@ def longitude_slicer(data, longitude_extent, longitude_coords):
         ## Find a corresponding value for the intended domain midpoint in our data.
         ## It's assumed that data has equally-spaced longitude values.
 
-        λ = data[lon].data
-        dλ = λ[1] - λ[0]
+        lons = data[lon].data
+        dlons = lons[1] - lons[0]
 
         assert np.allclose(
-            np.diff(λ), dλ * np.ones(np.size(λ) - 1)
+            np.diff(lons), dlons * np.ones(np.size(lons) - 1)
         ), "provided longitude coordinate must be uniformly spaced"
 
         for i in range(-1, 2, 1):
@@ -343,10 +343,10 @@ def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
     return layer_thicknesses
 
 
-def rectangular_hgrid(λ, φ):
+def rectangular_hgrid(lons, lats):
     """
     Construct a horizontal grid with all the metadata required by MOM6, based on
-    arrays of longitudes (``λ``) and latitudes (``φ``) on the supergrid.
+    arrays of longitudes (``lons``) and latitudes (``lats``) on the supergrid.
     Here, 'supergrid' refers to both cell edges and centres, meaning that there
     are twice as many points along each axis than for any individual field.
 
@@ -356,40 +356,40 @@ def rectangular_hgrid(λ, φ):
 
         It is also assumed here that the longitude array values are uniformly spaced.
 
-        Ensure both ``λ`` and ``φ`` are monotonically increasing.
+        Ensure both ``lons`` and ``lats`` are monotonically increasing.
 
     Args:
-        λ (numpy.array): All longitude points on the supergrid. Must be uniformly spaced.
-        φ (numpy.array): All latitude points on the supergrid.
+        lons (numpy.array): All longitude points on the supergrid. Must be uniformly spaced.
+        lats (numpy.array): All latitude points on the supergrid.
 
     Returns:
         xarray.Dataset: An FMS-compatible horizontal grid (``hgrid``) that includes all required attributes.
     """
 
-    assert np.all(np.diff(λ) > 0), "longitudes array λ must be monotonically increasing"
-    assert np.all(np.diff(φ) > 0), "latitudes array φ must be monotonically increasing"
+    assert np.all(np.diff(lons) > 0), "longitudes array lons must be monotonically increasing"
+    assert np.all(np.diff(lats) > 0), "latitudes array lats must be monotonically increasing"
 
     R = 6371e3  # mean radius of the Earth; https://en.wikipedia.org/wiki/Earth_radius
 
     # compute longitude spacing and ensure that longitudes are uniformly spaced
-    dλ = λ[1] - λ[0]
+    dlons = lons[1] - lons[0]
 
     assert np.allclose(
-        np.diff(λ), dλ * np.ones(np.size(λ) - 1)
+        np.diff(lons), dlons * np.ones(np.size(lons) - 1)
     ), "provided array of longitudes must be uniformly spaced"
 
-    # dx = R * cos(np.deg2rad(φ)) * np.deg2rad(dλ) / 2
+    # dx = R * cos(np.deg2rad(lats)) * np.deg2rad(dlons) / 2
     # Note: division by 2 because we're on the supergrid
     dx = np.broadcast_to(
-        R * np.cos(np.deg2rad(φ)) * np.deg2rad(dλ) / 2,
-        (λ.shape[0] - 1, φ.shape[0]),
+        R * np.cos(np.deg2rad(lats)) * np.deg2rad(dlons) / 2,
+        (lons.shape[0] - 1, lats.shape[0]),
     ).T
 
-    # dy = R * np.deg2rad(dφ) / 2
+    # dy = R * np.deg2rad(dlats) / 2
     # Note: division by 2 because we're on the supergrid
-    dy = np.broadcast_to(R * np.deg2rad(np.diff(φ)) / 2, (λ.shape[0], φ.shape[0] - 1)).T
+    dy = np.broadcast_to(R * np.deg2rad(np.diff(lats)) / 2, (lons.shape[0], lats.shape[0] - 1)).T
 
-    lon, lat = np.meshgrid(λ, φ)
+    lon, lat = np.meshgrid(lons, lats)
 
     area = quadrilateral_areas(lat, lon, R)
 
@@ -572,14 +572,14 @@ class experiment:
         and in latitude.
 
         The latitudinal resolution is scaled with the cosine of the central
-        latitude of the domain, i.e., ``Δφ = cos(φ_central) * Δλ``, where ``Δλ``
+        latitude of the domain, i.e., ``Δlats = cos(lats_central) * Δlons``, where ``Δlons``
         is the longitudinal spacing. This way, for a sufficiently small domain,
         the linear distances between grid points are nearly identical:
-        ``Δx = R * cos(φ) * Δλ`` and ``Δy = R * Δφ = R * cos(φ_central) * Δλ``
-        (here ``R`` is Earth's radius and ``φ``, ``φ_central``, ``Δλ``, and ``Δφ``
+        ``Δx = R * cos(lats) * Δlons`` and ``Δy = R * Δlats = R * cos(lats_central) * Δlons``
+        (here ``R`` is Earth's radius and ``lats``, ``lats_central``, ``Δlons``, and ``Δlats``
         are all expressed in radians).
-        That is, if the domain is small enough that so that ``cos(φ_North_Side)``
-        is not much different from ``cos(φ_South_Side)``, then ``Δx`` and ``Δy``
+        That is, if the domain is small enough that so that ``cos(lats_North_Side)``
+        is not much different from ``cos(lats_South_Side)``, then ``Δx`` and ``Δy``
         are similar.
 
         Note:
@@ -605,7 +605,7 @@ class experiment:
             if nx % 2 != 1:
                 nx += 1
 
-            λ = np.linspace(
+            lons = np.linspace(
                 self.longitude_extent[0], self.longitude_extent[1], nx
             )  # longitudes in degrees
 
@@ -626,11 +626,11 @@ class experiment:
             if ny % 2 != 1:
                 ny += 1
 
-            φ = np.linspace(
+            lats = np.linspace(
                 self.latitude_extent[0], self.latitude_extent[1], ny
             )  # latitudes in degrees
 
-            hgrid = rectangular_hgrid(λ, φ)
+            hgrid = rectangular_hgrid(lons, lats)
             hgrid.to_netcdf(self.mom_input_dir / "hgrid.nc")
 
             return hgrid
