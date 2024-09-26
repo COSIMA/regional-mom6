@@ -497,6 +497,7 @@ class experiment:
         repeat_year_forcing=False,
         read_existing_grids=False,
         minimum_depth=4,
+        tidal_constituents = [],
     ):
         ## in case list was given, convert to tuples
         self.longitude_extent = tuple(longitude_extent)
@@ -525,6 +526,7 @@ class experiment:
         self.min_depth = (
             minimum_depth  # Minimum depth. Shallower water will be masked out.
         )
+        self.tidal_constituents = tidal_constituents
         if read_existing_grids:
             try:
                 self.hgrid = xr.open_dataset(self.mom_input_dir / "hgrid.nc")
@@ -1152,7 +1154,7 @@ class experiment:
         return
 
     def setup_tides_rectangle_boundaries(
-        self, path_to_td, tidal_filename, tidal_constituents=[0]
+        self, path_to_td, tidal_filename, tidal_constituents="read_from_expt_init"
     ):
         """
         This function:
@@ -1196,15 +1198,16 @@ class experiment:
 
         ### Find Rough Horizontal Subset (with 0.5 Buffer)###
 
-        self.tidal_constituents = tidal_constituents
+        if tidal_constituents != "`read_from_expt_init`":
+            self.tidal_constituents = tidal_constituents
         tpxo_h = (
             xr.open_dataset(os.path.join(path_to_td, f"h_{tidal_filename}"))
             .rename({"lon_z": "lon", "lat_z": "lat", "nc": "constituent"})
             .isel(constituent=tidal_constituents)
         )
         tidal_360_lon = [
-            convert_lon_180_to_360(self.longitude_extent[0]),
-            convert_lon_180_to_360(self.longitude_extent[1]),
+            self.longitude_extent[0],
+            self.longitude_extent[1],
         ]
         ny0, nx0 = find_roughly_nearest_ny_nx(
             self.latitude_extent[0] - 0.5, tidal_360_lon[0] - 0.5, tpxo_h
@@ -1722,7 +1725,7 @@ class experiment:
         return
 
     def setup_run_directory(
-        self, surface_forcing=None, using_payu=False, overwrite=False, with_tides=False
+        self, surface_forcing=None, using_payu=False, overwrite=False, with_tides_rectangular=False
     ):
         """
         Set up the run directory for MOM6. Either copy a pre-made set of files, or modify
@@ -1789,7 +1792,7 @@ class experiment:
             overwrite_run_dir = False
 
         # Check if we can implement tides
-        if with_tides:
+        if with_tides_rectangular:
             tidal_files_exist = any(
                 "tidal" in filename
                 for filename in os.listdir(os.path.join(self.mom_input_dir, "forcing"))
@@ -1897,7 +1900,7 @@ class experiment:
         MOM_input_dict = self.read_MOM_file_as_dict("MOM_input")
         MOM_input_dict["MINIMUM_DEPTH"] = float(self.min_depth)
         MOM_input_dict["NK"] = len(self.vgrid.zl.values)
-        if with_tides:
+        if with_tides_rectangular:
             MOM_input_dict["TIDES"] = "True"
             MOM_input_dict["OBC_TIDE_N_CONSTITUENTS"] = len(self.tidal_constituents)
             MOM_input_dict["OBC_SEGMENT_001_DATA"] = (
