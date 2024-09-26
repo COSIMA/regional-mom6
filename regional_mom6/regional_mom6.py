@@ -1204,7 +1204,7 @@ class experiment:
 
         ### Find Rough Horizontal Subset (with 0.5 Buffer)###
 
-        if tidal_constituents != 'read_from_expt_init':
+        if tidal_constituents != "read_from_expt_init":
             self.tidal_constituents = tidal_constituents
         tpxo_h = (
             xr.open_dataset(os.path.join(path_to_td, f"h_{tidal_filename}"))
@@ -2284,8 +2284,12 @@ class segment:
             rcoord = rcoord.rename_dims({"nxp": f"nx_{self.segment_name}"})
             rcoord.attrs["perpendicular"] = "ny"
             rcoord.attrs["parallel"] = "nx"
-            rcoord.attrs["axis_to_expand"] = 2         ## Need to keep track of which axis the 'main' coordinate corresponds to for rectangular_brushcut on when re-adding the 'secondary' axis
-            rcoord.attrs["locations_name"] = f"nx_{self.segment_name}" # Legacy name of nx_... was locations. This provides a clear transform in regrid_tides
+            rcoord.attrs["axis_to_expand"] = (
+                2  ## Need to keep track of which axis the 'main' coordinate corresponds to for rectangular_brushcut on when re-adding the 'secondary' axis
+            )
+            rcoord.attrs["locations_name"] = (
+                f"nx_{self.segment_name}"  # Legacy name of nx_... was locations. This provides a clear transform in regrid_tides
+            )
         elif self.orientation == "north":
             rcoord = xr.Dataset(
                 {
@@ -2325,7 +2329,7 @@ class segment:
             rcoord.attrs["parallel"] = "ny"
             rcoord.attrs["axis_to_expand"] = 3
             rcoord.attrs["locations_name"] = f"ny_{self.segment_name}"
-            
+
         # Make lat and lon coordinates
         rcoord = rcoord.assign_coords(lat=rcoord["lat"], lon=rcoord["lon"])
 
@@ -2524,7 +2528,8 @@ class segment:
 
             ## Re-add the secondary dimension (even though it represents one value..)
             segment_out[v] = segment_out[v].expand_dims(
-                f"{self.coords.attrs["perpendicular"]}_{self.segment_name}", axis=self.coords.attrs["axis_to_expand"]
+                f"{self.coords.attrs["perpendicular"]}_{self.segment_name}",
+                axis=self.coords.attrs["axis_to_expand"],
             )
 
             ## Add the layer thicknesses
@@ -2569,7 +2574,8 @@ class segment:
         segment_out[f"eta_{self.segment_name}"] = segment_out[
             f"eta_{self.segment_name}"
         ].expand_dims(
-            f"{self.coords.attrs["perpendicular"]}_{self.segment_name}", axis=self.coords.attrs["axis_to_expand"] - 1
+            f"{self.coords.attrs["perpendicular"]}_{self.segment_name}",
+            axis=self.coords.attrs["axis_to_expand"] - 1,
         )
 
         # Overwrite the actual lat/lon values in the dimensions, replace with incrementing integers
@@ -2600,11 +2606,15 @@ class segment:
         # Store actual lat/lon values here as variables rather than coordinates
         segment_out[f"lon_{self.segment_name}"] = (
             [f"ny_{self.segment_name}", f"nx_{self.segment_name}"],
-            self.coords.lon.expand_dims(dim="blank",axis=self.coords.attrs["axis_to_expand"] - 2).data,
+            self.coords.lon.expand_dims(
+                dim="blank", axis=self.coords.attrs["axis_to_expand"] - 2
+            ).data,
         )
         segment_out[f"lat_{self.segment_name}"] = (
             [f"ny_{self.segment_name}", f"nx_{self.segment_name}"],
-            self.coords.lon.expand_dims(dim="blank",axis=self.coords.attrs["axis_to_expand"] - 2).data,
+            self.coords.lon.expand_dims(
+                dim="blank", axis=self.coords.attrs["axis_to_expand"] - 2
+            ).data,
         )
 
         # Add units to the lat / lon to keep the `categorize_axis_from_units` checker happy
@@ -2679,8 +2689,12 @@ class segment:
 
         # Fill missing data.
         # Need to do this first because complex would get converted to real
-        redest = redest.ffill(dim=self.coords.attrs["locations_name"], limit=None)["hRe"]
-        imdest = imdest.ffill(dim=self.coords.attrs["locations_name"], limit=None)["hIm"]
+        redest = redest.ffill(dim=self.coords.attrs["locations_name"], limit=None)[
+            "hRe"
+        ]
+        imdest = imdest.ffill(dim=self.coords.attrs["locations_name"], limit=None)[
+            "hIm"
+        ]
 
         # Convert complex
         cplex = redest + 1j * imdest
@@ -2696,7 +2710,9 @@ class segment:
         # Add time coordinate and transpose so that time is first,
         # so that it can be the unlimited dimension
         ds_ap, _ = xr.broadcast(ds_ap, times)
-        ds_ap = ds_ap.transpose("time", "constituent", self.coords.attrs["locations_name"])
+        ds_ap = ds_ap.transpose(
+            "time", "constituent", self.coords.attrs["locations_name"]
+        )
 
         self.encode_tidal_files_and_output(ds_ap, "tz")
 
@@ -2763,7 +2779,9 @@ class segment:
 
         # Need to transpose so that time is first,
         # so that it can be the unlimited dimension
-        ds_ap = ds_ap.transpose("time", "constituent", self.coords.attrs["locations_name"])
+        ds_ap = ds_ap.transpose(
+            "time", "constituent", self.coords.attrs["locations_name"]
+        )
 
         # Some things may have become missing during the transformation
         ds_ap = ds_ap.ffill(dim=self.coords.attrs["locations_name"], limit=None)
@@ -2822,9 +2840,13 @@ class segment:
         if "z" in ds.coords:
             ds = ds.rename({"z": f"nz_{self.segment_name}"})
         if self.orientation in ["south", "north"]:
-            ds = ds.rename({self.coords.attrs["locations_name"]: f"nx_{self.segment_name}"})
+            ds = ds.rename(
+                {self.coords.attrs["locations_name"]: f"nx_{self.segment_name}"}
+            )
         elif self.orientation in ["west", "east"]:
-            ds = ds.rename({self.coords.attrs["locations_name"]: f"ny_{self.segment_name}"})
+            ds = ds.rename(
+                {self.coords.attrs["locations_name"]: f"ny_{self.segment_name}"}
+            )
 
         ## Perform Encoding ##
         for v in ds:
