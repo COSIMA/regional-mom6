@@ -23,13 +23,15 @@ from .utils import (
 )
 import pandas as pd
 import re
+from pathlib import Path
+import glob
 
 warnings.filterwarnings("ignore")
 
 __all__ = [
     "longitude_slicer",
     "hyperbolictan_thickness_profile",
-    "rectangular_hgrid",
+    "calculate_rectangular_hgrid",
     "experiment",
     "segment",
 ]
@@ -212,9 +214,6 @@ def find_MOM6_rectangular_orientation(input):
         raise ValueError("Invalid type of Input, can only be string or int.")
 
 
-from pathlib import Path
-
-
 def get_glorys_data(
     longitude_extent,
     latitude_extent,
@@ -375,7 +374,7 @@ def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
     return layer_thicknesses
 
 
-def rectangular_hgrid(lons, lats):
+def calculate_rectangular_hgrid(lons, lats):
     """
     Construct a horizontal grid with all the metadata required by MOM6, based on
     arrays of longitudes (``lons``) and latitudes (``lats``) on the supergrid.
@@ -668,7 +667,7 @@ class experiment:
                 self.latitude_extent[0], self.latitude_extent[1], ny
             )  # latitudes in degrees
 
-            hgrid = rectangular_hgrid(lons, lats)
+            hgrid = calculate_rectangular_hgrid(lons, lats)
             hgrid.to_netcdf(self.mom_input_dir / "hgrid.nc")
 
             return hgrid
@@ -700,6 +699,74 @@ class experiment:
         return vcoord
 
     @property
+    def ocean_state_boundaries(self):
+        """
+        Read the ocean state files from disk, and print 'em
+        """
+        ocean_state_path = self.mom_input_dir / "forcing"
+        try:
+            # Use glob to find all tides files
+            patterns = ["forcing_*", "weights/bi*"]
+            all_files = []
+            for pattern in patterns:
+                all_files.extend(glob.glob(os.path.join(ocean_state_path, pattern)))
+
+            if len(all_files) == 0:
+                return "No ocean state files set up yet (or files misplaced from {}). Call `setup_ocean_state_boundaries` method to set up ocean state.".format(
+                    ocean_state_path
+                )
+
+            # Open the files as xarray datasets
+            datasets = [xr.open_dataset(file) for file in all_files]
+            return datasets
+        except:
+            return "Error retrieving ocean state files"
+
+    @property
+    def tides_boundaries(self):
+        """
+        Read the tides from disk, and print 'em
+        """
+        tides_path = self.mom_input_dir / "forcing"
+        try:
+            # Use glob to find all tides files
+            patterns = ["regrid*", "tu_*", "tz_*"]
+            all_files = []
+            for pattern in patterns:
+                all_files.extend(glob.glob(os.path.join(tides_path, pattern)))
+
+            if len(all_files) == 0:
+                return "No tides files set up yet (or files misplaced from {}). Call `setup_tides_boundaries` method to set up tides.".format(
+                    tides_path
+                )
+
+            # Open the files as xarray datasets
+            datasets = [xr.open_dataset(file) for file in all_files]
+            return datasets
+        except:
+            return "Error retrieving tides files"
+
+    @property
+    def era5(self):
+        """
+        Read the era5's from disk, and print 'em
+        """
+        era5_path = self.mom_input_dir / "forcing"
+        try:
+            # Use glob to find all *_ERA5.nc files
+            all_files = glob.glob(os.path.join(era5_path, "*_ERA5.nc"))
+            if len(all_files) == 0:
+                return "No era5 files set up yet (or files misplaced from {}). Call `setup_era5` method to set up era5.".format(
+                    era5_path
+                )
+
+            # Open the files as xarray datasets
+            datasets = [xr.open_dataset(file) for file in all_files]
+            return datasets
+        except:
+            return "Error retrieving ERA5 files"
+
+    @property
     def initial_condition(self):
         """
         Read the ic's from disk, and print 'em
@@ -709,13 +776,25 @@ class experiment:
             ic_tracers = xr.open_dataset(self.mom_input_dir / "forcing/init_tracers.nc")
             ic_vel = xr.open_dataset(self.mom_input_dir / "forcing/init_vel.nc")
             ic_eta = xr.open_dataset(self.mom_input_dir / "forcing/init_eta.nc")
-            return ic_tracers, ic_vel, ic_eta
+            return [ic_tracers, ic_vel, ic_eta]
         except:
             return "No initial condition set up yet (or files misplaced from {}). Call `setup_initial_condition` method to set up initial conditions.".format(
                 self.mom_input_dir / "forcing"
             )
 
-        return
+    @property
+    def bathymetry_property(self):
+        """
+        Read the bathymetry from disk, and print 'em
+        """
+
+        try:
+            bathy = xr.open_dataset(self.mom_input_dir / "bathymetry.nc")
+            return [bathy]
+        except:
+            return "No bathymetry set up yet (or files misplaced from {}). Call `setup_bathymetry` method to set up bathymetry.".format(
+                self.mom_input_dir
+            )
 
     def setup_initial_condition(
         self,

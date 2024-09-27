@@ -99,5 +99,19 @@ class TestAll:
             ocean_varnames,
             arakawa_grid="A",
         )
-        d1, d2, d3 = self.expt.initial_condition
-        print(d1, d2, d3)
+        dss = self.expt.initial_condition
+        print(dss)
+
+    @pytest.mark.skipif(
+        IN_GITHUB_ACTIONS, reason="Test doesn't work in Github Actions."
+    )
+    def test_properties(self):
+        """
+        Test the properties
+        """
+        dss = self.expt.era5
+        dss_2 = self.expt.tides_boundaries
+        dss_3 = self.expt.ocean_state_boundaries
+        dss_4 = self.expt.initial_condition
+        dss_5 = self.expt.bathymetry_property
+        print(dss_2, dss_3, dss_4, dss_5)
