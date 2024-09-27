@@ -699,7 +699,25 @@ class experiment:
 
         return vcoord
 
-    def initial_condition(
+    @property
+    def initial_condition(self):
+        """
+        Read the ic's from disk, and print 'em
+        """
+
+        try:
+            ic_tracers = xr.open_dataset(self.mom_input_dir / "forcing/init_tracers.nc")
+            ic_vel = xr.open_dataset(self.mom_input_dir / "forcing/init_vel.nc")
+            ic_eta = xr.open_dataset(self.mom_input_dir / "forcing/init_eta.nc")
+            return ic_tracers, ic_vel, ic_eta
+        except:
+            return "No initial condition set up yet (or files misplaced from {}). Call `setup_initial_condition` method to set up initial conditions.".format(
+                self.mom_input_dir / "forcing"
+            )
+
+        return
+
+    def setup_initial_condition(
         self,
         raw_ic_path,
         varnames,
@@ -1093,12 +1111,13 @@ class experiment:
         )
         return
 
-    def setup_ocean_state_rectangular_boundaries(
+    def setup_ocean_state_boundaries(
         self,
         raw_boundaries_path,
         varnames,
         boundaries=["south", "north", "west", "east"],
         arakawa_grid="A",
+        boundary_type="rectangular",
     ):
         """
         This function is a wrapper for `simple_boundary`. Given a list of up to four cardinal directions,
@@ -1113,6 +1132,7 @@ class experiment:
                 Default is `["south", "north", "west", "east"]`.
             arakawa_grid (Optional[str]): Arakawa grid staggering type of the boundary forcing.
                 Either ``'A'`` (default), ``'B'``, or ``'C'``.
+            boundary_type (Optional[str]): Type of box around region. Currently, only ``'rectangular'`` is supported.
         """
         for i in boundaries:
             if i not in ["south", "north", "west", "east"]:
@@ -1129,9 +1149,13 @@ class experiment:
             raise ValueError(
                 "This method only supports up to four boundaries. To set up more complex boundary shapes you can manually call the 'simple_boundary' method for each boundary."
             )
+        if boundary_type != "rectangular":
+            raise ValueError(
+                "Only rectangular boundaries are supported by this method. To set up more complex boundary shapes you can manually call the 'simple_boundary' method for each boundary."
+            )
         # Now iterate through our four boundaries
         for orientation in boundaries:
-            self.setup_ocean_state_simple_boundary(
+            self.setup_ocean_state_boundary(
                 Path(
                     os.path.join(
                         (raw_boundaries_path), (orientation + "_unprocessed.nc")
@@ -1145,8 +1169,14 @@ class experiment:
                 arakawa_grid=arakawa_grid,
             )
 
-    def setup_ocean_state_simple_boundary(
-        self, path_to_bc, varnames, orientation, segment_number, arakawa_grid="A"
+    def setup_ocean_state_boundary(
+        self,
+        path_to_bc,
+        varnames,
+        orientation,
+        segment_number,
+        arakawa_grid="A",
+        boundary_type="simple",
     ):
         """
         Here 'simple' refers to boundaries that are parallel to lines of constant longitude or latitude.
@@ -1165,6 +1195,7 @@ class experiment:
                 the ``MOM_input``.
             arakawa_grid (Optional[str]): Arakawa grid staggering type of the boundary forcing.
                 Either ``'A'`` (default), ``'B'``, or ``'C'``.
+            boundary_type (Optional[str]): Type of boundary. Currently, only ``'simple'`` is supported. Here 'simple' refers to boundaries that are parallel to lines of constant longitude or latitude.
         """
 
         print("Processing {} boundary...".format(orientation), end="")
@@ -1172,6 +1203,8 @@ class experiment:
             raise FileNotFoundError(
                 f"Boundary file not found at {path_to_bc}. Please ensure that the files are named in the format `east_unprocessed.nc`."
             )
+        if boundary_type != "simple":
+            raise ValueError("Only simple boundaries are supported by this method.")
         seg = segment(
             hgrid=self.hgrid,
             infile=path_to_bc,  # location of raw boundary
@@ -1184,15 +1217,19 @@ class experiment:
             repeat_year_forcing=self.repeat_year_forcing,
         )
 
-        seg.rectangular_brushcut()
+        seg.regrid_rectangle_tracers()
 
         # Save Segment to Experiment
         self.segments[orientation] = seg
         print("Done.")
         return
 
-    def setup_tides_rectangle_boundaries(
-        self, path_to_td, tidal_filename, tidal_constituents="read_from_expt_init"
+    def setup_tides_boundaries(
+        self,
+        path_to_td,
+        tidal_filename,
+        tidal_constituents="read_from_expt_init",
+        boundary_type="rectangle",
     ):
         """
         This function:
@@ -1202,6 +1239,7 @@ class experiment:
             path_to_td (str): Path to boundary tidal file.
             tidal_filename: Name of the tpxo product that's used in the tidal_filename. Should be h_{tidal_filename}, u_{tidal_filename}
             tidal_constiuents: List of tidal constituents to include in the regridding. Default is [0] which is the M2 constituent.
+            boundary_type (Optional[str]): Type of boundary. Currently, only ``'rectangle'`` is supported. Here 'rectangle' refers to boundaries that are parallel to lines of constant longitude or latitude.
         Returns:
             *.nc files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
 
@@ -1220,7 +1258,10 @@ class experiment:
         Type: Python Functions, Source Code
         Web Address: https://github.com/jsimkins2/nwa25
         """
-
+        if boundary_type != "rectangle":
+            raise ValueError(
+                "Only rectangular boundaries are supported by this method."
+            )
         if tidal_constituents != "read_from_expt_init":
             self.tidal_constituents = tidal_constituents
         tpxo_h = (
@@ -1699,7 +1740,7 @@ class experiment:
         print("done.")
         self.bathymetry = bathymetry
 
-    def FRE_tools(self, layout=None):
+    def run_FRE_tools(self, layout=None):
         """A wrapper for FRE Tools ``check_mask``, ``make_solo_mosaic``, and ``make_quick_mosaic``.
         User provides processor ``layout`` tuple of processing units.
         """
@@ -1737,9 +1778,9 @@ class experiment:
         )
 
         if layout != None:
-            self.cpu_layout(layout)
+            self.configure_cpu_layout(layout)
 
-    def cpu_layout(self, layout):
+    def configure_cpu_layout(self, layout):
         """
         Wrapper for the ``check_mask`` function of GFDL's FRE Tools. User provides processor
         ``layout`` tuple of processing units.
@@ -2343,7 +2384,7 @@ class segment:
 
         return rcoord
 
-    def rectangular_brushcut(self):
+    def regrid_rectangle_tracers(self):
         """
         Cut out and interpolate tracers. ``rectangular_brushcut`` assumes that the boundary
         is a simple Northern, Southern, Eastern, or Western boundary.
