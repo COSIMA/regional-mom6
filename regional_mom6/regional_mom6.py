@@ -2219,11 +2219,11 @@ class experiment:
             if key not in original_MOM_file_dict.keys():
                 if MOM_file_dict[key]["override"]:
                     lines.append(
-                        f"#override {key} = {MOM_file_dict[key]['value']} !{MOM_file_dict[key]["comment"]}\n"
+                        f"#override {key} = {MOM_file_dict[key]['value']} !{MOM_file_dict[key]['comment']}\n"
                     )
                 else:
                     lines.append(
-                        f"{key} = {MOM_file_dict[key]} !{MOM_file_dict[key]["comment"]}\n"
+                        f"{key} = {MOM_file_dict[key]['value']} !{MOM_file_dict[key]['comment']}\n"
                     )
                 print(
                     "Added",
