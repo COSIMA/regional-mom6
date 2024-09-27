@@ -25,6 +25,7 @@ import pandas as pd
 import re
 from pathlib import Path
 import glob
+from collections import defaultdict
 
 warnings.filterwarnings("ignore")
 
@@ -1952,11 +1953,14 @@ class experiment:
         if with_tides_rectangular:
             tidal_files_exist = any(
                 "tidal" in filename
-                for filename in os.listdir(os.path.join(self.mom_input_dir, "forcing"))
+                for filename in (
+                    os.listdir(os.path.join(self.mom_input_dir, "forcing"))
+                    + os.listdir(os.path.join(self.mom_input_dir))
+                )
             )
             if not tidal_files_exist:
                 raise (
-                    "No files with 'tidal' in their names found in the forcing directory. If you meant to use tides, please run the setup_tides_rectangle_boundaries method first. That does output some tidal files."
+                    "No files with 'tidal' in their names found in the forcing or input directory. If you meant to use tides, please run the setup_tides_rectangle_boundaries method first. That does output some tidal files."
                 )
 
         # 3 different cases to handle:
@@ -2039,44 +2043,64 @@ class experiment:
         MOM_layout_dict = self.read_MOM_file_as_dict("MOM_layout")
         if "MASKTABLE" in MOM_layout_dict.keys():
             if mask_table != None:
-                MOM_layout_dict["MASKTABLE"] = mask_table
+                MOM_layout_dict["MASKTABLE"]["value"] = mask_table
             else:
-                MOM_layout_dict["MASKTABLE"] = "# MASKTABLE = no mask table"
+                MOM_layout_dict["MASKTABLE"]["value"] = "# MASKTABLE = no mask table"
         if (
             "LAYOUT" in MOM_layout_dict.keys()
             and "IO" not in MOM_layout_dict.keys()
             and layout != None
         ):
-            MOM_layout_dict["LAYOUT"] = str(layout[1]) + "," + str(layout[0])
+            MOM_layout_dict["LAYOUT"]["value"] = str(layout[1]) + "," + str(layout[0])
         if "NIGLOBAL" in MOM_layout_dict.keys():
-            MOM_layout_dict["NIGLOBAL"] = self.hgrid.nx.shape[0] // 2
+            MOM_layout_dict["NIGLOBAL"]["value"] = self.hgrid.nx.shape[0] // 2
         if "NJGLOBAL" in MOM_layout_dict.keys():
-            MOM_layout_dict["NJGLOBAL"] = self.hgrid.ny.shape[0] // 2
+            MOM_layout_dict["NJGLOBAL"]["value"] = self.hgrid.ny.shape[0] // 2
         self.write_MOM_file(MOM_layout_dict)
 
         MOM_input_dict = self.read_MOM_file_as_dict("MOM_input")
-        MOM_input_dict["MINIMUM_DEPTH"] = float(self.min_depth)
-        MOM_input_dict["NK"] = len(self.vgrid.zl.values)
+        MOM_override_dict = self.read_MOM_file_as_dict("MOM_override")
+        MOM_override_dict["MINIMUM_DEPTH"]["value"] = float(self.min_depth)
+        MOM_override_dict["NK"]["value"] = len(self.vgrid.zl.values)
         if with_tides_rectangular:
-            MOM_input_dict["TIDES"] = "True"
-            MOM_input_dict["OBC_TIDE_N_CONSTITUENTS"] = len(self.tidal_constituents)
-            MOM_input_dict["OBC_TIDE_CONSTITUENTS"] = (
+            MOM_override_dict["TIDES"]["value"] = "True"
+            MOM_override_dict["OBC_TIDE_N_CONSTITUENTS"]["value"] = len(
+                self.tidal_constituents
+            )
+            MOM_override_dict["OBC_TIDE_CONSTITUENTS"]["value"] = (
                 '"' + ", ".join(self.tidal_constituents) + '"'
             )
-            MOM_input_dict["OBC_SEGMENT_001_DATA"] = (
-                '"U=file:forcing/forcing_obc_segment_001.nc(u),V=file:forcing/forcing_obc_segment_001.nc(v),SSH=file:forcing/forcing_obc_segment_001.nc(eta),TEMP=file:forcing/forcing_obc_segment_001.nc(temp),SALT=file:forcing/forcing_obc_segment_001.nc(salt),Uamp=file:forcing/tu_segment_001.nc(uamp),Uphase=file:forcing/tu_segment_001.nc(uphase),Vamp=file:forcing/tu_segment_001.nc(vamp),Vphase=file:forcing/tu_segment_001.nc(vphase),SSHamp=file:forcing/tz_segment_001.nc(zamp),SSHphase=file:forcing/tz_segment_001.nc(zphase)"'
-            )
-            MOM_input_dict["OBC_SEGMENT_002_DATA"] = (
-                '"U=file:forcing/forcing_obc_segment_002.nc(u),V=file:forcing/forcing_obc_segment_002.nc(v),SSH=file:forcing/forcing_obc_segment_002.nc(eta),TEMP=file:forcing/forcing_obc_segment_002.nc(temp),SALT=file:forcing/forcing_obc_segment_002.nc(salt),Uamp=file:forcing/tu_segment_002.nc(uamp),Uphase=file:forcing/tu_segment_002.nc(uphase),Vamp=file:forcing/tu_segment_002.nc(vamp),Vphase=file:forcing/tu_segment_002.nc(vphase),SSHamp=file:forcing/tz_segment_002.nc(zamp),SSHphase=file:forcing/tz_segment_002.nc(zphase)"'
-            )
-            MOM_input_dict["OBC_SEGMENT_003_DATA"] = (
-                '"U=file:forcing/forcing_obc_segment_003.nc(u),V=file:forcing/forcing_obc_segment_003.nc(v),SSH=file:forcing/forcing_obc_segment_003.nc(eta),TEMP=file:forcing/forcing_obc_segment_003.nc(temp),SALT=file:forcing/forcing_obc_segment_003.nc(salt),Uamp=file:forcing/tu_segment_003.nc(uamp),Uphase=file:forcing/tu_segment_003.nc(uphase),Vamp=file:forcing/tu_segment_003.nc(vamp),Vphase=file:forcing/tu_segment_003.nc(vphase),SSHamp=file:forcing/tz_segment_003.nc(zamp),SSHphase=file:forcing/tz_segment_003.nc(zphase)"'
-            )
-            MOM_input_dict["OBC_SEGMENT_004_DATA"] = (
-                '"U=file:forcing/forcing_obc_segment_004.nc(u),V=file:forcing/forcing_obc_segment_004.nc(v),SSH=file:forcing/forcing_obc_segment_004.nc(eta),TEMP=file:forcing/forcing_obc_segment_004.nc(temp),SALT=file:forcing/forcing_obc_segment_004.nc(salt),Uamp=file:forcing/tu_segment_004.nc(uamp),Uphase=file:forcing/tu_segment_004.nc(uphase),Vamp=file:forcing/tu_segment_004.nc(vamp),Vphase=file:forcing/tu_segment_004.nc(vphase),SSHamp=file:forcing/tz_segment_004.nc(zamp),SSHphase=file:forcing/tz_segment_004.nc(zphase)"'
-            )
+            MOM_override_dict["OBC_SEGMENT_001_DATA"][
+                "value"
+            ] = '"U=file:forcing/forcing_obc_segment_001.nc(u),V=file:forcing/forcing_obc_segment_001.nc(v),SSH=file:forcing/forcing_obc_segment_001.nc(eta),TEMP=file:forcing/forcing_obc_segment_001.nc(temp),SALT=file:forcing/forcing_obc_segment_001.nc(salt),Uamp=file:forcing/tu_segment_001.nc(uamp),Uphase=file:forcing/tu_segment_001.nc(uphase),Vamp=file:forcing/tu_segment_001.nc(vamp),Vphase=file:forcing/tu_segment_001.nc(vphase),SSHamp=file:forcing/tz_segment_001.nc(zamp),SSHphase=file:forcing/tz_segment_001.nc(zphase)"'
+            MOM_override_dict["OBC_SEGMENT_002_DATA"][
+                "value"
+            ] = '"U=file:forcing/forcing_obc_segment_002.nc(u),V=file:forcing/forcing_obc_segment_002.nc(v),SSH=file:forcing/forcing_obc_segment_002.nc(eta),TEMP=file:forcing/forcing_obc_segment_002.nc(temp),SALT=file:forcing/forcing_obc_segment_002.nc(salt),Uamp=file:forcing/tu_segment_002.nc(uamp),Uphase=file:forcing/tu_segment_002.nc(uphase),Vamp=file:forcing/tu_segment_002.nc(vamp),Vphase=file:forcing/tu_segment_002.nc(vphase),SSHamp=file:forcing/tz_segment_002.nc(zamp),SSHphase=file:forcing/tz_segment_002.nc(zphase)"'
+            MOM_override_dict["OBC_SEGMENT_003_DATA"][
+                "value"
+            ] = '"U=file:forcing/forcing_obc_segment_003.nc(u),V=file:forcing/forcing_obc_segment_003.nc(v),SSH=file:forcing/forcing_obc_segment_003.nc(eta),TEMP=file:forcing/forcing_obc_segment_003.nc(temp),SALT=file:forcing/forcing_obc_segment_003.nc(salt),Uamp=file:forcing/tu_segment_003.nc(uamp),Uphase=file:forcing/tu_segment_003.nc(uphase),Vamp=file:forcing/tu_segment_003.nc(vamp),Vphase=file:forcing/tu_segment_003.nc(vphase),SSHamp=file:forcing/tz_segment_003.nc(zamp),SSHphase=file:forcing/tz_segment_003.nc(zphase)"'
+            MOM_override_dict["OBC_SEGMENT_004_DATA"][
+                "value"
+            ] = '"U=file:forcing/forcing_obc_segment_004.nc(u),V=file:forcing/forcing_obc_segment_004.nc(v),SSH=file:forcing/forcing_obc_segment_004.nc(eta),TEMP=file:forcing/forcing_obc_segment_004.nc(temp),SALT=file:forcing/forcing_obc_segment_004.nc(salt),Uamp=file:forcing/tu_segment_004.nc(uamp),Uphase=file:forcing/tu_segment_004.nc(uphase),Vamp=file:forcing/tu_segment_004.nc(vamp),Vphase=file:forcing/tu_segment_004.nc(vphase),SSHamp=file:forcing/tz_segment_004.nc(zamp),SSHphase=file:forcing/tz_segment_004.nc(zphase)"'
+        else:
+            MOM_override_dict["OBC_SEGMENT_001_DATA"][
+                "value"
+            ] = '"U=file:forcing/forcing_obc_segment_001.nc(u),V=file:forcing/forcing_obc_segment_001.nc(v),SSH=file:forcing/forcing_obc_segment_001.nc(eta),TEMP=file:forcing/forcing_obc_segment_001.nc(temp),SALT=file:forcing/forcing_obc_segment_001.nc(salt)"'
+            MOM_override_dict["OBC_SEGMENT_002_DATA"][
+                "value"
+            ] = '"U=file:forcing/forcing_obc_segment_002.nc(u),V=file:forcing/forcing_obc_segment_002.nc(v),SSH=file:forcing/forcing_obc_segment_002.nc(eta),TEMP=file:forcing/forcing_obc_segment_002.nc(temp),SALT=file:forcing/forcing_obc_segment_002.nc(salt)"'
+            MOM_override_dict["OBC_SEGMENT_003_DATA"][
+                "value"
+            ] = '"U=file:forcing/forcing_obc_segment_003.nc(u),V=file:forcing/forcing_obc_segment_003.nc(v),SSH=file:forcing/forcing_obc_segment_003.nc(eta),TEMP=file:forcing/forcing_obc_segment_003.nc(temp),SALT=file:forcing/forcing_obc_segment_003.nc(salt)"'
+            MOM_override_dict["OBC_SEGMENT_004_DATA"][
+                "value"
+            ] = '"U=file:forcing/forcing_obc_segment_004.nc(u),V=file:forcing/forcing_obc_segment_004.nc(v),SSH=file:forcing/forcing_obc_segment_004.nc(eta),TEMP=file:forcing/forcing_obc_segment_004.nc(temp),SALT=file:forcing/forcing_obc_segment_004.nc(salt)"'
 
+        for key in MOM_override_dict.keys():
+            if type(MOM_override_dict[key]) == dict:
+                MOM_override_dict[key]["override"] = True
         self.write_MOM_file(MOM_input_dict)
+        self.write_MOM_file(MOM_override_dict)
 
         ## If using payu to run the model, create a payu configuration file
         if not using_payu and os.path.exists(f"{self.mom_run_dir}/config.yaml"):
@@ -2121,16 +2145,35 @@ class experiment:
         """
         Read the MOM_input file and return a dictionary of the variables and their values.
         """
+
+        # Default information for each parameter
+        default_layout = {"value": None, "override": False, "comment": None}
         with open(os.path.join(self.mom_run_dir, filename), "r") as file:
             lines = file.readlines()
-            MOM_file_dict = {"filename": filename}
+
+            # Set the default initialization for a new key
+            MOM_file_dict = defaultdict(lambda: default_layout.copy())
+            MOM_file_dict["filename"] = filename
+            dlc = default_layout.copy()
             for jj in range(len(lines)):
                 if "=" in lines[jj] and not "===" in lines[jj]:
                     split = lines[jj].split("=", 1)
                     var = split[0]
                     value = split[1]
-                    value = value.split("!")[0].strip()  # Remove Comments
-                    MOM_file_dict[var.strip()] = value.strip()
+                    if "#override" in var:
+                        var = var.split("#override")[1].strip()
+                        dlc["override"] = True
+                    else:
+                        dlc["override"] = False
+                    if "!" in value:
+                        dlc["comment"] = value.split("!")[1]
+                        value = value.split("!")[0].strip()  # Remove Comments
+                        dlc["value"] = str(value)
+                    else:
+                        dlc["value"] = str(value.strip())
+                        dlc["comment"] = None
+
+                    MOM_file_dict[var.strip()] = dlc.copy()
 
             # Save a copy of the original dictionary
             MOM_file_dict["original"] = MOM_file_dict.copy()
@@ -2149,12 +2192,16 @@ class experiment:
             for jj in range(len(lines)):
                 if "=" in lines[jj] and not "===" in lines[jj]:
                     var = lines[jj].split("=", 1)[0].strip()
-                    if (
-                        var in MOM_file_dict.keys()
-                        and (str(MOM_file_dict[var])) != original_MOM_file_dict[var]
-                    ):
+                    if var in MOM_file_dict.keys() and (
+                        str(MOM_file_dict[var]["value"])
+                    ) != str(original_MOM_file_dict[var]["value"]):
                         lines[jj] = lines[jj].replace(
-                            original_MOM_file_dict[var], str(MOM_file_dict[var])
+                            str(original_MOM_file_dict[var]["value"]),
+                            str(MOM_file_dict[var]["value"]),
+                        )
+                        lines[jj] = lines[jj].replace(
+                            original_MOM_file_dict[var]["comment"],
+                            str(MOM_file_dict[var]["comment"]),
                         )
                         print(
                             "Changed",
@@ -2170,7 +2217,14 @@ class experiment:
         lines.append("! === Added with RM6 ===\n")
         for key in MOM_file_dict.keys():
             if key not in original_MOM_file_dict.keys():
-                lines.append(f"{key} = {MOM_file_dict[key]}\n")
+                if MOM_file_dict[key]["override"]:
+                    lines.append(
+                        f"#override {key} = {MOM_file_dict[key]['value']} !{MOM_file_dict[key]["comment"]}\n"
+                    )
+                else:
+                    lines.append(
+                        f"{key} = {MOM_file_dict[key]} !{MOM_file_dict[key]["comment"]}\n"
+                    )
                 print(
                     "Added",
                     key,
