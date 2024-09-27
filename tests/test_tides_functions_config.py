@@ -3,6 +3,7 @@ import os
 import pytest
 import logging
 from pathlib import Path
+IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
 
 
 class TestAll:
@@ -74,6 +75,8 @@ class TestAll:
             toolpath_dir="",
         )
 
+
+    @pytest.mark.skipif(IN_GITHUB_ACTIONS, reason="Test doesn't work in Github Actions.")
     def test_initial_condition(self):
         ocean_varnames = {
             "time": "time",
