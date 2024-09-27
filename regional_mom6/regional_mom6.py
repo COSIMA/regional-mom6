@@ -43,28 +43,29 @@ tidal_constituents_tpxo_dict = {
     "O1": 5,
     "P1": 6,
     "Q1": 7,
-      "MM": 8,
-  "MF": 9,
-  "M4": 10,
-  "MN4":11,
-  "MS4":12,
-  "2N2":13,
-  "S1":14
+    "MM": 8,
+    "MF": 9,
+    "M4": 10,
+    "MN4": 11,
+    "MS4": 12,
+    "2N2": 13,
+    "S1": 14,
     # Add other constituents as needed
 }
+
 
 def convert_to_tpxo_tidal_constituents(tidal_constituents):
     """
     Convert tidal constituents from strings to integers using a dictionary.
-    
+
     Parameters:
     tidal_constituents (list of str): List of tidal constituent names as strings.
-    
+
     Returns:
     list of int: List of tidal constituent indices as integers.
     """
     return [tidal_constituents_tpxo_dict[tc] for tc in tidal_constituents]
- 
+
 
 ## Auxiliary functions
 
@@ -1225,7 +1226,9 @@ class experiment:
         tpxo_h = (
             xr.open_dataset(os.path.join(path_to_td, f"h_{tidal_filename}"))
             .rename({"lon_z": "lon", "lat_z": "lat", "nc": "constituent"})
-            .isel(constituent=convert_to_tpxo_tidal_constituents(self.tidal_constituents))
+            .isel(
+                constituent=convert_to_tpxo_tidal_constituents(self.tidal_constituents)
+            )
         )
         tidal_360_lon = [
             self.longitude_extent[0],
@@ -1247,7 +1250,10 @@ class experiment:
         tpxo_u = (
             xr.open_dataset(os.path.join(path_to_td, f"u_{tidal_filename}"))
             .rename({"lon_u": "lon", "lat_u": "lat", "nc": "constituent"})
-            .isel(constituent=convert_to_tpxo_tidal_constituents(self.tidal_constituents), **horizontal_subset)
+            .isel(
+                constituent=convert_to_tpxo_tidal_constituents(self.tidal_constituents),
+                **horizontal_subset,
+            )
         )
         tpxo_u["ua"] *= 0.01  # convert to m/s
         u = tpxo_u["ua"] * np.exp(-1j * np.radians(tpxo_u["up"]))
@@ -1256,7 +1262,10 @@ class experiment:
         tpxo_v = (
             xr.open_dataset(os.path.join(path_to_td, f"u_{tidal_filename}"))
             .rename({"lon_v": "lon", "lat_v": "lat", "nc": "constituent"})
-            .isel(constituent=convert_to_tpxo_tidal_constituents(self.tidal_constituents), **horizontal_subset)
+            .isel(
+                constituent=convert_to_tpxo_tidal_constituents(self.tidal_constituents),
+                **horizontal_subset,
+            )
         )
         tpxo_v["va"] *= 0.01  # convert to m/s
         v = tpxo_v["va"] * np.exp(-1j * np.radians(tpxo_v["vp"]))
@@ -1931,7 +1940,9 @@ class experiment:
         if with_tides_rectangular:
             MOM_input_dict["TIDES"] = "True"
             MOM_input_dict["OBC_TIDE_N_CONSTITUENTS"] = len(self.tidal_constituents)
-            MOM_input_dict["OBC_TIDE_CONSTITUENTS"] = "\"" + ", ".join(self.tidal_constituents) + "\""
+            MOM_input_dict["OBC_TIDE_CONSTITUENTS"] = (
+                '"' + ", ".join(self.tidal_constituents) + '"'
+            )
             MOM_input_dict["OBC_SEGMENT_001_DATA"] = (
                 '"U=file:forcing/forcing_obc_segment_001.nc(u),V=file:forcing/forcing_obc_segment_001.nc(v),SSH=file:forcing/forcing_obc_segment_001.nc(eta),TEMP=file:forcing/forcing_obc_segment_001.nc(temp),SALT=file:forcing/forcing_obc_segment_001.nc(salt),Uamp=file:forcing/tu_segment_001.nc(uamp),Uphase=file:forcing/tu_segment_001.nc(uphase),Vamp=file:forcing/tu_segment_001.nc(vamp),Vphase=file:forcing/tu_segment_001.nc(vphase),SSHamp=file:forcing/tz_segment_001.nc(zamp),SSHphase=file:forcing/tz_segment_001.nc(zphase)"'
             )
