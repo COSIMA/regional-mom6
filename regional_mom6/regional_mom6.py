@@ -1935,7 +1935,7 @@ class experiment:
                     + "There may be an issue with package installation. Check that the `premade_run_directory` folder is present in one of these two locations"
                 )
             else:
-                print("It is! Found them!")
+                print("Found run files. Continuing...")
 
         # Define the locations of the directories we'll copy files across from. Base contains most of the files, and overwrite replaces files in the base directory.
         base_run_dir = Path(os.path.join(premade_rundir_path, "common_files"))
@@ -2076,6 +2076,16 @@ class experiment:
         MOM_override_dict["MINIMUM_DEPTH"]["value"] = float(self.min_depth)
         MOM_override_dict["NK"]["value"] = len(self.vgrid.zl.values)
 
+        # OBC Adjustments
+
+        # Delete MOM_input OBC stuff that is indexed because we want them only in MOM_override.
+        print(
+            "Deleting indexed OBC keys from MOM_input_dict in case we have a different number of segments"
+        )
+        keys_to_delete = [key for key in MOM_input_dict if "_SEGMENT_00" in key]
+        for key in keys_to_delete:
+            del MOM_input_dict[key]
+
         # Define number of OBC segments
         MOM_override_dict["OBC_NUMBER_OF_SEGMENTS"]["value"] = len(
             boundaries
@@ -2090,8 +2100,8 @@ class experiment:
         MOM_override_dict["OBC_TRACER_RESERVOIR_LENGTH_SCALE_OUT"]["value"] = "3.0E+04"
         MOM_override_dict["OBC_TRACER_RESERVOIR_LENGTH_SCALE_IN"]["value"] = "3000.0"
         MOM_override_dict["BRUSHCUTTER_MODE"]["value"] = "True"
-        # Define Specific Segments
 
+        # Define Specific Segments
         for ind, seg in enumerate(boundaries):
             ind_seg = ind + 1
             key_start = "OBC_SEGMENT_00" + str(ind_seg)
@@ -2114,10 +2124,11 @@ class experiment:
                 index_str + ',FLATHER,ORLANSKI,NUDGED,ORLANSKI_TAN,NUDGED_TAN"'
             )
 
-            ## Nudget Key
+            # Nudging Key
             key_NUDGING = key_start + "_VELOCITY_NUDGING_TIMESCALES"
             MOM_override_dict[key_NUDGING]["value"] = "0.3, 360.0"
-            ## Data
+
+            # Data Key
             key_DATA = key_start + "_DATA"
             file_num_obc = str(
                 find_MOM6_rectangular_orientation(seg)
@@ -2135,9 +2146,14 @@ class experiment:
                     MOM_override_dict[key_DATA]["value"] + '"'
                 )
 
+        # Tides OBC adjustments
         if with_tides_rectangular:
-            MOM_override_dict["OBC_TIDE_ADD_EQ_PHASE"]["value"] = "True"
+
+            # Include internal tide forcing
             MOM_override_dict["TIDES"]["value"] = "True"
+
+            # OBC tides
+            MOM_override_dict["OBC_TIDE_ADD_EQ_PHASE"]["value"] = "True"
             MOM_override_dict["OBC_TIDE_N_CONSTITUENTS"]["value"] = len(
                 self.tidal_constituents
             )
