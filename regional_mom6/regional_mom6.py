@@ -37,24 +37,8 @@ __all__ = [
     "segment",
 ]
 
-tidal_constituents_tpxo_dict = {
-    "M2": 0,
-    "S2": 1,
-    "N2": 2,
-    "K2": 3,
-    "K1": 4,
-    "O1": 5,
-    "P1": 6,
-    "Q1": 7,
-    "MM": 8,
-    "MF": 9,
-    "M4": 10,
-    "MN4": 11,
-    "MS4": 12,
-    "2N2": 13,
-    "S1": 14,
-    # Add other constituents as needed
-}
+
+## Mapping Functions
 
 
 def convert_to_tpxo_tidal_constituents(tidal_constituents):
@@ -67,7 +51,58 @@ def convert_to_tpxo_tidal_constituents(tidal_constituents):
     Returns:
     list of int: List of tidal constituent indices as integers.
     """
-    return [tidal_constituents_tpxo_dict[tc] for tc in tidal_constituents]
+    tidal_constituents_tpxo_dict = {
+        "M2": 0,
+        "S2": 1,
+        "N2": 2,
+        "K2": 3,
+        "K1": 4,
+        "O1": 5,
+        "P1": 6,
+        "Q1": 7,
+        "MM": 8,
+        "MF": 9,
+        # Only supported tidal bc's
+    }
+
+    list_of_ints = []
+    for tc in tidal_constituents:
+        try:
+            list_of_ints.append(tidal_constituents_tpxo_dict[tc])
+        except:
+            raise ValueError(
+                "Invalid Input. Tidal constituent {} is not supported.".format(tc)
+            )
+
+    return list_of_ints
+
+
+def find_MOM6_rectangular_orientation(input):
+    """
+    Convert between MOM6 boundary and the specific segment number needed, or the inverse
+    """
+    direction_dir = {
+        "south": 1,
+        "north": 2,
+        "west": 3,
+        "east": 4,
+    }
+    direction_dir_inv = {v: k for k, v in direction_dir.items()}
+
+    if type(input) == str:
+        try:
+            return direction_dir[input]
+        except:
+            raise ValueError(
+                "Invalid Input. Did you spell the direction wrong, it should be lowercase?"
+            )
+    elif type(input) == int:
+        try:
+            return direction_dir_inv[input]
+        except:
+            raise ValueError("Invalid Input. Did you pick a number 1 through 4?")
+    else:
+        raise ValueError("Invalid type of Input, can only be string or int.")
 
 
 ## Auxiliary functions
@@ -185,34 +220,6 @@ def longitude_slicer(data, longitude_extent, longitude_coords):
         )
 
     return data
-
-
-def find_MOM6_rectangular_orientation(input):
-    """
-    Convert between MOM6 boundary and the specific segment number needed, or the inverse
-    """
-    direction_dir = {
-        "south": 1,
-        "north": 2,
-        "west": 3,
-        "east": 4,
-    }
-    direction_dir_inv = {v: k for k, v in direction_dir.items()}
-
-    if type(input) == str:
-        try:
-            return direction_dir[input]
-        except:
-            raise ValueError(
-                "Invalid Input. Did you spell the direction wrong, it should be lowercase?"
-            )
-    elif type(input) == int:
-        try:
-            return direction_dir_inv[input]
-        except:
-            raise ValueError("Invalid Input. Did you pick a number 1 through 4?")
-    else:
-        raise ValueError("Invalid type of Input, can only be string or int.")
 
 
 def get_glorys_data(
@@ -1884,6 +1891,7 @@ class experiment:
         using_payu=False,
         overwrite=False,
         with_tides_rectangular=False,
+        boundaries=["south", "north", "west", "east"],
     ):
         """
         Set up the run directory for MOM6. Either copy a pre-made set of files, or modify
@@ -2060,9 +2068,75 @@ class experiment:
 
         MOM_input_dict = self.read_MOM_file_as_dict("MOM_input")
         MOM_override_dict = self.read_MOM_file_as_dict("MOM_override")
+        # The number of boundaries is reflected in the number of segments setup in setup_ocean_state_boundary under expt.segments.
+        # The setup_tides_boundaries function currently only works with rectangular grids amd sets up 4 segments, but DOESN"T save them to expt.segments.
+        # Therefore, we can use expt.segments to determine how many segments we need for MOM_input. We can fill the empty segments with a empty string to make sure it is overriden correctly.
+
+        # Others
         MOM_override_dict["MINIMUM_DEPTH"]["value"] = float(self.min_depth)
         MOM_override_dict["NK"]["value"] = len(self.vgrid.zl.values)
+
+        # Define number of OBC segments
+        MOM_override_dict["OBC_NUMBER_OF_SEGMENTS"]["value"] = len(
+            boundaries
+        )  # This means that each SEGMENT_00{num} has to be configured to point to the right file, which based on our other functions needs to be specified.
+
+        # More OBC Consts
+        MOM_override_dict["OBC_FREESLIP_VORTICITY"]["value"] = "False"
+        MOM_override_dict["OBC_FREESLIP_STRAIN"]["value"] = "False"
+        MOM_override_dict["OBC_COMPUTED_VORTICITY"]["value"] = "True"
+        MOM_override_dict["OBC_COMPUTED_STRAIN"]["value"] = "True"
+        MOM_override_dict["OBC_ZERO_BIHARMONIC"]["value"] = "True"
+        MOM_override_dict["OBC_TRACER_RESERVOIR_LENGTH_SCALE_OUT"]["value"] = "3.0E+04"
+        MOM_override_dict["OBC_TRACER_RESERVOIR_LENGTH_SCALE_IN"]["value"] = "3000.0"
+        MOM_override_dict["BRUSHCUTTER_MODE"]["value"] = "True"
+        # Define Specific Segments
+
+        for ind, seg in enumerate(boundaries):
+            ind_seg = ind + 1
+            key_start = "OBC_SEGMENT_00" + str(ind_seg)
+            ## Position and Config
+            key_POSITION = key_start
+            if find_MOM6_rectangular_orientation(seg) == 1:
+                j_str = "0"
+                i_str = "0:N"
+            elif find_MOM6_rectangular_orientation(seg) == 2:
+                j_str = "N"
+                i_str = "N:0"
+            elif find_MOM6_rectangular_orientation(seg) == 3:
+                j_str = "N:0"
+                i_str = "0"
+            elif find_MOM6_rectangular_orientation(seg) == 4:
+                j_str = "0:N"
+                i_str = "N"
+            index_str = '"J={},I={}'.format(j_str, i_str)
+            MOM_override_dict[key_POSITION]["value"] = (
+                index_str + ',FLATHER,ORLANSKI,NUDGED,ORLANSKI_TAN,NUDGED_TAN"'
+            )
+
+            ## Nudget Key
+            key_NUDGING = key_start + "_VELOCITY_NUDGING_TIMESCALES"
+            MOM_override_dict[key_NUDGING]["value"] = "0.3, 360.0"
+            ## Data
+            key_DATA = key_start + "_DATA"
+            file_num_obc = str(
+                find_MOM6_rectangular_orientation(seg)
+            )  # 1,2,3,4 for rectangular boundaries, BUT if we have less than 4 segments we use the index to specific the number, but keep filenames as if we had four boundaries
+            MOM_override_dict[key_DATA][
+                "value"
+            ] = f'"U=file:forcing/forcing_obc_segment_00{file_num_obc}.nc(u),V=file:forcing/forcing_obc_segment_00{file_num_obc}.nc(v),SSH=file:forcing/forcing_obc_segment_00{file_num_obc}.nc(eta),TEMP=file:forcing/forcing_obc_segment_00{file_num_obc}.nc(temp),SALT=file:forcing/forcing_obc_segment_00{file_num_obc}.nc(salt)'
+            if with_tides_rectangular:
+                MOM_override_dict[key_DATA]["value"] = (
+                    MOM_override_dict[key_DATA]["value"]
+                    + f',Uamp=file:forcing/tu_segment_00{file_num_obc}.nc(uamp),Uphase=file:forcing/tu_segment_00{file_num_obc}.nc(uphase),Vamp=file:forcing/tu_segment_00{file_num_obc}.nc(vamp),Vphase=file:forcing/tu_segment_00{file_num_obc}.nc(vphase),SSHamp=file:forcing/tz_segment_00{file_num_obc}.nc(zamp),SSHphase=file:forcing/tz_segment_00{file_num_obc}.nc(zphase)"'
+                )
+            else:
+                MOM_override_dict[key_DATA]["value"] = (
+                    MOM_override_dict[key_DATA]["value"] + '"'
+                )
+
         if with_tides_rectangular:
+            MOM_override_dict["OBC_TIDE_ADD_EQ_PHASE"]["value"] = "True"
             MOM_override_dict["TIDES"]["value"] = "True"
             MOM_override_dict["OBC_TIDE_N_CONSTITUENTS"]["value"] = len(
                 self.tidal_constituents
@@ -2070,31 +2144,13 @@ class experiment:
             MOM_override_dict["OBC_TIDE_CONSTITUENTS"]["value"] = (
                 '"' + ", ".join(self.tidal_constituents) + '"'
             )
-            MOM_override_dict["OBC_SEGMENT_001_DATA"][
-                "value"
-            ] = '"U=file:forcing/forcing_obc_segment_001.nc(u),V=file:forcing/forcing_obc_segment_001.nc(v),SSH=file:forcing/forcing_obc_segment_001.nc(eta),TEMP=file:forcing/forcing_obc_segment_001.nc(temp),SALT=file:forcing/forcing_obc_segment_001.nc(salt),Uamp=file:forcing/tu_segment_001.nc(uamp),Uphase=file:forcing/tu_segment_001.nc(uphase),Vamp=file:forcing/tu_segment_001.nc(vamp),Vphase=file:forcing/tu_segment_001.nc(vphase),SSHamp=file:forcing/tz_segment_001.nc(zamp),SSHphase=file:forcing/tz_segment_001.nc(zphase)"'
-            MOM_override_dict["OBC_SEGMENT_002_DATA"][
-                "value"
-            ] = '"U=file:forcing/forcing_obc_segment_002.nc(u),V=file:forcing/forcing_obc_segment_002.nc(v),SSH=file:forcing/forcing_obc_segment_002.nc(eta),TEMP=file:forcing/forcing_obc_segment_002.nc(temp),SALT=file:forcing/forcing_obc_segment_002.nc(salt),Uamp=file:forcing/tu_segment_002.nc(uamp),Uphase=file:forcing/tu_segment_002.nc(uphase),Vamp=file:forcing/tu_segment_002.nc(vamp),Vphase=file:forcing/tu_segment_002.nc(vphase),SSHamp=file:forcing/tz_segment_002.nc(zamp),SSHphase=file:forcing/tz_segment_002.nc(zphase)"'
-            MOM_override_dict["OBC_SEGMENT_003_DATA"][
-                "value"
-            ] = '"U=file:forcing/forcing_obc_segment_003.nc(u),V=file:forcing/forcing_obc_segment_003.nc(v),SSH=file:forcing/forcing_obc_segment_003.nc(eta),TEMP=file:forcing/forcing_obc_segment_003.nc(temp),SALT=file:forcing/forcing_obc_segment_003.nc(salt),Uamp=file:forcing/tu_segment_003.nc(uamp),Uphase=file:forcing/tu_segment_003.nc(uphase),Vamp=file:forcing/tu_segment_003.nc(vamp),Vphase=file:forcing/tu_segment_003.nc(vphase),SSHamp=file:forcing/tz_segment_003.nc(zamp),SSHphase=file:forcing/tz_segment_003.nc(zphase)"'
-            MOM_override_dict["OBC_SEGMENT_004_DATA"][
-                "value"
-            ] = '"U=file:forcing/forcing_obc_segment_004.nc(u),V=file:forcing/forcing_obc_segment_004.nc(v),SSH=file:forcing/forcing_obc_segment_004.nc(eta),TEMP=file:forcing/forcing_obc_segment_004.nc(temp),SALT=file:forcing/forcing_obc_segment_004.nc(salt),Uamp=file:forcing/tu_segment_004.nc(uamp),Uphase=file:forcing/tu_segment_004.nc(uphase),Vamp=file:forcing/tu_segment_004.nc(vamp),Vphase=file:forcing/tu_segment_004.nc(vphase),SSHamp=file:forcing/tz_segment_004.nc(zamp),SSHphase=file:forcing/tz_segment_004.nc(zphase)"'
-        else:
-            MOM_override_dict["OBC_SEGMENT_001_DATA"][
-                "value"
-            ] = '"U=file:forcing/forcing_obc_segment_001.nc(u),V=file:forcing/forcing_obc_segment_001.nc(v),SSH=file:forcing/forcing_obc_segment_001.nc(eta),TEMP=file:forcing/forcing_obc_segment_001.nc(temp),SALT=file:forcing/forcing_obc_segment_001.nc(salt)"'
-            MOM_override_dict["OBC_SEGMENT_002_DATA"][
-                "value"
-            ] = '"U=file:forcing/forcing_obc_segment_002.nc(u),V=file:forcing/forcing_obc_segment_002.nc(v),SSH=file:forcing/forcing_obc_segment_002.nc(eta),TEMP=file:forcing/forcing_obc_segment_002.nc(temp),SALT=file:forcing/forcing_obc_segment_002.nc(salt)"'
-            MOM_override_dict["OBC_SEGMENT_003_DATA"][
-                "value"
-            ] = '"U=file:forcing/forcing_obc_segment_003.nc(u),V=file:forcing/forcing_obc_segment_003.nc(v),SSH=file:forcing/forcing_obc_segment_003.nc(eta),TEMP=file:forcing/forcing_obc_segment_003.nc(temp),SALT=file:forcing/forcing_obc_segment_003.nc(salt)"'
-            MOM_override_dict["OBC_SEGMENT_004_DATA"][
-                "value"
-            ] = '"U=file:forcing/forcing_obc_segment_004.nc(u),V=file:forcing/forcing_obc_segment_004.nc(v),SSH=file:forcing/forcing_obc_segment_004.nc(eta),TEMP=file:forcing/forcing_obc_segment_004.nc(temp),SALT=file:forcing/forcing_obc_segment_004.nc(salt)"'
+            MOM_override_dict["OBC_TIDE_REF_DATE"]["value"] = (
+                str(self.date_range[0].year)
+                + ", "
+                + str(self.date_range[0].month)
+                + ", "
+                + str(self.date_range[0].day)
+            )
 
         for key in MOM_override_dict.keys():
             if type(MOM_override_dict[key]) == dict:
@@ -2140,6 +2196,63 @@ class experiment:
         ]
         nml.write(self.mom_run_dir / "input.nml", force=True)
         return
+
+    def change_MOM_parameter(
+        self, param_name, param_value=None, comment=None, delete=False
+    ):
+        """
+        Change a parameter in the MOM_input or MOM_override file. Returns original value if there was one.
+        If delete is specified, ONLY MOM_override version will be deleted. Deleting from MOM_input is not safe.
+        If the parameter does not exist, it will be added to the file. if delete is set to True, the parameter will be removed.
+        Args:
+            param_name (str):
+                Parameter name we are working with
+            param_value (Optional[str]):
+                New Assigned Value
+            comment (Optional[str]):
+                Any comment to add
+            delete (Optional[bool]):
+                Whether to delete the specified param_name
+
+        """
+        if not delete and param_value is None:
+            raise ValueError(
+                "If not deleting a parameter, you must specify a new value for it."
+            )
+
+        MOM_input_dict = self.read_MOM_file_as_dict("MOM_input")
+        MOM_override_dict = self.read_MOM_file_as_dict("MOM_override")
+        original_val = "No original val"
+        if not delete:
+            # We don't want to keep any parameters in MOM_input that we change. We want to clearly list them in MOM_override.
+            if param_name in MOM_input_dict.keys():
+                original_val = MOM_override_dict[param_name]["value"]
+                print("Removing original value {} from MOM_input".format(original_val))
+                del MOM_input_dict[param_name]
+            if param_name in MOM_override_dict.keys():
+                original_val = MOM_override_dict[param_name]["value"]
+                print(
+                    "This parameter {} is begin replaced from {} to {} in MOM_override".format(
+                        param_name, original_val, param_value
+                    )
+                )
+
+            MOM_override_dict[param_name]["value"] = param_value
+            MOM_override_dict[param_name]["comment"] = comment
+        else:
+            if param_name in MOM_override_dict.keys():
+                original_val = MOM_override_dict[param_name]["value"]
+                print("Deleting parameter {} from MOM_override".format(param_name))
+                del MOM_override_dict[param_name]
+            else:
+                print(
+                    "Key to be deleted {} was not in MOM_override to begin with.".format(
+                        param_name
+                    )
+                )
+        self.write_MOM_file(MOM_input_dict)
+        self.write_MOM_file(MOM_override_dict)
+        return original_val
 
     def read_MOM_file_as_dict(self, filename):
         """
@@ -2237,10 +2350,22 @@ class experiment:
         # Check any fields removed
         for key in original_MOM_file_dict.keys():
             if key not in MOM_file_dict.keys():
-                print(
-                    "WARNING: Field",
+                search_words = [
                     key,
-                    "was not found in the new dictionary. Keeping the original value of",
+                    original_MOM_file_dict[key]["value"],
+                    original_MOM_file_dict[key]["comment"],
+                ]
+                lines = [
+                    line
+                    for line in lines
+                    if not all(word in line for word in search_words)
+                ]
+                print(
+                    "Removed",
+                    key,
+                    "in",
+                    MOM_file_dict["filename"],
+                    "with value",
                     original_MOM_file_dict[key],
                 )
 
