@@ -26,7 +26,8 @@ import re
 from pathlib import Path
 import glob
 from collections import defaultdict
-import json 
+import json
+
 warnings.filterwarnings("ignore")
 
 __all__ = [
@@ -105,7 +106,9 @@ def find_MOM6_rectangular_orientation(input):
     else:
         raise ValueError("Invalid type of Input, can only be string or int.")
 
+
 ## Load Expirement Function
+
 
 def load_experiment(config_file_path):
     print("Reading from config file....")
@@ -119,7 +122,7 @@ def load_experiment(config_file_path):
     expt.name = config_dict["name"]
     expt.longitude_extent = tuple(config_dict["longitude_extent"])
     expt.latitude_extent = tuple(config_dict["latitude_extent"])
-    expt.date_range = (config_dict["date_range"])
+    expt.date_range = config_dict["date_range"]
     expt.date_range[0] = dt.datetime.strptime(expt.date_range[0], "%Y-%m-%d")
     expt.date_range[1] = dt.datetime.strptime(expt.date_range[1], "%Y-%m-%d")
     expt.mom_run_dir = Path(config_dict["run_dir"])
@@ -151,18 +154,24 @@ def load_experiment(config_file_path):
         expt.vgrid = expt._make_vgrid()
 
     print("Checking for bathymetry...")
-    if config_dict["bathymetry"] is not None and os.path.exists(config_dict["bathymetry"]):
+    if config_dict["bathymetry"] is not None and os.path.exists(
+        config_dict["bathymetry"]
+    ):
         print("Found")
         expt.bathymetry = xr.open_dataset(config_dict["bathymetry"])
     else:
-        print("Bathymetry not found. Please provide bathymetry, or call setup_bathymetry method to set up bathymetry.")
+        print(
+            "Bathymetry not found. Please provide bathymetry, or call setup_bathymetry method to set up bathymetry."
+        )
 
     print("Checking for ocean state files....")
     found = True
     for path in config_dict["ocean_state"]:
         if not os.path.exists(path):
             foud = False
-            print("At least one ocean state file not found. Please provide ocean state files, or call setup_ocean_state_boundaries method to set up ocean state.")
+            print(
+                "At least one ocean state file not found. Please provide ocean state files, or call setup_ocean_state_boundaries method to set up ocean state."
+            )
             break
     if found:
         print("Found")
@@ -170,7 +179,9 @@ def load_experiment(config_file_path):
     print("Checking for initial condition files....")
     for path in config_dict["initial_conditions"]:
         if not os.path.exists(path):
-            print("At least one initial condition file not found. Please provide initial condition files, or call setup_initial_condition method to set up initial condition.")
+            print(
+                "At least one initial condition file not found. Please provide initial condition files, or call setup_initial_condition method to set up initial condition."
+            )
             break
     if found:
         print("Found")
@@ -178,12 +189,14 @@ def load_experiment(config_file_path):
     print("Checking for tides files....")
     for path in config_dict["tides"]:
         if not os.path.exists(path):
-            print("At least one tides file not found. If you would like tides, call setup_tides_boundaries method to set up tides")
+            print(
+                "At least one tides file not found. If you would like tides, call setup_tides_boundaries method to set up tides"
+            )
             break
     if found:
         print("Found")
     found = True
-    
+
     return expt
 
 
@@ -610,7 +623,6 @@ class experiment:
     @classmethod
     def create_empty(self):
 
-
         expt = self(
             longitude_extent=None,
             latitude_extent=None,
@@ -623,10 +635,10 @@ class experiment:
             mom_run_dir=None,
             mom_input_dir=None,
             toolpath_dir=None,
-            create_empty = True
+            create_empty=True,
         )
         return expt
-    
+
     def __init__(
         self,
         *,
@@ -645,8 +657,8 @@ class experiment:
         read_existing_grids=False,
         minimum_depth=4,
         tidal_constituents=["M2"],
-        create_empty = False,
-        name = None
+        create_empty=False,
+        name=None,
     ):
         if create_empty:
             return
@@ -682,7 +694,7 @@ class experiment:
             minimum_depth  # Minimum depth. Shallower water will be masked out.
         )
         self.tidal_constituents = tidal_constituents
-          
+
         if read_existing_grids:
             try:
                 self.hgrid = xr.open_dataset(self.mom_input_dir / "hgrid.nc")
@@ -713,8 +725,8 @@ class experiment:
             input_rundir.symlink_to(self.mom_run_dir.resolve())
 
     def __str__(self) -> str:
-        return json.dumps(self.write_config_file(export = False, quiet = True), indent=4)
-    
+        return json.dumps(self.write_config_file(export=False, quiet=True), indent=4)
+
     def __getattr__(self, name):
         available_methods = [
             method for method in dir(self) if not method.startswith("__")
@@ -828,7 +840,10 @@ class experiment:
         ocean_state_path = self.mom_input_dir / "forcing"
         try:
             # Use glob to find all tides files
-            patterns = ["forcing_*", "weights/bi*",]
+            patterns = [
+                "forcing_*",
+                "weights/bi*",
+            ]
             all_files = []
             for pattern in patterns:
                 all_files.extend(glob.glob(os.path.join(ocean_state_path, pattern)))
@@ -898,7 +913,7 @@ class experiment:
         forcing_path = self.mom_input_dir / "forcing"
         try:
             all_files = glob.glob(os.path.join(forcing_path, "init_*.nc"))
-            all_files = glob.glob(os.path.join(self.mom_input_dir , "init_*.nc"))
+            all_files = glob.glob(os.path.join(self.mom_input_dir, "init_*.nc"))
             if len(all_files) == 0:
                 return "No initial conditions files set up yet (or files misplaced from {}). Call `setup_initial_condition` method to set up initial conditions.".format(
                     forcing_path
@@ -922,17 +937,17 @@ class experiment:
 
         try:
             bathy = xr.open_dataset(self.mom_input_dir / "bathymetry.nc")
-            #return [bathy]
+            # return [bathy]
             return str(self.mom_input_dir / "bathymetry.nc")
         except:
             return "No bathymetry set up yet (or files misplaced from {}). Call `setup_bathymetry` method to set up bathymetry.".format(
                 self.mom_input_dir
             )
 
-    def write_config_file(self, export=True, quiet  = False):
+    def write_config_file(self, export=True, quiet=False):
         """
         Write a configuration file for the experiment. This is a simple json file
-        that contains the expirment object information to allow for reproducibility, to pick up where a user left off, and 
+        that contains the expirment object information to allow for reproducibility, to pick up where a user left off, and
         to make information about the expirement readable.
         """
         if not quiet:
@@ -940,40 +955,40 @@ class experiment:
         ## check if files exist
         vgrid_path = None
         hgrid_path = None
-        if os.path.exists(self.mom_input_dir/"vcoord.nc"):
-            vgrid_path = self.mom_input_dir/"vcoord.nc"
-        if os.path.exists(self.mom_input_dir/"hgrid.nc"):
-            hgrid_path = self.mom_input_dir/"hgrid.nc"
+        if os.path.exists(self.mom_input_dir / "vcoord.nc"):
+            vgrid_path = self.mom_input_dir / "vcoord.nc"
+        if os.path.exists(self.mom_input_dir / "hgrid.nc"):
+            hgrid_path = self.mom_input_dir / "hgrid.nc"
         config_dict = {
-                    "name": self.name,
-                    "date_range": [
-                        self.date_range[0].strftime("%Y-%m-%d"),
-                        self.date_range[1].strftime("%Y-%m-%d"),
-                    ],
-                    "latitude_extent": self.latitude_extent,
-                    "longitude_extent": self.longitude_extent,
-                    "run_dir": str(self.mom_run_dir),
-                    "input_dir": str(self.mom_input_dir),
-                    'toolpath_dir': str(self.toolpath_dir),
-                    "resolution": self.resolution,
-                    "number_vertical_layers": self.number_vertical_layers,
-                    "layer_thickness_ratio": self.layer_thickness_ratio,
-                    "depth": self.depth,
-                    "grid_type": self.grid_type,
-                    "repeat_year_forcing": self.repeat_year_forcing,
-                    "ocean_mask": self.ocean_mask,
-                    "layout": self.layout,
-                    "min_depth": self.min_depth,
-                    "vgrid": str(vgrid_path),
-                    "hgrid": str(hgrid_path),
-                    "bathymetry": self.bathymetry_property,
-                    "ocean_state": self.ocean_state_boundaries,
-                    "tides": self.tides_boundaries,
-                    "initial_conditions": self.initial_condition,
-                    "tidal_constituents": self.tidal_constituents
-                }
+            "name": self.name,
+            "date_range": [
+                self.date_range[0].strftime("%Y-%m-%d"),
+                self.date_range[1].strftime("%Y-%m-%d"),
+            ],
+            "latitude_extent": self.latitude_extent,
+            "longitude_extent": self.longitude_extent,
+            "run_dir": str(self.mom_run_dir),
+            "input_dir": str(self.mom_input_dir),
+            "toolpath_dir": str(self.toolpath_dir),
+            "resolution": self.resolution,
+            "number_vertical_layers": self.number_vertical_layers,
+            "layer_thickness_ratio": self.layer_thickness_ratio,
+            "depth": self.depth,
+            "grid_type": self.grid_type,
+            "repeat_year_forcing": self.repeat_year_forcing,
+            "ocean_mask": self.ocean_mask,
+            "layout": self.layout,
+            "min_depth": self.min_depth,
+            "vgrid": str(vgrid_path),
+            "hgrid": str(hgrid_path),
+            "bathymetry": self.bathymetry_property,
+            "ocean_state": self.ocean_state_boundaries,
+            "tides": self.tides_boundaries,
+            "initial_conditions": self.initial_condition,
+            "tidal_constituents": self.tidal_constituents,
+        }
         if export:
-            with open(self.mom_run_dir/"config.json", "w") as f:
+            with open(self.mom_run_dir / "config.json", "w") as f:
                 json.dump(
                     config_dict,
                     f,
@@ -982,6 +997,7 @@ class experiment:
         if not quiet:
             print("Done.")
         return config_dict
+
     def setup_initial_condition(
         self,
         raw_ic_path,
