@@ -253,7 +253,7 @@ class TestAll:
         # Create Forcing Folder
         os.makedirs(self.dump_files_dir / "forcing", exist_ok=True)
 
-        self.expt.setup_tides_boundaries(self.dump_files_dir, "fake_tidal_data.nc")
+        self.expt.setup_boundary_tides(self.dump_files_dir, "fake_tidal_data.nc")
 
     def test_read_write_config(self):
         """
