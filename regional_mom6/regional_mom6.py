@@ -18,7 +18,6 @@ from .utils import (
     quadrilateral_areas,
     ap2ep,
     ep2ap,
-    find_roughly_nearest_ny_nx,
 )
 import pandas as pd
 import re
@@ -1614,19 +1613,6 @@ class experiment:
                 constituent=convert_to_tpxo_tidal_constituents(self.tidal_constituents)
             )
         )
-        tidal_360_lon = [
-            self.longitude_extent[0],
-            self.longitude_extent[1],
-        ]
-        ny0, nx0 = find_roughly_nearest_ny_nx(
-            self.latitude_extent[0] - 0.5, tidal_360_lon[0] - 0.5, tpxo_h
-        )
-        ny1, nx1 = find_roughly_nearest_ny_nx(
-            self.latitude_extent[1] + 0.5, tidal_360_lon[1] + 0.5, tpxo_h
-        )
-        horizontal_subset = dict(ny=slice(ny0, ny1), nx=slice(nx0, nx1))
-
-        tpxo_h = tpxo_h.isel(**horizontal_subset)
 
         h = tpxo_h["ha"] * np.exp(-1j * np.radians(tpxo_h["hp"]))
         tpxo_h["hRe"] = np.real(h)
@@ -1635,8 +1621,7 @@ class experiment:
             xr.open_dataset(os.path.join(path_to_td, f"u_{tidal_filename}"))
             .rename({"lon_u": "lon", "lat_u": "lat", "nc": "constituent"})
             .isel(
-                constituent=convert_to_tpxo_tidal_constituents(self.tidal_constituents),
-                **horizontal_subset,
+                constituent=convert_to_tpxo_tidal_constituents(self.tidal_constituents)
             )
         )
         tpxo_u["ua"] *= 0.01  # convert to m/s
@@ -1647,8 +1632,7 @@ class experiment:
             xr.open_dataset(os.path.join(path_to_td, f"u_{tidal_filename}"))
             .rename({"lon_v": "lon", "lat_v": "lat", "nc": "constituent"})
             .isel(
-                constituent=convert_to_tpxo_tidal_constituents(self.tidal_constituents),
-                **horizontal_subset,
+                constituent=convert_to_tpxo_tidal_constituents(self.tidal_constituents)
             )
         )
         tpxo_v["va"] *= 0.01  # convert to m/s
@@ -2364,18 +2348,13 @@ class experiment:
             ## Position and Config
             key_POSITION = key_start
             if find_MOM6_rectangular_orientation(seg) == 1:
-                j_str = "0"
-                i_str = "0:N"
+                index_str = '"J=0,I=0:N'
             elif find_MOM6_rectangular_orientation(seg) == 2:
-                j_str = "N"
-                i_str = "N:0"
+                index_str = '"J=N,I=N:0'
             elif find_MOM6_rectangular_orientation(seg) == 3:
-                j_str = "N:0"
-                i_str = "0"
+                index_str = '"I=0,J=N:0'
             elif find_MOM6_rectangular_orientation(seg) == 4:
-                j_str = "0:N"
-                i_str = "N"
-            index_str = '"J={},I={}'.format(j_str, i_str)
+                index_str = '"I=N,J=0:N'
             MOM_override_dict[key_POSITION]["value"] = (
                 index_str + ',FLATHER,ORLANSKI,NUDGED,ORLANSKI_TAN,NUDGED_TAN"'
             )
