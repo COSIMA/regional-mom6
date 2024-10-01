@@ -1498,10 +1498,7 @@ class experiment:
         # Now iterate through our four boundaries
         for orientation in boundaries:
             self.setup_ocean_state_boundary(
-                Path(
-                        (raw_boundaries_path) / (orientation + "_unprocessed.nc")
-                    )
-                ,
+                Path((raw_boundaries_path) / (orientation + "_unprocessed.nc")),
                 varnames,
                 orientation,  # The cardinal direction of the boundary
                 find_MOM6_rectangular_orientation(
@@ -2149,11 +2146,9 @@ class experiment:
 
         ## Get the path to the regional_mom package on this computer
         premade_rundir_path = Path(
-            
-                importlib.resources.files("regional_mom6") /
-                "demos" / 
-                "premade_run_directories"
-            
+            importlib.resources.files("regional_mom6")
+            / "demos"
+            / "premade_run_directories"
         )
         if not premade_rundir_path.exists():
             print("Could not find premade run directories at ", premade_rundir_path)
@@ -2162,11 +2157,9 @@ class experiment:
             )
 
             premade_rundir_path = Path(
-                
-                    importlib.resources.files("regional_mom6").parent /
-                    "demos"/
-                    "premade_run_directories"
-                
+                importlib.resources.files("regional_mom6").parent
+                / "demos"
+                / "premade_run_directories"
             )
             if not premade_rundir_path.exists():
                 raise ValueError(
@@ -2185,7 +2178,7 @@ class experiment:
             )
         if surface_forcing:
             overwrite_run_dir = Path(premade_rundir_path / f"{surface_forcing}_surface")
-            
+
             if not overwrite_run_dir.exists():
                 available = [x for x in premade_rundir_path.iterdir() if x.is_dir()]
                 raise ValueError(
@@ -2553,9 +2546,7 @@ class experiment:
         """
         # Replace specific variable values
         original_MOM_file_dict = MOM_file_dict.pop("original")
-        with open(
-            Path(self.mom_run_dir / MOM_file_dict["filename"]), "r"
-        ) as file:
+        with open(Path(self.mom_run_dir / MOM_file_dict["filename"]), "r") as file:
             lines = file.readlines()
             for jj in range(len(lines)):
                 if "=" in lines[jj] and not "===" in lines[jj]:
