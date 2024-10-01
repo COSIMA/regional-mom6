@@ -31,7 +31,7 @@ warnings.filterwarnings("ignore")
 __all__ = [
     "longitude_slicer",
     "hyperbolictan_thickness_profile",
-    "calculate_rectangular_hgrid",
+    "generate_rectangular_hgrid",
     "experiment",
     "segment",
     "load_experiment",
@@ -346,17 +346,17 @@ def get_glorys_data(
     """
     buffer = 0.24  # Pads downloads to ensure that interpolation onto desired domain doesn't fail. Default of 0.24 is twice Glorys cell width (12th degree)
 
-    path = os.path.join(download_path)
+    path = Path(download_path)
 
     if modify_existing:
-        file = open(os.path.join(path, "get_glorys_data.sh"), "r")
+        file = open(Path(path / "get_glorysdata.sh"), "r")
         lines = file.readlines()
         file.close()
 
     else:
         lines = ["#!/bin/bash\n"]
 
-    file = open(os.path.join(path, "get_glorys_data.sh"), "w")
+    file = open(Path(path / "get_glorysdata.sh"), "w")
 
     lines.append(
         f"""
@@ -484,7 +484,7 @@ def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
     return layer_thicknesses
 
 
-def calculate_rectangular_hgrid(lons, lats):
+def generate_rectangular_hgrid(lons, lats):
     """
     Construct a horizontal grid with all the metadata required by MOM6, based on
     arrays of longitudes (``lons``) and latitudes (``lats``) on the supergrid.
@@ -853,7 +853,7 @@ class experiment:
                 self.latitude_extent[0], self.latitude_extent[1], ny
             )  # latitudes in degrees
 
-            hgrid = calculate_rectangular_hgrid(lons, lats)
+            hgrid = generate_rectangular_hgrid(lons, lats)
             hgrid.to_netcdf(self.mom_input_dir / "hgrid.nc")
 
             return hgrid
@@ -898,8 +898,8 @@ class experiment:
             ]
             all_files = []
             for pattern in patterns:
-                all_files.extend(glob.glob(os.path.join(ocean_state_path, pattern)))
-                all_files.extend(glob.glob(os.path.join(self.mom_input_dir, pattern)))
+                all_files.extend(glob.glob(Path(ocean_state_path / pattern)))
+                all_files.extend(glob.glob(Path(self.mom_input_dir / pattern)))
 
             if len(all_files) == 0:
                 return "No ocean state files set up yet (or files misplaced from {}). Call `setup_ocean_state_boundaries` method to set up ocean state.".format(
@@ -923,8 +923,8 @@ class experiment:
             patterns = ["regrid*", "tu_*", "tz_*"]
             all_files = []
             for pattern in patterns:
-                all_files.extend(glob.glob(os.path.join(tides_path, pattern)))
-                all_files.extend(glob.glob(os.path.join(self.mom_input_dir, pattern)))
+                all_files.extend(glob.glob(Path(tides_path / pattern)))
+                all_files.extend(glob.glob(Path(self.mom_input_dir / pattern)))
 
             if len(all_files) == 0:
                 return "No tides files set up yet (or files misplaced from {}). Call `setup_tides_boundaries` method to set up tides.".format(
@@ -945,7 +945,7 @@ class experiment:
         era5_path = self.mom_input_dir / "forcing"
         try:
             # Use glob to find all *_ERA5.nc files
-            all_files = glob.glob(os.path.join(era5_path, "*_ERA5.nc"))
+            all_files = glob.glob(Path(era5_path / "*_ERA5.nc"))
             if len(all_files) == 0:
                 return "No era5 files set up yet (or files misplaced from {}). Call `setup_era5` method to set up era5.".format(
                     era5_path
@@ -964,8 +964,8 @@ class experiment:
         """
         forcing_path = self.mom_input_dir / "forcing"
         try:
-            all_files = glob.glob(os.path.join(forcing_path, "init_*.nc"))
-            all_files = glob.glob(os.path.join(self.mom_input_dir, "init_*.nc"))
+            all_files = glob.glob(Path(forcing_path / "init_*.nc"))
+            all_files = glob.glob(Path(self.mom_input_dir / "init_*.nc"))
             if len(all_files) == 0:
                 return "No initial conditions files set up yet (or files misplaced from {}). Call `setup_initial_condition` method to set up initial conditions.".format(
                     forcing_path
@@ -1607,7 +1607,7 @@ class experiment:
         if tidal_constituents != "read_from_expt_init":
             self.tidal_constituents = tidal_constituents
         tpxo_h = (
-            xr.open_dataset(os.path.join(path_to_td, f"h_{tidal_filename}"))
+            xr.open_dataset(Path(path_to_td / f"h_{tidal_filename}"))
             .rename({"lon_z": "lon", "lat_z": "lat", "nc": "constituent"})
             .isel(
                 constituent=convert_to_tpxo_tidal_constituents(self.tidal_constituents)
@@ -1618,7 +1618,7 @@ class experiment:
         tpxo_h["hRe"] = np.real(h)
         tpxo_h["hIm"] = np.imag(h)
         tpxo_u = (
-            xr.open_dataset(os.path.join(path_to_td, f"u_{tidal_filename}"))
+            xr.open_dataset(Path(path_to_td / f"u_{tidal_filename}"))
             .rename({"lon_u": "lon", "lat_u": "lat", "nc": "constituent"})
             .isel(
                 constituent=convert_to_tpxo_tidal_constituents(self.tidal_constituents)
@@ -1629,7 +1629,7 @@ class experiment:
         tpxo_u["uRe"] = np.real(u)
         tpxo_u["uIm"] = np.imag(u)
         tpxo_v = (
-            xr.open_dataset(os.path.join(path_to_td, f"u_{tidal_filename}"))
+            xr.open_dataset(Path(path_to_td / f"u_{tidal_filename}"))
             .rename({"lon_v": "lon", "lat_v": "lat", "nc": "constituent"})
             .isel(
                 constituent=convert_to_tpxo_tidal_constituents(self.tidal_constituents)
@@ -2150,11 +2150,9 @@ class experiment:
 
         ## Get the path to the regional_mom package on this computer
         premade_rundir_path = Path(
-            os.path.join(
-                importlib.resources.files("regional_mom6"),
-                "demos",
-                "premade_run_directories",
-            )
+            importlib.resources.files("regional_mom6")
+            / "demos"
+            / "premade_run_directories"
         )
         if not premade_rundir_path.exists():
             print("Could not find premade run directories at ", premade_rundir_path)
@@ -2163,11 +2161,9 @@ class experiment:
             )
 
             premade_rundir_path = Path(
-                os.path.join(
-                    importlib.resources.files("regional_mom6").parent,
-                    "demos",
-                    "premade_run_directories",
-                )
+                importlib.resources.files("regional_mom6").parent
+                / "demos"
+                / "premade_run_directories"
             )
             if not premade_rundir_path.exists():
                 raise ValueError(
@@ -2178,16 +2174,15 @@ class experiment:
                 print("Found run files. Continuing...")
 
         # Define the locations of the directories we'll copy files across from. Base contains most of the files, and overwrite replaces files in the base directory.
-        base_run_dir = Path(os.path.join(premade_rundir_path, "common_files"))
+        base_run_dir = Path(premade_rundir_path / "common_files")
         if not premade_rundir_path.exists():
             raise ValueError(
                 f"Cannot find the premade run directory files at {premade_rundir_path}.\n\n"
                 + "These files missing might be indicating an error during the package installation!"
             )
         if surface_forcing:
-            overwrite_run_dir = Path(
-                os.path.join(premade_rundir_path, f"{surface_forcing}_surface")
-            )
+            overwrite_run_dir = Path(premade_rundir_path / f"{surface_forcing}_surface")
+
             if not overwrite_run_dir.exists():
                 available = [x for x in premade_rundir_path.iterdir() if x.is_dir()]
                 raise ValueError(
@@ -2202,8 +2197,8 @@ class experiment:
             tidal_files_exist = any(
                 "tidal" in filename
                 for filename in (
-                    os.listdir(os.path.join(self.mom_input_dir, "forcing"))
-                    + os.listdir(os.path.join(self.mom_input_dir))
+                    os.listdir(Path(self.mom_input_dir / "forcing"))
+                    + os.listdir(Path(self.mom_input_dir))
                 )
             )
             if not tidal_files_exist:
@@ -2514,11 +2509,11 @@ class experiment:
         # Default information for each parameter
         default_layout = {"value": None, "override": False, "comment": None}
 
-        if not os.path.exists(os.path.join(self.mom_run_dir, filename)):
+        if not os.path.exists(Path(self.mom_run_dir / filename)):
             raise ValueError(
                 f"File {filename} does not exist in the run directory {self.mom_run_dir}"
             )
-        with open(os.path.join(self.mom_run_dir, filename), "r") as file:
+        with open(Path(self.mom_run_dir / filename), "r") as file:
             lines = file.readlines()
 
             # Set the default initialization for a new key
@@ -2555,9 +2550,7 @@ class experiment:
         """
         # Replace specific variable values
         original_MOM_file_dict = MOM_file_dict.pop("original")
-        with open(
-            os.path.join(self.mom_run_dir, MOM_file_dict["filename"]), "r"
-        ) as file:
+        with open(Path(self.mom_run_dir / MOM_file_dict["filename"]), "r") as file:
             lines = file.readlines()
             for jj in range(len(lines)):
                 if "=" in lines[jj] and not "===" in lines[jj]:
@@ -2626,7 +2619,7 @@ class experiment:
                     original_MOM_file_dict[key],
                 )
 
-        with open(os.path.join(self.mom_run_dir, MOM_file_dict["filename"]), "w") as f:
+        with open(Path(self.mom_run_dir / MOM_file_dict["filename"]), "w") as f:
             f.writelines(lines)
 
     def setup_era5(self, era5_path):
@@ -2652,7 +2645,7 @@ class experiment:
                 i for i in range(self.date_range[0].year, self.date_range[1].year + 1)
             ]
             # construct a list of all paths for all years to use for open_mfdataset
-            paths_per_year = [os.path.join(era5_path, fname, year) for year in years]
+            paths_per_year = [Path(era5_path / fname / year) for year in years]
             all_files = []
             for path in paths_per_year:
                 # Use glob to find all files that match the pattern
@@ -3285,8 +3278,8 @@ class segment:
             method="nearest_s2d",
             locstream_out=True,
             periodic=False,
-            filename=os.path.join(
-                self.outfolder, "forcing", f"regrid_{self.segment_name}_tidal_elev.nc"
+            filename=Path(
+                self.outfolder / "forcing" / f"regrid_{self.segment_name}_tidal_elev.nc"
             ),
             reuse_weights=False,
         )
@@ -3473,7 +3466,7 @@ class segment:
 
         ## Export Files ##
         ds.to_netcdf(
-            os.path.join(self.outfolder, "forcing", fname),
+            Path(self.outfolder / "forcing" / fname),
             engine="netcdf4",
             encoding=encoding,
             unlimited_dims="time",
