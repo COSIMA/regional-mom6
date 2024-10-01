@@ -621,21 +621,44 @@ class experiment:
     """
 
     @classmethod
-    def create_empty(self):
-
+    def create_empty(
+        self,
+        longitude_extent=None,
+        latitude_extent=None,
+        date_range=None,
+        resolution=None,
+        number_vertical_layers=None,
+        layer_thickness_ratio=None,
+        depth=None,
+        mom_run_dir=None,
+        mom_input_dir=None,
+        toolpath_dir=None,
+        grid_type="even_spacing",
+        repeat_year_forcing=False,
+        minimum_depth=4,
+        tidal_constituents=["M2"],
+        name=None,
+    ):
+        """
+        Substitute init method to create an empty expirement object, with the opportunity to override whatever values wanted.
+        """
         expt = self(
-            longitude_extent=None,
-            latitude_extent=None,
-            date_range=None,
-            resolution=None,
-            number_vertical_layers=None,
-            layer_thickness_ratio=None,
-            depth=None,
-            minimum_depth=None,
-            mom_run_dir=None,
-            mom_input_dir=None,
-            toolpath_dir=None,
+            longitude_extent=longitude_extent,
+            latitude_extent=latitude_extent,
+            date_range=date_range,
+            resolution=resolution,
+            number_vertical_layers=number_vertical_layers,
+            layer_thickness_ratio=layer_thickness_ratio,
+            depth=depth,
+            minimum_depth=minimum_depth,
+            mom_run_dir=mom_run_dir,
+            mom_input_dir=mom_input_dir,
+            toolpath_dir=toolpath_dir,
             create_empty=True,
+            grid_type=grid_type,
+            repeat_year_forcing=repeat_year_forcing,
+            tidal_constituents=tidal_constituents,
+            name=name,
         )
         return expt
 
@@ -660,6 +683,11 @@ class experiment:
         create_empty=False,
         name=None,
     ):
+
+        # Creates empty experiment object for testing and experienced user manipulation.
+        # Kinda seems like a logical spinoff of this is to divorce the hgrid/vgrid creation from the experiment object initialization.
+        # Probably more of a CS workflow. That way read_existing_grids could be a function on its own, which ties in better with
+        # For now, check out the create_empty method for more explanation
         if create_empty:
             return
 
@@ -3362,10 +3390,6 @@ class segment:
         )
         if "z" in ds.coords:
             ds = ds.rename({"z": f"nz_{self.segment_name}"})
-        if self.orientation in ["south", "north"]:
-            ds = ds.rename({"locations": f"nx_{self.segment_name}"})
-        elif self.orientation in ["west", "east"]:
-            ds = ds.rename({"locations": f"ny_{self.segment_name}"})
 
         ## Perform Encoding ##
         for v in ds:
