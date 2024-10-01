@@ -1048,7 +1048,7 @@ class experiment:
             if path is not None:
                 export_path = path
             else:
-                export_path = self.mom_run_dir / "config.json"
+                export_path = self.mom_run_dir / "rmom6_config.json"
             with open(export_path, "w") as f:
                 json.dump(
                     config_dict,
@@ -1395,7 +1395,7 @@ class experiment:
         self, raw_boundaries_path, boundaries=["south", "north", "west", "east"]
     ):
         """
-        This function is a wrapper for `get_glorys_data`, calling this function once for each of the rectangular boundary segments and the initial condition. For more complex boundary shapes, call `get_glorys_data` directly for each of your boundaries that aren't parallel to lines of constant latitude or longitude. For example, for an angled Northern boundary that spans multiple latitudes, you'll need to download a wider rectangle containing the entire boundary. 
+        This function is a wrapper for `get_glorys_data`, calling this function once for each of the rectangular boundary segments and the initial condition. For more complex boundary shapes, call `get_glorys_data` directly for each of your boundaries that aren't parallel to lines of constant latitude or longitude. For example, for an angled Northern boundary that spans multiple latitudes, you'll need to download a wider rectangle containing the entire boundary.
 
         args:
             raw_boundaries_path (str): Path to the directory containing the raw boundary forcing files.
@@ -2919,9 +2919,9 @@ class segment:
 
         return rcoord
 
-    def rotate(self,u,v):
+    def rotate(self, u, v):
         # Make docstring
-    
+
         """
         Rotate the velocities to the grid orientation.
 
@@ -2934,10 +2934,9 @@ class segment:
         """
 
         angle = self.coords.angle.values * np.pi / 180
-        u_rot = u*np.cos(angle) - v*np.sin(angle)
-        v_rot = u*np.sin(angle) + v*np.cos(angle)
+        u_rot = u * np.cos(angle) - v * np.sin(angle)
+        v_rot = u * np.sin(angle) + v * np.cos(angle)
         return u_rot, v_rot
-        
 
     def regrid_velocity_tracers(self):
         """
@@ -2993,15 +2992,15 @@ class segment:
             )
 
             velocities_out = regridder_velocity(
-                        rawseg[[self.u, self.v]].rename(
-                            {self.xq: "lon", self.yq: "lat"}
-                        )
-                    )
-            
-            velocities_out["u"], velocities_out["v"] = self.rotate(velocities_out["u"], velocities_out["v"])
+                rawseg[[self.u, self.v]].rename({self.xq: "lon", self.yq: "lat"})
+            )
+
+            velocities_out["u"], velocities_out["v"] = self.rotate(
+                velocities_out["u"], velocities_out["v"]
+            )
 
             segment_out = xr.merge(
-                [   
+                [
                     velocities_out,
                     regridder_tracer(
                         rawseg[
