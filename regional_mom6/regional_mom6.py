@@ -19,7 +19,6 @@ from .utils import (
     ap2ep,
     ep2ap,
     find_roughly_nearest_ny_nx,
-    convert_lon_180_to_360,
 )
 import pandas as pd
 import re
@@ -107,7 +106,7 @@ def find_MOM6_rectangular_orientation(input):
         raise ValueError("Invalid type of Input, can only be string or int.")
 
 
-## Load Expirement Function
+## Load Experiment Function
 
 
 def load_experiment(config_file_path):
