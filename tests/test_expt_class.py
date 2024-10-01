@@ -311,7 +311,7 @@ def test_ocean_forcing(
         "tracers": {"temp": "temp", "salt": "salt"},
     }
 
-    expt.initial_condition(
+    expt.setup_initial_condition(
         tmp_path / "ic_unprocessed",
         varnames,
         arakawa_grid="A",
@@ -470,4 +470,4 @@ def test_rectangular_boundaries(
         "tracers": {"temp": "temp", "salt": "salt"},
     }
 
-    expt.rectangular_boundaries(tmp_path, varnames, ["east"])
+    expt.setup_ocean_state_boundaries(tmp_path, varnames, ["east"])
