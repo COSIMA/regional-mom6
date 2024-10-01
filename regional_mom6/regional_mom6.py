@@ -208,14 +208,14 @@ def get_glorys_data(
     path = os.path.join(download_path)
 
     if modify_existing:
-        file = open(os.path.join(path, "get_glorysdata.sh"), "r")
+        file = open(os.path.join(path, "get_glorys_data.sh"), "r")
         lines = file.readlines()
         file.close()
 
     else:
         lines = ["#!/bin/bash\n"]
 
-    file = open(os.path.join(path, "get_glorysdata.sh"), "w")
+    file = open(os.path.join(path, "get_glorys_data.sh"), "w")
 
     lines.append(
         f"""
@@ -1003,7 +1003,7 @@ class experiment:
         self, raw_boundaries_path, boundaries=["south", "north", "west", "east"]
     ):
         """
-        This function is a wrapper for `get_glorys_data`, calling this function once for each of the rectangular boundary segments and the initial condition. For more complex boundary shapes, call `get_glorys_data` directly for each of your boundaries that aren't parallel to lines of constant latitude or longitude.
+        This function is a wrapper for `get_glorys_data`, calling this function once for each of the rectangular boundary segments and the initial condition. For more complex boundary shapes, call `get_glorys_data` directly for each of your boundaries that aren't parallel to lines of constant latitude or longitude. For example, for an angled Northern boundary that spans multiple latitudes, you'll need to download a wider rectangle containing the entire boundary. 
 
         args:
             raw_boundaries_path (str): Path to the directory containing the raw boundary forcing files.
@@ -1061,7 +1061,7 @@ class experiment:
         )
         return
 
-    def setup_ocean_state_rectangular_boundaries(
+    def setup_ocean_state_boundaries(
         self,
         raw_boundaries_path,
         varnames,
@@ -1099,7 +1099,7 @@ class experiment:
             )
         # Now iterate through our four boundaries
         for orientation in boundaries:
-            self.setup_ocean_state_simple_boundary(
+            self.setup_single_boundary(
                 Path(
                     os.path.join(
                         (raw_boundaries_path), (orientation + "_unprocessed.nc")
@@ -1113,7 +1113,7 @@ class experiment:
                 arakawa_grid=arakawa_grid,
             )
 
-    def setup_ocean_state_simple_boundary(
+    def setup_single_boundary(
         self, path_to_bc, varnames, orientation, segment_number, arakawa_grid="A"
     ):
         """
@@ -1152,14 +1152,14 @@ class experiment:
             repeat_year_forcing=self.repeat_year_forcing,
         )
 
-        seg.rectangular_brushcut()
+        seg.regrid_velocity_tracers()
 
         # Save Segment to Experiment
         self.segments[orientation] = seg
         print("Done.")
         return
 
-    def setup_tides_rectangle_boundaries(
+    def setup_boundary_tide(
         self, path_to_td, tidal_filename, tidal_constituents="read_from_expt_init"
     ):
         """
@@ -1215,15 +1215,6 @@ class experiment:
             self.longitude_extent[0],
             self.longitude_extent[1],
         ]
-        ny0, nx0 = find_roughly_nearest_ny_nx(
-            self.latitude_extent[0] - 0.5, tidal_360_lon[0] - 0.5, tpxo_h
-        )
-        ny1, nx1 = find_roughly_nearest_ny_nx(
-            self.latitude_extent[1] + 0.5, tidal_360_lon[1] + 0.5, tpxo_h
-        )
-        horizontal_subset = dict(ny=slice(ny0, ny1), nx=slice(nx0, nx1))
-
-        tpxo_h = tpxo_h.isel(**horizontal_subset)
 
         h = tpxo_h["ha"] * np.exp(-1j * np.radians(tpxo_h["hp"]))
         tpxo_h["hRe"] = np.real(h)
@@ -1231,7 +1222,7 @@ class experiment:
         tpxo_u = (
             xr.open_dataset(os.path.join(path_to_td, f"u_{tidal_filename}"))
             .rename({"lon_u": "lon", "lat_u": "lat", "nc": "constituent"})
-            .isel(constituent=self.tidal_constituents, **horizontal_subset)
+            .isel(constituent=self.tidal_constituents)
         )
         tpxo_u["ua"] *= 0.01  # convert to m/s
         u = tpxo_u["ua"] * np.exp(-1j * np.radians(tpxo_u["up"]))
@@ -1240,7 +1231,7 @@ class experiment:
         tpxo_v = (
             xr.open_dataset(os.path.join(path_to_td, f"u_{tidal_filename}"))
             .rename({"lon_v": "lon", "lat_v": "lat", "nc": "constituent"})
-            .isel(constituent=self.tidal_constituents, **horizontal_subset)
+            .isel(constituent=self.tidal_constituents)
         )
         tpxo_v["va"] *= 0.01  # convert to m/s
         v = tpxo_v["va"] * np.exp(-1j * np.radians(tpxo_v["vp"]))
@@ -1459,7 +1450,7 @@ class experiment:
             + "If this process hangs it means that the chosen domain might be too big to handle this way. "
             + "After ensuring access to appropriate computational resources, try calling ESMF "
             + "directly from a terminal in the input directory via\n\n"
-            + "mpirun ESMF_Regrid -s bathymetry_original.nc -d bathymetry_unfinished.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\n\n"
+            + "mpirun -np `NUMBER_OF_CPUS` ESMF_Regrid -s bathymetry_original.nc -d bathymetry_unfinished.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\n\n"
             + "For details see https://xesmf.readthedocs.io/en/latest/large_problems_on_HPC.html\n\n"
             + "Afterwards, we run 'tidy_bathymetry' method to skip the expensive interpolation step, and finishing metadata, encoding and cleanup."
         )
@@ -2263,7 +2254,7 @@ class segment:
          - Combined all functions of NWA25 into a four function process (in the style of rm6) (expt.setup_tides_rectangular_boundaries, segment.coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
 
 
-        Original Code was sourced from:
+        Code adapted from:
         Author(s): GFDL, James Simkins, Rob Cermak, etc..
         Year: 2022
         Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
@@ -2285,7 +2276,7 @@ class segment:
             rcoord.attrs["perpendicular"] = "ny"
             rcoord.attrs["parallel"] = "nx"
             rcoord.attrs["axis_to_expand"] = (
-                2  ## Need to keep track of which axis the 'main' coordinate corresponds to for rectangular_brushcut on when re-adding the 'secondary' axis
+                2  ## Need to keep track of which axis the 'main' coordinate corresponds to when re-adding the 'secondary' axis
             )
             rcoord.attrs["locations_name"] = (
                 f"nx_{self.segment_name}"  # Legacy name of nx_... was locations. This provides a clear transform in regrid_tides
@@ -2335,10 +2326,29 @@ class segment:
 
         return rcoord
 
-    def rectangular_brushcut(self):
+    def rotate(self,u,v):
+        # Make docstring
+    
         """
-        Cut out and interpolate tracers. ``rectangular_brushcut`` assumes that the boundary
-        is a simple Northern, Southern, Eastern, or Western boundary.
+        Rotate the velocities to the grid orientation.
+
+        Args:
+            u (xarray.DataArray): The u-component of the velocity.
+            v (xarray.DataArray): The v-component of the velocity.
+
+        Returns:
+            Tuple[xarray.DataArray, xarray.DataArray]: The rotated u and v components of the velocity.
+        """
+
+        angle = self.coords.angle.values * np.pi / 180
+        u_rot = u*np.cos(angle) - v*np.sin(angle)
+        v_rot = u*np.sin(angle) + v*np.cos(angle)
+        return u_rot, v_rot
+        
+
+    def regrid_velocity_tracers(self):
+        """
+        Cut out and interpolate the velocities and tracers
         """
 
         rawseg = xr.open_dataset(self.infile, decode_times=False, engine="netcdf4")
@@ -2389,13 +2399,17 @@ class segment:
                 / f"weights/bilinear_tracer_weights_{self.orientation}.nc",
             )
 
-            segment_out = xr.merge(
-                [
-                    regridder_velocity(
+            velocities_out = regridder_velocity(
                         rawseg[[self.u, self.v]].rename(
                             {self.xq: "lon", self.yq: "lat"}
                         )
-                    ),
+                    )
+            
+            velocities_out["u"], velocities_out["v"] = self.rotate(velocities_out["u"], velocities_out["v"])
+
+            segment_out = xr.merge(
+                [   
+                    velocities_out,
                     regridder_tracer(
                         rawseg[
                             [self.eta] + [self.tracers[i] for i in self.tracers]
