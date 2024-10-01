@@ -18,21 +18,193 @@ from .utils import (
     quadrilateral_areas,
     ap2ep,
     ep2ap,
-    find_roughly_nearest_ny_nx,
-    convert_lon_180_to_360,
 )
 import pandas as pd
 import re
+from pathlib import Path
+import glob
+from collections import defaultdict
+import json
 
 warnings.filterwarnings("ignore")
 
 __all__ = [
     "longitude_slicer",
     "hyperbolictan_thickness_profile",
-    "rectangular_hgrid",
+    "calculate_rectangular_hgrid",
     "experiment",
     "segment",
+    "load_experiment",
 ]
+
+
+## Mapping Functions
+
+
+def convert_to_tpxo_tidal_constituents(tidal_constituents):
+    """
+    Convert tidal constituents from strings to integers using a dictionary.
+
+    Parameters:
+    tidal_constituents (list of str): List of tidal constituent names as strings.
+
+    Returns:
+    list of int: List of tidal constituent indices as integers.
+    """
+    tidal_constituents_tpxo_dict = {
+        "M2": 0,
+        "S2": 1,
+        "N2": 2,
+        "K2": 3,
+        "K1": 4,
+        "O1": 5,
+        "P1": 6,
+        "Q1": 7,
+        "MM": 8,
+        "MF": 9,
+        # Only supported tidal bc's
+    }
+
+    list_of_ints = []
+    for tc in tidal_constituents:
+        try:
+            list_of_ints.append(tidal_constituents_tpxo_dict[tc])
+        except:
+            raise ValueError(
+                "Invalid Input. Tidal constituent {} is not supported.".format(tc)
+            )
+
+    return list_of_ints
+
+
+def find_MOM6_rectangular_orientation(input):
+    """
+    Convert between MOM6 boundary and the specific segment number needed, or the inverse
+    """
+    direction_dir = {
+        "south": 1,
+        "north": 2,
+        "west": 3,
+        "east": 4,
+    }
+    direction_dir_inv = {v: k for k, v in direction_dir.items()}
+
+    if type(input) == str:
+        try:
+            return direction_dir[input]
+        except:
+            raise ValueError(
+                "Invalid Input. Did you spell the direction wrong, it should be lowercase?"
+            )
+    elif type(input) == int:
+        try:
+            return direction_dir_inv[input]
+        except:
+            raise ValueError("Invalid Input. Did you pick a number 1 through 4?")
+    else:
+        raise ValueError("Invalid type of Input, can only be string or int.")
+
+
+## Load Experiment Function
+
+
+def load_experiment(config_file_path):
+    print("Reading from config file....")
+    with open(config_file_path, "r") as f:
+        config_dict = json.load(f)
+
+    print("Creating Empty Experiment Object....")
+    expt = experiment.create_empty()
+
+    print("Setting Default Variables.....")
+    expt.expt_name = config_dict["name"]
+    try:
+        expt.longitude_extent = tuple(config_dict["longitude_extent"])
+        expt.latitude_extent = tuple(config_dict["latitude_extent"])
+    except:
+        expt.longitude_extent = None
+        expt.latitude_extent = None
+    try:
+        expt.date_range = config_dict["date_range"]
+        expt.date_range[0] = dt.datetime.strptime(expt.date_range[0], "%Y-%m-%d")
+        expt.date_range[1] = dt.datetime.strptime(expt.date_range[1], "%Y-%m-%d")
+    except:
+        expt.date_range = None
+    expt.mom_run_dir = Path(config_dict["run_dir"])
+    expt.mom_input_dir = Path(config_dict["input_dir"])
+    expt.toolpath_dir = Path(config_dict["toolpath_dir"])
+    expt.resolution = config_dict["resolution"]
+    expt.number_vertical_layers = config_dict["number_vertical_layers"]
+    expt.layer_thickness_ratio = config_dict["layer_thickness_ratio"]
+    expt.depth = config_dict["depth"]
+    expt.grid_type = config_dict["grid_type"]
+    expt.repeat_year_forcing = config_dict["repeat_year_forcing"]
+    expt.ocean_mask = None
+    expt.layout = None
+    expt.min_depth = config_dict["min_depth"]
+    expt.tidal_constituents = config_dict["tidal_constituents"]
+
+    print("Checking for hgrid and vgrid....")
+    if os.path.exists(config_dict["hgrid"]):
+        print("Found")
+        expt.hgrid = xr.open_dataset(config_dict["hgrid"])
+    else:
+        print("Hgrid not found, call _make_hgrid when you're ready.")
+        expt.hgrid = None
+    if os.path.exists(config_dict["vgrid"]):
+        print("Found")
+        expt.vgrid = xr.open_dataset(config_dict["vgrid"])
+    else:
+        print("Vgrid not found, call _make_vgrid when ready")
+        expt.vgrid = None
+
+    print("Checking for bathymetry...")
+    if config_dict["bathymetry"] is not None and os.path.exists(
+        config_dict["bathymetry"]
+    ):
+        print("Found")
+        expt.bathymetry = xr.open_dataset(config_dict["bathymetry"])
+    else:
+        print(
+            "Bathymetry not found. Please provide bathymetry, or call setup_bathymetry method to set up bathymetry."
+        )
+
+    print("Checking for ocean state files....")
+    found = True
+    for path in config_dict["ocean_state"]:
+        if not os.path.exists(path):
+            found = False
+            print(
+                "At least one ocean state file not found. Please provide ocean state files, or call setup_ocean_state_boundaries method to set up ocean state."
+            )
+            break
+    if found:
+        print("Found")
+    found = True
+    print("Checking for initial condition files....")
+    for path in config_dict["initial_conditions"]:
+        if not os.path.exists(path):
+            found = False
+            print(
+                "At least one initial condition file not found. Please provide initial condition files, or call setup_initial_condition method to set up initial condition."
+            )
+            break
+    if found:
+        print("Found")
+    found = True
+    print("Checking for tides files....")
+    for path in config_dict["tides"]:
+        if not os.path.exists(path):
+            found = False
+            print(
+                "At least one tides file not found. If you would like tides, call setup_tides_boundaries method to set up tides"
+            )
+            break
+    if found:
+        print("Found")
+    found = True
+
+    return expt
 
 
 ## Auxiliary functions
@@ -150,37 +322,6 @@ def longitude_slicer(data, longitude_extent, longitude_coords):
         )
 
     return data
-
-
-def find_MOM6_rectangular_orientation(input):
-    """
-    Convert between MOM6 boundary and the specific segment number needed, or the inverse
-    """
-    direction_dir = {
-        "south": 1,
-        "north": 2,
-        "west": 3,
-        "east": 4,
-    }
-    direction_dir_inv = {v: k for k, v in direction_dir.items()}
-
-    if type(input) == str:
-        try:
-            return direction_dir[input]
-        except:
-            raise ValueError(
-                "Invalid Input. Did you spell the direction wrong, it should be lowercase?"
-            )
-    elif type(input) == int:
-        try:
-            return direction_dir_inv[input]
-        except:
-            raise ValueError("Invalid Input. Did you pick a number 1 through 4?")
-    else:
-        raise ValueError("Invalid type of Input, can only be string or int.")
-
-
-from pathlib import Path
 
 
 def get_glorys_data(
@@ -343,7 +484,7 @@ def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
     return layer_thicknesses
 
 
-def rectangular_hgrid(lons, lats):
+def calculate_rectangular_hgrid(lons, lats):
     """
     Construct a horizontal grid with all the metadata required by MOM6, based on
     arrays of longitudes (``lons``) and latitudes (``lats``) on the supergrid.
@@ -486,6 +627,66 @@ class experiment:
         minimum_depth (Optional[int]): The minimum depth in meters of a grid cell allowed before it is masked out and treated as land.
     """
 
+    @classmethod
+    def create_empty(
+        self,
+        longitude_extent=None,
+        latitude_extent=None,
+        date_range=None,
+        resolution=None,
+        number_vertical_layers=None,
+        layer_thickness_ratio=None,
+        depth=None,
+        mom_run_dir=None,
+        mom_input_dir=None,
+        toolpath_dir=None,
+        grid_type="even_spacing",
+        repeat_year_forcing=False,
+        minimum_depth=4,
+        tidal_constituents=["M2"],
+        name=None,
+    ):
+        """
+        Substitute init method to creates an empty expirement object, with the opportunity to override whatever values wanted.
+        """
+        expt = self(
+            longitude_extent=None,
+            latitude_extent=None,
+            date_range=None,
+            resolution=None,
+            number_vertical_layers=None,
+            layer_thickness_ratio=None,
+            depth=None,
+            minimum_depth=None,
+            mom_run_dir=None,
+            mom_input_dir=None,
+            toolpath_dir=None,
+            create_empty=True,
+            grid_type=None,
+            repeat_year_forcing=None,
+            tidal_constituents=None,
+            name=None,
+        )
+
+        expt.expt_name = name
+        expt.tidal_constituents = tidal_constituents
+        expt.repeat_year_forcing = repeat_year_forcing
+        expt.grid_type = grid_type
+        expt.toolpath_dir = toolpath_dir
+        expt.mom_run_dir = mom_run_dir
+        expt.mom_input_dir = mom_input_dir
+        expt.min_depth = minimum_depth
+        expt.depth = depth
+        expt.layer_thickness_ratio = layer_thickness_ratio
+        expt.number_vertical_layers = number_vertical_layers
+        expt.resolution = resolution
+        expt.date_range = date_range
+        expt.latitude_extent = latitude_extent
+        expt.longitude_extent = longitude_extent
+        expt.ocean_mask = None
+        expt.layout = None
+        return expt
+
     def __init__(
         self,
         *,
@@ -503,9 +704,21 @@ class experiment:
         repeat_year_forcing=False,
         read_existing_grids=False,
         minimum_depth=4,
-        tidal_constituents=[0],
+        tidal_constituents=["M2"],
+        create_empty=False,
+        name=None,
     ):
+
+        # Creates empty experiment object for testing and experienced user manipulation.
+        # Kinda seems like a logical spinoff of this is to divorce the hgrid/vgrid creation from the experiment object initialization.
+        # Probably more of a CS workflow. That way read_existing_grids could be a function on its own, which ties in better with
+        # For now, check out the create_empty method for more explanation
+        if create_empty:
+            return
+
+        # ## Set up the experiment with no config file
         ## in case list was given, convert to tuples
+        self.expt_name = name
         self.longitude_extent = tuple(longitude_extent)
         self.latitude_extent = tuple(latitude_extent)
         self.date_range = tuple(date_range)
@@ -533,6 +746,7 @@ class experiment:
             minimum_depth  # Minimum depth. Shallower water will be masked out.
         )
         self.tidal_constituents = tidal_constituents
+
         if read_existing_grids:
             try:
                 self.hgrid = xr.open_dataset(self.mom_input_dir / "hgrid.nc")
@@ -561,6 +775,9 @@ class experiment:
         input_rundir = self.mom_input_dir / "rundir"
         if not input_rundir.exists():
             input_rundir.symlink_to(self.mom_run_dir.resolve())
+
+    def __str__(self) -> str:
+        return json.dumps(self.write_config_file(export=False, quiet=True), indent=4)
 
     def __getattr__(self, name):
         available_methods = [
@@ -636,7 +853,7 @@ class experiment:
                 self.latitude_extent[0], self.latitude_extent[1], ny
             )  # latitudes in degrees
 
-            hgrid = rectangular_hgrid(lons, lats)
+            hgrid = calculate_rectangular_hgrid(lons, lats)
             hgrid.to_netcdf(self.mom_input_dir / "hgrid.nc")
 
             return hgrid
@@ -667,7 +884,182 @@ class experiment:
 
         return vcoord
 
-    def initial_condition(
+    @property
+    def ocean_state_boundaries(self):
+        """
+        Read the ocean state files from disk, and print 'em
+        """
+        ocean_state_path = self.mom_input_dir / "forcing"
+        try:
+            # Use glob to find all tides files
+            patterns = [
+                "forcing_*",
+                "weights/bi*",
+            ]
+            all_files = []
+            for pattern in patterns:
+                all_files.extend(glob.glob(os.path.join(ocean_state_path, pattern)))
+                all_files.extend(glob.glob(os.path.join(self.mom_input_dir, pattern)))
+
+            if len(all_files) == 0:
+                return "No ocean state files set up yet (or files misplaced from {}). Call `setup_ocean_state_boundaries` method to set up ocean state.".format(
+                    ocean_state_path
+                )
+
+            # Open the files as xarray datasets
+            # datasets = [xr.open_dataset(file) for file in all_files]
+            return all_files
+        except:
+            return "Error retrieving ocean state files"
+
+    @property
+    def tides_boundaries(self):
+        """
+        Read the tides from disk, and print 'em
+        """
+        tides_path = self.mom_input_dir / "forcing"
+        try:
+            # Use glob to find all tides files
+            patterns = ["regrid*", "tu_*", "tz_*"]
+            all_files = []
+            for pattern in patterns:
+                all_files.extend(glob.glob(os.path.join(tides_path, pattern)))
+                all_files.extend(glob.glob(os.path.join(self.mom_input_dir, pattern)))
+
+            if len(all_files) == 0:
+                return "No tides files set up yet (or files misplaced from {}). Call `setup_tides_boundaries` method to set up tides.".format(
+                    tides_path
+                )
+
+            # Open the files as xarray datasets
+            # datasets = [xr.open_dataset(file) for file in all_files]
+            return all_files
+        except:
+            return "Error retrieving tides files"
+
+    @property
+    def era5(self):
+        """
+        Read the era5's from disk, and print 'em
+        """
+        era5_path = self.mom_input_dir / "forcing"
+        try:
+            # Use glob to find all *_ERA5.nc files
+            all_files = glob.glob(os.path.join(era5_path, "*_ERA5.nc"))
+            if len(all_files) == 0:
+                return "No era5 files set up yet (or files misplaced from {}). Call `setup_era5` method to set up era5.".format(
+                    era5_path
+                )
+
+            # Open the files as xarray datasets
+            # datasets = [xr.open_dataset(file) for file in all_files]
+            return all_files
+        except:
+            return "Error retrieving ERA5 files"
+
+    @property
+    def initial_condition(self):
+        """
+        Read the ic's from disk, and print 'em
+        """
+        forcing_path = self.mom_input_dir / "forcing"
+        try:
+            all_files = glob.glob(os.path.join(forcing_path, "init_*.nc"))
+            all_files = glob.glob(os.path.join(self.mom_input_dir, "init_*.nc"))
+            if len(all_files) == 0:
+                return "No initial conditions files set up yet (or files misplaced from {}). Call `setup_initial_condition` method to set up initial conditions.".format(
+                    forcing_path
+                )
+
+            # Open the files as xarray datasets
+            # datasets = [xr.open_dataset(file) for file in all_files]
+            # return datasets
+
+            return all_files
+        except:
+            return "No initial condition set up yet (or files misplaced from {}). Call `setup_initial_condition` method to set up initial conditions.".format(
+                self.mom_input_dir / "forcing"
+            )
+
+    @property
+    def bathymetry_property(self):
+        """
+        Read the bathymetry from disk, and print 'em
+        """
+
+        try:
+            bathy = xr.open_dataset(self.mom_input_dir / "bathymetry.nc")
+            # return [bathy]
+            return str(self.mom_input_dir / "bathymetry.nc")
+        except:
+            return "No bathymetry set up yet (or files misplaced from {}). Call `setup_bathymetry` method to set up bathymetry.".format(
+                self.mom_input_dir
+            )
+
+    def write_config_file(self, path=None, export=True, quiet=False):
+        """
+        Write a configuration file for the experiment. This is a simple json file
+        that contains the expirment object information to allow for reproducibility, to pick up where a user left off, and
+        to make information about the expirement readable.
+        """
+        if not quiet:
+            print("Writing Config File.....")
+        ## check if files exist
+        vgrid_path = None
+        hgrid_path = None
+        if os.path.exists(self.mom_input_dir / "vcoord.nc"):
+            vgrid_path = self.mom_input_dir / "vcoord.nc"
+        if os.path.exists(self.mom_input_dir / "hgrid.nc"):
+            hgrid_path = self.mom_input_dir / "hgrid.nc"
+
+        try:
+            date_range = [
+                self.date_range[0].strftime("%Y-%m-%d"),
+                self.date_range[1].strftime("%Y-%m-%d"),
+            ]
+        except:
+            date_range = None
+        config_dict = {
+            "name": self.expt_name,
+            "date_range": date_range,
+            "latitude_extent": self.latitude_extent,
+            "longitude_extent": self.longitude_extent,
+            "run_dir": str(self.mom_run_dir),
+            "input_dir": str(self.mom_input_dir),
+            "toolpath_dir": str(self.toolpath_dir),
+            "resolution": self.resolution,
+            "number_vertical_layers": self.number_vertical_layers,
+            "layer_thickness_ratio": self.layer_thickness_ratio,
+            "depth": self.depth,
+            "grid_type": self.grid_type,
+            "repeat_year_forcing": self.repeat_year_forcing,
+            "ocean_mask": self.ocean_mask,
+            "layout": self.layout,
+            "min_depth": self.min_depth,
+            "vgrid": str(vgrid_path),
+            "hgrid": str(hgrid_path),
+            "bathymetry": self.bathymetry_property,
+            "ocean_state": self.ocean_state_boundaries,
+            "tides": self.tides_boundaries,
+            "initial_conditions": self.initial_condition,
+            "tidal_constituents": self.tidal_constituents,
+        }
+        if export:
+            if path is not None:
+                export_path = path
+            else:
+                export_path = self.mom_run_dir / "config.json"
+            with open(export_path, "w") as f:
+                json.dump(
+                    config_dict,
+                    f,
+                    indent=4,
+                )
+        if not quiet:
+            print("Done.")
+        return config_dict
+
+    def setup_initial_condition(
         self,
         raw_ic_path,
         varnames,
@@ -1067,6 +1459,7 @@ class experiment:
         varnames,
         boundaries=["south", "north", "west", "east"],
         arakawa_grid="A",
+        boundary_type="rectangular",
     ):
         """
         This function is a wrapper for `simple_boundary`. Given a list of up to four cardinal directions,
@@ -1081,6 +1474,7 @@ class experiment:
                 Default is `["south", "north", "west", "east"]`.
             arakawa_grid (Optional[str]): Arakawa grid staggering type of the boundary forcing.
                 Either ``'A'`` (default), ``'B'``, or ``'C'``.
+            boundary_type (Optional[str]): Type of box around region. Currently, only ``'rectangular'`` is supported.
         """
         for i in boundaries:
             if i not in ["south", "north", "west", "east"]:
@@ -1096,6 +1490,10 @@ class experiment:
         if len(boundaries) > 4:
             raise ValueError(
                 "This method only supports up to four boundaries. To set up more complex boundary shapes you can manually call the 'simple_boundary' method for each boundary."
+            )
+        if boundary_type != "rectangular":
+            raise ValueError(
+                "Only rectangular boundaries are supported by this method. To set up more complex boundary shapes you can manually call the 'simple_boundary' method for each boundary."
             )
         # Now iterate through our four boundaries
         for orientation in boundaries:
@@ -1114,7 +1512,13 @@ class experiment:
             )
 
     def setup_single_boundary(
-        self, path_to_bc, varnames, orientation, segment_number, arakawa_grid="A"
+        self,
+        path_to_bc,
+        varnames,
+        orientation,
+        segment_number,
+        arakawa_grid="A",
+        boundary_type="simple",
     ):
         """
         Here 'simple' refers to boundaries that are parallel to lines of constant longitude or latitude.
@@ -1133,6 +1537,7 @@ class experiment:
                 the ``MOM_input``.
             arakawa_grid (Optional[str]): Arakawa grid staggering type of the boundary forcing.
                 Either ``'A'`` (default), ``'B'``, or ``'C'``.
+            boundary_type (Optional[str]): Type of boundary. Currently, only ``'simple'`` is supported. Here 'simple' refers to boundaries that are parallel to lines of constant longitude or latitude.
         """
 
         print("Processing {} boundary...".format(orientation), end="")
@@ -1140,6 +1545,8 @@ class experiment:
             raise FileNotFoundError(
                 f"Boundary file not found at {path_to_bc}. Please ensure that the files are named in the format `east_unprocessed.nc`."
             )
+        if boundary_type != "simple":
+            raise ValueError("Only simple boundaries are supported by this method.")
         seg = segment(
             hgrid=self.hgrid,
             infile=path_to_bc,  # location of raw boundary
@@ -1159,8 +1566,12 @@ class experiment:
         print("Done.")
         return
 
-    def setup_boundary_tide(
-        self, path_to_td, tidal_filename, tidal_constituents="read_from_expt_init"
+    def setup_boundary_tides(
+        self,
+        path_to_td,
+        tidal_filename,
+        tidal_constituents="read_from_expt_init",
+        boundary_type="rectangle",
     ):
         """
         This function:
@@ -1170,6 +1581,7 @@ class experiment:
             path_to_td (str): Path to boundary tidal file.
             tidal_filename: Name of the tpxo product that's used in the tidal_filename. Should be h_{tidal_filename}, u_{tidal_filename}
             tidal_constiuents: List of tidal constituents to include in the regridding. Default is [0] which is the M2 constituent.
+            boundary_type (Optional[str]): Type of boundary. Currently, only ``'rectangle'`` is supported. Here 'rectangle' refers to boundaries that are parallel to lines of constant longitude or latitude.
         Returns:
             *.nc files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
 
@@ -1188,33 +1600,19 @@ class experiment:
         Type: Python Functions, Source Code
         Web Address: https://github.com/jsimkins2/nwa25
         """
-
-        if (
-            not os.path.exists(path_to_td)
-            or not os.path.exists(os.path.join(path_to_td, "h_" + tidal_filename))
-            or not os.path.exists(os.path.join(path_to_td, "u_" + tidal_filename))
-        ):
+        if boundary_type != "rectangle":
             raise ValueError(
-                "Tidal Files don't exist at "
-                + path_to_td
-                + "/[h.or.u]_"
-                + tidal_filename
-                + ".nc"
+                "Only rectangular boundaries are supported by this method."
             )
-
-        ### Find Rough Horizontal Subset (with 0.5 Buffer)###
-
         if tidal_constituents != "read_from_expt_init":
             self.tidal_constituents = tidal_constituents
         tpxo_h = (
             xr.open_dataset(os.path.join(path_to_td, f"h_{tidal_filename}"))
             .rename({"lon_z": "lon", "lat_z": "lat", "nc": "constituent"})
-            .isel(constituent=self.tidal_constituents)
+            .isel(
+                constituent=convert_to_tpxo_tidal_constituents(self.tidal_constituents)
+            )
         )
-        tidal_360_lon = [
-            self.longitude_extent[0],
-            self.longitude_extent[1],
-        ]
 
         h = tpxo_h["ha"] * np.exp(-1j * np.radians(tpxo_h["hp"]))
         tpxo_h["hRe"] = np.real(h)
@@ -1222,7 +1620,9 @@ class experiment:
         tpxo_u = (
             xr.open_dataset(os.path.join(path_to_td, f"u_{tidal_filename}"))
             .rename({"lon_u": "lon", "lat_u": "lat", "nc": "constituent"})
-            .isel(constituent=self.tidal_constituents)
+            .isel(
+                constituent=convert_to_tpxo_tidal_constituents(self.tidal_constituents)
+            )
         )
         tpxo_u["ua"] *= 0.01  # convert to m/s
         u = tpxo_u["ua"] * np.exp(-1j * np.radians(tpxo_u["up"]))
@@ -1231,7 +1631,9 @@ class experiment:
         tpxo_v = (
             xr.open_dataset(os.path.join(path_to_td, f"u_{tidal_filename}"))
             .rename({"lon_v": "lon", "lat_v": "lat", "nc": "constituent"})
-            .isel(constituent=self.tidal_constituents)
+            .isel(
+                constituent=convert_to_tpxo_tidal_constituents(self.tidal_constituents)
+            )
         )
         tpxo_v["va"] *= 0.01  # convert to m/s
         v = tpxo_v["va"] * np.exp(-1j * np.radians(tpxo_v["vp"]))
@@ -1665,7 +2067,7 @@ class experiment:
         print("done.")
         self.bathymetry = bathymetry
 
-    def FRE_tools(self, layout=None):
+    def run_FRE_tools(self, layout=None):
         """A wrapper for FRE Tools ``check_mask``, ``make_solo_mosaic``, and ``make_quick_mosaic``.
         User provides processor ``layout`` tuple of processing units.
         """
@@ -1703,9 +2105,9 @@ class experiment:
         )
 
         if layout != None:
-            self.cpu_layout(layout)
+            self.configure_cpu_layout(layout)
 
-    def cpu_layout(self, layout):
+    def configure_cpu_layout(self, layout):
         """
         Wrapper for the ``check_mask`` function of GFDL's FRE Tools. User provides processor
         ``layout`` tuple of processing units.
@@ -1729,6 +2131,7 @@ class experiment:
         using_payu=False,
         overwrite=False,
         with_tides_rectangular=False,
+        boundaries=["south", "north", "west", "east"],
     ):
         """
         Set up the run directory for MOM6. Either copy a pre-made set of files, or modify
@@ -1772,7 +2175,7 @@ class experiment:
                     + "There may be an issue with package installation. Check that the `premade_run_directory` folder is present in one of these two locations"
                 )
             else:
-                print("It is! Found them!")
+                print("Found run files. Continuing...")
 
         # Define the locations of the directories we'll copy files across from. Base contains most of the files, and overwrite replaces files in the base directory.
         base_run_dir = Path(os.path.join(premade_rundir_path, "common_files"))
@@ -1798,11 +2201,14 @@ class experiment:
         if with_tides_rectangular:
             tidal_files_exist = any(
                 "tidal" in filename
-                for filename in os.listdir(os.path.join(self.mom_input_dir, "forcing"))
+                for filename in (
+                    os.listdir(os.path.join(self.mom_input_dir, "forcing"))
+                    + os.listdir(os.path.join(self.mom_input_dir))
+                )
             )
             if not tidal_files_exist:
-                raise ValueError(
-                    "No files with 'tidal' in their names found in the forcing directory. If you meant to use tides, please run the setup_tides_rectangle_boundaries method first. That does output some tidal files."
+                raise (
+                    "No files with 'tidal' in their names found in the forcing or input directory. If you meant to use tides, please run the setup_tides_rectangle_boundaries method first. That does output some tidal files."
                 )
 
         # 3 different cases to handle:
@@ -1885,41 +2291,123 @@ class experiment:
         MOM_layout_dict = self.read_MOM_file_as_dict("MOM_layout")
         if "MASKTABLE" in MOM_layout_dict.keys():
             if mask_table != None:
-                MOM_layout_dict["MASKTABLE"] = mask_table
+                MOM_layout_dict["MASKTABLE"]["value"] = mask_table
             else:
-                MOM_layout_dict["MASKTABLE"] = "# MASKTABLE = no mask table"
+                MOM_layout_dict["MASKTABLE"]["value"] = "# MASKTABLE = no mask table"
         if (
             "LAYOUT" in MOM_layout_dict.keys()
             and "IO" not in MOM_layout_dict.keys()
             and layout != None
         ):
-            MOM_layout_dict["LAYOUT"] = str(layout[1]) + "," + str(layout[0])
+            MOM_layout_dict["LAYOUT"]["value"] = str(layout[1]) + "," + str(layout[0])
         if "NIGLOBAL" in MOM_layout_dict.keys():
-            MOM_layout_dict["NIGLOBAL"] = self.hgrid.nx.shape[0] // 2
+            MOM_layout_dict["NIGLOBAL"]["value"] = self.hgrid.nx.shape[0] // 2
         if "NJGLOBAL" in MOM_layout_dict.keys():
-            MOM_layout_dict["NJGLOBAL"] = self.hgrid.ny.shape[0] // 2
+            MOM_layout_dict["NJGLOBAL"]["value"] = self.hgrid.ny.shape[0] // 2
         self.write_MOM_file(MOM_layout_dict)
 
         MOM_input_dict = self.read_MOM_file_as_dict("MOM_input")
-        MOM_input_dict["MINIMUM_DEPTH"] = float(self.min_depth)
-        MOM_input_dict["NK"] = len(self.vgrid.zl.values)
-        if with_tides_rectangular:
-            MOM_input_dict["TIDES"] = "True"
-            MOM_input_dict["OBC_TIDE_N_CONSTITUENTS"] = len(self.tidal_constituents)
-            MOM_input_dict["OBC_SEGMENT_001_DATA"] = (
-                '"U=file:forcing/forcing_obc_segment_001.nc(u),V=file:forcing/forcing_obc_segment_001.nc(v),SSH=file:forcing/forcing_obc_segment_001.nc(eta),TEMP=file:forcing/forcing_obc_segment_001.nc(temp),SALT=file:forcing/forcing_obc_segment_001.nc(salt),Uamp=file:forcing/tu_segment_001.nc(uamp),Uphase=file:forcing/tu_segment_001.nc(uphase),Vamp=file:forcing/tu_segment_001.nc(vamp),Vphase=file:forcing/tu_segment_001.nc(vphase),SSHamp=file:forcing/tz_segment_001.nc(zamp),SSHphase=file:forcing/tz_segment_001.nc(zphase)"'
-            )
-            MOM_input_dict["OBC_SEGMENT_002_DATA"] = (
-                '"U=file:forcing/forcing_obc_segment_002.nc(u),V=file:forcing/forcing_obc_segment_002.nc(v),SSH=file:forcing/forcing_obc_segment_002.nc(eta),TEMP=file:forcing/forcing_obc_segment_002.nc(temp),SALT=file:forcing/forcing_obc_segment_002.nc(salt),Uamp=file:forcing/tu_segment_002.nc(uamp),Uphase=file:forcing/tu_segment_002.nc(uphase),Vamp=file:forcing/tu_segment_002.nc(vamp),Vphase=file:forcing/tu_segment_002.nc(vphase),SSHamp=file:forcing/tz_segment_002.nc(zamp),SSHphase=file:forcing/tz_segment_002.nc(zphase)"'
-            )
-            MOM_input_dict["OBC_SEGMENT_003_DATA"] = (
-                '"U=file:forcing/forcing_obc_segment_003.nc(u),V=file:forcing/forcing_obc_segment_003.nc(v),SSH=file:forcing/forcing_obc_segment_003.nc(eta),TEMP=file:forcing/forcing_obc_segment_003.nc(temp),SALT=file:forcing/forcing_obc_segment_003.nc(salt),Uamp=file:forcing/tu_segment_003.nc(uamp),Uphase=file:forcing/tu_segment_003.nc(uphase),Vamp=file:forcing/tu_segment_003.nc(vamp),Vphase=file:forcing/tu_segment_003.nc(vphase),SSHamp=file:forcing/tz_segment_003.nc(zamp),SSHphase=file:forcing/tz_segment_003.nc(zphase)"'
-            )
-            MOM_input_dict["OBC_SEGMENT_004_DATA"] = (
-                '"U=file:forcing/forcing_obc_segment_004.nc(u),V=file:forcing/forcing_obc_segment_004.nc(v),SSH=file:forcing/forcing_obc_segment_004.nc(eta),TEMP=file:forcing/forcing_obc_segment_004.nc(temp),SALT=file:forcing/forcing_obc_segment_004.nc(salt),Uamp=file:forcing/tu_segment_004.nc(uamp),Uphase=file:forcing/tu_segment_004.nc(uphase),Vamp=file:forcing/tu_segment_004.nc(vamp),Vphase=file:forcing/tu_segment_004.nc(vphase),SSHamp=file:forcing/tz_segment_004.nc(zamp),SSHphase=file:forcing/tz_segment_004.nc(zphase)"'
+        MOM_override_dict = self.read_MOM_file_as_dict("MOM_override")
+        # The number of boundaries is reflected in the number of segments setup in setup_ocean_state_boundary under expt.segments.
+        # The setup_tides_boundaries function currently only works with rectangular grids amd sets up 4 segments, but DOESN"T save them to expt.segments.
+        # Therefore, we can use expt.segments to determine how many segments we need for MOM_input. We can fill the empty segments with a empty string to make sure it is overriden correctly.
+
+        # Others
+        MOM_override_dict["MINIMUM_DEPTH"]["value"] = float(self.min_depth)
+        MOM_override_dict["NK"]["value"] = len(self.vgrid.zl.values)
+
+        # OBC Adjustments
+
+        # Delete MOM_input OBC stuff that is indexed because we want them only in MOM_override.
+        print(
+            "Deleting indexed OBC keys from MOM_input_dict in case we have a different number of segments"
+        )
+        keys_to_delete = [key for key in MOM_input_dict if "_SEGMENT_00" in key]
+        for key in keys_to_delete:
+            del MOM_input_dict[key]
+
+        # Define number of OBC segments
+        MOM_override_dict["OBC_NUMBER_OF_SEGMENTS"]["value"] = len(
+            boundaries
+        )  # This means that each SEGMENT_00{num} has to be configured to point to the right file, which based on our other functions needs to be specified.
+
+        # More OBC Consts
+        MOM_override_dict["OBC_FREESLIP_VORTICITY"]["value"] = "False"
+        MOM_override_dict["OBC_FREESLIP_STRAIN"]["value"] = "False"
+        MOM_override_dict["OBC_COMPUTED_VORTICITY"]["value"] = "True"
+        MOM_override_dict["OBC_COMPUTED_STRAIN"]["value"] = "True"
+        MOM_override_dict["OBC_ZERO_BIHARMONIC"]["value"] = "True"
+        MOM_override_dict["OBC_TRACER_RESERVOIR_LENGTH_SCALE_OUT"]["value"] = "3.0E+04"
+        MOM_override_dict["OBC_TRACER_RESERVOIR_LENGTH_SCALE_IN"]["value"] = "3000.0"
+        MOM_override_dict["BRUSHCUTTER_MODE"]["value"] = "True"
+
+        # Define Specific Segments
+        for ind, seg in enumerate(boundaries):
+            ind_seg = ind + 1
+            key_start = "OBC_SEGMENT_00" + str(ind_seg)
+            ## Position and Config
+            key_POSITION = key_start
+            if find_MOM6_rectangular_orientation(seg) == 1:
+                index_str = '"J=0,I=0:N'
+            elif find_MOM6_rectangular_orientation(seg) == 2:
+                index_str = '"J=N,I=N:0'
+            elif find_MOM6_rectangular_orientation(seg) == 3:
+                index_str = '"I=0,J=N:0'
+            elif find_MOM6_rectangular_orientation(seg) == 4:
+                index_str = '"I=N,J=0:N'
+            MOM_override_dict[key_POSITION]["value"] = (
+                index_str + ',FLATHER,ORLANSKI,NUDGED,ORLANSKI_TAN,NUDGED_TAN"'
             )
 
+            # Nudging Key
+            key_NUDGING = key_start + "_VELOCITY_NUDGING_TIMESCALES"
+            MOM_override_dict[key_NUDGING]["value"] = "0.3, 360.0"
+
+            # Data Key
+            key_DATA = key_start + "_DATA"
+            file_num_obc = str(
+                find_MOM6_rectangular_orientation(seg)
+            )  # 1,2,3,4 for rectangular boundaries, BUT if we have less than 4 segments we use the index to specific the number, but keep filenames as if we had four boundaries
+            MOM_override_dict[key_DATA][
+                "value"
+            ] = f'"U=file:forcing/forcing_obc_segment_00{file_num_obc}.nc(u),V=file:forcing/forcing_obc_segment_00{file_num_obc}.nc(v),SSH=file:forcing/forcing_obc_segment_00{file_num_obc}.nc(eta),TEMP=file:forcing/forcing_obc_segment_00{file_num_obc}.nc(temp),SALT=file:forcing/forcing_obc_segment_00{file_num_obc}.nc(salt)'
+            if with_tides_rectangular:
+                MOM_override_dict[key_DATA]["value"] = (
+                    MOM_override_dict[key_DATA]["value"]
+                    + f',Uamp=file:forcing/tu_segment_00{file_num_obc}.nc(uamp),Uphase=file:forcing/tu_segment_00{file_num_obc}.nc(uphase),Vamp=file:forcing/tu_segment_00{file_num_obc}.nc(vamp),Vphase=file:forcing/tu_segment_00{file_num_obc}.nc(vphase),SSHamp=file:forcing/tz_segment_00{file_num_obc}.nc(zamp),SSHphase=file:forcing/tz_segment_00{file_num_obc}.nc(zphase)"'
+                )
+            else:
+                MOM_override_dict[key_DATA]["value"] = (
+                    MOM_override_dict[key_DATA]["value"] + '"'
+                )
+
+        # Tides OBC adjustments
+        if with_tides_rectangular:
+
+            # Include internal tide forcing
+            MOM_override_dict["TIDES"]["value"] = "True"
+
+            # OBC tides
+            MOM_override_dict["OBC_TIDE_ADD_EQ_PHASE"]["value"] = "True"
+            MOM_override_dict["OBC_TIDE_N_CONSTITUENTS"]["value"] = len(
+                self.tidal_constituents
+            )
+            MOM_override_dict["OBC_TIDE_CONSTITUENTS"]["value"] = (
+                '"' + ", ".join(self.tidal_constituents) + '"'
+            )
+            MOM_override_dict["OBC_TIDE_REF_DATE"]["value"] = (
+                str(self.date_range[0].year)
+                + ", "
+                + str(self.date_range[0].month)
+                + ", "
+                + str(self.date_range[0].day)
+            )
+
+        for key in MOM_override_dict.keys():
+            if type(MOM_override_dict[key]) == dict:
+                MOM_override_dict[key]["override"] = True
         self.write_MOM_file(MOM_input_dict)
+        self.write_MOM_file(MOM_override_dict)
 
         ## If using payu to run the model, create a payu configuration file
         if not using_payu and os.path.exists(f"{self.mom_run_dir}/config.yaml"):
@@ -1960,20 +2448,102 @@ class experiment:
         nml.write(self.mom_run_dir / "input.nml", force=True)
         return
 
+    def change_MOM_parameter(
+        self, param_name, param_value=None, comment=None, delete=False
+    ):
+        """
+        *Requires already copied MOM parameter files in the run directory*
+        Change a parameter in the MOM_input or MOM_override file. Returns original value if there was one.
+        If delete is specified, ONLY MOM_override version will be deleted. Deleting from MOM_input is not safe.
+        If the parameter does not exist, it will be added to the file. if delete is set to True, the parameter will be removed.
+        Args:
+            param_name (str):
+                Parameter name we are working with
+            param_value (Optional[str]):
+                New Assigned Value
+            comment (Optional[str]):
+                Any comment to add
+            delete (Optional[bool]):
+                Whether to delete the specified param_name
+
+        """
+        if not delete and param_value is None:
+            raise ValueError(
+                "If not deleting a parameter, you must specify a new value for it."
+            )
+
+        MOM_input_dict = self.read_MOM_file_as_dict("MOM_input")
+        MOM_override_dict = self.read_MOM_file_as_dict("MOM_override")
+        original_val = "No original val"
+        if not delete:
+            # We don't want to keep any parameters in MOM_input that we change. We want to clearly list them in MOM_override.
+            if param_name in MOM_input_dict.keys():
+                original_val = MOM_override_dict[param_name]["value"]
+                print("Removing original value {} from MOM_input".format(original_val))
+                del MOM_input_dict[param_name]
+            if param_name in MOM_override_dict.keys():
+                original_val = MOM_override_dict[param_name]["value"]
+                print(
+                    "This parameter {} is begin replaced from {} to {} in MOM_override".format(
+                        param_name, original_val, param_value
+                    )
+                )
+
+            MOM_override_dict[param_name]["value"] = param_value
+            MOM_override_dict[param_name]["comment"] = comment
+        else:
+            if param_name in MOM_override_dict.keys():
+                original_val = MOM_override_dict[param_name]["value"]
+                print("Deleting parameter {} from MOM_override".format(param_name))
+                del MOM_override_dict[param_name]
+            else:
+                print(
+                    "Key to be deleted {} was not in MOM_override to begin with.".format(
+                        param_name
+                    )
+                )
+        self.write_MOM_file(MOM_input_dict)
+        self.write_MOM_file(MOM_override_dict)
+        return original_val
+
     def read_MOM_file_as_dict(self, filename):
         """
         Read the MOM_input file and return a dictionary of the variables and their values.
         """
+
+        # Default information for each parameter
+        default_layout = {"value": None, "override": False, "comment": None}
+
+        if not os.path.exists(os.path.join(self.mom_run_dir, filename)):
+            raise ValueError(
+                f"File {filename} does not exist in the run directory {self.mom_run_dir}"
+            )
         with open(os.path.join(self.mom_run_dir, filename), "r") as file:
             lines = file.readlines()
-            MOM_file_dict = {"filename": filename}
+
+            # Set the default initialization for a new key
+            MOM_file_dict = defaultdict(lambda: default_layout.copy())
+            MOM_file_dict["filename"] = filename
+            dlc = default_layout.copy()
             for jj in range(len(lines)):
                 if "=" in lines[jj] and not "===" in lines[jj]:
                     split = lines[jj].split("=", 1)
                     var = split[0]
                     value = split[1]
-                    value = value.split("!")[0].strip()  # Remove Comments
-                    MOM_file_dict[var.strip()] = value.strip()
+                    if "#override" in var:
+                        var = var.split("#override")[1].strip()
+                        dlc["override"] = True
+                    else:
+                        dlc["override"] = False
+                    if "!" in value:
+                        dlc["comment"] = value.split("!")[1]
+                        value = value.split("!")[0].strip()  # Remove Comments
+                        dlc["value"] = str(value)
+                    else:
+                        dlc["value"] = str(value.strip())
+                        dlc["comment"] = None
+
+                    MOM_file_dict[var.strip()] = dlc.copy()
 
             # Save a copy of the original dictionary
             MOM_file_dict["original"] = MOM_file_dict.copy()
@@ -1992,12 +2562,16 @@ class experiment:
             for jj in range(len(lines)):
                 if "=" in lines[jj] and not "===" in lines[jj]:
                     var = lines[jj].split("=", 1)[0].strip()
-                    if (
-                        var in MOM_file_dict.keys()
-                        and (str(MOM_file_dict[var])) != original_MOM_file_dict[var]
-                    ):
+                    if var in MOM_file_dict.keys() and (
+                        str(MOM_file_dict[var]["value"])
+                    ) != str(original_MOM_file_dict[var]["value"]):
                         lines[jj] = lines[jj].replace(
-                            original_MOM_file_dict[var], str(MOM_file_dict[var])
+                            str(original_MOM_file_dict[var]["value"]),
+                            str(MOM_file_dict[var]["value"]),
+                        )
+                        lines[jj] = lines[jj].replace(
+                            original_MOM_file_dict[var]["comment"],
+                            str(MOM_file_dict[var]["comment"]),
                         )
                         print(
                             "Changed",
@@ -2013,7 +2587,14 @@ class experiment:
         lines.append("! === Added with RM6 ===\n")
         for key in MOM_file_dict.keys():
             if key not in original_MOM_file_dict.keys():
-                lines.append(f"{key} = {MOM_file_dict[key]}\n")
+                if MOM_file_dict[key]["override"]:
+                    lines.append(
+                        f"#override {key} = {MOM_file_dict[key]['value']} !{MOM_file_dict[key]['comment']}\n"
+                    )
+                else:
+                    lines.append(
+                        f"{key} = {MOM_file_dict[key]['value']} !{MOM_file_dict[key]['comment']}\n"
+                    )
                 print(
                     "Added",
                     key,
@@ -2026,10 +2607,22 @@ class experiment:
         # Check any fields removed
         for key in original_MOM_file_dict.keys():
             if key not in MOM_file_dict.keys():
-                print(
-                    "WARNING: Field",
+                search_words = [
                     key,
-                    "was not found in the new dictionary. Keeping the original value of",
+                    original_MOM_file_dict[key]["value"],
+                    original_MOM_file_dict[key]["comment"],
+                ]
+                lines = [
+                    line
+                    for line in lines
+                    if not all(word in line for word in search_words)
+                ]
+                print(
+                    "Removed",
+                    key,
+                    "in",
+                    MOM_file_dict["filename"],
+                    "with value",
                     original_MOM_file_dict[key],
                 )
 
