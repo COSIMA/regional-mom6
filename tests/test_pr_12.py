@@ -219,7 +219,7 @@ class TestAll:
         )
         return expt
 
-    def test_dummy_test_expt_setup(self, full_legit_expt_setup):
+    def test_full_legit_expt_setup(self, full_legit_expt_setup):
         assert str(full_legit_expt_setup)
 
     # @pytest.mark.skipif(

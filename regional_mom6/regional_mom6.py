@@ -119,7 +119,7 @@ def load_experiment(config_file_path):
     expt = experiment.create_empty()
 
     print("Setting Default Variables.....")
-    expt.name = config_dict["name"]
+    expt.expt_name = config_dict["name"]
     try:
         expt.longitude_extent = tuple(config_dict["longitude_extent"])
         expt.latitude_extent = tuple(config_dict["latitude_extent"])
@@ -175,7 +175,7 @@ def load_experiment(config_file_path):
     found = True
     for path in config_dict["ocean_state"]:
         if not os.path.exists(path):
-            foud = False
+            found = False
             print(
                 "At least one ocean state file not found. Please provide ocean state files, or call setup_ocean_state_boundaries method to set up ocean state."
             )
@@ -186,6 +186,7 @@ def load_experiment(config_file_path):
     print("Checking for initial condition files....")
     for path in config_dict["initial_conditions"]:
         if not os.path.exists(path):
+            found = False
             print(
                 "At least one initial condition file not found. Please provide initial condition files, or call setup_initial_condition method to set up initial condition."
             )
@@ -196,6 +197,7 @@ def load_experiment(config_file_path):
     print("Checking for tides files....")
     for path in config_dict["tides"]:
         if not os.path.exists(path):
+            found = False
             print(
                 "At least one tides file not found. If you would like tides, call setup_tides_boundaries method to set up tides"
             )
@@ -668,7 +670,7 @@ class experiment:
             name=None,
         )
 
-        expt.name = name
+        expt.expt_name = name
         expt.tidal_constituents = tidal_constituents
         expt.repeat_year_forcing = repeat_year_forcing
         expt.grid_type = grid_type
