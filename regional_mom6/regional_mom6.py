@@ -120,11 +120,18 @@ def load_experiment(config_file_path):
 
     print("Setting Default Variables.....")
     expt.name = config_dict["name"]
-    expt.longitude_extent = tuple(config_dict["longitude_extent"])
-    expt.latitude_extent = tuple(config_dict["latitude_extent"])
-    expt.date_range = config_dict["date_range"]
-    expt.date_range[0] = dt.datetime.strptime(expt.date_range[0], "%Y-%m-%d")
-    expt.date_range[1] = dt.datetime.strptime(expt.date_range[1], "%Y-%m-%d")
+    try:
+        expt.longitude_extent = tuple(config_dict["longitude_extent"])
+        expt.latitude_extent = tuple(config_dict["latitude_extent"])
+    except:
+        expt.longitude_extent = None
+        expt.latitude_extent = None
+    try:
+        expt.date_range = config_dict["date_range"]
+        expt.date_range[0] = dt.datetime.strptime(expt.date_range[0], "%Y-%m-%d")
+        expt.date_range[1] = dt.datetime.strptime(expt.date_range[1], "%Y-%m-%d")
+    except:
+        expt.date_range = None
     expt.mom_run_dir = Path(config_dict["run_dir"])
     expt.mom_input_dir = Path(config_dict["input_dir"])
     expt.toolpath_dir = Path(config_dict["toolpath_dir"])
@@ -144,14 +151,14 @@ def load_experiment(config_file_path):
         print("Found")
         expt.hgrid = xr.open_dataset(config_dict["hgrid"])
     else:
-        print("Hgrid not found, creating hgrid")
-        expt.hgrid = expt._make_hgrid()
+        print("Hgrid not found, call _make_hgrid when you're ready.")
+        expt.hgrid = None
     if os.path.exists(config_dict["vgrid"]):
         print("Found")
         expt.vgrid = xr.open_dataset(config_dict["vgrid"])
     else:
-        print("Vgrid not found, creating vgrid")
-        expt.vgrid = expt._make_vgrid()
+        print("Vgrid not found, call _make_vgrid when ready")
+        expt.vgrid = None
 
     print("Checking for bathymetry...")
     if config_dict["bathymetry"] is not None and os.path.exists(
@@ -640,26 +647,44 @@ class experiment:
         name=None,
     ):
         """
-        Substitute init method to create an empty expirement object, with the opportunity to override whatever values wanted.
+        Substitute init method to creates an empty expirement object, with the opportunity to override whatever values wanted.
         """
         expt = self(
-            longitude_extent=longitude_extent,
-            latitude_extent=latitude_extent,
-            date_range=date_range,
-            resolution=resolution,
-            number_vertical_layers=number_vertical_layers,
-            layer_thickness_ratio=layer_thickness_ratio,
-            depth=depth,
-            minimum_depth=minimum_depth,
-            mom_run_dir=mom_run_dir,
-            mom_input_dir=mom_input_dir,
-            toolpath_dir=toolpath_dir,
+            longitude_extent=None,
+            latitude_extent=None,
+            date_range=None,
+            resolution=None,
+            number_vertical_layers=None,
+            layer_thickness_ratio=None,
+            depth=None,
+            minimum_depth=None,
+            mom_run_dir=None,
+            mom_input_dir=None,
+            toolpath_dir=None,
             create_empty=True,
-            grid_type=grid_type,
-            repeat_year_forcing=repeat_year_forcing,
-            tidal_constituents=tidal_constituents,
-            name=name,
+            grid_type=None,
+            repeat_year_forcing=None,
+            tidal_constituents=None,
+            name=None,
         )
+
+        expt.name = name
+        expt.tidal_constituents = tidal_constituents
+        expt.repeat_year_forcing = repeat_year_forcing
+        expt.grid_type = grid_type
+        expt.toolpath_dir = toolpath_dir
+        expt.mom_run_dir = mom_run_dir
+        expt.mom_input_dir = mom_input_dir
+        expt.min_depth = minimum_depth
+        expt.depth = depth
+        expt.layer_thickness_ratio = layer_thickness_ratio
+        expt.number_vertical_layers = number_vertical_layers
+        expt.resolution = resolution
+        expt.date_range = date_range
+        expt.latitude_extent = latitude_extent
+        expt.longitude_extent = longitude_extent
+        expt.ocean_mask = None
+        expt.layout = None
         return expt
 
     def __init__(
@@ -693,8 +718,7 @@ class experiment:
 
         # ## Set up the experiment with no config file
         ## in case list was given, convert to tuples
-        if name is not None:
-            self.name = name
+        self.expt_name = name
         self.longitude_extent = tuple(longitude_extent)
         self.latitude_extent = tuple(latitude_extent)
         self.date_range = tuple(date_range)
@@ -972,7 +996,7 @@ class experiment:
                 self.mom_input_dir
             )
 
-    def write_config_file(self, export=True, quiet=False):
+    def write_config_file(self, path=None, export=True, quiet=False):
         """
         Write a configuration file for the experiment. This is a simple json file
         that contains the expirment object information to allow for reproducibility, to pick up where a user left off, and
@@ -987,12 +1011,17 @@ class experiment:
             vgrid_path = self.mom_input_dir / "vcoord.nc"
         if os.path.exists(self.mom_input_dir / "hgrid.nc"):
             hgrid_path = self.mom_input_dir / "hgrid.nc"
-        config_dict = {
-            "name": self.name,
-            "date_range": [
+
+        try:
+            date_range = [
                 self.date_range[0].strftime("%Y-%m-%d"),
                 self.date_range[1].strftime("%Y-%m-%d"),
-            ],
+            ]
+        except:
+            date_range = None
+        config_dict = {
+            "name": self.expt_name,
+            "date_range": date_range,
             "latitude_extent": self.latitude_extent,
             "longitude_extent": self.longitude_extent,
             "run_dir": str(self.mom_run_dir),
@@ -1016,7 +1045,11 @@ class experiment:
             "tidal_constituents": self.tidal_constituents,
         }
         if export:
-            with open(self.mom_run_dir / "config.json", "w") as f:
+            if path is not None:
+                export_path = path
+            else:
+                export_path = self.mom_run_dir / "config.json"
+            with open(export_path, "w") as f:
                 json.dump(
                     config_dict,
                     f,
@@ -2439,6 +2472,7 @@ class experiment:
         self, param_name, param_value=None, comment=None, delete=False
     ):
         """
+        *Requires already copied MOM parameter files in the run directory*
         Change a parameter in the MOM_input or MOM_override file. Returns original value if there was one.
         If delete is specified, ONLY MOM_override version will be deleted. Deleting from MOM_input is not safe.
         If the parameter does not exist, it will be added to the file. if delete is set to True, the parameter will be removed.
@@ -2499,6 +2533,11 @@ class experiment:
 
         # Default information for each parameter
         default_layout = {"value": None, "override": False, "comment": None}
+
+        if not os.path.exists(os.path.join(self.mom_run_dir, filename)):
+            raise ValueError(
+                f"File {filename} does not exist in the run directory {self.mom_run_dir}"
+            )
         with open(os.path.join(self.mom_run_dir, filename), "r") as file:
             lines = file.readlines()
 
@@ -3390,6 +3429,10 @@ class segment:
         )
         if "z" in ds.coords:
             ds = ds.rename({"z": f"nz_{self.segment_name}"})
+        if self.orientation in ["south", "north"]:
+            ds = ds.rename({"locations": f"nx_{self.segment_name}"})
+        elif self.orientation in ["west", "east"]:
+            ds = ds.rename({"locations": f"ny_{self.segment_name}"})
 
         ## Perform Encoding ##
         for v in ds:
