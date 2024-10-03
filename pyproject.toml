@@ -1,6 +1,6 @@
 [project]
 name = "regional_mom6"
-description = "Automatic generation of regional configurations for Modular Ocean Model v6"
+description = "Automatic generation of regional configurations for Modular Ocean Model 6"
 keywords = ["mom6", "regional", "ocean modeling", "python"]
 authors = [
   {name = "COSIMA community and outside contributors"},
