@@ -141,7 +141,7 @@ def load_experiment(config_file_path):
     expt.repeat_year_forcing = config_dict["repeat_year_forcing"]
     expt.ocean_mask = None
     expt.layout = None
-    expt.min_depth = config_dict["min_depth"]
+    expt.minimum_depth = config_dict["minimum_depth"]
     expt.tidal_constituents = config_dict["tidal_constituents"]
 
     print("Checking for hgrid and vgrid....")
@@ -675,7 +675,7 @@ class experiment:
         expt.toolpath_dir = toolpath_dir
         expt.mom_run_dir = mom_run_dir
         expt.mom_input_dir = mom_input_dir
-        expt.min_depth = minimum_depth
+        expt.minimum_depth = minimum_depth
         expt.depth = depth
         expt.layer_thickness_ratio = layer_thickness_ratio
         expt.number_vertical_layers = number_vertical_layers
@@ -742,7 +742,7 @@ class experiment:
         self.repeat_year_forcing = repeat_year_forcing
         self.ocean_mask = None
         self.layout = None  # This should be a tuple. Leaving in a dummy 'None' makes it easy to remind the user to provide a value later on.
-        self.min_depth = (
+        self.minimum_depth = (
             minimum_depth  # Minimum depth. Shallower water will be masked out.
         )
         self.tidal_constituents = tidal_constituents
@@ -876,6 +876,15 @@ class experiment:
         zl = zi[0:-1] + thicknesses / 2  # the mid-points between interfaces zi
 
         vcoord = xr.Dataset({"zi": ("zi", zi), "zl": ("zl", zl)})
+
+        ## Check whether the minimum depth is less than the first three layers
+
+        if self.minimum_depth < zi[2]:
+            print(
+                f"Warning: Minimum depth of {self.minimum_depth}m is less than the depth of the third interface ({zi[2]}m)!\n"
+                + "This means that some areas may only have one or two layers between the surface and sea floor. \n"
+                + "For increased stability, consider increasing the minimum depth, or adjusting the vertical coordinate to add more layers near the surface."
+            )
 
         vcoord["zi"].attrs = {"units": "meters"}
         vcoord["zl"].attrs = {"units": "meters"}
@@ -1035,7 +1044,7 @@ class experiment:
             "repeat_year_forcing": self.repeat_year_forcing,
             "ocean_mask": self.ocean_mask,
             "layout": self.layout,
-            "min_depth": self.min_depth,
+            "minimum_depth": self.minimum_depth,
             "vgrid": str(vgrid_path),
             "hgrid": str(hgrid_path),
             "bathymetry": self.bathymetry_property,
@@ -1681,7 +1690,6 @@ class experiment:
         vertical_coordinate_name="elevation",
         fill_channels=False,
         positive_down=False,
-        chunks="auto",
     ):
         """
         Cut out and interpolate the chosen bathymetry and then fill inland lakes.
@@ -1705,9 +1713,6 @@ class experiment:
                 but can also connect extra islands to land. Default: ``False``.
             positive_down (Optional[bool]): If ``True``, it assumes that
                 bathymetry vertical coordinate is positive down. Default: ``False``.
-            chunks (Optional Dict[str, str]): Horizontal chunking scheme for the bathymetry, e.g.,
-                ``{"longitude": 100, "latitude": 100}``. Use ``'longitude'`` and ``'latitude'`` rather
-                than the actual coordinate names in the input file.
         """
 
         ## Convert the provided coordinate names into a dictionary mapping to the
@@ -1717,13 +1722,8 @@ class experiment:
             "yh": latitude_coordinate_name,
             "elevation": vertical_coordinate_name,
         }
-        if chunks != "auto":
-            chunks = {
-                coordinate_names["xh"]: chunks["longitude"],
-                coordinate_names["yh"]: chunks["latitude"],
-            }
 
-        bathymetry = xr.open_dataset(bathymetry_path, chunks=chunks)[
+        bathymetry = xr.open_dataset(bathymetry_path, chunks="auto")[
             coordinate_names["elevation"]
         ]
 
@@ -1793,18 +1793,6 @@ class experiment:
         )
 
         tgrid = xr.Dataset(
-            {
-                "lon": (
-                    ["lon"],
-                    self.hgrid.x.isel(nxp=slice(1, None, 2), nyp=1).values,
-                ),
-                "lat": (
-                    ["lat"],
-                    self.hgrid.y.isel(nxp=1, nyp=slice(1, None, 2)).values,
-                ),
-            }
-        )
-        tgrid = xr.Dataset(
             data_vars={
                 "elevation": (
                     ["lat", "lon"],
@@ -1828,13 +1816,6 @@ class experiment:
         )
 
         # rewrite chunks to use lat/lon now for use with xesmf
-        if chunks != "auto":
-            chunks = {
-                "lon": chunks[coordinate_names["xh"]],
-                "lat": chunks[coordinate_names["yh"]],
-            }
-
-        tgrid = tgrid.chunk(chunks)
         tgrid.lon.attrs["units"] = "degrees_east"
         tgrid.lon.attrs["_FillValue"] = 1e20
         tgrid.lat.attrs["units"] = "degrees_north"
@@ -1846,39 +1827,33 @@ class experiment:
         )
         tgrid.close()
 
-        ## Replace subprocess run with regular regridder
+        bathymetry_output = bathymetry_output.load()
+
         print(
             "Begin regridding bathymetry...\n\n"
-            + "If this process hangs it means that the chosen domain might be too big to handle this way. "
-            + "After ensuring access to appropriate computational resources, try calling ESMF "
-            + "directly from a terminal in the input directory via\n\n"
-            + "mpirun -np `NUMBER_OF_CPUS` ESMF_Regrid -s bathymetry_original.nc -d bathymetry_unfinished.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional\n\n"
+            + f"Original bathymetry size: {bathymetry_output.nbytes/1e6:.2f} Mb\n"
+            + f"Regridded size: {tgrid.nbytes/1e6:.2f} Mb\n"
+            + "Automatic regridding may fail if your domain is too big! If this process hangs or crashes,"
+            + "open a terminal with appropriate computational and resources try calling ESMF "
+            + f"directly in the input directory {self.mom_input_dir} via\n\n"
+            + "`mpirun -np NUMBER_OF_CPUS ESMF_Regrid -s bathymetry_original.nc -d bathymetry_unfinished.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional`\n\n"
             + "For details see https://xesmf.readthedocs.io/en/latest/large_problems_on_HPC.html\n\n"
-            + "Afterwards, we run 'tidy_bathymetry' method to skip the expensive interpolation step, and finishing metadata, encoding and cleanup."
+            + "Afterwards, run the 'expt.tidy_bathymetry' method to skip the expensive interpolation step, and finishing metadata, encoding and cleanup.\n\n\n"
         )
-
-        # If we have a domain large enough for chunks, we'll run regridder with parallel=True
-        parallel = True
-        if len(tgrid.chunks) != 2:
-            parallel = False
-        print(f"Regridding in parallel: {parallel}")
-        bathymetry_output = bathymetry_output.chunk(chunks)
-        # return
-        regridder = xe.Regridder(
-            bathymetry_output, tgrid, "bilinear", parallel=parallel
-        )
-
+        regridder = xe.Regridder(bathymetry_output, tgrid, "bilinear", parallel=False)
         bathymetry = regridder(bathymetry_output)
         bathymetry.to_netcdf(
             self.mom_input_dir / "bathymetry_unfinished.nc", mode="w", engine="netcdf4"
         )
         print(
-            "Regridding finished. Now calling `tidy_bathymetry` method for some finishing touches..."
+            "Regridding successful! Now calling `tidy_bathymetry` method for some finishing touches..."
         )
 
         self.tidy_bathymetry(fill_channels, positive_down)
+        print("setup bathymetry has finished successfully.")
+        return
 
-    def tidy_bathymetry(self, fill_channels=False, positive_down=True):
+    def tidy_bathymetry(self, fill_channels=False, positive_down=False):
         """
         An auxiliary function for bathymetry used to fix up the metadata and remove inland
         lakes after regridding the bathymetry. Having `tidy_bathymetry` as a separate
@@ -1893,12 +1868,15 @@ class experiment:
             fill_channels (Optional[bool]): Whether to fill in
                 diagonal channels. This removes more narrow inlets,
                 but can also connect extra islands to land. Default: ``False``.
-            positive_down (Optional[bool]): If ``True`` (default), assume that
-                bathymetry vertical coordinate is positive down.
+            positive_down (Optional[bool]): If ``False`` (default), assume that
+                bathymetry vertical coordinate is positive down, as is the case in GEBCO for example.
         """
 
         ## reopen bathymetry to modify
-        print("Reading in regridded bathymetry to fix up metadata...", end="")
+        print(
+            "Tidy bathymetry: Reading in regridded bathymetry to fix up metadata...",
+            end="",
+        )
         bathymetry = xr.open_dataset(
             self.mom_input_dir / "bathymetry_unfinished.nc", engine="netcdf4"
         )
@@ -1917,10 +1895,12 @@ class experiment:
             ## Ensure that coordinate is positive down!
             bathymetry["depth"] *= -1
 
-        ## REMOVE INLAND LAKES
-
-        ocean_mask = xr.where(bathymetry.copy(deep=True).depth <= self.min_depth, 0, 1)
+        ## Make a land mask based on the bathymetry
+        ocean_mask = xr.where(bathymetry.copy(deep=True).depth <= 0, 0, 1)
         land_mask = np.abs(ocean_mask - 1)
+
+        ## REMOVE INLAND LAKES
+        print("done. Filling in inland lakes and channels... ", end="")
 
         changed = True  ## keeps track of whether solution has converged or not
 
@@ -2054,6 +2034,18 @@ class experiment:
 
         bathymetry["depth"] *= self.ocean_mask
 
+        ## Now, any points in the bathymetry that are shallower than minimum depth are set to minimum depth.
+        ## This preserves the true land/ocean mask.
+        bathymetry["depth"] = bathymetry["depth"].where(
+            bathymetry["depth"] > self.minimum_depth, self.minimum_depth
+        )
+
+        bathymetry["depth"] = bathymetry["depth"].where(
+            (bathymetry["depth"] > self.minimum_depth) + (bathymetry["depth"] == 0),
+            self.minimum_depth,
+        )
+
+        ## Finally, set all land points to nan
         bathymetry["depth"] = bathymetry["depth"].where(
             bathymetry["depth"] != 0, np.nan
         )
@@ -2065,7 +2057,7 @@ class experiment:
         )
 
         print("done.")
-        self.bathymetry = bathymetry
+        return
 
     def run_FRE_tools(self, layout=None):
         """A wrapper for FRE Tools ``check_mask``, ``make_solo_mosaic``, and ``make_quick_mosaic``.
@@ -2308,7 +2300,7 @@ class experiment:
         # Therefore, we can use expt.segments to determine how many segments we need for MOM_input. We can fill the empty segments with a empty string to make sure it is overriden correctly.
 
         # Others
-        MOM_override_dict["MINIMUM_DEPTH"]["value"] = float(self.min_depth)
+        MOM_override_dict["MINIMUM_DEPTH"]["value"] = float(self.minimum_depth)
         MOM_override_dict["NK"]["value"] = len(self.vgrid.zl.values)
 
         # OBC Adjustments
