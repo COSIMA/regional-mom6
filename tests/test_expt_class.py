@@ -93,7 +93,6 @@ def test_setup_bathymetry(
         longitude_coordinate_name="silly_lon",
         latitude_coordinate_name="silly_lat",
         vertical_coordinate_name="silly_depth",
-        chunks={"longitude": 10, "latitude": 10},
     )
 
     bathymetry_file.unlink()
