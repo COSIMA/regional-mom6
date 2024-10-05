@@ -698,8 +698,8 @@ class experiment:
         mom_run_dir,
         mom_input_dir,
         toolpath_dir,
-        longitude_extent = None,
-        latitude_extent = None,
+        longitude_extent=None,
+        latitude_extent=None,
         grid_type="even_spacing",
         repeat_year_forcing=False,
         read_existing_grids=False,
@@ -1423,47 +1423,71 @@ class experiment:
 
         # Initial Condition
         get_glorys_data(
-            longitude_extent = [float(self.hgrid.x.min()), float(self.hgrid.x.max())], 
-            latitude_extent = [float(self.hgrid.y.min()), float(self.hgrid.y.max())],
-            timerange = [
+            longitude_extent=[float(self.hgrid.x.min()), float(self.hgrid.x.max())],
+            latitude_extent=[float(self.hgrid.y.min()), float(self.hgrid.y.max())],
+            timerange=[
                 self.date_range[0],
                 self.date_range[0] + datetime.timedelta(days=1),
             ],
-            segment_name = "ic_unprocessed",
-            download_path = raw_boundaries_path,
-            modify_existing=False, # This is the first line, so start bash script anew
+            segment_name="ic_unprocessed",
+            download_path=raw_boundaries_path,
+            modify_existing=False,  # This is the first line, so start bash script anew
         )
         if "east" in boundaries:
             get_glorys_data(
-                longitude_extent = [float(self.hgrid.x.isel(nxp = -1).min()), float(self.hgrid.x.isel(nxp = -1).max())], ## Collect from Eastern (x = -1) side
-                latitude_extent = [float(self.hgrid.y.isel(nxp = -1).min()), float(self.hgrid.y.isel(nxp = -1).max())],
-                timerange = self.date_range,
-                segment_name = "east_unprocessed",
-                download_path = raw_boundaries_path,
+                longitude_extent=[
+                    float(self.hgrid.x.isel(nxp=-1).min()),
+                    float(self.hgrid.x.isel(nxp=-1).max()),
+                ],  ## Collect from Eastern (x = -1) side
+                latitude_extent=[
+                    float(self.hgrid.y.isel(nxp=-1).min()),
+                    float(self.hgrid.y.isel(nxp=-1).max()),
+                ],
+                timerange=self.date_range,
+                segment_name="east_unprocessed",
+                download_path=raw_boundaries_path,
             )
         if "west" in boundaries:
             get_glorys_data(
-                longitude_extent = [float(self.hgrid.x.isel(nxp = 0).min()), float(self.hgrid.x.isel(nxp = 0).max())], ## Collect from Western (x = 0) side
-                latitude_extent = [float(self.hgrid.y.isel(nxp = 0).min()), float(self.hgrid.y.isel(nxp = 0).max())],
-                timerange = self.date_range,
-                segment_name = "west_unprocessed",
-                download_path = raw_boundaries_path,
+                longitude_extent=[
+                    float(self.hgrid.x.isel(nxp=0).min()),
+                    float(self.hgrid.x.isel(nxp=0).max()),
+                ],  ## Collect from Western (x = 0) side
+                latitude_extent=[
+                    float(self.hgrid.y.isel(nxp=0).min()),
+                    float(self.hgrid.y.isel(nxp=0).max()),
+                ],
+                timerange=self.date_range,
+                segment_name="west_unprocessed",
+                download_path=raw_boundaries_path,
             )
         if "south" in boundaries:
             get_glorys_data(
-                longitude_extent = [float(self.hgrid.x.isel(nyp = 0).min()), float(self.hgrid.x.isel(nyp = 0).max())], ## Collect from Southern (y = 0) side
-                latitude_extent = [float(self.hgrid.y.isel(nyp = 0).min()), float(self.hgrid.y.isel(nyp = 0).max())],
-                timerange = self.date_range,
-                segment_name = "south_unprocessed",
-                download_path = raw_boundaries_path,
+                longitude_extent=[
+                    float(self.hgrid.x.isel(nyp=0).min()),
+                    float(self.hgrid.x.isel(nyp=0).max()),
+                ],  ## Collect from Southern (y = 0) side
+                latitude_extent=[
+                    float(self.hgrid.y.isel(nyp=0).min()),
+                    float(self.hgrid.y.isel(nyp=0).max()),
+                ],
+                timerange=self.date_range,
+                segment_name="south_unprocessed",
+                download_path=raw_boundaries_path,
             )
         if "north" in boundaries:
             get_glorys_data(
-                longitude_extent = [float(self.hgrid.x.isel(nyp = -1).min()), float(self.hgrid.x.isel(nyp = -1).max())], ## Collect from Southern (y = -1) side
-                latitude_extent = [float(self.hgrid.y.isel(nyp = -1).min()), float(self.hgrid.y.isel(nyp = -1).max())],
-                timerange = self.date_range,
-                segment_name = "north_unprocessed",
-                download_path = raw_boundaries_path,
+                longitude_extent=[
+                    float(self.hgrid.x.isel(nyp=-1).min()),
+                    float(self.hgrid.x.isel(nyp=-1).max()),
+                ],  ## Collect from Southern (y = -1) side
+                latitude_extent=[
+                    float(self.hgrid.y.isel(nyp=-1).min()),
+                    float(self.hgrid.y.isel(nyp=-1).max()),
+                ],
+                timerange=self.date_range,
+                segment_name="north_unprocessed",
+                download_path=raw_boundaries_path,
             )
 
         print(
