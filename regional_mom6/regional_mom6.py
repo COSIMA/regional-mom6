@@ -2775,9 +2775,9 @@ class segment:
                 self.x = varnames["x"]
                 self.y = varnames["y"]
             ## In case user continues using T point names for A grid
-            except:                         
+            except:
                 self.x = varnames["xh"]
-                self.y = varnames["yh"]  
+                self.y = varnames["yh"]
 
         elif arakawa_grid in ("B", "C"):
             self.xq = varnames["xq"]

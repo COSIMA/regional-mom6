@@ -92,7 +92,8 @@ def test_setup_bathymetry(
         bathymetry_path=str(bathymetry_file),
         longitude_coordinate_name="silly_lon",
         latitude_coordinate_name="silly_lat",
-        vertical_coordinate_name="silly_depth"    )
+        vertical_coordinate_name="silly_depth",
+    )
 
     bathymetry_file.unlink()
 
