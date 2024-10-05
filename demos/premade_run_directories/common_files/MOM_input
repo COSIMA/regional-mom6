@@ -208,7 +208,7 @@ INIT_LAYERS_FROM_Z_FILE = True  !   [Boolean] default = False
                                 ! Z-space file on a latitude-longitude grid.
 
 ! === module MOM_initialize_layers_from_Z ===
-TEMP_SALT_Z_INIT_FILE = "forcing/init_tracers.nc" ! default = "temp_salt_z.nc"
+TEMP_SALT_Z_INIT_FILE = "init_tracers.nc" ! default = "temp_salt_z.nc"
                                 ! The name of the z-space input file used to initialize temperatures (T) and
                                 ! salinities (S). If T and S are not in the same file, TEMP_Z_INIT_FILE and
                                 ! SALT_Z_INIT_FILE must be set.
@@ -223,7 +223,7 @@ TEMP_SALT_INIT_VERTICAL_REMAP_ONLY = True !   [Boolean] default = False
 DEPRESS_INITIAL_SURFACE = True  !   [Boolean] default = False
                                 ! If true,  depress the initial surface to avoid huge tsunamis when a large
                                 ! surface pressure is applied.
-SURFACE_HEIGHT_IC_FILE = "forcing/init_eta.nc" !
+SURFACE_HEIGHT_IC_FILE = "init_eta.nc" !
                                 ! The initial condition file for the surface height.
 SURFACE_HEIGHT_IC_VAR = "eta_t" ! default = "SSH"
                                 ! The initial condition variable for the surface height.
@@ -238,7 +238,7 @@ VELOCITY_CONFIG = "file"        ! default = "zero"
                                 !     rossby_front - a mixed layer front in thermal wind balance.
                                 !     soliton - Equatorial Rossby soliton.
                                 !     USER - call a user modified routine.
-VELOCITY_FILE = "forcing/init_vel.nc" !
+VELOCITY_FILE = "init_vel.nc" !
                                 ! The name of the velocity initial condition file.
 ! === module MOM_diag_mediator ===
 NUM_DIAG_COORDS = 1             ! default = 1

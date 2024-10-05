@@ -349,14 +349,14 @@ def get_glorys_data(
     path = Path(download_path)
 
     if modify_existing:
-        file = open(Path(path / "get_glorysdata.sh"), "r")
+        file = open(Path(path / "get_glorys_data.sh"), "r")
         lines = file.readlines()
         file.close()
 
     else:
         lines = ["#!/bin/bash\n"]
 
-    file = open(Path(path / "get_glorysdata.sh"), "w")
+    file = open(Path(path / "get_glorys_data.sh"), "w")
 
     lines.append(
         f"""
@@ -690,8 +690,6 @@ class experiment:
     def __init__(
         self,
         *,
-        longitude_extent,
-        latitude_extent,
         date_range,
         resolution,
         number_vertical_layers,
@@ -700,6 +698,8 @@ class experiment:
         mom_run_dir,
         mom_input_dir,
         toolpath_dir,
+        longitude_extent = None,
+        latitude_extent = None,
         grid_type="even_spacing",
         repeat_year_forcing=False,
         read_existing_grids=False,
@@ -719,8 +719,6 @@ class experiment:
         # ## Set up the experiment with no config file
         ## in case list was given, convert to tuples
         self.expt_name = name
-        self.longitude_extent = tuple(longitude_extent)
-        self.latitude_extent = tuple(latitude_extent)
         self.date_range = tuple(date_range)
 
         self.mom_run_dir = Path(mom_run_dir)
@@ -751,6 +749,15 @@ class experiment:
             try:
                 self.hgrid = xr.open_dataset(self.mom_input_dir / "hgrid.nc")
                 self.vgrid = xr.open_dataset(self.mom_input_dir / "vcoord.nc")
+                self.longitude_extent = (
+                    float(self.hgrid.x.min()),
+                    float(self.hgrid.x.max()),
+                )
+                self.latitude_extent = (
+                    float(self.hgrid.y.min()),
+                    float(self.hgrid.y.max()),
+                )
+
             except:
                 print(
                     "Error while reading in existing grids!\n\n"
@@ -758,6 +765,8 @@ class experiment:
                 )
                 raise ValueError
         else:
+            self.longitude_extent = tuple(longitude_extent)
+            self.latitude_extent = tuple(latitude_extent)
             self.hgrid = self._make_hgrid()
             self.vgrid = self._make_vgrid()
 
@@ -1363,7 +1372,7 @@ class experiment:
         print("Saving outputs... ", end="")
 
         vel_out.fillna(0).to_netcdf(
-            self.mom_input_dir / "forcing/init_vel.nc",
+            self.mom_input_dir / "init_vel.nc",
             mode="w",
             encoding={
                 "u": {"_FillValue": netCDF4.default_fillvals["f4"]},
@@ -1372,7 +1381,7 @@ class experiment:
         )
 
         tracers_out.to_netcdf(
-            self.mom_input_dir / "forcing/init_tracers.nc",
+            self.mom_input_dir / "init_tracers.nc",
             mode="w",
             encoding={
                 "xh": {"_FillValue": None},
@@ -1383,7 +1392,7 @@ class experiment:
             },
         )
         eta_out.to_netcdf(
-            self.mom_input_dir / "forcing/init_eta.nc",
+            self.mom_input_dir / "init_eta.nc",
             mode="w",
             encoding={
                 "xh": {"_FillValue": None},
@@ -1414,47 +1423,47 @@ class experiment:
 
         # Initial Condition
         get_glorys_data(
-            self.longitude_extent,
-            self.latitude_extent,
-            [
+            longitude_extent = [float(self.hgrid.x.min()), float(self.hgrid.x.max())], 
+            latitude_extent = [float(self.hgrid.y.min()), float(self.hgrid.y.max())],
+            timerange = [
                 self.date_range[0],
                 self.date_range[0] + datetime.timedelta(days=1),
             ],
-            "ic_unprocessed",
-            raw_boundaries_path,
-            modify_existing=False,
+            segment_name = "ic_unprocessed",
+            download_path = raw_boundaries_path,
+            modify_existing=False, # This is the first line, so start bash script anew
         )
         if "east" in boundaries:
             get_glorys_data(
-                [self.longitude_extent[1], self.longitude_extent[1]],
-                [self.latitude_extent[0], self.latitude_extent[1]],
-                self.date_range,
-                "east_unprocessed",
-                raw_boundaries_path,
+                longitude_extent = [float(self.hgrid.x.isel(nxp = -1).min()), float(self.hgrid.x.isel(nxp = -1).max())], ## Collect from Eastern (x = -1) side
+                latitude_extent = [float(self.hgrid.y.isel(nxp = -1).min()), float(self.hgrid.y.isel(nxp = -1).max())],
+                timerange = self.date_range,
+                segment_name = "east_unprocessed",
+                download_path = raw_boundaries_path,
             )
         if "west" in boundaries:
             get_glorys_data(
-                [self.longitude_extent[0], self.longitude_extent[0]],
-                [self.latitude_extent[0], self.latitude_extent[1]],
-                self.date_range,
-                "west_unprocessed",
-                raw_boundaries_path,
-            )
-        if "north" in boundaries:
-            get_glorys_data(
-                [self.longitude_extent[0], self.longitude_extent[1]],
-                [self.latitude_extent[1], self.latitude_extent[1]],
-                self.date_range,
-                "north_unprocessed",
-                raw_boundaries_path,
+                longitude_extent = [float(self.hgrid.x.isel(nxp = 0).min()), float(self.hgrid.x.isel(nxp = 0).max())], ## Collect from Western (x = 0) side
+                latitude_extent = [float(self.hgrid.y.isel(nxp = 0).min()), float(self.hgrid.y.isel(nxp = 0).max())],
+                timerange = self.date_range,
+                segment_name = "west_unprocessed",
+                download_path = raw_boundaries_path,
             )
         if "south" in boundaries:
             get_glorys_data(
-                [self.longitude_extent[0], self.longitude_extent[1]],
-                [self.latitude_extent[0], self.latitude_extent[0]],
-                self.date_range,
-                "south_unprocessed",
-                raw_boundaries_path,
+                longitude_extent = [float(self.hgrid.x.isel(nyp = 0).min()), float(self.hgrid.x.isel(nyp = 0).max())], ## Collect from Southern (y = 0) side
+                latitude_extent = [float(self.hgrid.y.isel(nyp = 0).min()), float(self.hgrid.y.isel(nyp = 0).max())],
+                timerange = self.date_range,
+                segment_name = "south_unprocessed",
+                download_path = raw_boundaries_path,
+            )
+        if "north" in boundaries:
+            get_glorys_data(
+                longitude_extent = [float(self.hgrid.x.isel(nyp = -1).min()), float(self.hgrid.x.isel(nyp = -1).max())], ## Collect from Southern (y = -1) side
+                latitude_extent = [float(self.hgrid.y.isel(nyp = -1).min()), float(self.hgrid.y.isel(nyp = -1).max())],
+                timerange = self.date_range,
+                segment_name = "north_unprocessed",
+                download_path = raw_boundaries_path,
             )
 
         print(
@@ -2357,11 +2366,11 @@ class experiment:
             )  # 1,2,3,4 for rectangular boundaries, BUT if we have less than 4 segments we use the index to specific the number, but keep filenames as if we had four boundaries
             MOM_override_dict[key_DATA][
                 "value"
-            ] = f'"U=file:forcing/forcing_obc_segment_00{file_num_obc}.nc(u),V=file:forcing/forcing_obc_segment_00{file_num_obc}.nc(v),SSH=file:forcing/forcing_obc_segment_00{file_num_obc}.nc(eta),TEMP=file:forcing/forcing_obc_segment_00{file_num_obc}.nc(temp),SALT=file:forcing/forcing_obc_segment_00{file_num_obc}.nc(salt)'
+            ] = f'"U=file:forcing_obc_segment_00{file_num_obc}.nc(u),V=file:forcing_obc_segment_00{file_num_obc}.nc(v),SSH=file:forcing_obc_segment_00{file_num_obc}.nc(eta),TEMP=file:forcing_obc_segment_00{file_num_obc}.nc(temp),SALT=file:forcing_obc_segment_00{file_num_obc}.nc(salt)'
             if with_tides_rectangular:
                 MOM_override_dict[key_DATA]["value"] = (
                     MOM_override_dict[key_DATA]["value"]
-                    + f',Uamp=file:forcing/tu_segment_00{file_num_obc}.nc(uamp),Uphase=file:forcing/tu_segment_00{file_num_obc}.nc(uphase),Vamp=file:forcing/tu_segment_00{file_num_obc}.nc(vamp),Vphase=file:forcing/tu_segment_00{file_num_obc}.nc(vphase),SSHamp=file:forcing/tz_segment_00{file_num_obc}.nc(zamp),SSHphase=file:forcing/tz_segment_00{file_num_obc}.nc(zphase)"'
+                    + f',Uamp=file:tu_segment_00{file_num_obc}.nc(uamp),Uphase=file:tu_segment_00{file_num_obc}.nc(uphase),Vamp=file:tu_segment_00{file_num_obc}.nc(vamp),Vphase=file:tu_segment_00{file_num_obc}.nc(vphase),SSHamp=file:tz_segment_00{file_num_obc}.nc(zamp),SSHphase=file:tz_segment_00{file_num_obc}.nc(zphase)"'
                 )
             else:
                 MOM_override_dict[key_DATA]["value"] = (
@@ -2687,7 +2696,7 @@ class experiment:
 
                 q.q.attrs = {"long_name": "Specific Humidity", "units": "kg/kg"}
                 q.to_netcdf(
-                    f"{self.mom_input_dir}/forcing/q_ERA5.nc",
+                    f"{self.mom_input_dir}/q_ERA5.nc",
                     unlimited_dims="time",
                     encoding={"q": {"dtype": "double"}},
                 )
@@ -2702,7 +2711,7 @@ class experiment:
                     "units": "kg m**-2 s**-1",
                 }
                 trr.to_netcdf(
-                    f"{self.mom_input_dir}/forcing/trr_ERA5.nc",
+                    f"{self.mom_input_dir}/trr_ERA5.nc",
                     unlimited_dims="time",
                     encoding={"trr": {"dtype": "double"}},
                 )
@@ -2712,7 +2721,7 @@ class experiment:
                 pass
             else:
                 rawdata[fname].to_netcdf(
-                    f"{self.mom_input_dir}/forcing/{fname}_ERA5.nc",
+                    f"{self.mom_input_dir}/{fname}_ERA5.nc",
                     unlimited_dims="time",
                     encoding={vname: {"dtype": "double"}},
                 )
@@ -3227,7 +3236,7 @@ class segment:
 
         with ProgressBar():
             segment_out.load().to_netcdf(
-                self.outfolder / f"forcing/forcing_obc_{self.segment_name}.nc",
+                self.outfolder / f"forcing_obc_{self.segment_name}.nc",
                 encoding=encoding_dict,
                 unlimited_dims="time",
             )
@@ -3399,7 +3408,7 @@ class segment:
             dataset (xarray.Dataset): The processed tidal dataset
             filename (str): The output file name
         Returns:
-            *.nc files: Regridded [FILENAME] files in 'self.outfolder/forcing/[filename]_[segmentname].nc'
+            *.nc files: Regridded [FILENAME] files in 'self.outfolder/[filename]_[segmentname].nc'
 
         General Description:
         This tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
