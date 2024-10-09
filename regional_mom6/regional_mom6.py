@@ -2171,7 +2171,7 @@ class experiment:
         surface_forcing=None,
         using_payu=False,
         overwrite=False,
-        with_tides_rectangular=False,
+        with_tides=False,
         boundaries=["south", "north", "west", "east"],
     ):
         """
@@ -2234,7 +2234,7 @@ class experiment:
             overwrite_run_dir = False
 
         # Check if we can implement tides
-        if with_tides_rectangular:
+        if with_tides:
             tidal_files_exist = any(
                 "tidal" in filename
                 for filename in (
@@ -2407,7 +2407,7 @@ class experiment:
             MOM_override_dict[key_DATA][
                 "value"
             ] = f'"U=file:forcing_obc_segment_00{file_num_obc}.nc(u),V=file:forcing_obc_segment_00{file_num_obc}.nc(v),SSH=file:forcing_obc_segment_00{file_num_obc}.nc(eta),TEMP=file:forcing_obc_segment_00{file_num_obc}.nc(temp),SALT=file:forcing_obc_segment_00{file_num_obc}.nc(salt)'
-            if with_tides_rectangular:
+            if with_tides:
                 MOM_override_dict[key_DATA]["value"] = (
                     MOM_override_dict[key_DATA]["value"]
                     + f',Uamp=file:tu_segment_00{file_num_obc}.nc(uamp),Uphase=file:tu_segment_00{file_num_obc}.nc(uphase),Vamp=file:tu_segment_00{file_num_obc}.nc(vamp),Vphase=file:tu_segment_00{file_num_obc}.nc(vphase),SSHamp=file:tz_segment_00{file_num_obc}.nc(zamp),SSHphase=file:tz_segment_00{file_num_obc}.nc(zphase)"'
@@ -2418,7 +2418,7 @@ class experiment:
                 )
 
         # Tides OBC adjustments
-        if with_tides_rectangular:
+        if with_tides:
 
             # Include internal tide forcing
             MOM_override_dict["TIDES"]["value"] = "True"

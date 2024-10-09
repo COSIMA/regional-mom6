@@ -243,7 +243,7 @@ class TestAll:
         self.expt.longitude_extent = (-5, 5)
         self.expt.latitude_extent = (0, 30)
         # Grid Type
-        self.expt.grid_type = "even_spacing"
+        self.expt.hgrid_type = "even_spacing"
         # Dates
         self.expt.date_range = ("2000-01-01", "2000-01-02")
         self.expt.segments = []
