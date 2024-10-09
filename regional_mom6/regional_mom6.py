@@ -137,7 +137,7 @@ def load_experiment(config_file_path):
     expt.number_vertical_layers = config_dict["number_vertical_layers"]
     expt.layer_thickness_ratio = config_dict["layer_thickness_ratio"]
     expt.depth = config_dict["depth"]
-    expt.grid_type = config_dict["grid_type"]
+    expt.hgrid_type = config_dict["hgrid_type"]
     expt.repeat_year_forcing = config_dict["repeat_year_forcing"]
     expt.ocean_mask = None
     expt.layout = None
@@ -616,7 +616,7 @@ class experiment:
         mom_input_dir (str): Path of the MOM6 input directory, to receive the forcing files.
         toolpath_dir (str): Path of GFDL's FRE tools (https://github.com/NOAA-GFDL/FRE-NCtools)
             binaries.
-        grid_type (Optional[str]): Type of horizontal grid to generate.
+        hgrid_type (Optional[str]): Type of horizontal grid to generate.
             Currently, only ``'even_spacing'`` is supported.
         repeat_year_forcing (Optional[bool]): When ``True`` the experiment runs with
             repeat-year forcing. When ``False`` (default) then inter-annual forcing is used.
@@ -640,7 +640,7 @@ class experiment:
         mom_run_dir=None,
         mom_input_dir=None,
         toolpath_dir=None,
-        grid_type="even_spacing",
+        hgrid_type="even_spacing",
         repeat_year_forcing=False,
         minimum_depth=4,
         tidal_constituents=["M2"],
@@ -662,7 +662,7 @@ class experiment:
             mom_input_dir=None,
             toolpath_dir=None,
             create_empty=True,
-            grid_type=None,
+            hgrid_type=None,
             repeat_year_forcing=None,
             tidal_constituents=None,
             name=None,
@@ -671,7 +671,7 @@ class experiment:
         expt.expt_name = name
         expt.tidal_constituents = tidal_constituents
         expt.repeat_year_forcing = repeat_year_forcing
-        expt.grid_type = grid_type
+        expt.hgrid_type = hgrid_type
         expt.toolpath_dir = toolpath_dir
         expt.mom_run_dir = mom_run_dir
         expt.mom_input_dir = mom_input_dir
@@ -700,9 +700,9 @@ class experiment:
         toolpath_dir,
         longitude_extent=None,
         latitude_extent=None,
-        grid_type="even_spacing",
+        hgrid_type="even_spacing",
+        vgrid_type="hyperbolic_tangent",
         repeat_year_forcing=False,
-        read_existing_grids=False,
         minimum_depth=4,
         tidal_constituents=["M2"],
         create_empty=False,
@@ -736,19 +736,17 @@ class experiment:
         self.number_vertical_layers = number_vertical_layers
         self.layer_thickness_ratio = layer_thickness_ratio
         self.depth = depth
-        self.grid_type = grid_type
+        self.hgrid_type = hgrid_type
+        self.vgrid_type = vgrid_type
         self.repeat_year_forcing = repeat_year_forcing
         self.ocean_mask = None
         self.layout = None  # This should be a tuple. Leaving in a dummy 'None' makes it easy to remind the user to provide a value later on.
-        self.minimum_depth = (
-            minimum_depth  # Minimum depth. Shallower water will be masked out.
-        )
+        self.minimum_depth = minimum_depth  # Minimum depth allowed in bathy file
         self.tidal_constituents = tidal_constituents
 
-        if read_existing_grids:
+        if hgrid_type == "from_file":
             try:
                 self.hgrid = xr.open_dataset(self.mom_input_dir / "hgrid.nc")
-                self.vgrid = xr.open_dataset(self.mom_input_dir / "vcoord.nc")
                 self.longitude_extent = (
                     float(self.hgrid.x.min()),
                     float(self.hgrid.x.max()),
@@ -757,18 +755,30 @@ class experiment:
                     float(self.hgrid.y.min()),
                     float(self.hgrid.y.max()),
                 )
-
             except:
                 print(
-                    "Error while reading in existing grids!\n\n"
-                    + f"Make sure `hgrid.nc` and `vcoord.nc` exists in {self.mom_input_dir} directory."
+                    "Error while reading in existing horizontal grid!\n\n"
+                    + f"Make sure `hgrid.nc`exists in {self.mom_input_dir} directory."
                 )
                 raise ValueError
         else:
             self.longitude_extent = tuple(longitude_extent)
             self.latitude_extent = tuple(latitude_extent)
             self.hgrid = self._make_hgrid()
+
+        if vgrid_type == "from_file":
+            try:
+                self.vgrid = xr.open_dataset(self.mom_input_dir / "vcoord.nc")
+                
+            except:
+                print(
+                    "Error while reading in existing vertical coordinates!\n\n"
+                    + f"Make sure `vcoord.nc`exists in {self.mom_input_dir} directory."
+                )
+                raise ValueError
+        else:
             self.vgrid = self._make_vgrid()
+
 
         self.segments = (
             {}
@@ -824,10 +834,10 @@ class experiment:
         """
 
         assert (
-            self.grid_type == "even_spacing"
+            self.hgrid_type == "even_spacing"
         ), "only even_spacing grid type is implemented"
 
-        if self.grid_type == "even_spacing":
+        if self.hgrid_type == "even_spacing":
 
             # longitudes are evenly spaced based on resolution and bounds
             nx = int(
@@ -901,6 +911,8 @@ class experiment:
         vcoord.to_netcdf(self.mom_input_dir / "vcoord.nc")
 
         return vcoord
+
+      
 
     @property
     def ocean_state_boundaries(self):
@@ -1049,7 +1061,7 @@ class experiment:
             "number_vertical_layers": self.number_vertical_layers,
             "layer_thickness_ratio": self.layer_thickness_ratio,
             "depth": self.depth,
-            "grid_type": self.grid_type,
+            "grid_type": self.hgrid_type,
             "repeat_year_forcing": self.repeat_year_forcing,
             "ocean_mask": self.ocean_mask,
             "layout": self.layout,
@@ -1233,17 +1245,11 @@ class experiment:
         )
 
         ## Construct the cell centre grid for tracers (xh, yh).
-        tgrid = xr.Dataset(
-            {
-                "lon": (
-                    ["lon"],
-                    self.hgrid.x.isel(nxp=slice(1, None, 2), nyp=1).values,
-                ),
-                "lat": (
-                    ["lat"],
-                    self.hgrid.y.isel(nxp=1, nyp=slice(1, None, 2)).values,
-                ),
-            }
+        tgrid = (
+            self.hgrid[["x", "y"]]
+            .isel(nxp=slice(1, None, 2), nyp=slice(1, None, 2))
+            .rename({"x": "lon", "y": "lat","nxp":"nx","nyp":"ny"})
+            .set_coords(["lat", "lon"])
         )
 
         # NaNs might be here from the land mask of the model that the IC has come from.
@@ -1327,12 +1333,20 @@ class experiment:
                 regridder_t(ic_raw_tracers[varnames["tracers"][i]]).rename(i)
                 for i in varnames["tracers"]
             ]
-        ).rename({"lon": "xh", "lat": "yh", varnames["zl"]: "zl"})
+        ).rename({"lon":"xh","lat":"yh",varnames["zl"]: "zl"}).transpose("zl","ny","nx")
+
+        # tracers_out = tracers_out.assign_coords(
+        #     {"nx":np.arange(tracers_out.sizes["nx"]).astype(float),
+        #      "ny":np.arange(tracers_out.sizes["ny"]).astype(float)})
+
+        tracers_out = tracers_out.assign_coords(
+            {"nx":np.arange(tracers_out.sizes["nx"]).astype(float),
+             "ny":np.arange(tracers_out.sizes["ny"]).astype(float)})
 
         print("Done.\nRegridding Free surface... ", end="")
 
         eta_out = (
-            regridder_t(ic_raw_eta).rename({"lon": "xh", "lat": "yh"}).rename("eta_t")
+            regridder_t(ic_raw_eta).rename({"lon":"xh","lat":"yh"}).rename("eta_t").transpose("ny","nx")
         )  ## eta_t is the name set in MOM_input by default
         print("Done.")
 
@@ -1384,9 +1398,9 @@ class experiment:
             self.mom_input_dir / "init_tracers.nc",
             mode="w",
             encoding={
-                "xh": {"_FillValue": None},
-                "yh": {"_FillValue": None},
-                "zl": {"_FillValue": None},
+                # "xh": {"_FillValue": None},
+                # "yh": {"_FillValue": None},
+                # "zl": {"_FillValue": None},
                 "temp": {"_FillValue": -1e20, "missing_value": -1e20},
                 "salt": {"_FillValue": -1e20, "missing_value": -1e20},
             },
@@ -1395,8 +1409,8 @@ class experiment:
             self.mom_input_dir / "init_eta.nc",
             mode="w",
             encoding={
-                "xh": {"_FillValue": None},
-                "yh": {"_FillValue": None},
+                # "xh": {"_FillValue": None},
+                # "yh": {"_FillValue": None},
                 "eta_t": {"_FillValue": None},
             },
         )
@@ -1720,7 +1734,7 @@ class experiment:
         bathymetry_path,
         longitude_coordinate_name="lon",
         latitude_coordinate_name="lat",
-        vertical_coordinate_name="elevation",
+        vertical_coordinate_name="elevation", # This is to match GEBCO
         fill_channels=False,
         positive_down=False,
     ):
@@ -1753,11 +1767,11 @@ class experiment:
         coordinate_names = {
             "xh": longitude_coordinate_name,
             "yh": latitude_coordinate_name,
-            "elevation": vertical_coordinate_name,
+            "depth": vertical_coordinate_name,
         }
 
         bathymetry = xr.open_dataset(bathymetry_path, chunks="auto")[
-            coordinate_names["elevation"]
+            coordinate_names["depth"]
         ]
 
         bathymetry = bathymetry.sel(
@@ -1804,7 +1818,7 @@ class experiment:
             )
 
         bathymetry.attrs["missing_value"] = -1e20  # missing value expected by FRE tools
-        bathymetry_output = xr.Dataset({"elevation": bathymetry})
+        bathymetry_output = xr.Dataset({"depth": bathymetry})
         bathymetry.close()
 
         bathymetry_output = bathymetry_output.rename(
@@ -1812,23 +1826,23 @@ class experiment:
         )
         bathymetry_output.lon.attrs["units"] = "degrees_east"
         bathymetry_output.lat.attrs["units"] = "degrees_north"
-        bathymetry_output.elevation.attrs["_FillValue"] = -1e20
-        bathymetry_output.elevation.attrs["units"] = "meters"
-        bathymetry_output.elevation.attrs["standard_name"] = (
+        bathymetry_output.depth.attrs["_FillValue"] = -1e20
+        bathymetry_output.depth.attrs["units"] = "meters"
+        bathymetry_output.depth.attrs["standard_name"] = (
             "height_above_reference_ellipsoid"
         )
-        bathymetry_output.elevation.attrs["long_name"] = (
+        bathymetry_output.depth.attrs["long_name"] = (
             "Elevation relative to sea level"
         )
-        bathymetry_output.elevation.attrs["coordinates"] = "lon lat"
+        bathymetry_output.depth.attrs["coordinates"] = "lon lat"
         bathymetry_output.to_netcdf(
             self.mom_input_dir / "bathymetry_original.nc", mode="w", engine="netcdf4"
         )
 
         tgrid = xr.Dataset(
             data_vars={
-                "elevation": (
-                    ["lat", "lon"],
+                "depth": (
+                    ["nx", "ny"],
                     np.zeros(
                         self.hgrid.x.isel(
                             nxp=slice(1, None, 2), nyp=slice(1, None, 2)
@@ -1838,12 +1852,12 @@ class experiment:
             },
             coords={
                 "lon": (
-                    ["lon"],
-                    self.hgrid.x.isel(nxp=slice(1, None, 2), nyp=1).values,
+                    ["nx","ny"],
+                    self.hgrid.x.isel(nxp=slice(1, None, 2), nyp=slice(1, None, 2)).values,
                 ),
                 "lat": (
-                    ["lat"],
-                    self.hgrid.y.isel(nxp=1, nyp=slice(1, None, 2)).values,
+                    ["nx","ny"],
+                    self.hgrid.y.isel(nxp=slice(1, None, 2), nyp=slice(1, None, 2)).values,
                 ),
             },
         )
@@ -1853,8 +1867,8 @@ class experiment:
         tgrid.lon.attrs["_FillValue"] = 1e20
         tgrid.lat.attrs["units"] = "degrees_north"
         tgrid.lat.attrs["_FillValue"] = 1e20
-        tgrid.elevation.attrs["units"] = "meters"
-        tgrid.elevation.attrs["coordinates"] = "lon lat"
+        tgrid.depth.attrs["units"] = "meters"
+        tgrid.depth.attrs["coordinates"] = "lon lat"
         tgrid.to_netcdf(
             self.mom_input_dir / "bathymetry_unfinished.nc", mode="w", engine="netcdf4"
         )
@@ -1886,7 +1900,7 @@ class experiment:
         print("setup bathymetry has finished successfully.")
         return
 
-    def tidy_bathymetry(self, fill_channels=False, positive_down=False):
+    def tidy_bathymetry(self, fill_channels=False, positive_down=False,vertical_coordinate_name = "depth"):
         """
         An auxiliary function for bathymetry used to fix up the metadata and remove inland
         lakes after regridding the bathymetry. Having `tidy_bathymetry` as a separate
@@ -1916,7 +1930,7 @@ class experiment:
 
         ## Ensure correct encoding
         bathymetry = xr.Dataset(
-            {"depth": (["ny", "nx"], bathymetry["elevation"].values)}
+            {"depth": (["ny", "nx"], bathymetry[vertical_coordinate_name].values)}
         )
         bathymetry.attrs["depth"] = "meters"
         bathymetry.attrs["standard_name"] = "bathymetric depth at T-cell centers"
@@ -2070,18 +2084,9 @@ class experiment:
         ## Now, any points in the bathymetry that are shallower than minimum depth are set to minimum depth.
         ## This preserves the true land/ocean mask.
         bathymetry["depth"] = bathymetry["depth"].where(
-            bathymetry["depth"] > self.minimum_depth, self.minimum_depth
+            bathymetry["depth"] > 0, np.nan
         )
-
-        bathymetry["depth"] = bathymetry["depth"].where(
-            (bathymetry["depth"] > self.minimum_depth) + (bathymetry["depth"] == 0),
-            self.minimum_depth,
-        )
-
-        ## Finally, set all land points to nan
-        bathymetry["depth"] = bathymetry["depth"].where(
-            bathymetry["depth"] != 0, np.nan
-        )
+        bathymetry["depth"] = bathymetry["depth"].where(~(bathymetry.depth <= self.minimum_depth),self.minimum_depth + 0.1)
 
         bathymetry.expand_dims({"ntiles": 1}).to_netcdf(
             self.mom_input_dir / "bathymetry.nc",
@@ -3246,14 +3251,19 @@ class segment:
             ).data,
         )
 
-        # Add units to the lat / lon to keep the `categorize_axis_from_units` checker happy
+        # Add units to the lat / lon to keep the `categorize_axis_from_units` checker from throwing warnings
         segment_out[f"lat_{self.segment_name}"].attrs = {
             "units": "degrees_north",
         }
         segment_out[f"lon_{self.segment_name}"].attrs = {
             "units": "degrees_east",
         }
-
+        segment_out[f"ny_{self.segment_name}"].attrs = {
+            "units": "degrees_north",
+        }
+        segment_out[f"nx_{self.segment_name}"].attrs = {
+            "units": "degrees_east",
+        }
         # If repeat-year forcing, add modulo coordinate
         if self.repeat_year_forcing:
             segment_out["time"] = segment_out["time"].assign_attrs({"modulo": " "})
