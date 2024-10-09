@@ -1339,7 +1339,7 @@ class experiment:
         # tracers_out = tracers_out.assign_coords(
         #     {"nx":np.arange(tracers_out.sizes["nx"]).astype(float),
         #      "ny":np.arange(tracers_out.sizes["ny"]).astype(float)})
-# Add dummy values for the nx and ny dimensions. Otherwise MOM6 complains that it's missing data??
+        # Add dummy values for the nx and ny dimensions. Otherwise MOM6 complains that it's missing data??
         tracers_out = tracers_out.assign_coords(
             {
                 "nx": np.arange(tracers_out.sizes["nx"]).astype(float),
