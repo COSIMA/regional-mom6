@@ -769,7 +769,7 @@ class experiment:
         if vgrid_type == "from_file":
             try:
                 self.vgrid = xr.open_dataset(self.mom_input_dir / "vcoord.nc")
-                
+
             except:
                 print(
                     "Error while reading in existing vertical coordinates!\n\n"
@@ -778,7 +778,6 @@ class experiment:
                 raise ValueError
         else:
             self.vgrid = self._make_vgrid()
-
 
         self.segments = (
             {}
@@ -911,8 +910,6 @@ class experiment:
         vcoord.to_netcdf(self.mom_input_dir / "vcoord.nc")
 
         return vcoord
-
-      
 
     @property
     def ocean_state_boundaries(self):
@@ -1248,7 +1245,7 @@ class experiment:
         tgrid = (
             self.hgrid[["x", "y"]]
             .isel(nxp=slice(1, None, 2), nyp=slice(1, None, 2))
-            .rename({"x": "lon", "y": "lat","nxp":"nx","nyp":"ny"})
+            .rename({"x": "lon", "y": "lat", "nxp": "nx", "nyp": "ny"})
             .set_coords(["lat", "lon"])
         )
 
@@ -1328,25 +1325,35 @@ class experiment:
 
         print("Done.\nRegridding Tracers... ", end="")
 
-        tracers_out = xr.merge(
-            [
-                regridder_t(ic_raw_tracers[varnames["tracers"][i]]).rename(i)
-                for i in varnames["tracers"]
-            ]
-        ).rename({"lon":"xh","lat":"yh",varnames["zl"]: "zl"}).transpose("zl","ny","nx")
+        tracers_out = (
+            xr.merge(
+                [
+                    regridder_t(ic_raw_tracers[varnames["tracers"][i]]).rename(i)
+                    for i in varnames["tracers"]
+                ]
+            )
+            .rename({"lon": "xh", "lat": "yh", varnames["zl"]: "zl"})
+            .transpose("zl", "ny", "nx")
+        )
 
         # tracers_out = tracers_out.assign_coords(
         #     {"nx":np.arange(tracers_out.sizes["nx"]).astype(float),
         #      "ny":np.arange(tracers_out.sizes["ny"]).astype(float)})
 
         tracers_out = tracers_out.assign_coords(
-            {"nx":np.arange(tracers_out.sizes["nx"]).astype(float),
-             "ny":np.arange(tracers_out.sizes["ny"]).astype(float)})
+            {
+                "nx": np.arange(tracers_out.sizes["nx"]).astype(float),
+                "ny": np.arange(tracers_out.sizes["ny"]).astype(float),
+            }
+        )
 
         print("Done.\nRegridding Free surface... ", end="")
 
         eta_out = (
-            regridder_t(ic_raw_eta).rename({"lon":"xh","lat":"yh"}).rename("eta_t").transpose("ny","nx")
+            regridder_t(ic_raw_eta)
+            .rename({"lon": "xh", "lat": "yh"})
+            .rename("eta_t")
+            .transpose("ny", "nx")
         )  ## eta_t is the name set in MOM_input by default
         print("Done.")
 
@@ -1734,7 +1741,7 @@ class experiment:
         bathymetry_path,
         longitude_coordinate_name="lon",
         latitude_coordinate_name="lat",
-        vertical_coordinate_name="elevation", # This is to match GEBCO
+        vertical_coordinate_name="elevation",  # This is to match GEBCO
         fill_channels=False,
         positive_down=False,
     ):
@@ -1831,9 +1838,7 @@ class experiment:
         bathymetry_output.depth.attrs["standard_name"] = (
             "height_above_reference_ellipsoid"
         )
-        bathymetry_output.depth.attrs["long_name"] = (
-            "Elevation relative to sea level"
-        )
+        bathymetry_output.depth.attrs["long_name"] = "Elevation relative to sea level"
         bathymetry_output.depth.attrs["coordinates"] = "lon lat"
         bathymetry_output.to_netcdf(
             self.mom_input_dir / "bathymetry_original.nc", mode="w", engine="netcdf4"
@@ -1852,12 +1857,16 @@ class experiment:
             },
             coords={
                 "lon": (
-                    ["nx","ny"],
-                    self.hgrid.x.isel(nxp=slice(1, None, 2), nyp=slice(1, None, 2)).values,
+                    ["nx", "ny"],
+                    self.hgrid.x.isel(
+                        nxp=slice(1, None, 2), nyp=slice(1, None, 2)
+                    ).values,
                 ),
                 "lat": (
-                    ["nx","ny"],
-                    self.hgrid.y.isel(nxp=slice(1, None, 2), nyp=slice(1, None, 2)).values,
+                    ["nx", "ny"],
+                    self.hgrid.y.isel(
+                        nxp=slice(1, None, 2), nyp=slice(1, None, 2)
+                    ).values,
                 ),
             },
         )
@@ -1900,7 +1909,9 @@ class experiment:
         print("setup bathymetry has finished successfully.")
         return
 
-    def tidy_bathymetry(self, fill_channels=False, positive_down=False,vertical_coordinate_name = "depth"):
+    def tidy_bathymetry(
+        self, fill_channels=False, positive_down=False, vertical_coordinate_name="depth"
+    ):
         """
         An auxiliary function for bathymetry used to fix up the metadata and remove inland
         lakes after regridding the bathymetry. Having `tidy_bathymetry` as a separate
@@ -2083,10 +2094,10 @@ class experiment:
 
         ## Now, any points in the bathymetry that are shallower than minimum depth are set to minimum depth.
         ## This preserves the true land/ocean mask.
+        bathymetry["depth"] = bathymetry["depth"].where(bathymetry["depth"] > 0, np.nan)
         bathymetry["depth"] = bathymetry["depth"].where(
-            bathymetry["depth"] > 0, np.nan
+            ~(bathymetry.depth <= self.minimum_depth), self.minimum_depth + 0.1
         )
-        bathymetry["depth"] = bathymetry["depth"].where(~(bathymetry.depth <= self.minimum_depth),self.minimum_depth + 0.1)
 
         bathymetry.expand_dims({"ntiles": 1}).to_netcdf(
             self.mom_input_dir / "bathymetry.nc",
