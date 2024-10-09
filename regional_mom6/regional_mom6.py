@@ -1892,7 +1892,7 @@ class experiment:
             + "Automatic regridding may fail if your domain is too big! If this process hangs or crashes,"
             + "open a terminal with appropriate computational and resources try calling ESMF "
             + f"directly in the input directory {self.mom_input_dir} via\n\n"
-            + "`mpirun -np NUMBER_OF_CPUS ESMF_Regrid -s bathymetry_original.nc -d bathymetry_unfinished.nc -m bilinear --src_var elevation --dst_var elevation --netcdf4 --src_regional --dst_regional`\n\n"
+            + "`mpirun -np NUMBER_OF_CPUS ESMF_Regrid -s bathymetry_original.nc -d bathymetry_unfinished.nc -m bilinear --src_var depth --dst_var depth --netcdf4 --src_regional --dst_regional`\n\n"
             + "For details see https://xesmf.readthedocs.io/en/latest/large_problems_on_HPC.html\n\n"
             + "Afterwards, run the 'expt.tidy_bathymetry' method to skip the expensive interpolation step, and finishing metadata, encoding and cleanup.\n\n\n"
         )
