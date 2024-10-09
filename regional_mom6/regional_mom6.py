@@ -1058,7 +1058,7 @@ class experiment:
             "number_vertical_layers": self.number_vertical_layers,
             "layer_thickness_ratio": self.layer_thickness_ratio,
             "depth": self.depth,
-            "grid_type": self.hgrid_type,
+            "hgrid_type": self.hgrid_type,
             "repeat_year_forcing": self.repeat_year_forcing,
             "ocean_mask": self.ocean_mask,
             "layout": self.layout,
