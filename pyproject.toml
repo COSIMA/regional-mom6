@@ -14,7 +14,7 @@ dependencies = [
   "netCDF4",
   "numpy >= 1.17.0, < 2.0.0",
   "scipy >= 1.2.0",
-  "xarray == 2024.7.0",
+  "xarray <= 2024.7.0",
   "xesmf >= 0.8.4",
   "f90nml >= 1.4.1",
 ]
