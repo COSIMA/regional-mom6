@@ -2516,15 +2516,10 @@ class experiment:
                 "If not deleting a parameter, you must specify a new value for it."
             )
 
-        MOM_input_dict = self.read_MOM_file_as_dict("MOM_input")
         MOM_override_dict = self.read_MOM_file_as_dict("MOM_override")
         original_val = "No original val"
         if not delete:
-            # We don't want to keep any parameters in MOM_input that we change. We want to clearly list them in MOM_override.
-            if param_name in MOM_input_dict.keys():
-                original_val = MOM_override_dict[param_name]["value"]
-                print("Removing original value {} from MOM_input".format(original_val))
-                del MOM_input_dict[param_name]
+
             if param_name in MOM_override_dict.keys():
                 original_val = MOM_override_dict[param_name]["value"]
                 print(
@@ -2546,7 +2541,6 @@ class experiment:
                         param_name
                     )
                 )
-        self.write_MOM_file(MOM_input_dict)
         self.write_MOM_file(MOM_override_dict)
         return original_val
 
