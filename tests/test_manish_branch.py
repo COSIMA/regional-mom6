@@ -282,10 +282,11 @@ class TestAll:
         shutil.copytree(
             base_run_dir / "common_files", self.expt.mom_run_dir, dirs_exist_ok=True
         )
-        self.expt.change_MOM_parameter("OBC_SEGMENT_001", "adasd", "COOL COMMENT")
+        og = self.expt.change_MOM_parameter("MINIMUM_DEPTH", "adasd", "COOL COMMENT")
         MOM_override_dict = self.expt.read_MOM_file_as_dict("MOM_override")
-        assert MOM_override_dict["OBC_SEGMENT_001"]["value"] == "adasd"
-        assert MOM_override_dict["OBC_SEGMENT_001"]["comment"] == "COOL COMMENT\n"
+        assert MOM_override_dict["MINIMUM_DEPTH"]["value"] == "adasd"
+        assert MOM_override_dict["original"]["OBC_SEGMENT_001"]["value"] == og
+        assert MOM_override_dict["MINIMUM_DEPTH"]["comment"] == "COOL COMMENT\n"
 
     def test_properties_empty(self):
         """

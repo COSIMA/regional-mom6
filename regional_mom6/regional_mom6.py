@@ -25,6 +25,7 @@ from pathlib import Path
 import glob
 from collections import defaultdict
 import json
+import copy
 
 warnings.filterwarnings("ignore")
 
@@ -685,6 +686,7 @@ class experiment:
         expt.longitude_extent = longitude_extent
         expt.ocean_mask = None
         expt.layout = None
+        self.segments = {}
         return expt
 
     def __init__(
@@ -2416,7 +2418,13 @@ class experiment:
                 MOM_override_dict[key_DATA]["value"] = (
                     MOM_override_dict[key_DATA]["value"] + '"'
                 )
-
+        if type(self.date_range[0]) == str:
+            self.date_range[0] = dt.datetime.strptime(
+                self.date_range[0], "%Y-%m-%d %H:%M:%S"
+            )
+            self.date_range[1] = dt.datetime.strptime(
+                self.date_range[1], "%Y-%m-%d %H:%M:%S"
+            )
         # Tides OBC adjustments
         if with_tides:
 
@@ -2520,7 +2528,7 @@ class experiment:
             if param_name in MOM_override_dict.keys():
                 original_val = MOM_override_dict[param_name]["value"]
                 print(
-                    "This parameter {} is begin replaced from {} to {} in MOM_override".format(
+                    "This parameter {} is being replaced from {} to {} in MOM_override".format(
                         param_name, original_val, param_value
                     )
                 )
@@ -2558,9 +2566,9 @@ class experiment:
             lines = file.readlines()
 
             # Set the default initialization for a new key
-            MOM_file_dict = defaultdict(lambda: default_layout.copy())
+            MOM_file_dict = defaultdict(lambda: copy.deepcopy(default_layout))
             MOM_file_dict["filename"] = filename
-            dlc = default_layout.copy()
+            dlc = copy.deepcopy(default_layout)
             for jj in range(len(lines)):
                 if "=" in lines[jj] and not "===" in lines[jj]:
                     split = lines[jj].split("=", 1)
@@ -2579,10 +2587,10 @@ class experiment:
                         dlc["value"] = str(value.strip())
                         dlc["comment"] = None
 
-                    MOM_file_dict[var.strip()] = dlc.copy()
+                    MOM_file_dict[var.strip()] = copy.deepcopy(dlc)
 
             # Save a copy of the original dictionary
-            MOM_file_dict["original"] = MOM_file_dict.copy()
+            MOM_file_dict["original"] = copy.deepcopy(MOM_file_dict)
         return MOM_file_dict
 
     def write_MOM_file(self, MOM_file_dict):
@@ -2596,6 +2604,9 @@ class experiment:
             for jj in range(len(lines)):
                 if "=" in lines[jj] and not "===" in lines[jj]:
                     var = lines[jj].split("=", 1)[0].strip()
+                    if "#override" in var:
+                        var = var.replace("#override", "")
+                        var = var.strip()
                     if var in MOM_file_dict.keys() and (
                         str(MOM_file_dict[var]["value"])
                     ) != str(original_MOM_file_dict[var]["value"]):
