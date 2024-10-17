@@ -30,7 +30,7 @@ __all__ = [
     "generate_rectangular_hgrid",
     "experiment",
     "segment",
-    "load_experiment",
+    "create_experiment_from_config",
 ]
 
 
@@ -104,7 +104,25 @@ def find_MOM6_rectangular_orientation(input):
 ## Load Experiment Function
 
 
-def load_experiment(config_file_path):
+def create_experiment_from_config(
+    config_file_path,
+    mom_input_folder=None,
+    mom_run_folder=None,
+    create_hgrid_and_vgrid=True,
+):
+    """
+    Load an experiment variables from a config file and generate hgrid/vgrid.
+    Computer specific functionality eliminates the ability to pass file paths.
+    Basically another way to initialize. Sets a default folder of "mom_input/from_config" and "mom_run/from_config" unless specified
+
+    Args:
+        config_file_path (str): Path to the config file.
+        mom_input_folder (str): Path to the MOM6 input folder. Default is "mom_input/from_config".
+        mom_run_folder (str): Path to the MOM6 run folder. Default is "mom_run/from_config".
+        create_hgrid_and_vgrid (bool): Whether to create the hgrid and vgrid. Default is True.
+    Returns:
+        experiment: An experiment object with the fields from the config loaded in.
+    """
     print("Reading from config file....")
     with open(config_file_path, "r") as f:
         config_dict = json.load(f)
@@ -113,7 +131,7 @@ def load_experiment(config_file_path):
     expt = experiment.create_empty()
 
     print("Setting Default Variables.....")
-    expt.expt_name = config_dict["name"]
+    expt.expt_name = config_dict["expt_name"]
     try:
         expt.longitude_extent = tuple(config_dict["longitude_extent"])
         expt.latitude_extent = tuple(config_dict["latitude_extent"])
@@ -122,13 +140,24 @@ def load_experiment(config_file_path):
         expt.latitude_extent = None
     try:
         expt.date_range = config_dict["date_range"]
-        expt.date_range[0] = dt.datetime.strptime(expt.date_range[0], "%Y-%m-%d")
-        expt.date_range[1] = dt.datetime.strptime(expt.date_range[1], "%Y-%m-%d")
+        expt.date_range[0] = dt.datetime.strptime(
+            expt.date_range[0], "%Y-%m-%d %H:%M:%S"
+        )
+        expt.date_range[1] = dt.datetime.strptime(
+            expt.date_range[1], "%Y-%m-%d %H:%M:%S"
+        )
     except:
         expt.date_range = None
-    expt.mom_run_dir = Path(config_dict["run_dir"])
-    expt.mom_input_dir = Path(config_dict["input_dir"])
-    expt.toolpath_dir = Path(config_dict["toolpath_dir"])
+
+    if mom_input_folder is None:
+        mom_input_folder = Path(os.path.join("mom_run", "from_config"))
+    if mom_run_folder is None:
+        mom_run_folder = Path(os.path.join("mom_input", "from_config"))
+    expt.mom_run_dir = Path(mom_run_folder)
+    expt.mom_input_dir = Path(mom_input_folder)
+    os.makedirs(expt.mom_run_dir, exist_ok=True)
+    os.makedirs(expt.mom_input_dir, exist_ok=True)
+
     expt.resolution = config_dict["resolution"]
     expt.number_vertical_layers = config_dict["number_vertical_layers"]
     expt.layer_thickness_ratio = config_dict["layer_thickness_ratio"]
@@ -140,66 +169,14 @@ def load_experiment(config_file_path):
     expt.minimum_depth = config_dict["minimum_depth"]
     expt.tidal_constituents = config_dict["tidal_constituents"]
 
-    print("Checking for hgrid and vgrid....")
-    if os.path.exists(config_dict["hgrid"]):
-        print("Found")
-        expt.hgrid = xr.open_dataset(config_dict["hgrid"])
+    if create_hgrid_and_vgrid:
+        print("Creating hgrid and vgrid....")
+        expt.hgrid = expt._make_hgrid()
+        expt.vgrid = expt._make_vgrid()
     else:
-        print("Hgrid not found, call _make_hgrid when you're ready.")
-        expt.hgrid = None
-    if os.path.exists(config_dict["vgrid"]):
-        print("Found")
-        expt.vgrid = xr.open_dataset(config_dict["vgrid"])
-    else:
-        print("Vgrid not found, call _make_vgrid when ready")
-        expt.vgrid = None
+        print("Skipping hgrid and vgrid creation....")
 
-    print("Checking for bathymetry...")
-    if config_dict["bathymetry"] is not None and os.path.exists(
-        config_dict["bathymetry"]
-    ):
-        print("Found")
-        expt.bathymetry = xr.open_dataset(config_dict["bathymetry"])
-    else:
-        print(
-            "Bathymetry not found. Please provide bathymetry, or call setup_bathymetry method to set up bathymetry."
-        )
-
-    print("Checking for ocean state files....")
-    found = True
-    for path in config_dict["ocean_state"]:
-        if not os.path.exists(path):
-            found = False
-            print(
-                "At least one ocean state file not found. Please provide ocean state files, or call setup_ocean_state_boundaries method to set up ocean state."
-            )
-            break
-    if found:
-        print("Found")
-    found = True
-    print("Checking for initial condition files....")
-    for path in config_dict["initial_conditions"]:
-        if not os.path.exists(path):
-            found = False
-            print(
-                "At least one initial condition file not found. Please provide initial condition files, or call setup_initial_condition method to set up initial condition."
-            )
-            break
-    if found:
-        print("Found")
-    found = True
-    print("Checking for tides files....")
-    for path in config_dict["tides"]:
-        if not os.path.exists(path):
-            found = False
-            print(
-                "At least one tides file not found. If you would like tides, call setup_tides_boundaries method to set up tides"
-            )
-            break
-    if found:
-        print("Found")
-    found = True
-
+    print("Done!")
     return expt
 
 
@@ -640,7 +617,7 @@ class experiment:
         repeat_year_forcing=False,
         minimum_depth=4,
         tidal_constituents=["M2"],
-        name=None,
+        expt_name=None,
     ):
         """
         Substitute init method to creates an empty expirement object, with the opportunity to override whatever values wanted.
@@ -661,10 +638,10 @@ class experiment:
             hgrid_type=None,
             repeat_year_forcing=None,
             tidal_constituents=None,
-            name=None,
+            expt_name=None,
         )
 
-        expt.expt_name = name
+        expt.expt_name = expt_name
         expt.tidal_constituents = tidal_constituents
         expt.repeat_year_forcing = repeat_year_forcing
         expt.hgrid_type = hgrid_type
@@ -703,7 +680,7 @@ class experiment:
         minimum_depth=4,
         tidal_constituents=["M2"],
         create_empty=False,
-        name=None,
+        expt_name=None,
     ):
 
         # Creates empty experiment object for testing and experienced user manipulation.
@@ -715,7 +692,7 @@ class experiment:
 
         # ## Set up the experiment with no config file
         ## in case list was given, convert to tuples
-        self.expt_name = name
+        self.expt_name = expt_name
         self.date_range = tuple(date_range)
 
         self.mom_run_dir = Path(mom_run_dir)
@@ -838,7 +815,7 @@ class experiment:
 
         elif "segment" in name:
             try:
-                xr.open_mfdataset(
+                return xr.open_mfdataset(
                     str(self.mom_input_dir / f"*{name}*.nc"),
                     decode_times=False,
                     decode_cf=False,
@@ -1077,34 +1054,30 @@ class experiment:
     def write_config_file(self, path=None, export=True, quiet=False):
         """
         Write a configuration file for the experiment. This is a simple json file
-        that contains the expirment object information to allow for reproducibility, to pick up where a user left off, and
-        to make information about the expirement readable.
+        that contains the expirment varuavke information to allow for easy pass off to other users, with a strict computer independence restriction.
+        It also makes information about the expirement readable, and is good for just printing out information about the experiment.
+
+        Args:
+            path (Optional[str]): Path to write the config file to. If not provided, the file is written to the ``mom_run_dir`` directory.
+            export (Optional[bool]): If ``True`` (default), the configuration file is written to disk on the given path
+            quiet (Optional[bool]): If ``True``, no print statements are made.
+        Returns:
+            Dict: A dictionary containing the configuration information.
         """
         if not quiet:
             print("Writing Config File.....")
-        ## check if files exist
-        vgrid_path = None
-        hgrid_path = None
-        if os.path.exists(self.mom_input_dir / "vcoord.nc"):
-            vgrid_path = self.mom_input_dir / "vcoord.nc"
-        if os.path.exists(self.mom_input_dir / "hgrid.nc"):
-            hgrid_path = self.mom_input_dir / "hgrid.nc"
-
         try:
             date_range = [
-                self.date_range[0].strftime("%Y-%m-%d"),
-                self.date_range[1].strftime("%Y-%m-%d"),
+                self.date_range[0].strftime("%Y-%m-%d %H:%M:%S"),
+                self.date_range[1].strftime("%Y-%m-%d %H:%M:%S"),
             ]
         except:
             date_range = None
         config_dict = {
-            "name": self.expt_name,
+            "expt_name": self.expt_name,
             "date_range": date_range,
             "latitude_extent": self.latitude_extent,
             "longitude_extent": self.longitude_extent,
-            "run_dir": str(self.mom_run_dir),
-            "input_dir": str(self.mom_input_dir),
-            "toolpath_dir": str(self.toolpath_dir),
             "resolution": self.resolution,
             "number_vertical_layers": self.number_vertical_layers,
             "layer_thickness_ratio": self.layer_thickness_ratio,
@@ -1114,11 +1087,6 @@ class experiment:
             "ocean_mask": self.ocean_mask,
             "layout": self.layout,
             "minimum_depth": self.minimum_depth,
-            "vgrid": str(vgrid_path),
-            "hgrid": str(hgrid_path),
-            "ocean_state": self.ocean_state_boundaries,
-            "tides": self.tides_boundaries,
-            "initial_conditions": self.initial_condition,
             "tidal_constituents": self.tidal_constituents,
         }
         if export:
@@ -2656,10 +2624,19 @@ class experiment:
                             str(original_MOM_file_dict[var]["value"]),
                             str(MOM_file_dict[var]["value"]),
                         )
-                        lines[jj] = lines[jj].replace(
-                            original_MOM_file_dict[var]["comment"],
-                            str(MOM_file_dict[var]["comment"]),
-                        )
+                        if original_MOM_file_dict[var]["comment"] != None:
+                            lines[jj] = lines[jj].replace(
+                                original_MOM_file_dict[var]["comment"],
+                                str(MOM_file_dict[var]["comment"]),
+                            )
+                        else:
+                            lines[jj] = (
+                                lines[jj].replace("\n", "")
+                                + " !"
+                                + str(MOM_file_dict[var]["comment"])
+                                + "\n"
+                            )
+
                         print(
                             "Changed",
                             var,

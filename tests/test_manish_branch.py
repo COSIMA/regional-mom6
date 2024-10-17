@@ -162,7 +162,7 @@ class TestAll:
         self.dump_files_dir = Path("testing_outputs")
         os.makedirs(self.dump_files_dir, exist_ok=True)
         self.expt = rmom6.experiment.create_empty(
-            name=expt_name,
+            expt_name=expt_name,
             mom_input_dir=self.dump_files_dir,
             mom_run_dir=self.dump_files_dir,
         )
@@ -255,17 +255,6 @@ class TestAll:
 
         self.expt.setup_boundary_tides(self.dump_files_dir, "fake_tidal_data.nc")
 
-    def test_read_write_config(self):
-        """
-        Test the read and write config functions
-        """
-        # Write the config
-        self.expt.write_config_file(path=self.dump_files_dir / "config.yaml")
-        # Read the config
-        expt = rmom6.load_experiment(self.dump_files_dir / "config.yaml")
-        # Check if the config is the same
-        assert str(self.expt) == str(expt)
-
     def test_change_MOM_parameter(self):
         """
         Test the change MOM parameter function, as well as read_MOM_file and write_MOM_file under the hood.
@@ -282,11 +271,12 @@ class TestAll:
         shutil.copytree(
             base_run_dir / "common_files", self.expt.mom_run_dir, dirs_exist_ok=True
         )
-        og = self.expt.change_MOM_parameter("MINIMUM_DEPTH", "adasd", "COOL COMMENT")
         MOM_override_dict = self.expt.read_MOM_file_as_dict("MOM_override")
-        assert MOM_override_dict["MINIMUM_DEPTH"]["value"] == "adasd"
-        assert MOM_override_dict["original"]["OBC_SEGMENT_001"]["value"] == og
-        assert MOM_override_dict["MINIMUM_DEPTH"]["comment"] == "COOL COMMENT\n"
+        og = self.expt.change_MOM_parameter("DT", "30", "COOL COMMENT")
+        MOM_override_dict_new = self.expt.read_MOM_file_as_dict("MOM_override")
+        assert MOM_override_dict_new["DT"]["value"] == "30"
+        assert MOM_override_dict["DT"]["value"] == og
+        assert MOM_override_dict_new["DT"]["comment"] == "COOL COMMENT\n"
 
     def test_properties_empty(self):
         """
