@@ -47,6 +47,7 @@ def test_write_config():
         mom_input_dir=input_dir,
         toolpath_dir="",
         expt_name="test",
+        boundaries=["south", "north"],
     )
     config_dict = expt.write_config_file()
     assert config_dict["longitude_extent"] == tuple(longitude_extent)
@@ -62,6 +63,7 @@ def test_write_config():
     assert config_dict["repeat_year_forcing"] == False
     assert config_dict["tidal_constituents"] == ["M2"]
     assert config_dict["expt_name"] == "test"
+    assert config_dict["boundaries"] == ["south", "north"]
     shutil.rmtree(run_dir)
     shutil.rmtree(input_dir)
     shutil.rmtree(data_path)

@@ -456,6 +456,7 @@ def test_rectangular_boundaries(
         mom_input_dir=mom_input_dir,
         toolpath_dir=toolpath_dir,
         hgrid_type=hgrid_type,
+        boundaries=["east"],
     )
 
     varnames = {
@@ -468,5 +469,4 @@ def test_rectangular_boundaries(
         "v": "v",
         "tracers": {"temp": "temp", "salt": "salt"},
     }
-
-    expt.setup_ocean_state_boundaries(tmp_path, varnames, ["east"])
+    expt.setup_ocean_state_boundaries(tmp_path, varnames)

@@ -73,34 +73,6 @@ def convert_to_tpxo_tidal_constituents(tidal_constituents):
     return list_of_ints
 
 
-def find_MOM6_rectangular_orientation(input):
-    """
-    Convert between MOM6 boundary and the specific segment number needed, or the inverse
-    """
-    direction_dir = {
-        "south": 1,
-        "north": 2,
-        "west": 3,
-        "east": 4,
-    }
-    direction_dir_inv = {v: k for k, v in direction_dir.items()}
-
-    if type(input) == str:
-        try:
-            return direction_dir[input]
-        except:
-            raise ValueError(
-                "Invalid Input. Did you spell the direction wrong, it should be lowercase?"
-            )
-    elif type(input) == int:
-        try:
-            return direction_dir_inv[input]
-        except:
-            raise ValueError("Invalid Input. Did you pick a number 1 through 4?")
-    else:
-        raise ValueError("Invalid type of Input, can only be string or int.")
-
-
 ## Load Experiment Function
 
 
@@ -168,6 +140,7 @@ def create_experiment_from_config(
     expt.layout = None
     expt.minimum_depth = config_dict["minimum_depth"]
     expt.tidal_constituents = config_dict["tidal_constituents"]
+    expt.boundaries = config_dict["boundaries"]
 
     if create_hgrid_and_vgrid:
         print("Creating hgrid and vgrid....")
@@ -618,6 +591,7 @@ class experiment:
         minimum_depth=4,
         tidal_constituents=["M2"],
         expt_name=None,
+        boundaries=["south", "north", "west", "east"],
     ):
         """
         Substitute init method to creates an empty expirement object, with the opportunity to override whatever values wanted.
@@ -659,6 +633,7 @@ class experiment:
         expt.ocean_mask = None
         expt.layout = None
         self.segments = {}
+        self.boundaries = boundaries
         return expt
 
     def __init__(
@@ -681,6 +656,7 @@ class experiment:
         tidal_constituents=["M2"],
         create_empty=False,
         expt_name=None,
+        boundaries=["south", "north", "west", "east"],
     ):
 
         # Creates empty experiment object for testing and experienced user manipulation.
@@ -753,9 +729,8 @@ class experiment:
         else:
             self.vgrid = self._make_vgrid()
 
-        self.segments = (
-            {}
-        )  # Holds segements for use in setting up the ocean state boundary conditions (GLORYS) and the tidal boundary conditions (TPXO)
+        self.segments = {}
+        self.boundaries = boundaries
 
         # create additional directories and links
         (self.mom_input_dir / "weights").mkdir(exist_ok=True)
@@ -833,6 +808,33 @@ class experiment:
         ]
         error_message = f"{name} not found. Available methods and attributes are: {available_methods}"
         raise AttributeError(error_message)
+
+    def find_MOM6_rectangular_orientation(self, input):
+        """
+        Convert between MOM6 boundary and the specific segment number needed, or the inverse
+        """
+
+        direction_dir = {}
+        counter = 1
+        for b in self.boundaries:
+            direction_dir[b] = counter
+            counter += 1
+        direction_dir_inv = {v: k for k, v in direction_dir.items()}
+
+        if type(input) == str:
+            try:
+                return direction_dir[input]
+            except:
+                raise ValueError(
+                    "Invalid Input. Did you spell the direction wrong, it should be lowercase?"
+                )
+        elif type(input) == int:
+            try:
+                return direction_dir_inv[input]
+            except:
+                raise ValueError("Invalid Input. Did you pick a number 1 through 4?")
+        else:
+            raise ValueError("Invalid type of Input, can only be string or int.")
 
     def _make_hgrid(self):
         """
@@ -1088,6 +1090,7 @@ class experiment:
             "layout": self.layout,
             "minimum_depth": self.minimum_depth,
             "tidal_constituents": self.tidal_constituents,
+            "boundaries": self.boundaries,
         }
         if export:
             if path is not None:
@@ -1448,9 +1451,7 @@ class experiment:
 
         return
 
-    def get_glorys_rectangular(
-        self, raw_boundaries_path, boundaries=["south", "north", "west", "east"]
-    ):
+    def get_glorys_rectangular(self, raw_boundaries_path):
         """
         This function is a wrapper for `get_glorys_data`, calling this function once for each of the rectangular boundary segments and the initial condition. For more complex boundary shapes, call `get_glorys_data` directly for each of your boundaries that aren't parallel to lines of constant latitude or longitude. For example, for an angled Northern boundary that spans multiple latitudes, you'll need to download a wider rectangle containing the entire boundary.
 
@@ -1472,7 +1473,7 @@ class experiment:
             download_path=raw_boundaries_path,
             modify_existing=False,  # This is the first line, so start bash script anew
         )
-        if "east" in boundaries:
+        if "east" in self.boundaries:
             get_glorys_data(
                 longitude_extent=[
                     float(self.hgrid.x.isel(nxp=-1).min()),
@@ -1486,7 +1487,7 @@ class experiment:
                 segment_name="east_unprocessed",
                 download_path=raw_boundaries_path,
             )
-        if "west" in boundaries:
+        if "west" in self.boundaries:
             get_glorys_data(
                 longitude_extent=[
                     float(self.hgrid.x.isel(nxp=0).min()),
@@ -1500,7 +1501,7 @@ class experiment:
                 segment_name="west_unprocessed",
                 download_path=raw_boundaries_path,
             )
-        if "south" in boundaries:
+        if "south" in self.boundaries:
             get_glorys_data(
                 longitude_extent=[
                     float(self.hgrid.x.isel(nyp=0).min()),
@@ -1514,7 +1515,7 @@ class experiment:
                 segment_name="south_unprocessed",
                 download_path=raw_boundaries_path,
             )
-        if "north" in boundaries:
+        if "north" in self.boundaries:
             get_glorys_data(
                 longitude_extent=[
                     float(self.hgrid.x.isel(nyp=-1).min()),
@@ -1538,7 +1539,6 @@ class experiment:
         self,
         raw_boundaries_path,
         varnames,
-        boundaries=["south", "north", "west", "east"],
         arakawa_grid="A",
         boundary_type="rectangular",
     ):
@@ -1557,27 +1557,28 @@ class experiment:
                 Either ``'A'`` (default), ``'B'``, or ``'C'``.
             boundary_type (Optional[str]): Type of box around region. Currently, only ``'rectangular'`` is supported.
         """
-        for i in boundaries:
+        if boundary_type != "rectangular":
+            raise ValueError(
+                "Only rectangular boundaries are supported by this method. To set up more complex boundary shapes you can manually call the 'simple_boundary' method for each boundary."
+            )
+        for i in self.boundaries:
             if i not in ["south", "north", "west", "east"]:
                 raise ValueError(
                     f"Invalid boundary direction: {i}. Must be one of ['south', 'north', 'west', 'east']"
                 )
 
-        if len(boundaries) < 4:
+        if len(self.boundaries) < 4:
             print(
-                "NOTE: the 'setup_run_directories' method assumes that you have four boundaries. You'll need to modify the MOM_input file manually to reflect the number of boundaries you have, and their orientations. You should be able to find the relevant section in the MOM_input file by searching for 'segment_'. Ensure that the segment names match those in your inputdir/forcing folder"
+                "NOTE: the 'setup_run_directories' method does understand the less than four boundaries but be careful. Please check the MOM_input/override file carefully to reflect the number of boundaries you have, and their orientations. You should be able to find the relevant section in the MOM_input/override file by searching for 'segment_'. Ensure that the segment names match those in your inputdir/forcing folder"
             )
 
-        if len(boundaries) > 4:
+        if len(self.boundaries) > 4:
             raise ValueError(
                 "This method only supports up to four boundaries. To set up more complex boundary shapes you can manually call the 'simple_boundary' method for each boundary."
             )
-        if boundary_type != "rectangular":
-            raise ValueError(
-                "Only rectangular boundaries are supported by this method. To set up more complex boundary shapes you can manually call the 'simple_boundary' method for each boundary."
-            )
+
         # Now iterate through our four boundaries
-        for orientation in boundaries:
+        for orientation in self.boundaries:
             self.setup_single_boundary(
                 Path(
                     os.path.join(
@@ -1586,7 +1587,7 @@ class experiment:
                 ),
                 varnames,
                 orientation,  # The cardinal direction of the boundary
-                find_MOM6_rectangular_orientation(
+                self.find_MOM6_rectangular_orientation(
                     orientation
                 ),  # A number to identify the boundary; indexes from 1
                 arakawa_grid=arakawa_grid,
@@ -1628,7 +1629,7 @@ class experiment:
             )
         if boundary_type != "simple":
             raise ValueError("Only simple boundaries are supported by this method.")
-        seg = segment(
+        self.segments[orientation] = segment(
             hgrid=self.hgrid,
             infile=path_to_bc,  # location of raw boundary
             outfolder=self.mom_input_dir,
@@ -1640,10 +1641,8 @@ class experiment:
             repeat_year_forcing=self.repeat_year_forcing,
         )
 
-        seg.regrid_velocity_tracers()
+        self.segments[orientation].regrid_velocity_tracers()
 
-        # Save Segment to Experiment
-        self.segments[orientation] = seg
         print("Done.")
         return
 
@@ -1726,26 +1725,25 @@ class experiment:
             ),  # Import pandas for this shouldn't be a big deal b/c it's already required in rm6 dependencies
             dims=["time"],
         )
-        boundaries = ["south", "north", "west", "east"]
-
         # Initialize or find boundary segment
-        for b in boundaries:
+        for b in self.boundaries:
             print("Processing {} boundary...".format(b), end="")
 
             # If the GLORYS ocean_state has already created segments, we don't create them again.
-            if b not in self.segments:
+            if b not in self.segments.keys():  # I.E. not set yet
                 seg = segment(
                     hgrid=self.hgrid,
                     infile=None,  # location of raw boundary
                     outfolder=self.mom_input_dir,
                     varnames=None,
                     segment_name="segment_{:03d}".format(
-                        find_MOM6_rectangular_orientation(b)
+                        self.find_MOM6_rectangular_orientation(b)
                     ),
                     orientation=b,  # orienataion
                     startdate=self.date_range[0],
                     repeat_year_forcing=self.repeat_year_forcing,
                 )
+                self.segments[b] = seg
             else:
                 seg = self.segments[b]
 
@@ -2190,7 +2188,6 @@ class experiment:
         using_payu=False,
         overwrite=False,
         with_tides=False,
-        boundaries=["south", "north", "west", "east"],
     ):
         """
         Set up the run directory for MOM6. Either copy a pre-made set of files, or modify
@@ -2213,6 +2210,7 @@ class experiment:
             / "demos"
             / "premade_run_directories"
         )
+
         if not premade_rundir_path.exists():
             print("Could not find premade run directories at ", premade_rundir_path)
             print(
@@ -2382,7 +2380,7 @@ class experiment:
 
         # Define number of OBC segments
         MOM_override_dict["OBC_NUMBER_OF_SEGMENTS"]["value"] = len(
-            boundaries
+            self.boundaries
         )  # This means that each SEGMENT_00{num} has to be configured to point to the right file, which based on our other functions needs to be specified.
 
         # More OBC Consts
@@ -2396,18 +2394,18 @@ class experiment:
         MOM_override_dict["BRUSHCUTTER_MODE"]["value"] = "True"
 
         # Define Specific Segments
-        for ind, seg in enumerate(boundaries):
-            ind_seg = ind + 1
+        for seg in self.boundaries:
+            ind_seg = self.find_MOM6_rectangular_orientation(seg)
             key_start = "OBC_SEGMENT_00" + str(ind_seg)
             ## Position and Config
             key_POSITION = key_start
-            if find_MOM6_rectangular_orientation(seg) == 1:
+            if seg == "south":
                 index_str = '"J=0,I=0:N'
-            elif find_MOM6_rectangular_orientation(seg) == 2:
+            elif seg == "north":
                 index_str = '"J=N,I=N:0'
-            elif find_MOM6_rectangular_orientation(seg) == 3:
+            elif seg == "west":
                 index_str = '"I=0,J=N:0'
-            elif find_MOM6_rectangular_orientation(seg) == 4:
+            elif seg == "east":
                 index_str = '"I=N,J=0:N'
             MOM_override_dict[key_POSITION]["value"] = (
                 index_str + ',FLATHER,ORLANSKI,NUDGED,ORLANSKI_TAN,NUDGED_TAN"'
@@ -2420,7 +2418,7 @@ class experiment:
             # Data Key
             key_DATA = key_start + "_DATA"
             file_num_obc = str(
-                find_MOM6_rectangular_orientation(seg)
+                self.find_MOM6_rectangular_orientation(seg)
             )  # 1,2,3,4 for rectangular boundaries, BUT if we have less than 4 segments we use the index to specific the number, but keep filenames as if we had four boundaries
             MOM_override_dict[key_DATA][
                 "value"
@@ -2509,7 +2507,7 @@ class experiment:
         return
 
     def change_MOM_parameter(
-        self, param_name, param_value=None, comment=None, delete=False
+        self, param_name, param_value=None, comment=None, override=True, delete=False
     ):
         """
         *Requires already copied MOM parameter files in the run directory*
@@ -2546,6 +2544,7 @@ class experiment:
 
             MOM_override_dict[param_name]["value"] = param_value
             MOM_override_dict[param_name]["comment"] = comment
+            MOM_override_dict[param_name]["override"] = override
         else:
             if param_name in MOM_override_dict.keys():
                 original_val = MOM_override_dict[param_name]["value"]
@@ -2617,6 +2616,11 @@ class experiment:
                     if "#override" in var:
                         var = var.replace("#override", "")
                         var = var.strip()
+                    else:
+                        # As in there wasn't an override before but we want one
+                        if MOM_file_dict[var]["override"]:
+                            lines[jj] = "#override " + lines[jj]
+                            print("Added override to variable " + var + "!")
                     if var in MOM_file_dict.keys() and (
                         str(MOM_file_dict[var]["value"])
                     ) != str(original_MOM_file_dict[var]["value"]):

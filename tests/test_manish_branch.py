@@ -9,7 +9,6 @@ import logging
 from pathlib import Path
 import xarray as xr
 import numpy as np
-from tests.test_expt_class import generate_silly_coords, number_of_gridpoints
 import shutil
 import importlib
 
@@ -246,7 +245,7 @@ class TestAll:
         self.expt.hgrid_type = "even_spacing"
         # Dates
         self.expt.date_range = ("2000-01-01", "2000-01-02")
-        self.expt.segments = []
+        self.expt.segments = {}
         # Generate Hgrid Data
         self.expt.resolution = 0.1
         self.expt.hgrid = self.expt._make_hgrid()
