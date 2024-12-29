@@ -575,7 +575,7 @@ class experiment:
 
     @classmethod
     def create_empty(
-        self,
+        cls,
         longitude_extent=None,
         latitude_extent=None,
         date_range=None,
@@ -596,7 +596,7 @@ class experiment:
         """
         Substitute init method to creates an empty expirement object, with the opportunity to override whatever values wanted.
         """
-        expt = self(
+        expt = cls(
             longitude_extent=None,
             latitude_extent=None,
             date_range=None,
@@ -632,8 +632,8 @@ class experiment:
         expt.longitude_extent = longitude_extent
         expt.ocean_mask = None
         expt.layout = None
-        self.segments = {}
-        self.boundaries = boundaries
+        cls.segments = {}
+        cls.boundaries = boundaries
         return expt
 
     def __init__(
@@ -1760,6 +1760,7 @@ class experiment:
         vertical_coordinate_name="elevation",  # This is to match GEBCO
         fill_channels=False,
         positive_down=False,
+        write_to_file=True,
     ):
         """
         Cut out and interpolate the chosen bathymetry and then fill inland lakes.
@@ -1783,6 +1784,7 @@ class experiment:
                 but can also connect extra islands to land. Default: ``False``.
             positive_down (Optional[bool]): If ``True``, it assumes that
                 bathymetry vertical coordinate is positive down. Default: ``False``.
+            write_to_file (Optional[bool]): Whether to write the bathymetry to a file. Default: ``True``.
         """
 
         ## Convert the provided coordinate names into a dictionary mapping to the
@@ -1856,9 +1858,10 @@ class experiment:
         )
         bathymetry_output.depth.attrs["long_name"] = "Elevation relative to sea level"
         bathymetry_output.depth.attrs["coordinates"] = "lon lat"
-        bathymetry_output.to_netcdf(
-            self.mom_input_dir / "bathymetry_original.nc", mode="w", engine="netcdf4"
-        )
+        if write_to_file:
+            bathymetry_output.to_netcdf(
+                self.mom_input_dir / "bathymetry_original.nc", mode="w", engine="netcdf4"
+            )
 
         tgrid = xr.Dataset(
             data_vars={
@@ -1894,10 +1897,11 @@ class experiment:
         tgrid.lat.attrs["_FillValue"] = 1e20
         tgrid.depth.attrs["units"] = "meters"
         tgrid.depth.attrs["coordinates"] = "lon lat"
-        tgrid.to_netcdf(
-            self.mom_input_dir / "bathymetry_unfinished.nc", mode="w", engine="netcdf4"
-        )
-        tgrid.close()
+        if write_to_file:
+            tgrid.to_netcdf(
+                self.mom_input_dir / "bathymetry_unfinished.nc", mode="w", engine="netcdf4"
+            )
+            tgrid.close()
 
         bathymetry_output = bathymetry_output.load()
 
@@ -1914,19 +1918,21 @@ class experiment:
         )
         regridder = xe.Regridder(bathymetry_output, tgrid, "bilinear", parallel=False)
         bathymetry = regridder(bathymetry_output)
-        bathymetry.to_netcdf(
-            self.mom_input_dir / "bathymetry_unfinished.nc", mode="w", engine="netcdf4"
-        )
+        if write_to_file:
+            bathymetry.to_netcdf(
+                self.mom_input_dir / "bathymetry_unfinished.nc", mode="w", engine="netcdf4"
+            )
         print(
             "Regridding successful! Now calling `tidy_bathymetry` method for some finishing touches..."
         )
 
-        self.tidy_bathymetry(fill_channels, positive_down)
+        self.tidy_bathymetry(fill_channels, positive_down, bathymetry=bathymetry)
         print("setup bathymetry has finished successfully.")
-        return
+
+        return bathymetry
 
     def tidy_bathymetry(
-        self, fill_channels=False, positive_down=False, vertical_coordinate_name="depth"
+        self, fill_channels=False, positive_down=False, vertical_coordinate_name="depth", bathymetry=None
     ):
         """
         An auxiliary function for bathymetry used to fix up the metadata and remove inland
@@ -1944,6 +1950,9 @@ class experiment:
                 but can also connect extra islands to land. Default: ``False``.
             positive_down (Optional[bool]): If ``False`` (default), assume that
                 bathymetry vertical coordinate is positive down, as is the case in GEBCO for example.
+            bathymetry (Optional[xr.Dataset]): The bathymetry dataset to tidy up. If not provided,
+                it will read the bathymetry from the file ``bathymetry_unfinished.nc`` in the input directory
+                that was created by :func:`~setup_bathymetry`.
         """
 
         ## reopen bathymetry to modify
@@ -1951,9 +1960,10 @@ class experiment:
             "Tidy bathymetry: Reading in regridded bathymetry to fix up metadata...",
             end="",
         )
-        bathymetry = xr.open_dataset(
-            self.mom_input_dir / "bathymetry_unfinished.nc", engine="netcdf4"
-        )
+        if read_bathy_from_file := bathymetry is None:
+            bathymetry = xr.open_dataset(
+                self.mom_input_dir / "bathymetry_unfinished.nc", engine="netcdf4"
+            )
 
         ## Ensure correct encoding
         bathymetry = xr.Dataset(
@@ -2115,11 +2125,12 @@ class experiment:
             ~(bathymetry.depth <= self.minimum_depth), self.minimum_depth + 0.1
         )
 
-        bathymetry.expand_dims({"ntiles": 1}).to_netcdf(
-            self.mom_input_dir / "bathymetry.nc",
-            mode="w",
-            encoding={"depth": {"_FillValue": None}},
-        )
+        if read_bathy_from_file:
+            bathymetry.expand_dims({"ntiles": 1}).to_netcdf(
+                self.mom_input_dir / "bathymetry.nc",
+                mode="w",
+                encoding={"depth": {"_FillValue": None}},
+            )
 
         print("done.")
         return
