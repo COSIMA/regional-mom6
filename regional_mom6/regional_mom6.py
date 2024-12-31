@@ -650,7 +650,9 @@ class experiment:
         longitude_extent=None,
         latitude_extent=None,
         hgrid_type="even_spacing",
+        hgrid_path=None,
         vgrid_type="hyperbolic_tangent",
+        vgrid_path=None,
         repeat_year_forcing=False,
         minimum_depth=4,
         tidal_constituents=["M2"],
@@ -673,7 +675,7 @@ class experiment:
 
         self.mom_run_dir = Path(mom_run_dir)
         self.mom_input_dir = Path(mom_input_dir)
-        self.toolpath_dir = Path(toolpath_dir)
+        self.toolpath_dir = Path(toolpath_dir) if toolpath_dir is not None else None
 
         self.mom_run_dir.mkdir(exist_ok=True)
         self.mom_input_dir.mkdir(exist_ok=True)
@@ -695,8 +697,12 @@ class experiment:
         self.tidal_constituents = tidal_constituents
 
         if hgrid_type == "from_file":
+            if hgrid_path is None:
+                hgrid_path = self.mom_input_dir / "hgrid.nc"
+            else:
+                hgrid_path = Path(hgrid_path)
             try:
-                self.hgrid = xr.open_dataset(self.mom_input_dir / "hgrid.nc")
+                self.hgrid = xr.open_dataset(hgrid_path)
                 self.longitude_extent = (
                     float(self.hgrid.x.min()),
                     float(self.hgrid.x.max()),
@@ -712,13 +718,20 @@ class experiment:
                 )
                 raise ValueError
         else:
+            if hgrid_path:
+                raise ValueError("hgrid_path can only be set if hgrid_type is 'from_file'.")
             self.longitude_extent = tuple(longitude_extent)
             self.latitude_extent = tuple(latitude_extent)
             self.hgrid = self._make_hgrid()
 
         if vgrid_type == "from_file":
+            if vgrid_path is None:
+                vgrid_path = self.mom_input_dir / "vgrid.nc"
+            else:
+                vgrid_path = Path(vgrid_path)
+
             try:
-                self.vgrid = xr.open_dataset(self.mom_input_dir / "vcoord.nc")
+                vgrid_from_file = xr.open_dataset(vgrid_path)
 
             except:
                 print(
@@ -726,7 +739,10 @@ class experiment:
                     + f"Make sure `vcoord.nc`exists in {self.mom_input_dir} directory."
                 )
                 raise ValueError
+            self.vgrid = self._make_vgrid(vgrid_from_file.dz.data)
         else:
+            if vgrid_path:
+                raise ValueError("vgrid_path can only be set if vgrid_type is 'from_file'.")
             self.vgrid = self._make_vgrid()
 
         self.segments = {}
@@ -906,7 +922,7 @@ class experiment:
 
             return hgrid
 
-    def _make_vgrid(self):
+    def _make_vgrid(self, thicknesses=None):
         """
         Generates a vertical grid based on the ``number_vertical_layers``, the ratio
         of largest to smallest layer thickness (``layer_thickness_ratio``) and the
@@ -914,9 +930,10 @@ class experiment:
         (All these parameters are specified at the class level.)
         """
 
-        thicknesses = hyperbolictan_thickness_profile(
-            self.number_vertical_layers, self.layer_thickness_ratio, self.depth
-        )
+        if thicknesses is None:
+            thicknesses = hyperbolictan_thickness_profile(
+                self.number_vertical_layers, self.layer_thickness_ratio, self.depth
+            )
 
         zi = np.cumsum(thicknesses)
         zi = np.insert(zi, 0, 0.0)  # add zi = 0.0 as first interface
@@ -1531,7 +1548,15 @@ class experiment:
             )
 
         print(
-            f"script `get_glorys_data.sh` has been created at {raw_boundaries_path}.\n Run this script via bash to download the data from a terminal with internet access. \nYou will need to enter your Copernicus Marine username and password.\nIf you don't have an account, make one here:\nhttps://data.marine.copernicus.eu/register"
+            f"The script `get_glorys_data.sh` has been generated at:\n  {raw_boundaries_path}.\n"
+            f"To download the data, run this script using `bash` in a terminal with internet access.\n\n"
+            f"Important instructions:\n"
+            f"1. You will need your Copernicus Marine username and password.\n"
+            f"   If you do not have an account, you can create one here: \n"
+            f"   https://data.marine.copernicus.eu/register\n"
+            f"2. You will be prompted to enter your Copernicus Marine credentials multiple times: once for each dataset.\n"
+            f"3. Depending on the dataset size, the download process may take significant time and resources.\n"
+            f"4. Thus, on certain systems, you may need to run this script as a batch job.\n"
         )
         return
 
