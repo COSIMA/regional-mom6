@@ -719,7 +719,9 @@ class experiment:
                 raise ValueError
         else:
             if hgrid_path:
-                raise ValueError("hgrid_path can only be set if hgrid_type is 'from_file'.")
+                raise ValueError(
+                    "hgrid_path can only be set if hgrid_type is 'from_file'."
+                )
             self.longitude_extent = tuple(longitude_extent)
             self.latitude_extent = tuple(latitude_extent)
             self.hgrid = self._make_hgrid()
@@ -742,7 +744,9 @@ class experiment:
             self.vgrid = self._make_vgrid(vgrid_from_file.dz.data)
         else:
             if vgrid_path:
-                raise ValueError("vgrid_path can only be set if vgrid_type is 'from_file'.")
+                raise ValueError(
+                    "vgrid_path can only be set if vgrid_type is 'from_file'."
+                )
             self.vgrid = self._make_vgrid()
 
         self.segments = {}
@@ -1885,7 +1889,9 @@ class experiment:
         bathymetry_output.depth.attrs["coordinates"] = "lon lat"
         if write_to_file:
             bathymetry_output.to_netcdf(
-                self.mom_input_dir / "bathymetry_original.nc", mode="w", engine="netcdf4"
+                self.mom_input_dir / "bathymetry_original.nc",
+                mode="w",
+                engine="netcdf4",
             )
 
         tgrid = xr.Dataset(
@@ -1924,7 +1930,9 @@ class experiment:
         tgrid.depth.attrs["coordinates"] = "lon lat"
         if write_to_file:
             tgrid.to_netcdf(
-                self.mom_input_dir / "bathymetry_unfinished.nc", mode="w", engine="netcdf4"
+                self.mom_input_dir / "bathymetry_unfinished.nc",
+                mode="w",
+                engine="netcdf4",
             )
             tgrid.close()
 
@@ -1945,7 +1953,9 @@ class experiment:
         bathymetry = regridder(bathymetry_output)
         if write_to_file:
             bathymetry.to_netcdf(
-                self.mom_input_dir / "bathymetry_unfinished.nc", mode="w", engine="netcdf4"
+                self.mom_input_dir / "bathymetry_unfinished.nc",
+                mode="w",
+                engine="netcdf4",
             )
         print(
             "Regridding successful! Now calling `tidy_bathymetry` method for some finishing touches..."
@@ -1957,7 +1967,11 @@ class experiment:
         return bathymetry
 
     def tidy_bathymetry(
-        self, fill_channels=False, positive_down=False, vertical_coordinate_name="depth", bathymetry=None
+        self,
+        fill_channels=False,
+        positive_down=False,
+        vertical_coordinate_name="depth",
+        bathymetry=None,
     ):
         """
         An auxiliary function for bathymetry used to fix up the metadata and remove inland
