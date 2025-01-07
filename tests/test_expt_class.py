@@ -20,7 +20,7 @@ import xarray as xr
         "mom_run_dir",
         "mom_input_dir",
         "toolpath_dir",
-        "grid_type",
+        "hgrid_type",
     ),
     [
         (
@@ -49,7 +49,7 @@ def test_setup_bathymetry(
     mom_run_dir,
     mom_input_dir,
     toolpath_dir,
-    grid_type,
+    hgrid_type,
     tmp_path,
 ):
     expt = experiment(
@@ -63,7 +63,7 @@ def test_setup_bathymetry(
         mom_run_dir=mom_run_dir,
         mom_input_dir=mom_input_dir,
         toolpath_dir=toolpath_dir,
-        grid_type=grid_type,
+        hgrid_type=hgrid_type,
     )
 
     ## Generate a bathymetry to use in tests
@@ -93,8 +93,6 @@ def test_setup_bathymetry(
         longitude_coordinate_name="silly_lon",
         latitude_coordinate_name="silly_lat",
         vertical_coordinate_name="silly_depth",
-        minimum_layers=1,
-        chunks={"longitude": 10, "latitude": 10},
     )
 
     bathymetry_file.unlink()
@@ -171,7 +169,7 @@ coords = {"silly_lat": silly_lat, "silly_lon": silly_lon, "silly_depth": silly_d
 mom_run_dir = "rundir/"
 mom_input_dir = "inputdir/"
 toolpath_dir = "toolpath"
-grid_type = "even_spacing"
+hgrid_type = "even_spacing"
 
 nx, ny = number_of_gridpoints(longitude_extent, latitude_extent, resolution)
 
@@ -203,7 +201,7 @@ maximum_temperature_in_C = np.max(temp_in_C)
         "mom_run_dir",
         "mom_input_dir",
         "toolpath_dir",
-        "grid_type",
+        "hgrid_type",
     ),
     [
         (
@@ -232,7 +230,7 @@ def test_ocean_forcing(
     mom_run_dir,
     mom_input_dir,
     toolpath_dir,
-    grid_type,
+    hgrid_type,
     temp_dataarray_initial_condition,
     tmp_path,
 ):
@@ -260,7 +258,7 @@ def test_ocean_forcing(
         mom_run_dir=mom_run_dir,
         mom_input_dir=mom_input_dir,
         toolpath_dir=toolpath_dir,
-        grid_type=grid_type,
+        hgrid_type=hgrid_type,
     )
 
     ## Generate some initial condition to test on
@@ -312,7 +310,7 @@ def test_ocean_forcing(
         "tracers": {"temp": "temp", "salt": "salt"},
     }
 
-    expt.initial_condition(
+    expt.setup_initial_condition(
         tmp_path / "ic_unprocessed",
         varnames,
         arakawa_grid="A",
@@ -337,7 +335,7 @@ def test_ocean_forcing(
         "mom_run_dir",
         "mom_input_dir",
         "toolpath_dir",
-        "grid_type",
+        "hgrid_type",
     ),
     [
         (
@@ -366,7 +364,7 @@ def test_rectangular_boundaries(
     mom_run_dir,
     mom_input_dir,
     toolpath_dir,
-    grid_type,
+    hgrid_type,
     tmp_path,
 ):
 
@@ -457,7 +455,8 @@ def test_rectangular_boundaries(
         mom_run_dir=mom_run_dir,
         mom_input_dir=mom_input_dir,
         toolpath_dir=toolpath_dir,
-        grid_type=grid_type,
+        hgrid_type=hgrid_type,
+        boundaries=["east"],
     )
 
     varnames = {
@@ -470,5 +469,4 @@ def test_rectangular_boundaries(
         "v": "v",
         "tracers": {"temp": "temp", "salt": "salt"},
     }
-
-    expt.rectangular_boundaries(tmp_path, varnames, ["east"])
+    expt.setup_ocean_state_boundaries(tmp_path, varnames)
