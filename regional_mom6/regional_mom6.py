@@ -56,7 +56,7 @@ def convert_to_tpxo_tidal_constituents(tidal_constituents):
     Returns:
     list of int: List of tidal constituent indices as integers.
     """
-    tidal_constituents_tpxo_dict = {
+    tpxo_tidal_constituent_map = {
         "M2": 0,
         "S2": 1,
         "N2": 2,
@@ -70,16 +70,14 @@ def convert_to_tpxo_tidal_constituents(tidal_constituents):
         # Only supported tidal bc's
     }
 
-    list_of_ints = []
-    for tc in tidal_constituents:
-        try:
-            list_of_ints.append(tidal_constituents_tpxo_dict[tc])
-        except:
-            raise ValueError(
-                "Invalid Input. Tidal constituent {} is not supported.".format(tc)
-            )
+    try:
+        constituent_indices = [
+            tpxo_tidal_constituent_map[tc] for tc in tidal_constituents
+        ]
+    except KeyError as e:
+        raise ValueError(f"Invalid tidal constituent: {e.args[0]}")
 
-    return list_of_ints
+    return constituent_indices
 
 
 ## Load Experiment Function
@@ -113,10 +111,14 @@ def create_experiment_from_config(
 
     print("Setting Default Variables.....")
     expt.expt_name = config_dict["expt_name"]
-    try:
+
+    if (
+        config_dict["longitude_extent"] != None
+        and config_dict["latitude_extent"] != None
+    ):
         expt.longitude_extent = tuple(config_dict["longitude_extent"])
         expt.latitude_extent = tuple(config_dict["latitude_extent"])
-    except:
+    else:
         expt.longitude_extent = None
         expt.latitude_extent = None
     try:
@@ -127,29 +129,34 @@ def create_experiment_from_config(
         expt.date_range[1] = dt.datetime.strptime(
             expt.date_range[1], "%Y-%m-%d %H:%M:%S"
         )
-    except:
+    except IndexError:
         expt.date_range = None
 
     if mom_input_folder is None:
-        mom_input_folder = Path(os.path.join("mom_run", "from_config"))
+        mom_input_folder = Path("mom_run" / "from_config")
     if mom_run_folder is None:
-        mom_run_folder = Path(os.path.join("mom_input", "from_config"))
+        mom_run_folder = Path("mom_input" / "from_config")
     expt.mom_run_dir = Path(mom_run_folder)
     expt.mom_input_dir = Path(mom_input_folder)
-    os.makedirs(expt.mom_run_dir, exist_ok=True)
-    os.makedirs(expt.mom_input_dir, exist_ok=True)
+    expt.mom_run_dir.mkdir(parents=True, exist_ok=True)
+    expt.mom_input_dir.mkdir(parents=True, exist_ok=True)
 
-    expt.resolution = config_dict["resolution"]
-    expt.number_vertical_layers = config_dict["number_vertical_layers"]
-    expt.layer_thickness_ratio = config_dict["layer_thickness_ratio"]
-    expt.depth = config_dict["depth"]
-    expt.hgrid_type = config_dict["hgrid_type"]
-    expt.repeat_year_forcing = config_dict["repeat_year_forcing"]
+    config_params = [
+        "resolution",
+        "number_vertical_layers",
+        "layer_thickness_ratio",
+        "depth",
+        "hgrid_type",
+        "repeat_year_forcing",
+        "minimum_depth",
+        "tidal_constituents",
+        "boundaries",
+    ]
+    for param in config_params:
+        setattr(expt, param, config_dict[param])
+
     expt.ocean_mask = None
     expt.layout = None
-    expt.minimum_depth = config_dict["minimum_depth"]
-    expt.tidal_constituents = config_dict["tidal_constituents"]
-    expt.boundaries = config_dict["boundaries"]
 
     if create_hgrid_and_vgrid:
         print("Creating hgrid and vgrid....")
@@ -719,12 +726,14 @@ class experiment:
                     float(self.hgrid.y.min()),
                     float(self.hgrid.y.max()),
                 )
-            except:
-                print(
-                    "Error while reading in existing horizontal grid!\n\n"
-                    + f"Make sure `hgrid.nc`exists in {self.mom_input_dir} directory."
-                )
-                raise ValueError
+            except FileNotFoundError:
+                if hgrid_path is None:
+                    raise FileNotFoundError(
+                        f"Horizontal grid {self.mom_input_dir}/hgrid.nc not found. Make sure `hgrid.nc`exists in {self.mom_input_dir} directory."
+                    )
+                else:
+                    raise FileNotFoundError(f"Horizontal grid {hgrid_path} not found.")
+
         else:
             if hgrid_path:
                 raise ValueError(
@@ -743,12 +752,14 @@ class experiment:
             try:
                 vgrid_from_file = xr.open_dataset(vgrid_path)
 
-            except:
-                print(
-                    "Error while reading in existing vertical coordinates!\n\n"
-                    + f"Make sure `vcoord.nc`exists in {self.mom_input_dir} directory."
-                )
-                raise ValueError
+            except FileNotFoundError:
+                if vgrid_path is None:
+                    raise FileNotFoundError(
+                        f"Vertical grid {self.mom_input_dir}/vcoord.nc not found. Make sure `vcoord.nc`exists in {self.mom_input_dir} directory."
+                    )
+                else:
+                    raise FileNotFoundError(f"Vertical grid {vgrid_path} not found.")
+
             self.vgrid = self._make_vgrid(vgrid_from_file.dz.data)
         else:
             if vgrid_path:
@@ -779,40 +790,40 @@ class experiment:
         ## First, check whether the attribute is an input file
 
         if name == "bathymetry":
-            if (self.mom_input_dir / "bathymetry.nc").exists():
+            try:
                 return xr.open_dataset(
                     self.mom_input_dir / "bathymetry.nc",
                     decode_cf=False,
                     decode_times=False,
                 )
-            else:
+            except Exception as e:
                 print(
-                    f"bathymetry.nc file not found! Make sure you've successfully run the setup_bathmetry method, or copied your own bathymetry.nc file into {self.mom_input_dir}."
+                    f"Error: {e}. Opening bathymetry threw an error! Make sure you've successfully run the setup_bathmetry method, or copied your own bathymetry.nc file into {self.mom_input_dir}."
                 )
                 return None
         elif name == "init_velocities":
-            if (self.mom_input_dir / "init_vel.nc").exists():
+            try:
                 return xr.open_dataset(
                     self.mom_input_dir / "init_vel.nc",
                     decode_cf=False,
                     decode_times=False,
                 )
-            else:
+            except Exception as e:
                 print(
-                    f"init_vel.nc file not found! Make sure you've successfully run the setup_initial_condition method, or copied your own init_vel.nc file into {self.mom_input_dir}."
+                    f"Error: {e}. Opening init_vel threw an error! Make sure you've successfully run the setup_initial_condition method, or copied your own init_vel.nc file into {self.mom_input_dir}."
                 )
                 return
 
         elif name == "init_tracers":
-            if (self.mom_input_dir / "init_tracers.nc").exists():
+            try:
                 return xr.open_dataset(
                     self.mom_input_dir / "init_tracers.nc",
                     decode_cf=False,
                     decode_times=False,
                 )
-            else:
+            except Exception as e:
                 print(
-                    f"init_tracers.nc file not found! Make sure you've successfully run the setup_initial_condition method, or copied your own init_tracers.nc file into {self.mom_input_dir}."
+                    f"Error: {e}. Opening init_tracers threw an error! Make sure you've successfully run the setup_initial_condition method, or copied your own init_tracers.nc file into {self.mom_input_dir}."
                 )
                 return
 
@@ -823,9 +834,9 @@ class experiment:
                     decode_times=False,
                     decode_cf=False,
                 )
-            except:
+            except Exception as e:
                 print(
-                    f"{name} files not found! Make sure you've successfully run the setup_ocean_state_boundaries method, or copied your own segment files file into {self.mom_input_dir}."
+                    f"Error: {e}. {name} files threw an error! Make sure you've successfully run the setup_ocean_state_boundaries method, or copied your own segment files file into {self.mom_input_dir}."
                 )
                 return None
 
@@ -848,21 +859,14 @@ class experiment:
             direction_dir[b] = counter
             counter += 1
         direction_dir_inv = {v: k for k, v in direction_dir.items()}
-
-        if type(input) == str:
-            try:
-                return direction_dir[input]
-            except:
-                raise ValueError(
-                    "Invalid Input. Did you spell the direction wrong, it should be lowercase?"
-                )
-        elif type(input) == int:
-            try:
-                return direction_dir_inv[input]
-            except:
-                raise ValueError("Invalid Input. Did you pick a number 1 through 4?")
-        else:
-            raise ValueError("Invalid type of Input, can only be string or int.")
+        merged_dict = {**direction_dir, **direction_dir_inv}
+        try:
+            val = merged_dict[input]
+        except KeyError:
+            raise ValueError(
+                "Invalid direction or segment number for MOM6 rectangular orientation"
+            )
+        return val
 
     def _make_hgrid(self):
         """
@@ -964,7 +968,7 @@ class experiment:
 
         ## Check whether the minimum depth is less than the first three layers
 
-        if self.minimum_depth < zi[2]:
+        if len(zi) > 2 and self.minimum_depth < zi[2]:
             print(
                 f"Warning: Minimum depth of {self.minimum_depth}m is less than the depth of the third interface ({zi[2]}m)!\n"
                 + "This means that some areas may only have one or two layers between the surface and sea floor. \n"
@@ -981,125 +985,100 @@ class experiment:
     @property
     def ocean_state_boundaries(self):
         """
-        Read the ocean state files from disk, and print 'em
+        Finds the ocean state files from disk, and prints the file paths
         """
         ocean_state_path = self.mom_input_dir / "forcing"
-        try:
-            # Use glob to find all tides files
-            patterns = [
-                "forcing_*",
-                "weights/bi*",
-            ]
-            all_files = []
-            for pattern in patterns:
-                all_files.extend(glob.glob(Path(ocean_state_path / pattern)))
-                all_files.extend(glob.glob(Path(self.mom_input_dir / pattern)))
+        # Use glob to find all tides files
+        patterns = [
+            "forcing_*",
+            "weights/bi*",
+        ]
+        all_files = []
+        for pattern in patterns:
+            all_files.extend(Path(ocean_state_path).glob(pattern))
+            all_files.extend(Path(self.mom_input_dir).glob(pattern))
 
-            if len(all_files) == 0:
-                return "No ocean state files set up yet (or files misplaced from {}). Call `setup_ocean_state_boundaries` method to set up ocean state.".format(
-                    ocean_state_path
-                )
-
-            # Open the files as xarray datasets
-            # datasets = [xr.open_dataset(file) for file in all_files]
-            return all_files
-        except:
-            return "Error retrieving ocean state files"
+        if len(all_files) == 0:
+            return "No ocean state files set up yet (or files misplaced from {}). Call `setup_ocean_state_boundaries` method to set up ocean state.".format(
+                ocean_state_path
+            )
+        return all_files
 
     @property
     def tides_boundaries(self):
         """
-        Read the tides from disk, and print 'em
+        Finds the tides files from disk, and prints the file paths
         """
         tides_path = self.mom_input_dir / "forcing"
-        try:
-            # Use glob to find all tides files
-            patterns = ["regrid*", "tu_*", "tz_*"]
-            all_files = []
-            for pattern in patterns:
-                all_files.extend(glob.glob(Path(tides_path / pattern)))
-                all_files.extend(glob.glob(Path(self.mom_input_dir / pattern)))
+        # Use glob to find all tides files
+        patterns = ["regrid*", "tu_*", "tz_*"]
+        all_files = []
+        for pattern in patterns:
+            all_files.extend(Path(tides_path).glob(pattern))
+            all_files.extend(Path(self.mom_input_dir).glob(pattern))
 
-            if len(all_files) == 0:
-                return "No tides files set up yet (or files misplaced from {}). Call `setup_tides_boundaries` method to set up tides.".format(
-                    tides_path
-                )
+        if len(all_files) == 0:
+            return "No tides files set up yet (or files misplaced from {}). Call `setup_tides_boundaries` method to set up tides.".format(
+                tides_path
+            )
 
-            # Open the files as xarray datasets
-            # datasets = [xr.open_dataset(file) for file in all_files]
-            return all_files
-        except:
-            return "Error retrieving tides files"
+        # Open the files as xarray datasets
+        # datasets = [xr.open_dataset(file) for file in all_files]
+        return all_files
 
     @property
     def era5(self):
         """
-        Read the era5's from disk, and print 'em
+        Finds the ERA5 files from disk, and prints the file paths
         """
         era5_path = self.mom_input_dir / "forcing"
-        try:
-            # Use glob to find all *_ERA5.nc files
-            all_files = glob.glob(Path(era5_path / "*_ERA5.nc"))
-            if len(all_files) == 0:
-                return "No era5 files set up yet (or files misplaced from {}). Call `setup_era5` method to set up era5.".format(
-                    era5_path
-                )
+        # Use glob to find all *_ERA5.nc files
+        all_files = glob.glob(Path(era5_path / "*_ERA5.nc"))
+        if len(all_files) == 0:
+            return "No era5 files set up yet (or files misplaced from {}). Call `setup_era5` method to set up era5.".format(
+                era5_path
+            )
 
-            # Open the files as xarray datasets
-            # datasets = [xr.open_dataset(file) for file in all_files]
-            return all_files
-        except:
-            return "Error retrieving ERA5 files"
+        # Open the files as xarray datasets
+        # datasets = [xr.open_dataset(file) for file in all_files]
+        return all_files
 
     @property
     def initial_condition(self):
         """
-        Read the ic's from disk, and print 'em
+        Finds the initial condition files from disk, and prints the file paths
         """
         forcing_path = self.mom_input_dir / "forcing"
-        try:
-            all_files = glob.glob(Path(forcing_path / "init_*.nc"))
-            all_files = glob.glob(Path(self.mom_input_dir / "init_*.nc"))
-            if len(all_files) == 0:
-                return "No initial conditions files set up yet (or files misplaced from {}). Call `setup_initial_condition` method to set up initial conditions.".format(
-                    forcing_path
-                )
-
-            # Open the files as xarray datasets
-            # datasets = [xr.open_dataset(file) for file in all_files]
-            # return datasets
-
-            return all_files
-        except:
-            return "No initial condition set up yet (or files misplaced from {}). Call `setup_initial_condition` method to set up initial conditions.".format(
-                self.mom_input_dir / "forcing"
+        all_files = glob.glob(Path(forcing_path / "init_*.nc"))
+        all_files = glob.glob(Path(self.mom_input_dir / "init_*.nc"))
+        if len(all_files) == 0:
+            return "No initial conditions files set up yet (or files misplaced from {}). Call `setup_initial_condition` method to set up initial conditions.".format(
+                forcing_path
             )
+
+        # Open the files as xarray datasets
+        # datasets = [xr.open_dataset(file) for file in all_files]
+        # return datasets
+
+        return all_files
 
     @property
     def bathymetry_property(self):
         """
-        Read the bathymetry from disk, and print 'em
+        Finds the bathymetry file from disk, and prints the file path
         """
-
-        try:
-            bathy = xr.open_dataset(self.mom_input_dir / "bathymetry.nc")
-            # return [bathy]
-            return str(self.mom_input_dir / "bathymetry.nc")
-        except:
-            return "No bathymetry set up yet (or files misplaced from {}). Call `setup_bathymetry` method to set up bathymetry.".format(
-                self.mom_input_dir
-            )
+        return str(self.mom_input_dir / "bathymetry.nc")
 
     def write_config_file(self, path=None, export=True, quiet=False):
         """
         Write a configuration file for the experiment. This is a simple json file
-        that contains the expirment varuavke information to allow for easy pass off to other users, with a strict computer independence restriction.
+        that contains the expirment variable information to allow for easy pass off to other users, with a strict computer independence restriction.
         It also makes information about the expirement readable, and is good for just printing out information about the experiment.
 
         Args:
-            path (Optional[str]): Path to write the config file to. If not provided, the file is written to the ``mom_run_dir`` directory.
-            export (Optional[bool]): If ``True`` (default), the configuration file is written to disk on the given path
-            quiet (Optional[bool]): If ``True``, no print statements are made.
+            path (str): Path to write the config file to. If not provided, the file is written to the ``mom_run_dir`` directory.
+            export (bool): If ``True`` (default), the configuration file is written to disk on the given path
+            quiet (bool): If ``True``, no print statements are made.
         Returns:
             Dict: A dictionary containing the configuration information.
         """
@@ -1110,7 +1089,7 @@ class experiment:
                 self.date_range[0].strftime("%Y-%m-%d %H:%M:%S"),
                 self.date_range[1].strftime("%Y-%m-%d %H:%M:%S"),
             ]
-        except:
+        except IndexError:
             date_range = None
         config_dict = {
             "expt_name": self.expt_name,
@@ -1130,10 +1109,7 @@ class experiment:
             "boundaries": self.boundaries,
         }
         if export:
-            if path is not None:
-                export_path = path
-            else:
-                export_path = self.mom_run_dir / "rmom6_config.json"
+            export_path = path or (self.mom_run_dir / "rmom6_config.json")
             with open(export_path, "w") as f:
                 json.dump(
                     config_dict,
@@ -1157,7 +1133,7 @@ class experiment:
         model grid, fixes up metadata, and saves back to the input directory.
 
         Args:
-            raw_ic_path (Union[str, Path,list of str]): Path(s) to raw initial condition file(s) to read in.
+            raw_ic_path (Union[str, Path,list[str]]): Path(s) to raw initial condition file(s) to read in.
             varnames (Dict[str, str]): Mapping from MOM6 variable/coordinate names to the names
                 in the input dataset. For example, ``{'xq': 'lonq', 'yh': 'lath', 'salt': 'so', ...}``.
             arakawa_grid (Optional[str]): Arakawa grid staggering type of the initial condition.
@@ -1466,9 +1442,6 @@ class experiment:
             self.mom_input_dir / "init_tracers.nc",
             mode="w",
             encoding={
-                # "xh": {"_FillValue": None},
-                # "yh": {"_FillValue": None},
-                # "zl": {"_FillValue": None},
                 "temp": {"_FillValue": -1e20, "missing_value": -1e20},
                 "salt": {"_FillValue": -1e20, "missing_value": -1e20},
             },
@@ -1477,8 +1450,6 @@ class experiment:
             self.mom_input_dir / "init_eta.nc",
             mode="w",
             encoding={
-                # "xh": {"_FillValue": None},
-                # "yh": {"_FillValue": None},
                 "eta_t": {"_FillValue": None},
             },
         )
@@ -1605,7 +1576,7 @@ class experiment:
                 Default is `["south", "north", "west", "east"]`.
             arakawa_grid (Optional[str]): Arakawa grid staggering type of the boundary forcing.
                 Either ``'A'`` (default), ``'B'``, or ``'C'``.
-            boundary_type (Optional[str]): Type of box around region. Currently, only ``'rectangular'`` or ``'curvilinear'`` is supported.
+            boundary_type (str): Type of box around region. Currently, only ``'rectangular'`` or ``'curvilinear'`` is supported.
             bathymetry_path (Optional[str]): Path to the bathymetry file. Default is None, in which case the BC is not masked.
             rotational_method (Optional[str]): Method to use for rotating the boundary velocities. Default is 'GIVEN_ANGLE'.
         """
@@ -1632,11 +1603,7 @@ class experiment:
         # Now iterate through our four boundaries
         for orientation in self.boundaries:
             self.setup_single_boundary(
-                Path(
-                    os.path.join(
-                        (raw_boundaries_path), (orientation + "_unprocessed.nc")
-                    )
-                ),
+                Path(raw_boundaries_path / (orientation + "_unprocessed.nc")),
                 varnames,
                 orientation,  # The cardinal direction of the boundary
                 self.find_MOM6_rectangular_orientation(
@@ -1674,7 +1641,7 @@ class experiment:
                 the ``MOM_input``.
             arakawa_grid (Optional[str]): Arakawa grid staggering type of the boundary forcing.
                 Either ``'A'`` (default), ``'B'``, or ``'C'``.
-            bathymetry_path (Optional[str]): Path to the bathymetry file. Default is None, in which case the BC is not masked
+            bathymetry_path (str): Path to the bathymetry file. Default is None, in which case the BC is not masked
             rotational_method (Optional[str]): Method to use for rotating the boundary velocities. Default is 'GIVEN_ANGLE'.
         """
 
@@ -1802,7 +1769,7 @@ class experiment:
                 segment_name="segment_{:03d}".format(
                     self.find_MOM6_rectangular_orientation(b)
                 ),
-                orientation=b,  # orienataion
+                orientation=b,
                 startdate=self.date_range[0],
                 repeat_year_forcing=self.repeat_year_forcing,
             )
@@ -1980,7 +1947,7 @@ class experiment:
             + f"directly in the input directory {self.mom_input_dir} via\n\n"
             + "`mpirun -np NUMBER_OF_CPUS ESMF_Regrid -s bathymetry_original.nc -d bathymetry_unfinished.nc -m bilinear --src_var depth --dst_var depth --netcdf4 --src_regional --dst_regional`\n\n"
             + "For details see https://xesmf.readthedocs.io/en/latest/large_problems_on_HPC.html\n\n"
-            + "Afterwards, run the 'expt.tidy_bathymetry' method to skip the expensive interpolation step, and finishing metadata, encoding and cleanup.\n\n\n"
+            + "Afterwards, we run the 'expt.tidy_bathymetry' method to skip the expensive interpolation step, and finishing metadata, encoding and cleanup.\n\n\n"
         )
         regridder = xe.Regridder(bathymetry_output, tgrid, "bilinear", parallel=False)
         bathymetry = regridder(bathymetry_output)
@@ -2052,7 +2019,7 @@ class experiment:
             bathymetry["depth"] *= -1
 
         ## Make a land mask based on the bathymetry
-        ocean_mask = xr.where(bathymetry.copy(deep=True).depth <= 0, 0, 1)
+        ocean_mask = xr.where(bathymetry.depth <= 0, 0, 1)
         land_mask = np.abs(ocean_mask - 1)
 
         ## REMOVE INLAND LAKES
@@ -2343,7 +2310,7 @@ class experiment:
                 ) + os.listdir(Path(self.mom_input_dir))
             tidal_files_exist = any("tidal" in filename for filename in all_files)
             if not tidal_files_exist:
-                raise (
+                raise ValueError(
                     "No files with 'tidal' in their names found in the forcing or input directory. If you meant to use tides, please run the setup_tides_rectangle_boundaries method first. That does output some tidal files."
                 )
 
@@ -2356,7 +2323,7 @@ class experiment:
             for file in base_run_dir.glob(
                 "*"
             ):  ## copy each file individually if it doesn't already exist
-                if not os.path.exists(self.mom_run_dir / file.name):
+                if not (self.mom_run_dir / file.name).exists():
                     ## Check whether this file exists in an override directory or not
                     if (
                         overwrite_run_dir != False
@@ -2425,22 +2392,20 @@ class experiment:
         ## Modify the MOM_layout file to have correct horizontal dimensions and CPU layout
         # TODO Re-implement with package that works for this file type? or at least tidy up code
         MOM_layout_dict = self.read_MOM_file_as_dict("MOM_layout")
-        if "MASKTABLE" in MOM_layout_dict.keys():
-            if mask_table != None:
-                MOM_layout_dict["MASKTABLE"]["value"] = mask_table
-            else:
-                MOM_layout_dict["MASKTABLE"]["value"] = "# MASKTABLE = no mask table"
+        if "MASKTABLE" in MOM_layout_dict:
+            MOM_layout_dict["MASKTABLE"]["value"] = (
+                mask_table or " # MASKTABLE = no mask table"
+            )
         if (
-            "LAYOUT" in MOM_layout_dict.keys()
-            and "IO" not in MOM_layout_dict.keys()
+            "LAYOUT" in MOM_layout_dict
+            and "IO" not in MOM_layout_dict
             and layout != None
         ):
             MOM_layout_dict["LAYOUT"]["value"] = str(layout[1]) + "," + str(layout[0])
-        if "NIGLOBAL" in MOM_layout_dict.keys():
+        if "NIGLOBAL" in MOM_layout_dict:
             MOM_layout_dict["NIGLOBAL"]["value"] = self.hgrid.nx.shape[0] // 2
-        if "NJGLOBAL" in MOM_layout_dict.keys():
+        if "NJGLOBAL" in MOM_layout_dict:
             MOM_layout_dict["NJGLOBAL"]["value"] = self.hgrid.ny.shape[0] // 2
-        self.write_MOM_file(MOM_layout_dict)
 
         MOM_input_dict = self.read_MOM_file_as_dict("MOM_input")
         MOM_override_dict = self.read_MOM_file_as_dict("MOM_override")
@@ -2480,17 +2445,18 @@ class experiment:
         # Define Specific Segments
         for seg in self.boundaries:
             ind_seg = self.find_MOM6_rectangular_orientation(seg)
-            key_start = "OBC_SEGMENT_00" + str(ind_seg)
+            key_start = f"OBC_SEGMENT_00{ind_seg}"
             ## Position and Config
             key_POSITION = key_start
-            if seg == "south":
-                index_str = '"J=0,I=0:N'
-            elif seg == "north":
-                index_str = '"J=N,I=N:0'
-            elif seg == "west":
-                index_str = '"I=0,J=N:0'
-            elif seg == "east":
-                index_str = '"I=N,J=0:N'
+
+            rect_MOM6_index_dir = {
+                "south": '"J=0,I=0:N',
+                "north": '"J=N,I=N:0',
+                "east": '"I=N,J=0:N',
+                "west": '"I=0,J=N:0',
+            }
+            index_str = rect_MOM6_index_dir[seg]
+
             MOM_override_dict[key_POSITION]["value"] = (
                 index_str + ',FLATHER,ORLANSKI,NUDGED,ORLANSKI_TAN,NUDGED_TAN"'
             )
@@ -2504,13 +2470,26 @@ class experiment:
             file_num_obc = str(
                 self.find_MOM6_rectangular_orientation(seg)
             )  # 1,2,3,4 for rectangular boundaries, BUT if we have less than 4 segments we use the index to specific the number, but keep filenames as if we had four boundaries
-            MOM_override_dict[key_DATA][
-                "value"
-            ] = f'"U=file:forcing_obc_segment_00{file_num_obc}.nc(u),V=file:forcing_obc_segment_00{file_num_obc}.nc(v),SSH=file:forcing_obc_segment_00{file_num_obc}.nc(eta),TEMP=file:forcing_obc_segment_00{file_num_obc}.nc(temp),SALT=file:forcing_obc_segment_00{file_num_obc}.nc(salt)'
+
+            obc_string = (
+                f'"U=file:forcing_obc_segment_00{file_num_obc}.nc(u),'
+                f"V=file:forcing_obc_segment_00{file_num_obc}.nc(v),"
+                f"SSH=file:forcing_obc_segment_00{file_num_obc}.nc(eta),"
+                f"TEMP=file:forcing_obc_segment_00{file_num_obc}.nc(temp),"
+                f"SALT=file:forcing_obc_segment_00{file_num_obc}.nc(salt)"
+            )
+            MOM_override_dict[key_DATA]["value"] = obc_string
             if with_tides:
+                tides_addition = (
+                    f",Uamp=file:tu_segment_00{file_num_obc}.nc(uamp),"
+                    f"Uphase=file:tu_segment_00{file_num_obc}.nc(uphase),"
+                    f"Vamp=file:tu_segment_00{file_num_obc}.nc(vamp),"
+                    f"Vphase=file:tu_segment_00{file_num_obc}.nc(vphase),"
+                    f"SSHamp=file:tz_segment_00{file_num_obc}.nc(zamp),"
+                    f'SSHphase=file:tz_segment_00{file_num_obc}.nc(zphase)"'
+                )
                 MOM_override_dict[key_DATA]["value"] = (
-                    MOM_override_dict[key_DATA]["value"]
-                    + f',Uamp=file:tu_segment_00{file_num_obc}.nc(uamp),Uphase=file:tu_segment_00{file_num_obc}.nc(uphase),Vamp=file:tu_segment_00{file_num_obc}.nc(vamp),Vphase=file:tu_segment_00{file_num_obc}.nc(vphase),SSHamp=file:tz_segment_00{file_num_obc}.nc(zamp),SSHphase=file:tz_segment_00{file_num_obc}.nc(zphase)"'
+                    MOM_override_dict[key_DATA]["value"] + tides_addition
                 )
             else:
                 MOM_override_dict[key_DATA]["value"] = (
@@ -2537,16 +2516,12 @@ class experiment:
             MOM_override_dict["OBC_TIDE_CONSTITUENTS"]["value"] = (
                 '"' + ", ".join(self.tidal_constituents) + '"'
             )
-            MOM_override_dict["OBC_TIDE_REF_DATE"]["value"] = (
-                str(self.date_range[0].year)
-                + ", "
-                + str(self.date_range[0].month)
-                + ", "
-                + str(self.date_range[0].day)
-            )
+            MOM_override_dict["OBC_TIDE_REF_DATE"]["value"] = self.date_range[
+                0
+            ].strftime("%Y, %m, %d")
 
-        for key in MOM_override_dict.keys():
-            if type(MOM_override_dict[key]) == dict:
+        for key, val in MOM_override_dict.items():
+            if isinstance(val, dict) and key != "original":
                 MOM_override_dict[key]["override"] = True
         self.write_MOM_file(MOM_input_dict)
         self.write_MOM_file(MOM_override_dict)
