@@ -2302,13 +2302,8 @@ class experiment:
 
         # Check if we can implement tides
         if with_tides:
-            if not (self.mom_input_dir / "forcing").exists():
-                all_files = os.listdir(Path(self.mom_input_dir))
-            else:
-                all_files = os.listdir(
-                    Path(self.mom_input_dir / "forcing")
-                ) + os.listdir(Path(self.mom_input_dir))
-            tidal_files_exist = any("tidal" in filename for filename in all_files)
+            tidal_files_exist = any(Path(self.mom_input_dir).rglob("*tidal*"))
+
             if not tidal_files_exist:
                 raise ValueError(
                     "No files with 'tidal' in their names found in the forcing or input directory. If you meant to use tides, please run the setup_tides_rectangle_boundaries method first. That does output some tidal files."
