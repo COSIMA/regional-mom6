@@ -14,13 +14,22 @@ import shutil
 import os
 import importlib.resources
 import datetime
-from .utils import quadrilateral_areas, ap2ep, ep2ap
 import pandas as pd
 from pathlib import Path
 import glob
 from collections import defaultdict
 import json
 import copy
+from regional_mom6 import regridding as rgd
+from regional_mom6 import rotation as rot
+from regional_mom6.utils import (
+    quadrilateral_areas,
+    ap2ep,
+    ep2ap,
+    is_rectilinear_hgrid,
+    rotate,
+)
+
 
 warnings.filterwarnings("ignore")
 
@@ -589,7 +598,7 @@ class experiment:
         hgrid_type="even_spacing",
         repeat_year_forcing=False,
         minimum_depth=4,
-        tidal_constituents=["M2"],
+        tidal_constituents=["M2", "S2", "N2", "K2", "K1", "O1", "P1", "Q1", "MM", "MF"],
         expt_name=None,
         boundaries=["south", "north", "west", "east"],
     ):
@@ -655,7 +664,7 @@ class experiment:
         vgrid_path=None,
         repeat_year_forcing=False,
         minimum_depth=4,
-        tidal_constituents=["M2"],
+        tidal_constituents=["M2", "S2", "N2", "K2", "K1", "O1", "P1", "Q1", "MM", "MF"],
         create_empty=False,
         expt_name=None,
         boundaries=["south", "north", "west", "east"],
@@ -695,7 +704,6 @@ class experiment:
         self.layout = None  # This should be a tuple. Leaving in a dummy 'None' makes it easy to remind the user to provide a value later on.
         self.minimum_depth = minimum_depth  # Minimum depth allowed in bathy file
         self.tidal_constituents = tidal_constituents
-
         if hgrid_type == "from_file":
             if hgrid_path is None:
                 hgrid_path = self.mom_input_dir / "hgrid.nc"
@@ -932,12 +940,20 @@ class experiment:
         of largest to smallest layer thickness (``layer_thickness_ratio``) and the
         total ``depth`` parameters.
         (All these parameters are specified at the class level.)
+
+        Args:
+            thicknesses (Optional[np.ndarray]): An array of layer thicknesses. If not provided,
+                the layer thicknesses are generated using the :func:`~hyperbolictan_thickness_profile`
+                function.
         """
 
         if thicknesses is None:
             thicknesses = hyperbolictan_thickness_profile(
                 self.number_vertical_layers, self.layer_thickness_ratio, self.depth
             )
+
+        if not isinstance(thicknesses, np.ndarray):
+            raise ValueError("thicknesses must be a numpy array")
 
         zi = np.cumsum(thicknesses)
         zi = np.insert(zi, 0, 0.0)  # add zi = 0.0 as first interface
@@ -1134,6 +1150,7 @@ class experiment:
         varnames,
         arakawa_grid="A",
         vcoord_type="height",
+        rotational_method=rot.RotationMethod.GIVEN_ANGLE,
     ):
         """
         Reads the initial condition from files in ``ic_path``, interpolates to the
@@ -1147,6 +1164,7 @@ class experiment:
                 Either ``'A'`` (default), ``'B'``, or ``'C'``.
             vcoord_type (Optional[str]): The type of vertical coordinate used in the forcing files.
                 Either ``'height'`` or ``'thickness'``.
+            rotational_method (Optional[RotationMethod]): The method used to rotate the velocities.
         """
 
         # Remove time dimension if present in the IC.
@@ -1269,28 +1287,6 @@ class experiment:
                     + "Terminating!"
                 )
 
-        ## Construct the xq, yh and xh, yq grids
-        ugrid = (
-            self.hgrid[["x", "y"]]
-            .isel(nxp=slice(None, None, 2), nyp=slice(1, None, 2))
-            .rename({"x": "lon", "y": "lat"})
-            .set_coords(["lat", "lon"])
-        )
-        vgrid = (
-            self.hgrid[["x", "y"]]
-            .isel(nxp=slice(1, None, 2), nyp=slice(None, None, 2))
-            .rename({"x": "lon", "y": "lat"})
-            .set_coords(["lat", "lon"])
-        )
-
-        ## Construct the cell centre grid for tracers (xh, yh).
-        tgrid = (
-            self.hgrid[["x", "y"]]
-            .isel(nxp=slice(1, None, 2), nyp=slice(1, None, 2))
-            .rename({"x": "lon", "y": "lat", "nxp": "nx", "nyp": "ny"})
-            .set_coords(["lat", "lon"])
-        )
-
         # NaNs might be here from the land mask of the model that the IC has come from.
         # If they're not removed then the coastlines from this other grid will be retained!
         # The land mask comes from the bathymetry file, so we don't need NaNs
@@ -1330,38 +1326,64 @@ class experiment:
             .bfill("lat")
         )
 
+        self.hgrid["lon"] = self.hgrid["x"]
+        self.hgrid["lat"] = self.hgrid["y"]
+        tgrid = (
+            rgd.get_hgrid_arakawa_c_points(self.hgrid, "t")
+            .rename({"tlon": "lon", "tlat": "lat", "nxp": "nx", "nyp": "ny"})
+            .set_coords(["lat", "lon"])
+        )
+
         ## Make our three horizontal regridders
-        regridder_u = xe.Regridder(
-            ic_raw_u,
-            ugrid,
-            "bilinear",
-        )
-        regridder_v = xe.Regridder(
-            ic_raw_v,
-            vgrid,
-            "bilinear",
-        )
 
-        regridder_t = xe.Regridder(
-            ic_raw_tracers,
-            tgrid,
-            "bilinear",
+        regridder_u = rgd.create_regridder(
+            ic_raw_u, self.hgrid, locstream_out=False, method="bilinear"
         )
+        regridder_v = rgd.create_regridder(
+            ic_raw_v, self.hgrid, locstream_out=False, method="bilinear"
+        )
+        regridder_t = rgd.create_regridder(
+            ic_raw_tracers, tgrid, locstream_out=False, method="bilinear"
+        )  # Doesn't need to be rotated, so we can regrid to just tracers
 
-        print("INITIAL CONDITIONS")
+        # ugrid= rgd.get_hgrid_arakawa_c_points(self.hgrid, "u").rename({"ulon": "lon", "ulat": "lat"}).set_coords(["lat", "lon"])
+        # vgrid = rgd.get_hgrid_arakawa_c_points(self.hgrid, "v").rename({"vlon": "lon", "vlat": "lat"}).set_coords(["lat", "lon"])
+
+        ## Construct the cell centre grid for tracers (xh, yh).
+        print("Setting up Initial Conditions")
 
         ## Regrid all fields horizontally.
 
         print("Regridding Velocities... ", end="")
+        regridded_u = regridder_u(ic_raw_u)
+        regridded_v = regridder_v(ic_raw_v)
+        rotated_u, rotated_v = rotate(
+            regridded_u,
+            regridded_v,
+            radian_angle=np.radians(
+                rot.get_rotation_angle(rotational_method, self.hgrid).values
+            ),
+        )
 
+        # Slice the velocites to the u and v grid.
+        u_points = rgd.get_hgrid_arakawa_c_points(self.hgrid, "u")
+        v_points = rgd.get_hgrid_arakawa_c_points(self.hgrid, "v")
+        rotated_v = rotated_v[:, v_points.v_points_y.values, v_points.v_points_x.values]
+        rotated_u = rotated_u[:, u_points.u_points_y.values, u_points.u_points_x.values]
+        rotated_u["lon"] = u_points.ulon
+        rotated_u["lat"] = u_points.ulat
+        rotated_v["lon"] = v_points.vlon
+        rotated_v["lat"] = v_points.vlat
+
+        # Merge Vels
         vel_out = xr.merge(
             [
-                regridder_u(ic_raw_u)
-                .rename({"lon": "xq", "lat": "yh", "nyp": "ny", varnames["zl"]: "zl"})
-                .rename("u"),
-                regridder_v(ic_raw_v)
-                .rename({"lon": "xh", "lat": "yq", "nxp": "nx", varnames["zl"]: "zl"})
-                .rename("v"),
+                rotated_u.rename(
+                    {"lon": "xq", "lat": "yh", "nyp": "ny", varnames["zl"]: "zl"}
+                ).rename("u"),
+                rotated_v.rename(
+                    {"lon": "xh", "lat": "yq", "nxp": "nx", varnames["zl"]: "zl"}
+                ).rename("v"),
             ]
         )
 
@@ -1420,14 +1442,11 @@ class experiment:
         eta_out.attrs = ic_raw_eta.attrs
 
         ## Regrid the fields vertically
-
         if (
             vcoord_type == "thickness"
         ):  ## In this case construct the vertical profile by summing thickness
             tracers_out["zl"] = tracers_out["zl"].diff("zl")
-            dz = tracers_out[self.z].diff(self.z)
-            dz.name = "dz"
-            dz = xr.concat([dz, dz[-1]], dim=self.z)
+            dz = rgd.generate_dz(tracers_out, self.z)
 
         tracers_out = tracers_out.interp({"zl": self.vgrid.zl.values})
         vel_out = vel_out.interp({"zl": self.vgrid.zl.values})
@@ -1472,7 +1491,7 @@ class experiment:
 
         return
 
-    def get_glorys_rectangular(self, raw_boundaries_path):
+    def get_glorys(self, raw_boundaries_path):
         """
         This function is a wrapper for `get_glorys_data`, calling this function once for each of the rectangular boundary segments and the initial condition. For more complex boundary shapes, call `get_glorys_data` directly for each of your boundaries that aren't parallel to lines of constant latitude or longitude. For example, for an angled Northern boundary that spans multiple latitudes, you'll need to download a wider rectangle containing the entire boundary.
 
@@ -1570,6 +1589,8 @@ class experiment:
         varnames,
         arakawa_grid="A",
         boundary_type="rectangular",
+        bathymetry_path=None,
+        rotational_method=rot.RotationMethod.GIVEN_ANGLE,
     ):
         """
         This function is a wrapper for `simple_boundary`. Given a list of up to four cardinal directions,
@@ -1584,11 +1605,13 @@ class experiment:
                 Default is `["south", "north", "west", "east"]`.
             arakawa_grid (Optional[str]): Arakawa grid staggering type of the boundary forcing.
                 Either ``'A'`` (default), ``'B'``, or ``'C'``.
-            boundary_type (Optional[str]): Type of box around region. Currently, only ``'rectangular'`` is supported.
+            boundary_type (Optional[str]): Type of box around region. Currently, only ``'rectangular'`` or ``'curvilinear'`` is supported.
+            bathymetry_path (Optional[str]): Path to the bathymetry file. Default is None, in which case the BC is not masked.
+            rotational_method (Optional[str]): Method to use for rotating the boundary velocities. Default is 'GIVEN_ANGLE'.
         """
-        if boundary_type != "rectangular":
+        if not (boundary_type == "rectangular" or boundary_type == "curvilinear"):
             raise ValueError(
-                "Only rectangular boundaries are supported by this method. To set up more complex boundary shapes you can manually call the 'simple_boundary' method for each boundary."
+                "Only rectangular or curvilinear boundaries are supported by this method. To set up more complex boundary shapes you can manually call the 'simple_boundary' method for each boundary."
             )
         for i in self.boundaries:
             if i not in ["south", "north", "west", "east"]:
@@ -1620,6 +1643,8 @@ class experiment:
                     orientation
                 ),  # A number to identify the boundary; indexes from 1
                 arakawa_grid=arakawa_grid,
+                bathymetry_path=bathymetry_path,
+                rotational_method=rotational_method,
             )
 
     def setup_single_boundary(
@@ -1629,7 +1654,8 @@ class experiment:
         orientation,
         segment_number,
         arakawa_grid="A",
-        boundary_type="simple",
+        bathymetry_path=None,
+        rotational_method=rot.RotationMethod.GIVEN_ANGLE,
     ):
         """
         Here 'simple' refers to boundaries that are parallel to lines of constant longitude or latitude.
@@ -1648,18 +1674,20 @@ class experiment:
                 the ``MOM_input``.
             arakawa_grid (Optional[str]): Arakawa grid staggering type of the boundary forcing.
                 Either ``'A'`` (default), ``'B'``, or ``'C'``.
-            boundary_type (Optional[str]): Type of boundary. Currently, only ``'simple'`` is supported. Here 'simple' refers to boundaries that are parallel to lines of constant longitude or latitude.
+            bathymetry_path (Optional[str]): Path to the bathymetry file. Default is None, in which case the BC is not masked
+            rotational_method (Optional[str]): Method to use for rotating the boundary velocities. Default is 'GIVEN_ANGLE'.
         """
 
-        print("Processing {} boundary...".format(orientation), end="")
+        print(
+            "Processing {} boundary velocity & tracers...".format(orientation), end=""
+        )
         if not path_to_bc.exists():
             raise FileNotFoundError(
                 f"Boundary file not found at {path_to_bc}. Please ensure that the files are named in the format `east_unprocessed.nc`."
             )
-        if boundary_type != "simple":
-            raise ValueError("Only simple boundaries are supported by this method.")
         self.segments[orientation] = segment(
             hgrid=self.hgrid,
+            bathymetry_path=bathymetry_path,
             infile=path_to_bc,  # location of raw boundary
             outfolder=self.mom_input_dir,
             varnames=varnames,
@@ -1670,35 +1698,41 @@ class experiment:
             repeat_year_forcing=self.repeat_year_forcing,
         )
 
-        self.segments[orientation].regrid_velocity_tracers()
+        self.segments[orientation].regrid_velocity_tracers(
+            rotational_method=rotational_method
+        )
 
         print("Done.")
         return
 
     def setup_boundary_tides(
         self,
-        path_to_td,
-        tidal_filename,
+        tpxo_elevation_filepath,
+        tpxo_velocity_filepath,
         tidal_constituents="read_from_expt_init",
-        boundary_type="rectangle",
+        boundary_type="rectangular",
+        bathymetry_path=None,
+        rotational_method=rot.RotationMethod.GIVEN_ANGLE,
     ):
         """
-        This function:
         We subset our tidal data and generate more boundary files!
 
         Args:
             path_to_td (str): Path to boundary tidal file.
-            tidal_filename: Name of the tpxo product that's used in the tidal_filename. Should be h_{tidal_filename}, u_{tidal_filename}
-            tidal_constiuents: List of tidal constituents to include in the regridding. Default is [0] which is the M2 constituent.
-            boundary_type (Optional[str]): Type of boundary. Currently, only ``'rectangle'`` is supported. Here 'rectangle' refers to boundaries that are parallel to lines of constant longitude or latitude.
+            tpxo_elevation_filepath: Filepath to the TPXO elevation product. Generally of the form h_tidalversion.nc
+            tpxo_velocity_filepath: Filepath to the TPXO velocity product. Generally of the form u_tidalversion.nc
+            tidal_constituents: List of tidal constituents to include in the regridding. Default is [0] which is the M2 constituent.
+            boundary_type (str): Type of boundary. Currently, only rectangle is supported. Here, rectangle refers to boundaries that are parallel to lines of constant longitude or latitude. Curvilinear is also suported.
+            bathymetry_path (str): Path to the bathymetry file. Default is None, in which case the BC is not masked
+            rotational_method (str): Method to use for rotating the tidal velocities. Default is 'GIVEN_ANGLE'.
         Returns:
-            *.nc files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
+            .nc files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
 
         General Description:
         This tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
-         - Converted code for RM6 segment class
-         - Implemented Horizontal Subsetting
-         - Combined all functions of NWA25 into a four function process (in the style of rm6) (expt.setup_tides_rectangular_boundaries, segment.coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
+        - Converted code for RM6 segment class
+        - Implemented Horizontal Subsetting
+        - Combined all functions of NWA25 into a four function process (in the style of rm6) (expt.setup_tides_rectangular_boundaries, coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
 
 
         Original Code was sourced from:
@@ -1709,14 +1743,14 @@ class experiment:
         Type: Python Functions, Source Code
         Web Address: https://github.com/jsimkins2/nwa25
         """
-        if boundary_type != "rectangle":
+        if not (boundary_type == "rectangular" or boundary_type == "curvilinear"):
             raise ValueError(
-                "Only rectangular boundaries are supported by this method."
+                "Only rectangular or curvilinear boundaries are supported by this method."
             )
         if tidal_constituents != "read_from_expt_init":
             self.tidal_constituents = tidal_constituents
         tpxo_h = (
-            xr.open_dataset(Path(path_to_td / f"h_{tidal_filename}"))
+            xr.open_dataset(Path(tpxo_elevation_filepath))
             .rename({"lon_z": "lon", "lat_z": "lat", "nc": "constituent"})
             .isel(
                 constituent=convert_to_tpxo_tidal_constituents(self.tidal_constituents)
@@ -1727,7 +1761,7 @@ class experiment:
         tpxo_h["hRe"] = np.real(h)
         tpxo_h["hIm"] = np.imag(h)
         tpxo_u = (
-            xr.open_dataset(Path(path_to_td / f"u_{tidal_filename}"))
+            xr.open_dataset(Path(tpxo_velocity_filepath))
             .rename({"lon_u": "lon", "lat_u": "lat", "nc": "constituent"})
             .isel(
                 constituent=convert_to_tpxo_tidal_constituents(self.tidal_constituents)
@@ -1738,7 +1772,7 @@ class experiment:
         tpxo_u["uRe"] = np.real(u)
         tpxo_u["uIm"] = np.imag(u)
         tpxo_v = (
-            xr.open_dataset(Path(path_to_td / f"u_{tidal_filename}"))
+            xr.open_dataset(Path(tpxo_velocity_filepath))
             .rename({"lon_v": "lon", "lat_v": "lat", "nc": "constituent"})
             .isel(
                 constituent=convert_to_tpxo_tidal_constituents(self.tidal_constituents)
@@ -1759,25 +1793,24 @@ class experiment:
             print("Processing {} boundary...".format(b), end="")
 
             # If the GLORYS ocean_state has already created segments, we don't create them again.
-            if b not in self.segments.keys():  # I.E. not set yet
-                seg = segment(
-                    hgrid=self.hgrid,
-                    infile=None,  # location of raw boundary
-                    outfolder=self.mom_input_dir,
-                    varnames=None,
-                    segment_name="segment_{:03d}".format(
-                        self.find_MOM6_rectangular_orientation(b)
-                    ),
-                    orientation=b,  # orienataion
-                    startdate=self.date_range[0],
-                    repeat_year_forcing=self.repeat_year_forcing,
-                )
-                self.segments[b] = seg
-            else:
-                seg = self.segments[b]
+            seg = segment(
+                hgrid=self.hgrid,
+                bathymetry_path=bathymetry_path,
+                infile=None,  # location of raw boundary
+                outfolder=self.mom_input_dir,
+                varnames=None,
+                segment_name="segment_{:03d}".format(
+                    self.find_MOM6_rectangular_orientation(b)
+                ),
+                orientation=b,  # orienataion
+                startdate=self.date_range[0],
+                repeat_year_forcing=self.repeat_year_forcing,
+            )
 
             # Output and regrid tides
-            seg.regrid_tides(tpxo_v, tpxo_u, tpxo_h, times)
+            seg.regrid_tides(
+                tpxo_v, tpxo_u, tpxo_h, times, rotational_method=rotational_method
+            )
             print("Done")
 
     def setup_bathymetry(
@@ -2264,7 +2297,8 @@ class experiment:
         if not premade_rundir_path.exists():
             print("Could not find premade run directories at ", premade_rundir_path)
             print(
-                "Perhaps the package was imported directly rather than installed with conda. Checking if this is the case... "
+                "Perhaps the package was imported directly rather than installed with conda. Checking if this is the case... ",
+                end="",
             )
 
             premade_rundir_path = Path(
@@ -2301,13 +2335,13 @@ class experiment:
 
         # Check if we can implement tides
         if with_tides:
-            tidal_files_exist = any(
-                "tidal" in filename
-                for filename in (
-                    os.listdir(Path(self.mom_input_dir / "forcing"))
-                    + os.listdir(Path(self.mom_input_dir))
-                )
-            )
+            if not (self.mom_input_dir / "forcing").exists():
+                all_files = os.listdir(Path(self.mom_input_dir))
+            else:
+                all_files = os.listdir(
+                    Path(self.mom_input_dir / "forcing")
+                ) + os.listdir(Path(self.mom_input_dir))
+            tidal_files_exist = any("tidal" in filename for filename in all_files)
             if not tidal_files_exist:
                 raise (
                     "No files with 'tidal' in their names found in the forcing or input directory. If you meant to use tides, please run the setup_tides_rectangle_boundaries method first. That does output some tidal files."
@@ -2554,6 +2588,19 @@ class experiment:
             0,
         ]
         nml.write(self.mom_run_dir / "input.nml", force=True)
+
+        # Edit Diag Table Date
+        # Read the file
+        with open(self.mom_run_dir / "diag_table", "r") as file:
+            lines = file.readlines()
+
+        # The date is the second line
+        lines[1] = self.date_range[0].strftime("%Y %-m %-d %-H %-M %-S\n")
+
+        # Write the file
+        with open(self.mom_run_dir / "diag_table", "w") as file:
+            file.writelines(lines)
+
         return
 
     def change_MOM_parameter(
@@ -2692,13 +2739,13 @@ class experiment:
                             )
 
                         print(
-                            "Changed",
-                            var,
-                            "from",
-                            original_MOM_file_dict[var],
-                            "to",
-                            MOM_file_dict[var],
-                            "in {}!".format(MOM_file_dict["filename"]),
+                            "Changed "
+                            + str(var)
+                            + " from "
+                            + str(original_MOM_file_dict[var]["value"])
+                            + " to "
+                            + str(MOM_file_dict[var]["value"])
+                            + "in {}!".format(str(MOM_file_dict["filename"]))
                         )
 
         # Add new fields
@@ -2898,6 +2945,7 @@ class segment:
         segment_name,
         orientation,
         startdate,
+        bathymetry_path=None,
         arakawa_grid="A",
         time_units="days",
         repeat_year_forcing=False,
@@ -2947,170 +2995,73 @@ class segment:
         self.infile = infile
         self.outfolder = outfolder
         self.hgrid = hgrid
+        try:
+            self.bathymetry = xr.open_dataset(bathymetry_path)
+        except:
+            self.bathymetry = None
         self.segment_name = segment_name
         self.repeat_year_forcing = repeat_year_forcing
 
-    @property
-    def coords(self):
-        """
-
-
-        This function:
-        Allows us to call the self.coords for use in the xesmf.Regridder in the regrid_tides function. self.coords gives us the subset of the hgrid based on the orientation.
-
-        Args:
-            None
-        Returns:
-            xr.Dataset: The correct coordinate space for the orientation
-
-        General Description:
-        This tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
-         - Converted code for RM6 segment class
-         - Implemented Horizontal Subsetting
-         - Combined all functions of NWA25 into a four function process (in the style of rm6) (expt.setup_tides_rectangular_boundaries, segment.coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
-
-
-        Code adapted from:
-        Author(s): GFDL, James Simkins, Rob Cermak, etc..
-        Year: 2022
-        Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
-        Version: N/A
-        Type: Python Functions, Source Code
-        Web Address: https://github.com/jsimkins2/nwa25
-
-        """
-        # Rename nxp and nyp to locations
-        if self.orientation == "south":
-            rcoord = xr.Dataset(
-                {
-                    "lon": self.hgrid["x"].isel(nyp=0),
-                    "lat": self.hgrid["y"].isel(nyp=0),
-                    "angle": self.hgrid["angle_dx"].isel(nyp=0),
-                }
-            )
-            rcoord = rcoord.rename_dims({"nxp": f"nx_{self.segment_name}"})
-            rcoord.attrs["perpendicular"] = "ny"
-            rcoord.attrs["parallel"] = "nx"
-            rcoord.attrs["axis_to_expand"] = (
-                2  ## Need to keep track of which axis the 'main' coordinate corresponds to when re-adding the 'secondary' axis
-            )
-            rcoord.attrs["locations_name"] = (
-                f"nx_{self.segment_name}"  # Legacy name of nx_... was locations. This provides a clear transform in regrid_tides
-            )
-        elif self.orientation == "north":
-            rcoord = xr.Dataset(
-                {
-                    "lon": self.hgrid["x"].isel(nyp=-1),
-                    "lat": self.hgrid["y"].isel(nyp=-1),
-                    "angle": self.hgrid["angle_dx"].isel(nyp=-1),
-                }
-            )
-            rcoord = rcoord.rename_dims({"nxp": f"nx_{self.segment_name}"})
-            rcoord.attrs["perpendicular"] = "ny"
-            rcoord.attrs["parallel"] = "nx"
-            rcoord.attrs["axis_to_expand"] = 2
-            rcoord.attrs["locations_name"] = f"nx_{self.segment_name}"
-        elif self.orientation == "west":
-            rcoord = xr.Dataset(
-                {
-                    "lon": self.hgrid["x"].isel(nxp=0),
-                    "lat": self.hgrid["y"].isel(nxp=0),
-                    "angle": self.hgrid["angle_dx"].isel(nxp=0),
-                }
-            )
-            rcoord = rcoord.rename_dims({"nyp": f"ny_{self.segment_name}"})
-            rcoord.attrs["perpendicular"] = "nx"
-            rcoord.attrs["parallel"] = "ny"
-            rcoord.attrs["axis_to_expand"] = 3
-            rcoord.attrs["locations_name"] = f"ny_{self.segment_name}"
-        elif self.orientation == "east":
-            rcoord = xr.Dataset(
-                {
-                    "lon": self.hgrid["x"].isel(nxp=-1),
-                    "lat": self.hgrid["y"].isel(nxp=-1),
-                    "angle": self.hgrid["angle_dx"].isel(nxp=-1),
-                }
-            )
-            rcoord = rcoord.rename_dims({"nyp": f"ny_{self.segment_name}"})
-            rcoord.attrs["perpendicular"] = "nx"
-            rcoord.attrs["parallel"] = "ny"
-            rcoord.attrs["axis_to_expand"] = 3
-            rcoord.attrs["locations_name"] = f"ny_{self.segment_name}"
-
-        # Make lat and lon coordinates
-        rcoord = rcoord.assign_coords(lat=rcoord["lat"], lon=rcoord["lon"])
-
-        return rcoord
-
-    def rotate(self, u, v):
-        # Make docstring
-
-        """
-        Rotate the velocities to the grid orientation.
-
-        Args:
-            u (xarray.DataArray): The u-component of the velocity.
-            v (xarray.DataArray): The v-component of the velocity.
-
-        Returns:
-            Tuple[xarray.DataArray, xarray.DataArray]: The rotated u and v components of the velocity.
-        """
-
-        angle = self.coords.angle.values * np.pi / 180
-        u_rot = u * np.cos(angle) - v * np.sin(angle)
-        v_rot = u * np.sin(angle) + v * np.cos(angle)
-        return u_rot, v_rot
-
-    def regrid_velocity_tracers(self):
+    def regrid_velocity_tracers(self, rotational_method=rot.RotationMethod.GIVEN_ANGLE):
         """
         Cut out and interpolate the velocities and tracers
+        Args:
+        rotational_method (rot.RotationMethod): The method to use for rotation of the velocities. Currently, the default method, GIVEN_ANGLE, works even with non-rotated grids
         """
 
         rawseg = xr.open_dataset(self.infile, decode_times=False, engine="netcdf4")
 
+        coords = rgd.coords(self.hgrid, self.orientation, self.segment_name)
+
         if self.arakawa_grid == "A":
+
             rawseg = rawseg.rename({self.x: "lon", self.y: "lat"})
-            ## In this case velocities and tracers all on same points
-            regridder = xe.Regridder(
+            # In this case velocities and tracers all on same points
+            regridder = rgd.create_regridder(
                 rawseg[self.u],
-                self.coords,
-                "bilinear",
-                locstream_out=True,
-                reuse_weights=False,
-                filename=self.outfolder
+                coords,
+                self.outfolder
                 / f"weights/bilinear_velocity_weights_{self.orientation}.nc",
+                method="bilinear",
             )
 
-            segment_out = xr.merge(
-                [
-                    regridder(
-                        rawseg[
-                            [self.u, self.v, self.eta]
-                            + [self.tracers[i] for i in self.tracers]
-                        ]
-                    )
+            regridded = regridder(
+                rawseg[
+                    [self.u, self.v, self.eta] + [self.tracers[i] for i in self.tracers]
                 ]
             )
 
-        if self.arakawa_grid == "B":
-            ## All tracers on one grid, all velocities on another
-            regridder_velocity = xe.Regridder(
-                rawseg[self.u].rename({self.xq: "lon", self.yq: "lat"}),
-                self.coords,
-                "bilinear",
-                locstream_out=True,
-                reuse_weights=False,
-                filename=self.outfolder
-                / f"weights/bilinear_velocity_weights_{self.orientation}.nc",
+            ## Angle Calculation & Rotation
+            rotated_u, rotated_v = rotate(
+                regridded[self.u],
+                regridded[self.v],
+                radian_angle=np.radians(
+                    rot.get_rotation_angle(
+                        rotational_method, self.hgrid, orientation=self.orientation
+                    ).values
+                ),
             )
 
-            regridder_tracer = xe.Regridder(
+            rotated_ds = xr.Dataset(
+                {
+                    self.u: rotated_u,
+                    self.v: rotated_v,
+                }
+            )
+            segment_out = xr.merge([rotated_ds, regridded.drop_vars([self.u, self.v])])
+
+        if self.arakawa_grid == "B":
+            ## All tracers on one grid, all velocities on another
+            regridder_velocity = rgd.create_regridder(
+                rawseg[self.u].rename({self.xq: "lon", self.yq: "lat"}),
+                coords,
+                self.outfolder
+                / f"weights/bilinear_velocity_weights_{self.orientation}.nc",
+            )
+            regridder_tracer = rgd.create_regridder(
                 rawseg[self.tracers["salt"]].rename({self.xh: "lon", self.yh: "lat"}),
-                self.coords,
-                "bilinear",
-                locstream_out=True,
-                reuse_weights=False,
-                filename=self.outfolder
+                coords,
+                self.outfolder
                 / f"weights/bilinear_tracer_weights_{self.orientation}.nc",
             )
 
@@ -3118,8 +3069,15 @@ class segment:
                 rawseg[[self.u, self.v]].rename({self.xq: "lon", self.yq: "lat"})
             )
 
-            velocities_out["u"], velocities_out["v"] = self.rotate(
-                velocities_out["u"], velocities_out["v"]
+            # See explanation of the rotational methods in the A grid section
+            velocities_out["u"], velocities_out["v"] = rotate(
+                velocities_out["u"],
+                velocities_out["v"],
+                radian_angle=np.radians(
+                    rot.get_rotation_angle(
+                        rotational_method, self.hgrid, orientation=self.orientation
+                    ).values
+                ),
             )
 
             segment_out = xr.merge(
@@ -3135,40 +3093,50 @@ class segment:
 
         if self.arakawa_grid == "C":
             ## All tracers on one grid, all velocities on another
-            regridder_uvelocity = xe.Regridder(
+            regridder_uvelocity = rgd.create_regridder(
                 rawseg[self.u].rename({self.xq: "lon", self.yh: "lat"}),
-                self.coords,
-                "bilinear",
-                locstream_out=True,
-                reuse_weights=False,
-                filename=self.outfolder
+                coords,
+                self.outfolder
                 / f"weights/bilinear_uvelocity_weights_{self.orientation}.nc",
             )
 
-            regridder_vvelocity = xe.Regridder(
+            regridder_vvelocity = rgd.create_regridder(
                 rawseg[self.v].rename({self.xh: "lon", self.yq: "lat"}),
-                self.coords,
-                "bilinear",
-                locstream_out=True,
-                reuse_weights=False,
-                filename=self.outfolder
+                coords,
+                self.outfolder
                 / f"weights/bilinear_vvelocity_weights_{self.orientation}.nc",
             )
 
-            regridder_tracer = xe.Regridder(
+            regridder_tracer = rgd.create_regridder(
                 rawseg[self.tracers["salt"]].rename({self.xh: "lon", self.yh: "lat"}),
-                self.coords,
-                "bilinear",
-                locstream_out=True,
-                reuse_weights=False,
-                filename=self.outfolder
+                coords,
+                self.outfolder
                 / f"weights/bilinear_tracer_weights_{self.orientation}.nc",
             )
 
+            regridded_u = regridder_uvelocity(rawseg[[self.u]])
+            regridded_v = regridder_vvelocity(rawseg[[self.v]])
+
+            # See explanation of the rotational methods in the A grid section
+            rotated_u, rotated_v = rotate(
+                regridded_u,
+                regridded_v,
+                radian_angle=np.radians(
+                    rot.get_rotation_angle(
+                        rotational_method, self.hgrid, orientation=self.orientation
+                    ).values
+                ),
+            )
+
+            rotated_ds = xr.Dataset(
+                {
+                    self.u: rotated_u,
+                    self.v: rotated_v,
+                }
+            )
             segment_out = xr.merge(
                 [
-                    regridder_vvelocity(rawseg[[self.v]]),
-                    regridder_uvelocity(rawseg[[self.u]]),
+                    rotated_ds,
                     regridder_tracer(
                         rawseg[[self.eta] + [self.tracers[i] for i in self.tracers]]
                     ),
@@ -3177,9 +3145,10 @@ class segment:
 
         ## segment out now contains our interpolated boundary.
         ## Now, we need to fix up all the metadata and save
+        segment_out = segment_out.rename(
+            {"lon": f"lon_{self.segment_name}", "lat": f"lat_{self.segment_name}"}
+        )
 
-        del segment_out["lon"]
-        del segment_out["lat"]
         ## Convert temperatures to celsius # use pint
         if (
             np.nanmin(segment_out[self.tracers["temp"]].isel({self.time: 0, self.z: 0}))
@@ -3189,44 +3158,29 @@ class segment:
             segment_out[self.tracers["temp"]].attrs["units"] = "degrees Celsius"
 
         # fill in NaNs
-        segment_out = (
-            segment_out.ffill(self.z)
-            .interpolate_na(f"{self.coords.attrs['parallel']}_{self.segment_name}")
-            .ffill(f"{self.coords.attrs['parallel']}_{self.segment_name}")
-            .bfill(f"{self.coords.attrs['parallel']}_{self.segment_name}")
+        # segment_out = rgd.fill_missing_data(segment_out, self.z)
+        segment_out = rgd.fill_missing_data(
+            segment_out,
+            xdim=f"{coords.attrs['parallel']}_{self.segment_name}",
+            zdim=self.z,
         )
 
-        time = np.arange(
-            0,  #! Indexing everything from start of experiment = simple but maybe counterintutive?
-            segment_out[self.time].shape[
-                0
-            ],  ## Time is indexed from start date of window
-            dtype=float,
+        times = xr.DataArray(
+            np.arange(
+                0,  #! Indexing everything from start of experiment = simple but maybe counterintutive?
+                segment_out[self.time].shape[
+                    0
+                ],  ## Time is indexed from start date of window
+                dtype=float,
+            ),  # Import pandas for this shouldn't be a big deal b/c it's already kinda required somewhere deep in some tree.
+            dims=["time"],
         )
-
-        segment_out = segment_out.assign_coords({"time": time})
+        # This to change the time coordinate.
+        segment_out = rgd.add_or_update_time_dim(segment_out, times)
         segment_out.time.attrs = {
             "calendar": "julian",
             "units": f"{self.time_units} since {self.startdate}",
         }
-        # Dictionary we built for encoding the netcdf at end
-        encoding_dict = {
-            "time": {
-                "dtype": "double",
-            },
-            f"nx_{self.segment_name}": {
-                "dtype": "int32",
-            },
-            f"ny_{self.segment_name}": {
-                "dtype": "int32",
-            },
-        }
-
-        ### Generate the dz variable; needs to be in layer thicknesses
-        dz = segment_out[self.z].diff(self.z)
-        dz.name = "dz"
-        dz = xr.concat([dz, dz[-1]], dim=self.z)
-
         # Here, keep in mind that 'var' keeps track of the mom6 variable names we want, and self.tracers[var]
         # will return the name of the variable from the original data
 
@@ -3245,135 +3199,70 @@ class segment:
             ## Rename each variable in dataset
             segment_out = segment_out.rename({allfields[var]: v})
 
-            ## Rename vertical coordinate for this variable
-            segment_out[f"{var}_{self.segment_name}"] = segment_out[
-                f"{var}_{self.segment_name}"
-            ].rename({self.z: f"nz_{self.segment_name}_{var}"})
-
-            ## Replace the old depth coordinates with incremental integers
-            segment_out[f"nz_{self.segment_name}_{var}"] = np.arange(
-                segment_out[f"nz_{self.segment_name}_{var}"].size
+            segment_out = rgd.vertical_coordinate_encoding(
+                segment_out, v, self.segment_name, self.z
             )
 
-            ## Re-add the secondary dimension (even though it represents one value..)
-            segment_out[v] = segment_out[v].expand_dims(
-                f"{self.coords.attrs['perpendicular']}_{self.segment_name}",
-                axis=self.coords.attrs["axis_to_expand"],
+            segment_out = rgd.add_secondary_dimension(
+                segment_out, v, coords, self.segment_name
             )
 
-            ## Add the layer thicknesses
-            segment_out[f"dz_{v}"] = (
-                [
-                    "time",
-                    f"nz_{v}",
-                    f"ny_{self.segment_name}",
-                    f"nx_{self.segment_name}",
-                ],
-                da.broadcast_to(
-                    dz.data[None, :, None, None],
-                    segment_out[v].shape,
-                    chunks=(
-                        1,
-                        None,
-                        None,
-                        None,
-                    ),  ## Chunk in each time, and every 5 vertical layers
-                ),
+            segment_out = rgd.generate_layer_thickness(
+                segment_out, v, self.segment_name, self.z
             )
-
-            encoding_dict[v] = {
-                "_FillValue": netCDF4.default_fillvals["f8"],
-                "zlib": True,
-                # "chunksizes": tuple(s),
-            }
-            encoding_dict[f"dz_{v}"] = {
-                "_FillValue": netCDF4.default_fillvals["f8"],
-                "zlib": True,
-                # "chunksizes": tuple(s),
-            }
-
-            ## appears to be another variable just with integers??
-            encoding_dict[f"nz_{self.segment_name}_{var}"] = {"dtype": "int32"}
 
         ## Treat eta separately since it has no vertical coordinate. Do the same things as for the surface variables above
         segment_out = segment_out.rename({self.eta: f"eta_{self.segment_name}"})
-        encoding_dict[f"eta_{self.segment_name}"] = {
-            "_FillValue": netCDF4.default_fillvals["f8"],
-        }
-        segment_out[f"eta_{self.segment_name}"] = segment_out[
-            f"eta_{self.segment_name}"
-        ].expand_dims(
-            f"{self.coords.attrs['perpendicular']}_{self.segment_name}",
-            axis=self.coords.attrs["axis_to_expand"] - 1,
+
+        segment_out = rgd.add_secondary_dimension(
+            segment_out, f"eta_{self.segment_name}", coords, self.segment_name
         )
 
         # Overwrite the actual lat/lon values in the dimensions, replace with incrementing integers
-        segment_out[f"{self.coords.attrs['parallel']}_{self.segment_name}"] = np.arange(
-            segment_out[f"{self.coords.attrs['parallel']}_{self.segment_name}"].size
+        segment_out[f"{coords.attrs['parallel']}_{self.segment_name}"] = np.arange(
+            segment_out[f"{coords.attrs['parallel']}_{self.segment_name}"].size
         )
-        segment_out[f"{self.coords.attrs['perpendicular']}_{self.segment_name}"] = [0]
-        if self.orientation == "north":
-            self.hgrid_seg = self.hgrid.isel(nyp=[-1])
-            self.perpendicular = "ny"
-            self.parallel = "nx"
-
-        if self.orientation == "south":
-            self.hgrid_seg = self.hgrid.isel(nyp=[0])
-            self.perpendicular = "ny"
-            self.parallel = "nx"
-
-        if self.orientation == "east":
-            self.hgrid_seg = self.hgrid.isel(nxp=[-1])
-            self.perpendicular = "nx"
-            self.parallel = "ny"
-
-        if self.orientation == "west":
-            self.hgrid_seg = self.hgrid.isel(nxp=[0])
-            self.perpendicular = "nx"
-            self.parallel = "ny"
-
-        # Store actual lat/lon values here as variables rather than coordinates
-        segment_out[f"lon_{self.segment_name}"] = (
-            [f"ny_{self.segment_name}", f"nx_{self.segment_name}"],
-            self.coords.lon.expand_dims(
-                dim="blank", axis=self.coords.attrs["axis_to_expand"] - 2
-            ).data,
+        segment_out[f"{coords.attrs['parallel']}_{self.segment_name}"] = np.arange(
+            segment_out[f"{coords.attrs['parallel']}_{self.segment_name}"].size
         )
-        segment_out[f"lat_{self.segment_name}"] = (
-            [f"ny_{self.segment_name}", f"nx_{self.segment_name}"],
-            self.coords.lat.expand_dims(
-                dim="blank", axis=self.coords.attrs["axis_to_expand"] - 2
-            ).data,
+        segment_out[f"{coords.attrs['perpendicular']}_{self.segment_name}"] = [0]
+        encoding_dict = {
+            "time": {"dtype": "double"},
+            f"nx_{self.segment_name}": {
+                "dtype": "int32",
+            },
+            f"ny_{self.segment_name}": {
+                "dtype": "int32",
+            },
+        }
+        segment_out = rgd.mask_dataset(
+            segment_out,
+            self.hgrid,
+            self.bathymetry,
+            self.orientation,
+            self.segment_name,
+        )
+        encoding_dict = rgd.generate_encoding(
+            segment_out,
+            encoding_dict,
+            default_fill_value=1.0e20,
         )
 
-        # Add units to the lat / lon to keep the `categorize_axis_from_units` checker from throwing warnings
-        segment_out[f"lat_{self.segment_name}"].attrs = {
-            "units": "degrees_north",
-        }
-        segment_out[f"lon_{self.segment_name}"].attrs = {
-            "units": "degrees_east",
-        }
-        segment_out[f"ny_{self.segment_name}"].attrs = {
-            "units": "degrees_north",
-        }
-        segment_out[f"nx_{self.segment_name}"].attrs = {
-            "units": "degrees_east",
-        }
-        # If repeat-year forcing, add modulo coordinate
-        if self.repeat_year_forcing:
-            segment_out["time"] = segment_out["time"].assign_attrs({"modulo": " "})
-
-        with ProgressBar():
-            segment_out.load().to_netcdf(
-                self.outfolder / f"forcing_obc_{self.segment_name}.nc",
-                encoding=encoding_dict,
-                unlimited_dims="time",
-            )
+        segment_out.load().to_netcdf(
+            self.outfolder / f"forcing_obc_{self.segment_name}.nc",
+            encoding=encoding_dict,
+            unlimited_dims="time",
+        )
 
         return segment_out, encoding_dict
 
     def regrid_tides(
-        self, tpxo_v, tpxo_u, tpxo_h, times, method="nearest_s2d", periodic=False
+        self,
+        tpxo_v,
+        tpxo_u,
+        tpxo_h,
+        times,
+        rotational_method=rot.RotationMethod.GIVEN_ANGLE,
     ):
         """
         This function:
@@ -3387,14 +3276,15 @@ class segment:
             infile_td (str): Raw Tidal File/Dir
             tpxo_v, tpxo_u, tpxo_h (xarray.Dataset): Specific adjusted for MOM6 tpxo datasets (Adjusted with setup_tides)
             times (pd.DateRange): The start date of our model period
+            rotational_method (rot.RotationMethod): The method to use for rotation of the velocities. Currently, the default method, GIVEN_ANGLE, works even with non-rotated grids
         Returns:
-            *.nc files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
+            .nc files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
 
         General Description:
         This tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
-         - Converted code for RM6 segment class
-         - Implemented Horizontal Subsetting
-         - Combined all functions of NWA25 into a four function process (in the style of rm6) (expt.setup_tides_rectangular_boundaries, segment.coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
+        - Converted code for RM6 segment class
+        - Implemented Horizontal Subsetting
+        - Combined all functions of NWA25 into a four function process (in the style of rm6) (expt.setup_tides_rectangular_boundaries, segment.coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
 
 
         Original Code was sourced from:
@@ -3406,70 +3296,66 @@ class segment:
         Web Address: https://github.com/jsimkins2/nwa25
         """
 
+        # Establish Coords
+        coords = rgd.coords(self.hgrid, self.orientation, self.segment_name)
+
         ########## Tidal Elevation: Horizontally interpolate elevation components ############
-        regrid = xe.Regridder(
+        regrid = rgd.create_regridder(
             tpxo_h[["lon", "lat", "hRe"]],
-            self.coords,
-            method="nearest_s2d",
-            locstream_out=True,
-            periodic=False,
-            filename=Path(
+            coords,
+            Path(
                 self.outfolder / "forcing" / f"regrid_{self.segment_name}_tidal_elev.nc"
             ),
-            reuse_weights=False,
         )
+
         redest = regrid(tpxo_h[["lon", "lat", "hRe"]])
         imdest = regrid(tpxo_h[["lon", "lat", "hIm"]])
 
         # Fill missing data.
         # Need to do this first because complex would get converted to real
-        redest = redest.ffill(dim=self.coords.attrs["locations_name"], limit=None)[
-            "hRe"
-        ]
-        imdest = imdest.ffill(dim=self.coords.attrs["locations_name"], limit=None)[
-            "hIm"
-        ]
+        redest = rgd.fill_missing_data(
+            redest, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
+        )
+        redest = redest["hRe"]
+        imdest = rgd.fill_missing_data(
+            imdest, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
+        )
+        imdest = imdest["hIm"]
 
         # Convert complex
         cplex = redest + 1j * imdest
 
         # Convert to real amplitude and phase.
         ds_ap = xr.Dataset({f"zamp_{self.segment_name}": np.abs(cplex)})
+
         # np.angle doesn't return dataarray
         ds_ap[f"zphase_{self.segment_name}"] = (
-            ("constituent", self.coords.attrs["locations_name"]),
+            ("constituent", f"{coords.attrs['parallel']}_{self.segment_name}"),
             -1 * np.angle(cplex),
         )  # radians
 
         # Add time coordinate and transpose so that time is first,
         # so that it can be the unlimited dimension
-        ds_ap, _ = xr.broadcast(ds_ap, times)
+        times = xr.DataArray(
+            pd.date_range(
+                self.startdate, periods=1
+            ),  # Import pandas for this shouldn't be a big deal b/c it's already kinda required somewhere deep in some tree.
+            dims=["time"],
+        )
+
+        ds_ap = rgd.add_or_update_time_dim(ds_ap, times)
         ds_ap = ds_ap.transpose(
-            "time", "constituent", self.coords.attrs["locations_name"]
+            "time", "constituent", f"{coords.attrs['parallel']}_{self.segment_name}"
         )
 
         self.encode_tidal_files_and_output(ds_ap, "tz")
 
         ########### Regrid Tidal Velocity ######################
-        regrid_u = xe.Regridder(
-            tpxo_u[["lon", "lat", "uRe"]],
-            self.coords,
-            method=method,
-            locstream_out=True,
-            periodic=periodic,
-            reuse_weights=False,
-        )
 
-        regrid_v = xe.Regridder(
-            tpxo_v[["lon", "lat", "vRe"]],
-            self.coords,
-            method=method,
-            locstream_out=True,
-            periodic=periodic,
-            reuse_weights=False,
-        )
+        regrid_u = rgd.create_regridder(tpxo_u[["lon", "lat", "uRe"]], coords)
+        regrid_v = rgd.create_regridder(tpxo_v[["lon", "lat", "vRe"]], coords)
 
-        # Interpolate each real and imaginary parts to segment.
+        # Interpolate each real and imaginary parts to self.
         uredest = regrid_u(tpxo_u[["lon", "lat", "uRe"]])["uRe"]
         uimdest = regrid_u(tpxo_u[["lon", "lat", "uIm"]])["uIm"]
         vredest = regrid_v(tpxo_v[["lon", "lat", "vRe"]])["vRe"]
@@ -3477,10 +3363,18 @@ class segment:
 
         # Fill missing data.
         # Need to do this first because complex would get converted to real
-        uredest = uredest.ffill(dim=self.coords.attrs["locations_name"], limit=None)
-        uimdest = uimdest.ffill(dim=self.coords.attrs["locations_name"], limit=None)
-        vredest = vredest.ffill(dim=self.coords.attrs["locations_name"], limit=None)
-        vimdest = vimdest.ffill(dim=self.coords.attrs["locations_name"], limit=None)
+        uredest = rgd.fill_missing_data(
+            uredest, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
+        )
+        uimdest = rgd.fill_missing_data(
+            uimdest, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
+        )
+        vredest = rgd.fill_missing_data(
+            vredest, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
+        )
+        vimdest = rgd.fill_missing_data(
+            vimdest, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
+        )
 
         # Convert to complex, remaining separate for u and v.
         ucplex = uredest + 1j * uimdest
@@ -3491,34 +3385,44 @@ class segment:
         # and convert ellipse back to amplitude and phase.
         SEMA, ECC, INC, PHA = ap2ep(ucplex, vcplex)
 
-        # Rotate to the model grid by adjusting the inclination.
-        # Requries that angle is in radians.
+        # Rotate
+        INC -= np.radians(
+            rot.get_rotation_angle(
+                rotational_method, self.hgrid, orientation=self.orientation
+            ).data[np.newaxis, :]
+        )
 
         ua, va, up, vp = ep2ap(SEMA, ECC, INC, PHA)
+        # Convert to real amplitude and phase.
 
         ds_ap = xr.Dataset(
             {f"uamp_{self.segment_name}": ua, f"vamp_{self.segment_name}": va}
         )
-        # up, vp aren't dataarrays
+        # up, vp aren't dataarraysf
         ds_ap[f"uphase_{self.segment_name}"] = (
-            ("constituent", self.coords.attrs["locations_name"]),
+            ("constituent", f"{coords.attrs['parallel']}_{self.segment_name}"),
             up,
         )  # radians
         ds_ap[f"vphase_{self.segment_name}"] = (
-            ("constituent", self.coords.attrs["locations_name"]),
+            ("constituent", f"{coords.attrs['parallel']}_{self.segment_name}"),
             vp,
         )  # radians
 
-        ds_ap, _ = xr.broadcast(ds_ap, times)
-
-        # Need to transpose so that time is first,
-        # so that it can be the unlimited dimension
+        times = xr.DataArray(
+            pd.date_range(
+                self.startdate, periods=1
+            ),  # Import pandas for this shouldn't be a big deal b/c it's already kinda required somewhere deep in some tree.
+            dims=["time"],
+        )
+        ds_ap = rgd.add_or_update_time_dim(ds_ap, times)
         ds_ap = ds_ap.transpose(
-            "time", "constituent", self.coords.attrs["locations_name"]
+            "time", "constituent", f"{coords.attrs['parallel']}_{self.segment_name}"
         )
 
         # Some things may have become missing during the transformation
-        ds_ap = ds_ap.ffill(dim=self.coords.attrs["locations_name"], limit=None)
+        ds_ap = rgd.fill_missing_data(
+            ds_ap, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
+        )
 
         self.encode_tidal_files_and_output(ds_ap, "tu")
 
@@ -3527,23 +3431,23 @@ class segment:
     def encode_tidal_files_and_output(self, ds, filename):
         """
         This function:
-         - Expands the dimensions (with the segment name)
-         - Renames some dimensions to be more specific to the segment
-         - Provides an output file encoding
-         - Exports the files.
+        - Expands the dimensions (with the segment name)
+        - Renames some dimensions to be more specific to the segment
+        - Provides an output file encoding
+        - Exports the files.
 
         Args:
             self.outfolder (str/path): The output folder to save the tidal files into
             dataset (xarray.Dataset): The processed tidal dataset
             filename (str): The output file name
         Returns:
-            *.nc files: Regridded [FILENAME] files in 'self.outfolder/[filename]_[segmentname].nc'
+            .nc files: Regridded [FILENAME] files in 'self.outfolder/[filename]_[segmentname].nc'
 
         General Description:
         This tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
-         - Converted code for RM6 segment class
-         - Implemented Horizontal Subsetting
-         - Combined all functions of NWA25 into a four function process (in the style of rm6) (expt.setup_tides_rectangular_boundaries, segment.coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
+        - Converted code for RM6 segment class
+        - Implemented Horizontal Subsetting
+        - Combined all functions of NWA25 into a four function process (in the style of rm6) (expt.setup_tides_rectangular_boundaries, coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
 
 
         Original Code was sourced from:
@@ -3556,48 +3460,34 @@ class segment:
 
 
         """
+        coords = rgd.coords(self.hgrid, self.orientation, self.segment_name)
 
         ## Expand Tidal Dimensions ##
-        if "z" in ds.coords or "constituent" in ds.dims:
-            offset = 0
-        else:
-            offset = 1
-        if self.orientation in ["south", "north"]:
-            ds = ds.expand_dims(f"ny_{self.segment_name}", 2 - offset)
-        elif self.orientation in ["west", "east"]:
-            ds = ds.expand_dims(f"nx_{self.segment_name}", 3 - offset)
+
+        for var in ds:
+
+            ds = rgd.add_secondary_dimension(ds, str(var), coords, self.segment_name)
 
         ## Rename Tidal Dimensions ##
         ds = ds.rename(
             {"lon": f"lon_{self.segment_name}", "lat": f"lat_{self.segment_name}"}
         )
-        if "z" in ds.coords:
-            ds = ds.rename({"z": f"nz_{self.segment_name}"})
-        if self.orientation in ["south", "north"]:
-            ds = ds.rename(
-                {self.coords.attrs["locations_name"]: f"nx_{self.segment_name}"}
-            )
-        elif self.orientation in ["west", "east"]:
-            ds = ds.rename(
-                {self.coords.attrs["locations_name"]: f"ny_{self.segment_name}"}
-            )
 
+        ds = rgd.mask_dataset(
+            ds, self.hgrid, self.bathymetry, self.orientation, self.segment_name
+        )
         ## Perform Encoding ##
-        for v in ds:
-            ds[v].encoding["_FillValue"] = 1.0e20
+
         fname = f"{filename}_{self.segment_name}.nc"
         # Set format and attributes for coordinates, including time if it does not already have calendar attribute
         # (may change this to detect whether time is a time type or a float).
         # Need to include the fillvalue or it will be back to nan
         encoding = {
-            "time": dict(_FillValue=1.0e20),
+            "time": dict(dtype="float64", calendar="gregorian", _FillValue=1.0e20),
             f"lon_{self.segment_name}": dict(dtype="float64", _FillValue=1.0e20),
             f"lat_{self.segment_name}": dict(dtype="float64", _FillValue=1.0e20),
         }
-        if "calendar" not in ds["time"].attrs and "modulo" not in ds["time"].attrs:
-            encoding.update(
-                {"time": dict(dtype="float64", calendar="gregorian", _FillValue=1.0e20)}
-            )
+        encoding = rgd.generate_encoding(ds, encoding, default_fill_value=1.0e20)
 
         ## Export Files ##
         ds.to_netcdf(
@@ -3606,4 +3496,4 @@ class segment:
             encoding=encoding,
             unlimited_dims="time",
         )
-        return
+        return ds

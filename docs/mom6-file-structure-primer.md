@@ -106,3 +106,9 @@ These files can be big, so it is usually helpful to store them somewhere without
   confusing, and getting them wrong can likewise cause some cryptic error messages! These boundaries do not have to
   follow lines of constant longitude and latitude, but it is much easier to set things up if they do. For an example
   of a curved boundary, see this [Northwest Atlantic experiment](https://github.com/jsimkins2/nwa25/tree/main).
+
+* `forcing/{tz/tu}_segment**`
+  The boundary tidal segments, numbered the same way as in `MOM_input`. The dimensions and coordinates are fairly
+  confusing, and getting them wrong can likewise cause some cryptic error messages! These boundaries do not have to
+  follow lines of constant longitude and latitude, but it is much easier to set things up if they do. For an example
+  of a curved boundary, see this [Northwest Atlantic experiment](https://github.com/jsimkins2/nwa25/tree/main).

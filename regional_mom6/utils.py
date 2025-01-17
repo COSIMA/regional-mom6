@@ -1,4 +1,8 @@
 import numpy as np
+import logging
+import sys
+import xarray as xr
+from regional_mom6 import regridding as rgd
 
 
 def vecdot(v1, v2):
@@ -294,3 +298,87 @@ def ep2ap(SEMA, ECC, INC, PHA):
     vp = -np.angle(cv)
 
     return ua, va, up, vp
+
+
+def setup_logger(
+    name: str, set_handler=False, log_level=logging.INFO
+) -> logging.Logger:
+    """
+    Setup general config for a logger.
+    """
+    logger = logging.getLogger(name)
+    logger.setLevel(log_level)
+    if set_handler and not logger.hasHandlers():
+        # Create a handler to print to stdout (Jupyter captures stdout)
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setLevel(log_level)
+
+        # Create a formatter (optional)
+        formatter = logging.Formatter("%(name)s.%(funcName)s:%(levelname)s:%(message)s")
+        handler.setFormatter(formatter)
+
+        # Add the handler to the logger
+        logger.addHandler(handler)
+    return logger
+
+
+def rotate_complex(u, v, radian_angle):
+    """
+    Rotate velocities to grid orientation using complex number math (Same as rotate)
+    Args:
+        u (xarray.DataArray): The u-component of the velocity.
+        v (xarray.DataArray): The v-component of the velocity.
+        radian_angle (xarray.DataArray): The angle of the grid in RADIANS
+
+    Returns:
+        Tuple[xarray.DataArray, xarray.DataArray]: The rotated u and v components of the velocity.
+    """
+
+    # express velocity in the complex plan
+    vel = u + v * 1j
+    # rotate velocity using grid angle theta
+    vel = vel * np.exp(1j * radian_angle)
+
+    # From here you can easily get the rotated u, v, or the magnitude/direction of the currents:
+    u = np.real(vel)
+    v = np.imag(vel)
+
+    return u, v
+
+
+def rotate(u, v, radian_angle):
+    """
+    Rotate the velocities to the grid orientation.
+    Args:
+        u (xarray.DataArray): The u-component of the velocity.
+        v (xarray.DataArray): The v-component of the velocity.
+        radian_angle (xarray.DataArray): The angle of the grid in RADIANS
+
+    Returns:
+        Tuple[xarray.DataArray, xarray.DataArray]: The rotated u and v components of the velocity.
+    """
+
+    u_rot = u * np.cos(radian_angle) - v * np.sin(radian_angle)
+    v_rot = u * np.sin(radian_angle) + v * np.cos(radian_angle)
+    return u_rot, v_rot
+
+
+def is_rectilinear_hgrid(hgrid: xr.Dataset, rtol: float = 1e-3) -> bool:
+    """
+    Check if the hgrid is a rectilinear grid. From mom6_bathy.grid.is_rectangular by Alper (Altuntas
+    )
+    Check if the grid is a rectangular lat-lon grid by comparing the first and last rows and columns of the tlon and tlat arrays.
+
+    Args:
+        hgrid (xarray.Dataset): The horizontal grid dataset.
+        rtol (float): Relative tolerance. Default is 1e-3.
+    """
+    ds_t = rgd.get_hgrid_arakawa_c_points(hgrid)
+    if (
+        np.allclose(ds_t.tlon[:, 0], ds_t.tlon[0, 0], rtol=rtol)
+        and np.allclose(ds_t.tlon[:, -1], ds_t.tlon[0, -1], rtol=rtol)
+        and np.allclose(ds_t.tlat[0, :], ds_t.tlat[0, 0], rtol=rtol)
+        and np.allclose(ds_t.tlat[-1, :], ds_t.tlat[-1, 0], rtol=rtol)
+    ):
+        return True
+    return False
