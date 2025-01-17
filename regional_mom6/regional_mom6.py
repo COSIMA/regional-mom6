@@ -1714,7 +1714,7 @@ class experiment:
             raise ValueError(
                 "Only rectangular or curvilinear boundaries are supported by this method."
             )
-        if tidal_constituents is None:
+        if tidal_constituents is not None:
             self.tidal_constituents = tidal_constituents
         tpxo_h = (
             xr.open_dataset(Path(tpxo_elevation_filepath))
