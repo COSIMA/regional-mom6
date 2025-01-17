@@ -1676,7 +1676,7 @@ class experiment:
         self,
         tpxo_elevation_filepath,
         tpxo_velocity_filepath,
-        tidal_constituents="read_from_expt_init",
+        tidal_constituents=None,
         boundary_type="rectangular",
         bathymetry_path=None,
         rotational_method=rot.RotationMethod.GIVEN_ANGLE,
@@ -1688,7 +1688,7 @@ class experiment:
             path_to_td (str): Path to boundary tidal file.
             tpxo_elevation_filepath: Filepath to the TPXO elevation product. Generally of the form h_tidalversion.nc
             tpxo_velocity_filepath: Filepath to the TPXO velocity product. Generally of the form u_tidalversion.nc
-            tidal_constituents: List of tidal constituents to include in the regridding. Default is [0] which is the M2 constituent.
+            tidal_constituents: List of tidal constituents to include in the regridding. Default is set in the constructor
             boundary_type (str): Type of boundary. Currently, only rectangle is supported. Here, rectangle refers to boundaries that are parallel to lines of constant longitude or latitude. Curvilinear is also suported.
             bathymetry_path (str): Path to the bathymetry file. Default is None, in which case the BC is not masked
             rotational_method (str): Method to use for rotating the tidal velocities. Default is 'GIVEN_ANGLE'.
@@ -1714,7 +1714,7 @@ class experiment:
             raise ValueError(
                 "Only rectangular or curvilinear boundaries are supported by this method."
             )
-        if tidal_constituents != "read_from_expt_init":
+        if tidal_constituents is None:
             self.tidal_constituents = tidal_constituents
         tpxo_h = (
             xr.open_dataset(Path(tpxo_elevation_filepath))
