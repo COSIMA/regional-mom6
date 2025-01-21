@@ -548,6 +548,26 @@ def generate_rectangular_hgrid(lons, lats):
     )
 
 
+def find_files_by_pattern(paths: list, patterns: list, error_message=None) -> list:
+    """
+    Function searchs paths for patterns and returns the list of the file paths with that pattern
+    """
+    # Use glob to find all files
+    all_files = []
+    for pattern in patterns:
+        for path in paths:
+            all_files.extend(Path(path).glob(pattern))
+
+    if len(all_files) == 0:
+        if error_message is None:
+            return "No files found at the following paths: {} for the following patterns: {}".format(
+                paths, patterns
+            )
+        else:
+            return error_message
+    return all_files
+
+
 class experiment:
     """The main class for setting up a regional experiment.
 
@@ -785,49 +805,124 @@ class experiment:
     def __str__(self) -> str:
         return json.dumps(self.write_config_file(export=False, quiet=True), indent=4)
 
+    @property
+    def bathymetry(self):
+        try:
+            return xr.open_dataset(
+                self.mom_input_dir / "bathymetry.nc",
+                decode_cf=False,
+                decode_times=False,
+            )
+        except Exception as e:
+            print(
+                f"Error: {e}. Opening bathymetry threw an error! Make sure you've successfully run the setup_bathmetry method, or copied your own bathymetry.nc file into {self.mom_input_dir}."
+            )
+            return None
+
+    @property
+    def init_velocities(self):
+        try:
+            return xr.open_dataset(
+                self.mom_input_dir / "init_vel.nc",
+                decode_cf=False,
+                decode_times=False,
+            )
+        except Exception as e:
+            print(
+                f"Error: {e}. Opening init_vel threw an error! Make sure you've successfully run the setup_initial_condition method, or copied your own init_vel.nc file into {self.mom_input_dir}."
+            )
+            return
+
+    @property
+    def init_tracers(self):
+        try:
+            return xr.open_dataset(
+                self.mom_input_dir / "init_tracers.nc",
+                decode_cf=False,
+                decode_times=False,
+            )
+        except Exception as e:
+            print(
+                f"Error: {e}. Opening init_tracers threw an error! Make sure you've successfully run the setup_initial_condition method, or copied your own init_tracers.nc file into {self.mom_input_dir}."
+            )
+            return
+
+    @property
+    def ocean_state_boundary_paths(self):
+        """
+        Finds the ocean state files from disk, and prints the file paths
+        """
+        ocean_state_path = Path(self.mom_input_dir / "forcing")
+        patterns = [
+            "forcing_*",
+            "weights/bi*",
+        ]
+        return find_files_by_pattern(
+            [ocean_state_path, self.mom_input_dir],
+            patterns,
+            error_message="No ocean state files set up yet (or files misplaced from {}). Call `setup_ocean_state_boundaries` method to set up ocean state.".format(
+                ocean_state_path
+            ),
+        )
+
+    @property
+    def tides_boundary_paths(self):
+        """
+        Finds the tides files from disk, and prints the file paths
+        """
+        tides_path = self.mom_input_dir / "forcing"
+        patterns = ["regrid*", "tu_*", "tz_*"]
+        return find_files_by_pattern(
+            [tides_path, self.mom_input_dir],
+            patterns,
+            error_message="No tides files set up yet (or files misplaced from {}). Call `setup_tides_boundaries` method to set up tides.".format(
+                tides_path
+            ),
+        )
+
+    @property
+    def era5_paths(self):
+        """
+        Finds the ERA5 files from disk, and prints the file paths
+        """
+        era5_path = self.mom_input_dir / "forcing"
+        # Use glob to find all *_ERA5.nc files
+        return find_files_by_pattern(
+            [era5_path],
+            ["*_ERA5.nc"],
+            error_message="No era5 files set up yet (or files misplaced from {}). Call `setup_era5` method to set up era5.".format(
+                era5_path
+            ),
+        )
+
+    @property
+    def initial_condition_paths(self):
+        """
+        Finds the initial condition files from disk, and prints the file paths
+        """
+        forcing_path = self.mom_input_dir / "forcing"
+        return find_files_by_pattern(
+            [forcing_path, self.mom_input_dir],
+            ["init_*.nc"],
+            error_message="No initial conditions files set up yet (or files misplaced from {}). Call `setup_initial_condition` method to set up initial conditions.".format(
+                forcing_path
+            ),
+        )
+
+    @property
+    def bathymetry_path(self):
+        """
+        Finds the bathymetry file from disk, and prints the file path
+        """
+        if (self.mom_input_dir / "bathymetry.nc").exists():
+            return str(self.mom_input_dir / "bathymetry.nc")
+        else:
+            return "Not Found"
+
     def __getattr__(self, name):
 
         ## First, check whether the attribute is an input file
-
-        if name == "bathymetry":
-            try:
-                return xr.open_dataset(
-                    self.mom_input_dir / "bathymetry.nc",
-                    decode_cf=False,
-                    decode_times=False,
-                )
-            except Exception as e:
-                print(
-                    f"Error: {e}. Opening bathymetry threw an error! Make sure you've successfully run the setup_bathmetry method, or copied your own bathymetry.nc file into {self.mom_input_dir}."
-                )
-                return None
-        elif name == "init_velocities":
-            try:
-                return xr.open_dataset(
-                    self.mom_input_dir / "init_vel.nc",
-                    decode_cf=False,
-                    decode_times=False,
-                )
-            except Exception as e:
-                print(
-                    f"Error: {e}. Opening init_vel threw an error! Make sure you've successfully run the setup_initial_condition method, or copied your own init_vel.nc file into {self.mom_input_dir}."
-                )
-                return
-
-        elif name == "init_tracers":
-            try:
-                return xr.open_dataset(
-                    self.mom_input_dir / "init_tracers.nc",
-                    decode_cf=False,
-                    decode_times=False,
-                )
-            except Exception as e:
-                print(
-                    f"Error: {e}. Opening init_tracers threw an error! Make sure you've successfully run the setup_initial_condition method, or copied your own init_tracers.nc file into {self.mom_input_dir}."
-                )
-                return
-
-        elif "segment" in name:
+        if "segment" in name:
             try:
                 return xr.open_mfdataset(
                     str(self.mom_input_dir / f"*{name}*.nc"),
@@ -981,93 +1076,6 @@ class experiment:
         vcoord.to_netcdf(self.mom_input_dir / "vcoord.nc")
 
         return vcoord
-
-    @property
-    def ocean_state_boundaries(self):
-        """
-        Finds the ocean state files from disk, and prints the file paths
-        """
-        ocean_state_path = self.mom_input_dir / "forcing"
-        # Use glob to find all tides files
-        patterns = [
-            "forcing_*",
-            "weights/bi*",
-        ]
-        all_files = []
-        for pattern in patterns:
-            all_files.extend(Path(ocean_state_path).glob(pattern))
-            all_files.extend(Path(self.mom_input_dir).glob(pattern))
-
-        if len(all_files) == 0:
-            return "No ocean state files set up yet (or files misplaced from {}). Call `setup_ocean_state_boundaries` method to set up ocean state.".format(
-                ocean_state_path
-            )
-        return all_files
-
-    @property
-    def tides_boundaries(self):
-        """
-        Finds the tides files from disk, and prints the file paths
-        """
-        tides_path = self.mom_input_dir / "forcing"
-        # Use glob to find all tides files
-        patterns = ["regrid*", "tu_*", "tz_*"]
-        all_files = []
-        for pattern in patterns:
-            all_files.extend(Path(tides_path).glob(pattern))
-            all_files.extend(Path(self.mom_input_dir).glob(pattern))
-
-        if len(all_files) == 0:
-            return "No tides files set up yet (or files misplaced from {}). Call `setup_tides_boundaries` method to set up tides.".format(
-                tides_path
-            )
-
-        # Open the files as xarray datasets
-        # datasets = [xr.open_dataset(file) for file in all_files]
-        return all_files
-
-    @property
-    def era5(self):
-        """
-        Finds the ERA5 files from disk, and prints the file paths
-        """
-        era5_path = self.mom_input_dir / "forcing"
-        # Use glob to find all *_ERA5.nc files
-        all_files = glob.glob(Path(era5_path / "*_ERA5.nc"))
-        if len(all_files) == 0:
-            return "No era5 files set up yet (or files misplaced from {}). Call `setup_era5` method to set up era5.".format(
-                era5_path
-            )
-
-        # Open the files as xarray datasets
-        # datasets = [xr.open_dataset(file) for file in all_files]
-        return all_files
-
-    @property
-    def initial_condition(self):
-        """
-        Finds the initial condition files from disk, and prints the file paths
-        """
-        forcing_path = self.mom_input_dir / "forcing"
-        all_files = glob.glob(Path(forcing_path / "init_*.nc"))
-        all_files = glob.glob(Path(self.mom_input_dir / "init_*.nc"))
-        if len(all_files) == 0:
-            return "No initial conditions files set up yet (or files misplaced from {}). Call `setup_initial_condition` method to set up initial conditions.".format(
-                forcing_path
-            )
-
-        # Open the files as xarray datasets
-        # datasets = [xr.open_dataset(file) for file in all_files]
-        # return datasets
-
-        return all_files
-
-    @property
-    def bathymetry_property(self):
-        """
-        Finds the bathymetry file from disk, and prints the file path
-        """
-        return str(self.mom_input_dir / "bathymetry.nc")
 
     def write_config_file(self, path=None, export=True, quiet=False):
         """
