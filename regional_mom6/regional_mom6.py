@@ -1969,10 +1969,13 @@ class experiment:
             "Regridding successful! Now calling `tidy_bathymetry` method for some finishing touches..."
         )
 
-        self.tidy_bathymetry(fill_channels, positive_down, bathymetry=bathymetry)
         print("setup bathymetry has finished successfully.")
-
-        return bathymetry
+        return self.tidy_bathymetry(
+            fill_channels,
+            positive_down,
+            bathymetry=bathymetry,
+            write_to_file=write_to_file,
+        )
 
     def tidy_bathymetry(
         self,
@@ -1980,6 +1983,9 @@ class experiment:
         positive_down=False,
         vertical_coordinate_name="depth",
         bathymetry=None,
+        write_to_file=True,
+        longitude_coordinate_name="lon",
+        latitude_coordinate_name="lat",
     ):
         """
         An auxiliary function for bathymetry used to fix up the metadata and remove inland
@@ -2014,7 +2020,11 @@ class experiment:
 
         ## Ensure correct encoding
         bathymetry = xr.Dataset(
-            {"depth": (["ny", "nx"], bathymetry[vertical_coordinate_name].values)}
+            {"depth": (["ny", "nx"], bathymetry[vertical_coordinate_name].values)},
+            coords={
+                "lon": (["nx", "ny"], bathymetry[longitude_coordinate_name].values),
+                "lat": (["nx", "ny"], bathymetry[latitude_coordinate_name].values),
+            },
         )
         bathymetry.attrs["depth"] = "meters"
         bathymetry.attrs["standard_name"] = "bathymetric depth at T-cell centers"
@@ -2172,15 +2182,13 @@ class experiment:
             ~(bathymetry.depth <= self.minimum_depth), self.minimum_depth + 0.1
         )
 
-        if read_bathy_from_file:
+        if write_to_file:
             bathymetry.expand_dims({"ntiles": 1}).to_netcdf(
                 self.mom_input_dir / "bathymetry.nc",
                 mode="w",
                 encoding={"depth": {"_FillValue": None}},
             )
-
-        print("done.")
-        return
+        return bathymetry
 
     def run_FRE_tools(self, layout=None):
         """A wrapper for FRE Tools ``check_mask``, ``make_solo_mosaic``, and ``make_quick_mosaic``.
@@ -2795,7 +2803,8 @@ class experiment:
                 i for i in range(self.date_range[0].year, self.date_range[1].year + 1)
             ]
             # construct a list of all paths for all years to use for open_mfdataset
-            paths_per_year = [Path(era5_path / fname / year) for year in years]
+            #          paths_per_year = [Path(era5_path / fname / year) for year in years]
+            paths_per_year = [Path(f"{era5_path}/{fname}/{year}/") for year in years]
             all_files = []
             for path in paths_per_year:
                 # Use glob to find all files that match the pattern
@@ -3469,7 +3478,7 @@ class segment:
 
         ## Export Files ##
         ds.to_netcdf(
-            Path(self.outfolder / "forcing" / fname),
+            Path(self.outfolder / fname),
             engine="netcdf4",
             encoding=encoding,
             unlimited_dims="time",
