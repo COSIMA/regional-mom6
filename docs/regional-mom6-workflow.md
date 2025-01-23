@@ -1,32 +1,28 @@
-# Regional MOM6 Workflow
+# regional-mom6 workflow
 
-Regional MOM6(RM6) sets up all the data and files for running a basic regional case of MOM6.
+regional-mom6 sets up all the data and files for running a basic regional configuration case of MOM6.
+This includes:
 
-It includes:
+1. Run files like ``MOM_override``, ``MOM_input``, and ``diag_table``.
+2. Boundary condition files like velocity, tracers, tides.
+3. Basic input files like horizontal grid (``hgrid``) and the bathymetry.
+4. Initial condition files.
 
-1. Run Files like MOM_override, MOM_input, diag_table
-2. BC File like velocity, tracers, tides
-3. Basic input files like hgrid & bathymetry.
-4. Initial Condition files
+regional-mom6 has its own way of grabbing and organizing files for the user.
 
+regional-mom6 organizes all files into two directories: an "input" directory and a "run" directory.
+The input directory includes all of the data we need for our regional case. The run directory includes all of the parameters and outputs (``diags``) we want for our model. Please see the structure primer document for more information. The rest of the directories include the data like the initial and the boundary conditions.
 
-To set up a case with all the files, RM6 has its own way of grabbing and organizing files for the user.
+Therefore, to start for the user to use regional-mom6, they should have two (empty or not) directories for the input and run files, as well as directories for their input data. 
 
-RM6 organizes all files into two directories, a "input" directory, and a "run" directory. The input directory includes all of the data we need for our regional case. The run directory includes all of the parameters and outputs (diags) we want for our model. Please see the structure primer document for more information.
+The user may also need to provide a path to ``FRE_tools``. (This depends on the HPC used, e.g., on Australia's Gadi this is required, on NCAR-Derecho/Casper this is not required.)
 
-The other folders are the data directories. RM6 needs the user to collect the initial condition & boundary condition data and put them into a folder(s). 
+To create all these files, regional-mom6 uses a class called "Experiment" to hold all of the parameters and functions. Users can follow a few quick steps to setup their cases:
+1. Initalise the experiment object with all the directories and parameters wanted. The initalisation can also create the horizontal grid and vertical coordinate hgrid or read two files called "hgrid.nc" and "vcoord.nc" that are found in the input directory.
+2. Call different "setup_this_and_that" functions to setup all the data needed for the case (bathymetry, initial condition, velocity, tracers, tides).
+3. Finally, call "setup_run_directory" to setup the run files like ``MOM_override`` for their cases.
+4. Based on how MOM6 is configured on the machine used, there may be follow-up steps unique to each situation. regional-mom6 provides all of what the user needs to run MOM6.
 
-Therefore, to start for the user to use RM6, they should have two (empty or not) directories for the input and run files, as well as directories for their input data. 
-
-Depending on the computer used (NCAR-Derecho/Casper doesn't need this), the user may also need to provide a path to FRE_tools. 
-
-To create all these files, RM6 using a class called "Experiment" to hold all of the parameters and functions. Users can follow a few quick steps to setup their cases:
-1. Initalize the experiment object with all the directories and parameters wanted. The initalization can also create the hgrid and vertical coordinate or accept two files called "hgrid.nc" and "vcoord.nc" in the input directory.
-2. Call different "setup..." functions to setup all the data needed for the case (bathymetry, initial condition, velocity, tracers, tides).
-3. Finally, call "setup_run_directory" to setup the run files like MOM_override for their cases.
-4. Based on how MOM6 is setup on the computer, there are follow-up steps unique to each situation. RM6 provides all of what the user needs to run MOM6.
-
-
-There are a few convience functions to help support the process.
+There are a few convenience functions to help support the process.
 1. Very light read and write config file functions to easily save experiments
 2. A change_MOM_parameter function to easily adjust MOM parameter values from python.
