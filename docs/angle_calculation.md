@@ -1,5 +1,6 @@
-# Rotation and angle calculation in regional-mom6 using MOM6 Angle Calculation  
-This document explains the implementation of MOM6 angle calculation in regional-mom6, which is the process by which regional-mom6 calculates the angle of curved hgrids. 
+# Rotation and angle calculation in regional-mom6 using MOM6 Angle Calculation
+
+Here we explain the implementation of MOM6 angle calculation in regional-mom6, which is the process by which regional-mom6 calculates the angle of curved horizontal grids (``hgrids``).
 
 **Issue:** MOM6 doesn't actually use the user-provided "angle_dx" field in input hgrids, but internally calculates the angle. 
 

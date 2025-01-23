@@ -92,7 +92,7 @@ The bibtex entry for the paper is:
    demos
    mom6-file-structure-primer
    regional-mom6-workflow
-   angle_calc
+   angle_calculation
    api
    contributing
    docker_image_dev

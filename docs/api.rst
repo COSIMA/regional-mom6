@@ -1,5 +1,5 @@
-regional\_mom6 package
-======================
+API reference
+=============
 
 Submodules
 ----------
