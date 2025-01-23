@@ -20,7 +20,7 @@ authors:
     orcid: 0000-0001-8960-9557
     affiliation: "1, 2"
   - name: Chris Chapman
-    orcid: 0000-0002-6030-1951
+    orcid: 0000-0002-0877-4778
     affiliation: 5
     equal-contrib: true
   - name: John Reilly
