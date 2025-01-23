@@ -27,12 +27,13 @@ def initialize_grid_rotation_angles_using_expanded_hgrid(
     hgrid: xr.Dataset,
 ) -> xr.Dataset:
     """
-    Calculate the angle_dx in degrees from the true x (east?) direction counterclockwise) and return as dataarray
+    Calculate the ``angle_dx`` in degrees from the true x (east?) direction counter-clockwise) and return as a dataarray.
 
     Parameters
     ----------
     hgrid: xr.Dataset
         The hgrid dataset
+
     Returns
     -------
     xr.DataArray
@@ -53,11 +54,13 @@ def initialize_grid_rotation_angles_using_expanded_hgrid(
 
 def initialize_grid_rotation_angle(hgrid: xr.Dataset) -> xr.DataArray:
     """
-    Calculate the angle_dx in degrees from the true x (east?) direction counterclockwise) and return as DataArray
+    Calculate the ``angle_dx`` in degrees from the true x (east?) direction counter-clockwise) and return as a dataarray.
+
     Parameters
     ----------
     hgrid: xr.Dataset
         The hgrid dataset
+
     Returns
     -------
     xr.DataArray
@@ -92,7 +95,8 @@ def initialize_grid_rotation_angle(hgrid: xr.Dataset) -> xr.DataArray:
 
 def modulo_around_point(x, xc, Lx):
     """
-    This function calculates the modulo around a point. Return the modulo value of x in an interval [xc-(Lx/2) xc+(Lx/2)]. If Lx<=0, then it returns x without applying modulo arithmetic.
+    Calculate the modulo around a point. Return the modulo value of x in an interval [xc-(Lx/2), xc+(Lx/2)]. If Lx<=0, then it returns x without applying modulo arithmetic.
+
     Parameters
     ----------
     x: float
@@ -101,6 +105,7 @@ def modulo_around_point(x, xc, Lx):
         Center of modulo range
     Lx: float
         Modulo range width
+
     Returns
     -------
     float
@@ -121,7 +126,8 @@ def mom6_angle_calculation_method(
     point: xr.DataArray,
 ) -> xr.DataArray:
     """
-    Calculate the angle of the point using the MOM6 method in initialize_grid_rotation_angle. Built for vectorized calculations
+    Calculate the angle of the point using the MOM6 method in ``initialize_grid_rotation_angle``. Built for vectorized calculations.
+
     Parameters
     ----------
     len_lon: float
@@ -130,6 +136,7 @@ def mom6_angle_calculation_method(
         The four points around the point to calculate the angle from the hgrid requires an x and y component
     point: xr.DataArray
         The point to calculate the angle from the hgrid
+
     Returns
     -------
     xr.DataArray
@@ -178,7 +185,7 @@ def mom6_angle_calculation_method(
 
 def create_expanded_hgrid(hgrid: xr.Dataset, expansion_width=1) -> xr.Dataset:
     """
-    Adds an additional boundary to the hgrid to allow for the calculation of the angle_dx for the boundary points using the method in MOM6
+    Adds an additional boundary to the hgrid to allow for the calculation of the ``angle_dx`` for the boundary points using the method in MOM6.
     """
     if expansion_width != 1:
         raise NotImplementedError("Only expansion_width = 1 is supported")
@@ -255,7 +262,8 @@ def get_rotation_angle(
     rotational_method: RotationMethod, hgrid: xr.Dataset, orientation=None
 ):
     """
-    This function returns the rotation angle - THIS IS ALWAYS BASED ON THE ASSUMPTION OF DEGREES - based on the rotational method and provided hgrid, if orientation & coords are provided, it will assume the boundary is requested
+    Returns the rotation angle - THIS IS ALWAYS BASED ON THE ASSUMPTION OF DEGREES - based on the rotational method and provided hgrid, if orientation & coords are provided, it will assume the boundary is requested.
+
     Parameters
     ----------
     rotational_method: RotationMethod
@@ -264,6 +272,7 @@ def get_rotation_angle(
         The hgrid dataset
     orientation: xr.Dataset
         The orientation, which also lets us now that we are on a boundary
+
     Returns
     -------
     xr.DataArray
