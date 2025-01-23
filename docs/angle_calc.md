@@ -1,5 +1,5 @@
-# Rotation and angle calculation in RM6 using MOM6 Angle Calculation  
-This document explains the implementation of MOM6 angle calculation in RM6, which is the process by which RM6 calculates the angle of curved hgrids. 
+# Rotation and angle calculation in regional-mom6 using MOM6 Angle Calculation  
+This document explains the implementation of MOM6 angle calculation in regional-mom6, which is the process by which regional-mom6 calculates the angle of curved hgrids. 
 
 **Issue:** MOM6 doesn't actually use the user-provided "angle_dx" field in input hgrids, but internally calculates the angle. 
 
@@ -28,7 +28,7 @@ MOM6 only calculates the angle at t-points. For boundary rotation, we need the a
 
 ## Code Description
 
-Most calculation code is implemented in the rotation.py script, and the functional uses are in regrid_velocity_tracers and regrid_tides functions in the segment class of RM6.
+Most calculation code is implemented in the rotation.py script, and the functional uses are in regrid_velocity_tracers and regrid_tides functions in the segment class of regional-mom6.
 
 
 ### Calculation Code (rotation.py)

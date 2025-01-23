@@ -13,7 +13,7 @@ class RotationMethod(Enum):
     This Enum defines the rotational method to be used in boundary conditions. The main regional mom6 class passes in this enum to regrid_tides and regrid_velocity_tracers to determine the method used.
 
     EXPAND_GRID: This method is used with the basis that we can find the angles at the q-u-v points by pretending we have another row/column of the hgrid with the same distances as the t-point to u/v points in the actual grid then use the four poitns to calculate the angle the exact same way MOM6 does.
-    GIVEN_ANGLE: This is the original default RM6 method which expects a pre-given angle called angle_dx
+    GIVEN_ANGLE: This is the original default regional-mom6 method which expects a pre-given angle called angle_dx
     NO_ROTATION: Grids parallel to lat/lon axes, no rotation needed
     """
 

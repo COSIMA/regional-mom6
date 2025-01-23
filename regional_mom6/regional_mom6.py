@@ -1705,9 +1705,9 @@ class experiment:
 
         General Description:
         This tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
-        - Converted code for RM6 segment class
+        - Converted code for regional-mom6 segment class
         - Implemented Horizontal Subsetting
-        - Combined all functions of NWA25 into a four function process (in the style of rm6) (expt.setup_tides_rectangular_boundaries, coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
+        - Combined all functions of NWA25 into a four function process (in the style of regional-mom6) (expt.setup_tides_rectangular_boundaries, coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
 
 
         Original Code was sourced from:
@@ -1760,7 +1760,7 @@ class experiment:
         times = xr.DataArray(
             pd.date_range(
                 self.date_range[0], periods=1
-            ),  # Import pandas for this shouldn't be a big deal b/c it's already required in rm6 dependencies
+            ),  # Import pandas for this shouldn't be a big deal b/c it's already required in regional-mom6 dependencies
             dims=["time"],
         )
         # Initialize or find boundary segment
@@ -2735,7 +2735,7 @@ class experiment:
                         )
 
         # Add new fields
-        lines.append("! === Added with RM6 ===\n")
+        lines.append("! === Added with regional-mom6 ===\n")
         for key in MOM_file_dict.keys():
             if key not in original_MOM_file_dict.keys():
                 if MOM_file_dict[key]["override"]:
@@ -3269,9 +3269,9 @@ class segment:
 
         General Description:
         This tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
-        - Converted code for RM6 segment class
+        - Converted code for regional-mom6 segment class
         - Implemented Horizontal Subsetting
-        - Combined all functions of NWA25 into a four function process (in the style of rm6) (expt.setup_tides_rectangular_boundaries, segment.coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
+        - Combined all functions of NWA25 into a four function process (in the style of regional-mom6) (expt.setup_tides_rectangular_boundaries, segment.coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
 
 
         Original Code was sourced from:
@@ -3432,9 +3432,9 @@ class segment:
 
         General Description:
         This tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
-        - Converted code for RM6 segment class
+        - Converted code for regional-mom6 segment class
         - Implemented Horizontal Subsetting
-        - Combined all functions of NWA25 into a four function process (in the style of rm6) (expt.setup_tides_rectangular_boundaries, coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
+        - Combined all functions of NWA25 into a four function process (in the style of regional-mom6) (expt.setup_tides_rectangular_boundaries, coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
 
 
         Original Code was sourced from:

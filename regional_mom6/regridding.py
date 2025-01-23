@@ -1,5 +1,5 @@
 """
-Helper Functions to take the user though the regridding of boundary conditions and encoding for MOM6. Built for RM6
+Helper Functions to take the user though the regridding of boundary conditions and encoding for MOM6. Built for regional-mom6
 
 Steps:
 1. Initial Regridding -> Find the boundary of the hgrid, and regrid the forcing variables to that boundary. Call (initial_regridding) and then use the xesmf Regridder with whatever datasets you need.
@@ -150,7 +150,7 @@ def coords(
 
 def get_hgrid_arakawa_c_points(hgrid: xr.Dataset, point_type="t") -> xr.Dataset:
     """
-    Get the Arakawa C points from the Hgrid, originally written by Fred (Castruccio) and moved to RM6
+    Get the Arakawa C points from the Hgrid, originally written by Fred (Castruccio) and moved to regional-mom6
     Parameters
     ----------
     hgrid: xr.Dataset

@@ -1,6 +1,6 @@
 # Docker Image & Github Testing (For contributors)
 
-RM6 uses a docker image in github actions for holding large data. It wasn't directly being used, but for downloading the curvilinear grid for testing, we are using it. This document is a list of helpful commands to work on it.
+regional-mom6 uses a docker image in github actions for holding large data. It wasn't directly being used, but for downloading the curvilinear grid for testing, we are using it. This document is a list of helpful commands to work on it.
 
 The link to the image is here: 
 https://github.com/COSIMA/regional-mom6/pkgs/container/regional-test-env
@@ -8,7 +8,7 @@ https://github.com/COSIMA/regional-mom6/pkgs/container/regional-test-env
 For local development of the image to add data to it for testing, first pull it. 
 ```docker pull ghcr.io/cosima/regional-test-env:updated```
 
-Then to do testing of the image, we cd into our cloned version of RM6, and run this command. It mounts our code in the /workspace directory.:
+Then to do testing of the image, we cd into our cloned version of regional-mom6, and run this command. It mounts our code in the /workspace directory.:
 ```docker run -it --rm \ -v $(pwd):/workspace \ -w /workspace \ ghcr.io/cosima/regional-test-env:updated \ /bin/bash```
 
 The -it flag is for shell access, and the workspace stuff is to get our local code in the container.

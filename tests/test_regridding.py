@@ -1,4 +1,4 @@
-import regional_mom6 as rm6
+import regional_mom6 as rmom6
 import regional_mom6.rotation as rot
 import regional_mom6.regridding as rgd
 import pytest
