@@ -27,3 +27,7 @@ html_theme_options = {
     "repository_url": "https://github.com/COSIMA/regional-mom6",
     "use_repository_button": True,
 }
+
+# Disable demo notebook execution by nbsphinx (and therefore readthedocs notebook execution)
+nbsphinx_execute = 'never'
+
