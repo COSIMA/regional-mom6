@@ -1,8 +1,8 @@
 """
-Helper Functions to take the user though the regridding of boundary conditions and encoding for MOM6. Built for regional-mom6
+Custom-built helper functions to regrid the boundary conditions and encoding for MOM6.
 
 Steps:
-1. Initial Regridding -> Find the boundary of the hgrid, and regrid the forcing variables to that boundary. Call (initial_regridding) and then use the xesmf Regridder with whatever datasets you need.
+1. Initial Regridding -> Find the boundary of the ``hgrid``, and regrid the forcing variables to that boundary. Call (``initial_regridding``) and then use the xesmf.Regridder with whatever datasets you need.
 2. Work on some data issues
 
     1. For temperature - Make sure it's in Celsius
@@ -21,9 +21,6 @@ Steps:
 11. Re-add the "perpendicular" dimension
 12. ....Add  layer thickness of dz to the vertical forcings
 13. Add to encoding_dict a fill value(_FillValue) and zlib, dtype, for time, lat long, ....and each variable (no type needed though)
-
-
-
 """
 
 import xesmf as xe
