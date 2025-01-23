@@ -9,18 +9,19 @@ import numpy as np
 
 
 class RotationMethod(Enum):
-    """
-    This Enum defines the rotational method to be used in boundary conditions. The main regional mom6 class passes in this enum to regrid_tides and regrid_velocity_tracers to determine the method used.
+    """Prescribes the rotational method to be used in boundary conditions.
 
-    EXPAND_GRID: This method is used with the basis that we can find the angles at the q-u-v points by pretending we have another row/column of the hgrid with the same distances as the t-point to u/v points in the actual grid then use the four poitns to calculate the angle the exact same way MOM6 does.
-    GIVEN_ANGLE: This is the original default regional-mom6 method which expects a pre-given angle called angle_dx
-    NO_ROTATION: Grids parallel to lat/lon axes, no rotation needed
+    The main regional-mom6 class passes this ``Enum`` to ``regrid_tides`` and ``regrid_velocity_tracers`` to determine the method used.
+
+    Attributes:
+        EXPAND_GRID (int): This method is used with the basis that we can find the angles at the q-u-v points by pretending we have another row/column of the ``hgrid`` with the same distances as the t-point to u/v points in the actual grid then use the four points to calculate the angle. This method replicates exactly what MOM6 does.
+        GIVEN_ANGLE (int): Expects a pre-given angle called ``angle_dx``.
+        NO_ROTATION (int): Grid is along lines of constant latitude-longitude and therefore no rotation is required.
     """
 
     EXPAND_GRID = 1
     GIVEN_ANGLE = 2
     NO_ROTATION = 3
-
 
 def initialize_grid_rotation_angles_using_expanded_hgrid(
     hgrid: xr.Dataset,
