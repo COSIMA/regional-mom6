@@ -2,8 +2,8 @@
 
 regional-mom6 uses a docker image in github actions for holding large data. It wasn't directly being used, but for downloading the curvilinear grid for testing, we are using it. This document is a list of helpful commands to work on it.
 
-The link to the image is here: 
-https://github.com/COSIMA/regional-mom6/pkgs/container/regional-test-env
+The link to the image is at: 
+[https://github.com/COSIMA/regional-mom6/pkgs/container/regional-test-env](https://github.com/COSIMA/regional-mom6/pkgs/container/regional-test-env)
 
 For local development of the image to add data to it for testing, first pull it. 
 ```docker pull ghcr.io/cosima/regional-test-env:updated```
@@ -31,5 +31,3 @@ docker build -t my-custom-image . # IN THE DIRECTORY WITH THE DOCKERFILE
 docker tag my-custom-image ghcr.io/cosima/regional-test-env:<new_tag>
 docker push ghcr.io/cosima/regional-test-env:<new_tag>
 ```
-
-
