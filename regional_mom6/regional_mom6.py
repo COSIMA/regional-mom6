@@ -1141,7 +1141,7 @@ class experiment:
         model grid, fixes up metadata, and saves back to the input directory.
 
         Args:
-            raw_ic_path (Union[str, Path,list[str]]): Path(s) to raw initial condition file(s) to read in.
+            raw_ic_path (Union[str, Path, list[str]]): Path(s) to raw initial condition file(s) to read in.
             varnames (Dict[str, str]): Mapping from MOM6 variable/coordinate names to the names
                 in the input dataset. For example, ``{'xq': 'lonq', 'yh': 'lath', 'salt': 'so', ...}``.
             arakawa_grid (Optional[str]): Arakawa grid staggering type of the initial condition.
