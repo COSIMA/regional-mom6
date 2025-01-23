@@ -2022,8 +2022,8 @@ class experiment:
         bathymetry = xr.Dataset(
             {"depth": (["ny", "nx"], bathymetry[vertical_coordinate_name].values)},
             coords={
-                "lon": (["nx", "ny"], bathymetry[longitude_coordinate_name].values),
-                "lat": (["nx", "ny"], bathymetry[latitude_coordinate_name].values),
+                "lon": (["ny", "nx"], bathymetry[longitude_coordinate_name].values),
+                "lat": (["ny", "nx"], bathymetry[latitude_coordinate_name].values),
             },
         )
         bathymetry.attrs["depth"] = "meters"
