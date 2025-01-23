@@ -2318,11 +2318,11 @@ class experiment:
 
         # Check if we can implement tides
         if with_tides:
-            tidal_files_exist = any(Path(self.mom_input_dir).rglob("*tidal*"))
+            tidal_files_exist = any(Path(self.mom_input_dir).rglob("tu*"))
 
             if not tidal_files_exist:
                 raise ValueError(
-                    "No files with 'tidal' in their names found in the forcing or input directory. If you meant to use tides, please run the setup_tides_rectangle_boundaries method first. That does output some tidal files."
+                    "No files with 'tu' in their names found in the forcing or input directory. If you meant to use tides, please run the setup_tides_rectangle_boundaries method first. That does output some tidal files."
                 )
 
         # 3 different cases to handle:
