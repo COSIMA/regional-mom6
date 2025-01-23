@@ -91,7 +91,7 @@ The bibtex entry for the paper is:
    installation
    demos
    mom6-file-structure-primer
-   rm6_workflow
+   regional-mom6-workflow
    angle_calc
    api
    contributing
