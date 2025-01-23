@@ -185,35 +185,37 @@ def quadrilateral_areas(lat, lon, R=1):
 
 def ap2ep(uc, vc):
     """Convert complex tidal u and v to tidal ellipse.
-    Adapted from ap2ep.m for matlab
+
+    Adapted from ap2ep.m for Matlab
     Original copyright notice:
-    %Authorship Copyright:
-    %
-    %    The author retains the copyright of this program, while  you are welcome
-    % to use and distribute it as long as you credit the author properly and respect
-    % the program name itself. Particularly, you are expected to retain the original
-    % author's name in this original version or any of its modified version that
-    % you might make. You are also expected not to essentially change the name of
-    % the programs except for adding possible extension for your own version you
-    % might create, e.g. ap2ep_xx is acceptable.  Any suggestions are welcome and
-    % enjoy my program(s)!
-    %
-    %
-    %Author Info:
-    %_______________________________________________________________________
-    %  Zhigang Xu, Ph.D.
-    %  (pronounced as Tsi Gahng Hsu)
-    %  Research Scientist
-    %  Coastal Circulation
-    %  Bedford Institute of Oceanography
-    %  1 Challenge Dr.
-    %  P.O. Box 1006                    Phone  (902) 426-2307 (o)
-    %  Dartmouth, Nova Scotia           Fax    (902) 426-7827
-    %  CANADA B2Y 4A2                   email xuz@dfo-mpo.gc.ca
-    %_______________________________________________________________________
-    %
-    % Release Date: Nov. 2000, Revised on May. 2002 to adopt Foreman's northern semi
-    % major axis convention.
+
+    ```
+    Authorship Copyright:
+    
+    The author retains the copyright of this program, while  you are welcome
+    to use and distribute it as long as you credit the author properly and respect
+    the program name itself. Particularly, you are expected to retain the original
+    author's name in this original version or any of its modified version that
+    you might make. You are also expected not to essentially change the name of
+    the programs except for adding possible extension for your own version you
+    might create, e.g. ap2ep_xx is acceptable.  Any suggestions are welcome and
+    enjoy my program(s)!
+    
+    Author Info:
+    
+    Zhigang Xu, Ph.D.
+    (pronounced as Tsi Gahng Hsu)
+    Research Scientist
+    Coastal Circulation
+    Bedford Institute of Oceanography
+    1 Challenge Dr.
+    P.O. Box 1006                    Phone  (902) 426-2307 (o)
+    Dartmouth, Nova Scotia           Fax    (902) 426-7827
+    CANADA B2Y 4A2                   email xuz@dfo-mpo.gc.ca
+    
+    Release Date: Nov. 2000, Revised on May. 2002 to adopt Foreman's northern semi
+    major axis convention.
+    ```
 
     Args:
         uc: complex tidal u velocity
