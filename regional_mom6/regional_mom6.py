@@ -3272,11 +3272,9 @@ class segment:
         The tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
         - Converted code for regional-mom6 segment class
         - Implemented horizontal subsetting
-        - Combined all functions of NWA25 into a four function process (in the style of regional-mom6), that is:
-          * ``expt.setup_tides_rectangular_boundaries``,
-          * ``segment.coords``,
-          * ``segment.regrid_tides``,
-          * ``segment.encode_tidal_files_and_output``
+        - Combined all functions of NWA25 into a four function process (in the style of regional-mom6),
+        that is: ``expt.setup_tides_rectangular_boundaries``,  ``segment.coords``, ``segment.regrid_tides``,
+        and ``segment.encode_tidal_files_and_output``.
 
         Method was inspired by::
             Author(s): GFDL, James Simkins, Rob Cermak, etc..
