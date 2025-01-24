@@ -3261,6 +3261,17 @@ class segment:
         - Regrid the tidal elevation, and tidal velocity
         - Encode the output
 
+        General Description:
+            The tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
+
+            - Converted code for regional-mom6 segment class
+            - Implemented horizontal subsetting
+            - Combined all functions of NWA25 into a four function process (in the style of regional-mom6), that is:
+                * ``expt.setup_tides_rectangular_boundaries``,
+                * ``segment.coords``,
+                * ``segment.regrid_tides``,
+                * ``segment.encode_tidal_files_and_output``.
+
         Arguments:
             infile_td (str): Raw Tidal File/Dir
             tpxo_v, tpxo_u, tpxo_h (xarray.Dataset): Specific adjusted for MOM6 tpxo datasets (Adjusted with :func:`~setup_tides`)
@@ -3269,20 +3280,6 @@ class segment:
 
         Returns:
             .nc files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
-
-        General Description:
-
-        The tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
-
-        - Converted code for regional-mom6 segment class
-        - Implemented horizontal subsetting
-        - Combined all functions of NWA25 into a four function process (in the style of regional-mom6),
-        that is:
-
-          * ``expt.setup_tides_rectangular_boundaries``,
-          * ``segment.coords``,
-          * ``segment.regrid_tides``,
-          * ``segment.encode_tidal_files_and_output``.
 
         Method was inspired by::
             Author(s): GFDL, James Simkins, Rob Cermak, etc..
@@ -3427,6 +3424,7 @@ class segment:
     def encode_tidal_files_and_output(self, ds, filename):
         """
         This function:
+
         - Expands the dimensions (with the segment name)
         - Renames some dimensions to be more specific to the segment
         - Provides an output file encoding
