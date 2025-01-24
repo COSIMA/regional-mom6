@@ -1481,8 +1481,7 @@ class experiment:
 
         Arguments:
             raw_boundaries_path (str): Path to the directory containing the raw boundary forcing files.
-            boundaries (List[str]): List of cardinal directions for which to create boundary forcing files.
-            Default is ["south", "north", "west", "east"].
+            boundaries (List[str]): List of cardinal directions for which to create boundary forcing files. Default is ["south", "north", "west", "east"].
         """
 
         # Initial Condition
