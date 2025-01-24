@@ -2993,9 +2993,10 @@ class segment:
 
     def regrid_velocity_tracers(self, rotational_method=rot.RotationMethod.GIVEN_ANGLE):
         """
-        Cut out and interpolate the velocities and tracers
+        Cut out and interpolate the velocities and tracers.
+
         Arguments:
-        rotational_method (rot.RotationMethod): The method to use for rotation of the velocities. Currently, the default method, GIVEN_ANGLE, works even with non-rotated grids
+            rotational_method (rot.RotationMethod): The method to use for rotation of the velocities. Currently, the default method, ``GIVEN_ANGLE``, works even with non-rotated grids.
         """
 
         rawseg = xr.open_dataset(self.infile, decode_times=False, engine="netcdf4")
@@ -3266,11 +3267,7 @@ class segment:
 
             - Converted code for regional-mom6 segment class
             - Implemented horizontal subsetting
-            - Combined all functions of NWA25 into a four function process (in the style of regional-mom6), that is:
-                * ``expt.setup_tides_rectangular_boundaries``,
-                * ``segment.coords``,
-                * ``segment.regrid_tides``,
-                * ``segment.encode_tidal_files_and_output``.
+            - Combined all functions of NWA25 into a four function process (in the style of regional-mom6), that is: ``expt.setup_tides_rectangular_boundaries``, ``segment.coords``, ``segment.regrid_tides``, ``segment.encode_tidal_files_and_output``.
 
         Arguments:
             infile_td (str): Raw Tidal File/Dir
@@ -3281,12 +3278,14 @@ class segment:
         Returns:
             .nc files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
 
-        Method was inspired by::
+        Method was inspired by:
+            ```
             Author(s): GFDL, James Simkins, Rob Cermak, etc..
             Year: 2022
             Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
             Type: Python Functions, Source Code
             Web Address: https://github.com/jsimkins2/nwa25
+            ```
         """
 
         # Establish Coords
