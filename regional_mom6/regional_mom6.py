@@ -88,15 +88,16 @@ def create_experiment_from_config(
     create_hgrid_and_vgrid=True,
 ):
     """
-    Load an experiment variables from a config file and generate hgrid/vgrid.
-    Computer specific functionality eliminates the ability to pass file paths.
-    Basically another way to initialize. Sets a default folder of "mom_input/from_config" and "mom_run/from_config" unless specified
+    Load an experiment variables from a configuration file and generate the hgrid/vgrid.
+    Computer-specific functionality eliminates the ability to pass file paths.
+    Basically another way to initialize. Sets a default folder of "mom_input/from_config" and "mom_run/from_config" unless specified.
 
     Arguments:
         config_file_path (str): Path to the config file.
         mom_input_folder (str): Path to the MOM6 input folder. Default is "mom_input/from_config".
         mom_run_folder (str): Path to the MOM6 run folder. Default is "mom_run/from_config".
-        create_hgrid_and_vgrid (bool): Whether to create the hgrid and vgrid. Default is True.
+        create_hgrid_and_vgrid (bool): Whether to create the hgrid and the vgrid. Default is True.
+
     Returns:
         experiment: An experiment object with the fields from the config loaded in.
     """
@@ -203,6 +204,7 @@ def longitude_slicer(data, longitude_extent, longitude_coords):
             we want to slice to. Must be in increasing order.
         longitude_coords (Union[str, list[str]): The name or list of names of the
             longitude coordinates(s) in ``data``.
+
     Returns:
         xarray.Dataset: The sliced ``data``.
     """
@@ -298,13 +300,13 @@ def get_glorys_data(
     Arguments:
         longitude_extent (tuple of floats): Westward and Eastward extents of the segment
         latitude_extent (tuple of floats): Southward and Northward extents of the segment
-        timerange (tule of datetime strings): Start and end of the segment in format %Y-%m-%d %H:%M:%S
-        segment_range (str): name of the segment (minus .nc extension, eg east_unprocessed)
-        download_path (str): Location of where this script is saved
+        timerange (tuple of datetime strings): Start and end of the segment, each in format %Y-%m-%d %H:%M:%S
+        segment_range (str): name of the segment (without the ``.nc`` extension, e.g., ``east_unprocessed``)
+        download_path (str): Location of where the script is saved
         modify_existing (bool): Whether to add to an existing script or start a new one
-        buffer (float): number of
     """
-    buffer = 0.24  # Pads downloads to ensure that interpolation onto desired domain doesn't fail. Default of 0.24 is twice Glorys cell width (12th degree)
+    buffer = 0.24  # Pads downloads to ensure that interpolation onto desired domain doesn't fail.
+                   # Default is 0.24, just under three times the Glorys cell width (3 x 1/12 = 0.25).
 
     path = Path(download_path)
 
