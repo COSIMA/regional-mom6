@@ -1473,7 +1473,11 @@ class experiment:
 
     def get_glorys(self, raw_boundaries_path):
         """
-        This function is a wrapper for `get_glorys_data`, calling this function once for each of the rectangular boundary segments and the initial condition. For more complex boundary shapes, call `get_glorys_data` directly for each of your boundaries that aren't parallel to lines of constant latitude or longitude. For example, for an angled Northern boundary that spans multiple latitudes, you'll need to download a wider rectangle containing the entire boundary.
+        This is a wrapper that calls :func:`~get_glorys_data` once for each of the rectangular boundary segments
+        and the initial condition. For more complex boundary shapes, call :func:`~get_glorys_data` directly for
+        each of your boundaries that aren't parallel to lines of constant latitude or longitude. For example,
+        for an angled Northern boundary that spans multiple latitudes, you'll need to download a wider rectangle
+        containing the entire boundary.
 
         Arguments:
             raw_boundaries_path (str): Path to the directory containing the raw boundary forcing files.
