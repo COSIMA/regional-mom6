@@ -1,6 +1,6 @@
 # Docker Image & Github Testing (For contributors)
 
-regional-mom6 uses a docker image in github actions for holding large data. It wasn't directly being used, but for downloading the curvilinear grid for testing, we are using it. This document is a list of helpful commands to work on it.
+regional-mom6 uses a docker image in Github actions for holding large data. It wasn't directly being used, but for downloading the curvilinear grid for testing, we are using it. This document is a list of helpful commands to work on it.
 
 The link to the image is at: 
 [https://github.com/COSIMA/regional-mom6/pkgs/container/regional-test-env](https://github.com/COSIMA/regional-mom6/pkgs/container/regional-test-env)

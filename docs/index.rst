@@ -94,8 +94,7 @@ The bibtex entry for the paper is:
    regional-mom6-workflow
    angle_calculation
    api
-   contributing/contributing
-   contributing/docker_image_dev
+   contributing/index
    
 
 Indices and tables
