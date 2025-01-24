@@ -1476,13 +1476,13 @@ class experiment:
         This is a wrapper that calls :func:`~get_glorys_data` once for each of the rectangular boundary segments
         and the initial condition. For more complex boundary shapes, call :func:`~get_glorys_data` directly for
         each of your boundaries that aren't parallel to lines of constant latitude or longitude. For example,
-        for an angled Northern boundary that spans multiple latitudes, you'll need to download a wider rectangle
+        for an angled Northern boundary that spans multiple latitudes, we need to download a wider rectangle
         containing the entire boundary.
 
         Arguments:
             raw_boundaries_path (str): Path to the directory containing the raw boundary forcing files.
             boundaries (List[str]): List of cardinal directions for which to create boundary forcing files.
-            Default is ``["south", "north", "west", "east"]``.
+            Default is ["south", "north", "west", "east"].
         """
 
         # Initial Condition
