@@ -6,7 +6,6 @@ import xesmf as xe
 import subprocess
 from scipy.ndimage import binary_fill_holes
 import netCDF4
-from dask.diagnostics import ProgressBar
 import f90nml
 import datetime as dt
 import warnings
