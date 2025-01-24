@@ -1704,7 +1704,9 @@ class experiment:
             .nc files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
 
         General Description:
+        
         This tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
+
         - Converted code for regional-mom6 segment class
         - Implemented Horizontal Subsetting
         - Combined all functions of NWA25 into a four function process (in the style of regional-mom6) (expt.setup_tides_rectangular_boundaries, coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
@@ -3439,7 +3441,9 @@ class segment:
             .nc files: Regridded [FILENAME] files in 'self.outfolder/[filename]_[segmentname].nc'
 
         General Description:
+        
         This tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
+
         - Converted code for regional-mom6 segment class
         - Implemented Horizontal Subsetting
         - Combined all functions of NWA25 into a four function process (in the style of regional-mom6) (expt.setup_tides_rectangular_boundaries, coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
