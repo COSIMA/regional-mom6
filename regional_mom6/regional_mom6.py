@@ -1592,8 +1592,8 @@ class experiment:
             boundary_type (str): Type of box around region. Currently, only ``'rectangular'`` or ``'curvilinear'``
                 is supported.
             bathymetry_path (Optional[str]): Path to the bathymetry file. Default is None, in which case the
-                boundary conditionis not masked.
-            rotational_method (Optional[str]): Method to use for rotating the boundary velocities. Default is `'GIVEN_ANGLE'`.
+                boundary condition is not masked.
+            rotational_method (Optional[str]): Method to use for rotating the boundary velocities. Default is ``GIVEN_ANGLE``.
         """
         if not (boundary_type == "rectangular" or boundary_type == "curvilinear"):
             raise ValueError(
@@ -1716,7 +1716,8 @@ class experiment:
 
         - Converted code for regional-mom6 segment class
         - Implemented Horizontal Subsetting
-        - Combined all functions of NWA25 into a four function process (in the style of regional-mom6) (expt.setup_tides_rectangular_boundaries, coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
+        - Combined all functions of NWA25 into a four function process (in the style of regional-mom6), i.e.
+            ``expt.setup_tides_rectangular_boundaries``, ``coords``, ``segment.regrid_tides``, and ``segment.encode_tidal_files_and_output``.
 
 
         Code sourced from::
