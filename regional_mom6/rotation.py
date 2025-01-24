@@ -11,7 +11,8 @@ import numpy as np
 class RotationMethod(Enum):
     """Prescribes the rotational method to be used in boundary conditions.
 
-    The main regional-mom6 class passes this ``Enum`` to ``regrid_tides`` and ``regrid_velocity_tracers`` to determine the method used.
+    The main regional-mom6 class passes this ``Enum`` to :func:`regrid_tides` and :func:`regrid_velocity_tracers`
+    to determine the method used.
 
     Attributes:
         EXPAND_GRID (int): This method is used with the basis that we can find the angles at the q-u-v points by pretending we have another row/column of the ``hgrid`` with the same distances as the t-point to u/v points in the actual grid then use the four points to calculate the angle. This method replicates exactly what MOM6 does.
@@ -22,6 +23,7 @@ class RotationMethod(Enum):
     EXPAND_GRID = 1
     GIVEN_ANGLE = 2
     NO_ROTATION = 3
+
 
 def initialize_grid_rotation_angles_using_expanded_hgrid(
     hgrid: xr.Dataset,
@@ -93,29 +95,29 @@ def initialize_grid_rotation_angle(hgrid: xr.Dataset) -> xr.DataArray:
     )
 
 
-def modulo_around_point(x, xc, Lx):
+def modulo_around_point(x, x0, L):
     """
-    Calculate the modulo around a point. Return the modulo value of ``x`` in the interval ``[xc-(Lx/2), xc+(Lx/2)]``.
-    If ``Lx ≤ 0``, then it returns ``x`` without applying modulo arithmetic.
+    Calculate the modulo around a point. Return the modulo value of ``x`` in the interval ``[x0 - L/2, x0 + L/2]``.
+    If ``L ≤ 0``, then method returns ``x``.
 
     Parameters
     ----------
     x: float
-        Value to which to apply modulo arithmetic
-    xc: float
+       Value to which to apply modulo arithmetic
+    x0: float
         Center of modulo range
-    Lx: float
-        Modulo range width
+    L: float
+       Modulo range width
 
     Returns
     -------
     float
-        x shifted by an integer multiple of Lx to be close to xc
+        ``x`` shifted by an integer multiple of ``L`` to be close to ``x0``
     """
-    if Lx <= 0:
+    if L <= 0:
         return x
     else:
-        return ((x - (xc - Lx / 2)) % Lx) - Lx / 2 + xc
+        return ((x - (x0 - L / 2)) % L) - L / 2 + x0
 
 
 def mom6_angle_calculation_method(

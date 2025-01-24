@@ -189,7 +189,7 @@ def ap2ep(uc, vc):
     Adapted from ap2ep.m for Matlab. Copyright notice::
 
         Authorship:
-        
+
         The author retains the copyright of this program, while  you are welcome
         to use and distribute it as long as you credit the author properly and respect
         the program name itself. Particularly, you are expected to retain the original
@@ -210,7 +210,7 @@ def ap2ep(uc, vc):
         P.O. Box 1006                    Phone  (902) 426-2307 (o)
         Dartmouth, Nova Scotia           Fax    (902) 426-7827
         CANADA B2Y 4A2                   email xuz@dfo-mpo.gc.ca
-        
+
         Release Date: Nov. 2000, Revised on May. 2002 to adopt Foreman's northern semi
         major axis convention.
 
@@ -244,7 +244,7 @@ def ep2ap(SEMA, ECC, INC, PHA):
     Adapted from ep2ap.m for Matlab. Copyright notice::
 
         Authorship:
-        
+
         The author of this program retains the copyright of this program, while
         you are welcome to use and distribute this program as long as you credit
         the author properly and respect the program name itself. Particularly,
@@ -365,7 +365,7 @@ def rotate(u, v, radian_angle):
 def is_rectilinear_hgrid(hgrid: xr.Dataset, rtol: float = 1e-3) -> bool:
     """
     Check if the ``hgrid`` is a rectilinear grid by comparing the first and last rows and columns of the tlon and tlat arrays.
-    
+
     From ``mom6_bathy.grid.is_rectangular`` by Alper (Altuntas).
 
     Arguments:
