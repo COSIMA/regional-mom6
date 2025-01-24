@@ -1481,7 +1481,8 @@ class experiment:
 
         Arguments:
             raw_boundaries_path (str): Path to the directory containing the raw boundary forcing files.
-            boundaries (List[str]): List of cardinal directions for which to create boundary forcing files. Default is ``["south", "north", "west", "east"]``.
+            boundaries (List[str]): List of cardinal directions for which to create boundary forcing files.
+                Default is ``["south", "north", "west", "east"]``.
         """
 
         # Initial Condition
@@ -1576,21 +1577,23 @@ class experiment:
         rotational_method=rot.RotationMethod.GIVEN_ANGLE,
     ):
         """
-        This function is a wrapper for `simple_boundary`. Given a list of up to four cardinal directions,
-        it creates a boundary forcing file for each one. Ensure that the raw boundaries are all saved in the same directory,
-        and that they are named using the format `east_unprocessed.nc`
+        This is a wrapper for :func:`~simple_boundary`. Given a list of up to four cardinal directions,
+        it creates a boundary forcing file for each one. Ensure that the raw boundaries are all saved
+        in the same directory, and that they are named using the format ``east_unprocessed.nc``.
 
         Arguments:
             raw_boundaries_path (str): Path to the directory containing the raw boundary forcing files.
             varnames (Dict[str, str]): Mapping from MOM6 variable/coordinate names to the name in the
                 input dataset.
             boundaries (List[str]): List of cardinal directions for which to create boundary forcing files.
-                Default is `["south", "north", "west", "east"]`.
+                Default is ``["south", "north", "west", "east"]``.
             arakawa_grid (Optional[str]): Arakawa grid staggering type of the boundary forcing.
                 Either ``'A'`` (default), ``'B'``, or ``'C'``.
-            boundary_type (str): Type of box around region. Currently, only ``'rectangular'`` or ``'curvilinear'`` is supported.
-            bathymetry_path (Optional[str]): Path to the bathymetry file. Default is None, in which case the BC is not masked.
-            rotational_method (Optional[str]): Method to use for rotating the boundary velocities. Default is 'GIVEN_ANGLE'.
+            boundary_type (str): Type of box around region. Currently, only ``'rectangular'`` or ``'curvilinear'``
+                is supported.
+            bathymetry_path (Optional[str]): Path to the bathymetry file. Default is None, in which case the
+                boundary conditionis not masked.
+            rotational_method (Optional[str]): Method to use for rotating the boundary velocities. Default is `'GIVEN_ANGLE'`.
         """
         if not (boundary_type == "rectangular" or boundary_type == "curvilinear"):
             raise ValueError(
