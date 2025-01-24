@@ -1,5 +1,4 @@
 import numpy as np
-from pathlib import Path
 import dask.array as da
 import xarray as xr
 import xesmf as xe
