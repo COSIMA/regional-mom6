@@ -11,7 +11,7 @@ import numpy as np
 class RotationMethod(Enum):
     """Prescribes the rotational method to be used in boundary conditions.
 
-    The main regional-mom6 class passes this ``Enum`` to :func:`regrid_tides` and :func:`regrid_velocity_tracers`
+    The main regional-mom6 class passes this ``Enum`` to :func:`~regrid_tides` and :func:`~regrid_velocity_tracers`
     to determine the method used.
 
     Attributes:

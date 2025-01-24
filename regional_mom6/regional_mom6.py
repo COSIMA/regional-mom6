@@ -3252,18 +3252,20 @@ class segment:
         rotational_method=rot.RotationMethod.GIVEN_ANGLE,
     ):
         """
-        This function:
-        Regrids and interpolates the tidal data for MOM6, originally inspired by GFDL NWA25 repo code & edited by Ashley.
+        Regrids and interpolates the tidal data for MOM6.
         - Read in raw tidal data (all constituents)
         - Perform minor transformations/conversions
         - Regridded the tidal elevation, and tidal velocity
         - Encoding the output
 
+        [Method inspired by GFDL's NWA25 repository and edited by Ashley J. Barnes.]
+
         Arguments:
             infile_td (str): Raw Tidal File/Dir
-            tpxo_v, tpxo_u, tpxo_h (xarray.Dataset): Specific adjusted for MOM6 tpxo datasets (Adjusted with setup_tides)
+            tpxo_v, tpxo_u, tpxo_h (xarray.Dataset): Specific adjusted for MOM6 tpxo datasets (Adjusted with :func:`~setup_tides`)
             times (pd.DateRange): The start date of our model period
             rotational_method (rot.RotationMethod): The method to use for rotation of the velocities. Currently, the default method, GIVEN_ANGLE, works even with non-rotated grids
+
         Returns:
             .nc files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
 
