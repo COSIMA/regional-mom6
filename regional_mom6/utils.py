@@ -322,10 +322,11 @@ def setup_logger(
 def rotate_complex(u, v, radian_angle):
     """
     Rotate velocities to grid orientation using complex number math (Same as rotate)
-    Args:
+
+    Arguments:
         u (xarray.DataArray): The u-component of the velocity.
         v (xarray.DataArray): The v-component of the velocity.
-        radian_angle (xarray.DataArray): The angle of the grid in RADIANS
+        radian_angle (xarray.DataArray): The angle of the grid in radians.
 
     Returns:
         Tuple[xarray.DataArray, xarray.DataArray]: The rotated u and v components of the velocity.
@@ -346,10 +347,11 @@ def rotate_complex(u, v, radian_angle):
 def rotate(u, v, radian_angle):
     """
     Rotate the velocities to the grid orientation.
-    Args:
+
+    Arguments:
         u (xarray.DataArray): The u-component of the velocity.
         v (xarray.DataArray): The v-component of the velocity.
-        radian_angle (xarray.DataArray): The angle of the grid in RADIANS
+        radian_angle (xarray.DataArray): The angle of the grid in radians.
 
     Returns:
         Tuple[xarray.DataArray, xarray.DataArray]: The rotated u and v components of the velocity.
