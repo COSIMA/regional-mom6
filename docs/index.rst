@@ -85,7 +85,7 @@ The bibtex entry for the paper is:
 
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Contents:
 
    installation
@@ -94,8 +94,8 @@ The bibtex entry for the paper is:
    regional-mom6-workflow
    angle_calculation
    api
-   contributing
-   docker_image_dev
+   contributing/contributing
+   contributing/docker_image_dev
    
 
 Indices and tables
