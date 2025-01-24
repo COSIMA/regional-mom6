@@ -3262,8 +3262,15 @@ class segment:
         - Regrid the tidal elevation, and tidal velocity
         - Encode the output
 
+        Method was inspired by::
+            Author(s): GFDL, James Simkins, Rob Cermak, etc..
+            Year: 2022
+            Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
+            Type: Python Functions, Source Code
+            Web Address: https://github.com/jsimkins2/nwa25
+
         General Description:
-            The tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
+            The tidal data functions sourced from the GFDL's code above were changed in the following ways:
 
             - Converted code for regional-mom6 segment class
             - Implemented horizontal subsetting
@@ -3277,15 +3284,6 @@ class segment:
 
         Returns:
             .nc files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
-
-        Method was inspired by:
-            ```
-            Author(s): GFDL, James Simkins, Rob Cermak, etc..
-            Year: 2022
-            Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
-            Type: Python Functions, Source Code
-            Web Address: https://github.com/jsimkins2/nwa25
-            ```
         """
 
         # Establish Coords
