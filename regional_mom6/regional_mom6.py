@@ -3252,13 +3252,11 @@ class segment:
         rotational_method=rot.RotationMethod.GIVEN_ANGLE,
     ):
         """
-        Regrids and interpolates the tidal data for MOM6.
-        - Read in raw tidal data (all constituents)
+        Regrids and interpolates the tidal data for MOM6. Steps include:
+        - Read raw tidal data (all constituents)
         - Perform minor transformations/conversions
-        - Regridded the tidal elevation, and tidal velocity
-        - Encoding the output
-
-        [Method inspired by GFDL's NWA25 repository and edited by Ashley J. Barnes.]
+        - Regrid the tidal elevation, and tidal velocity
+        - Encode the output
 
         Arguments:
             infile_td (str): Raw Tidal File/Dir
@@ -3270,19 +3268,22 @@ class segment:
             .nc files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
 
         General Description:
-        This tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
+
+        The tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
         - Converted code for regional-mom6 segment class
-        - Implemented Horizontal Subsetting
-        - Combined all functions of NWA25 into a four function process (in the style of regional-mom6) (expt.setup_tides_rectangular_boundaries, segment.coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
+        - Implemented horizontal subsetting
+        - Combined all functions of NWA25 into a four function process (in the style of regional-mom6), that is:
+          * ``expt.setup_tides_rectangular_boundaries``,
+          * ``segment.coords``,
+          * ``segment.regrid_tides``,
+          * ``segment.encode_tidal_files_and_output``
 
-
-        Original Code was sourced from:
-        Author(s): GFDL, James Simkins, Rob Cermak, etc..
-        Year: 2022
-        Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
-        Version: N/A
-        Type: Python Functions, Source Code
-        Web Address: https://github.com/jsimkins2/nwa25
+        Method was inspired by::
+            Author(s): GFDL, James Simkins, Rob Cermak, etc..
+            Year: 2022
+            Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
+            Type: Python Functions, Source Code
+            Web Address: https://github.com/jsimkins2/nwa25
         """
 
         # Establish Coords
