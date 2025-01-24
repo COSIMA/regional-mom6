@@ -95,7 +95,7 @@ def latlon_to_cartesian(lat, lon, R=1):
     """Convert latitude and longitude (in degrees) to Cartesian coordinates on
     a sphere of radius ``R``. By default ``R = 1``.
 
-    Args:
+    Arguments:
         lat (float): Latitude (in degrees).
         lon (float): Longitude (in degrees).
         R (float): The radius of the sphere; default: 1.
@@ -132,7 +132,7 @@ def quadrilateral_areas(lat, lon, R=1):
     By default, ``R = 1``. The quadrilaterals are formed by constant latitude and
     longitude lines on the ``lat``-``lon`` grid provided.
 
-    Args:
+    Arguments:
         lat (numpy.array): Array of latitude points (in degrees).
         lon (numpy.array): Array of longitude points (in degrees).
         R (float): The radius of the sphere; default: 1.
@@ -214,7 +214,7 @@ def ap2ep(uc, vc):
         Release Date: Nov. 2000, Revised on May. 2002 to adopt Foreman's northern semi
         major axis convention.
 
-    Args:
+    Arguments:
         uc: complex tidal u velocity
         vc: complex tidal v velocity
 
@@ -269,7 +269,7 @@ def ep2ap(SEMA, ECC, INC, PHA):
 
         Release Date: Nov. 2000
 
-    Args:
+    Arguments:
         SEMA: semi-major axis
         ECC: eccentricity
         INC: inclination [radians]
@@ -364,11 +364,11 @@ def rotate(u, v, radian_angle):
 
 def is_rectilinear_hgrid(hgrid: xr.Dataset, rtol: float = 1e-3) -> bool:
     """
-    Check if the hgrid is a rectilinear grid. From mom6_bathy.grid.is_rectangular by Alper (Altuntas
-    )
-    Check if the grid is a rectangular lat-lon grid by comparing the first and last rows and columns of the tlon and tlat arrays.
+    Check if the ``hgrid`` is a rectilinear grid by comparing the first and last rows and columns of the tlon and tlat arrays.
+    
+    From ``mom6_bathy.grid.is_rectangular`` by Alper (Altuntas).
 
-    Args:
+    Arguments:
         hgrid (xarray.Dataset): The horizontal grid dataset.
         rtol (float): Relative tolerance. Default is 1e-3.
     """

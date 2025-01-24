@@ -94,7 +94,7 @@ def create_experiment_from_config(
     Computer specific functionality eliminates the ability to pass file paths.
     Basically another way to initialize. Sets a default folder of "mom_input/from_config" and "mom_run/from_config" unless specified
 
-    Args:
+    Arguments:
         config_file_path (str): Path to the config file.
         mom_input_folder (str): Path to the MOM6 input folder. Default is "mom_input/from_config".
         mom_run_folder (str): Path to the MOM6 run folder. Default is "mom_run/from_config".
@@ -199,7 +199,7 @@ def longitude_slicer(data, longitude_extent, longitude_coords):
     - Finally re-add the correct multiple of 360 so the whole domain matches
       the target.
 
-    Args:
+    Arguments:
         data (xarray.Dataset): The global data you want to slice in longitude.
         longitude_extent (Tuple[float, float]): The target longitudes (in degrees)
             we want to slice to. Must be in increasing order.
@@ -297,7 +297,7 @@ def get_glorys_data(
     """
     Generates a bash script to download all of the required ocean forcing data.
 
-    Args:
+    Arguments:
         longitude_extent (tuple of floats): Westward and Eastward extents of the segment
         latitude_extent (tuple of floats): Southward and Northward extents of the segment
         timerange (tule of datetime strings): Start and end of the segment in format %Y-%m-%d %H:%M:%S
@@ -354,7 +354,7 @@ def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
     bottom-most layer to the top-most layer only departs from the prescribed ``ratio``
     by ±20%.
 
-    Args:
+    Arguments:
         nlayers (int): Number of vertical layers.
         ratio (float): The desired value of the ratio of bottom-most to
             the top-most layer thickness. Note that the final value of
@@ -461,7 +461,7 @@ def generate_rectangular_hgrid(lons, lats):
 
         Ensure both ``lons`` and ``lats`` are monotonically increasing.
 
-    Args:
+    Arguments:
         lons (numpy.array): All longitude points on the supergrid. Must be uniformly spaced.
         lats (numpy.array): All latitude points on the supergrid.
 
@@ -582,7 +582,7 @@ class experiment:
     The class can be used to generate the grids for a new experiment, or to read in
     an existing one (when ``read_existing_grids=True``; see argument description below).
 
-    Args:
+    Arguments:
         longitude_extent (Tuple[float]): Extent of the region in longitude (in degrees). For
             example: ``(40.5, 50.0)``.
         latitude_extent (Tuple[float]): Extent of the region in latitude (in degrees). For
@@ -1040,7 +1040,7 @@ class experiment:
         total ``depth`` parameters.
         (All these parameters are specified at the class level.)
 
-        Args:
+        Arguments:
             thicknesses (Optional[np.ndarray]): An array of layer thicknesses. If not provided,
                 the layer thicknesses are generated using the :func:`~hyperbolictan_thickness_profile`
                 function.
@@ -1083,7 +1083,7 @@ class experiment:
         that contains the expirment variable information to allow for easy pass off to other users, with a strict computer independence restriction.
         It also makes information about the expirement readable, and is good for just printing out information about the experiment.
 
-        Args:
+        Arguments:
             path (str): Path to write the config file to. If not provided, the file is written to the ``mom_run_dir`` directory.
             export (bool): If ``True`` (default), the configuration file is written to disk on the given path
             quiet (bool): If ``True``, no print statements are made.
@@ -1140,7 +1140,7 @@ class experiment:
         Reads the initial condition from files in ``ic_path``, interpolates to the
         model grid, fixes up metadata, and saves back to the input directory.
 
-        Args:
+        Arguments:
             raw_ic_path (Union[str, Path, list[str]]): Path(s) to raw initial condition file(s) to read in.
             varnames (Dict[str, str]): Mapping from MOM6 variable/coordinate names to the names
                 in the input dataset. For example, ``{'xq': 'lonq', 'yh': 'lath', 'salt': 'so', ...}``.
@@ -1474,7 +1474,7 @@ class experiment:
         """
         This function is a wrapper for `get_glorys_data`, calling this function once for each of the rectangular boundary segments and the initial condition. For more complex boundary shapes, call `get_glorys_data` directly for each of your boundaries that aren't parallel to lines of constant latitude or longitude. For example, for an angled Northern boundary that spans multiple latitudes, you'll need to download a wider rectangle containing the entire boundary.
 
-        args:
+        Arguments:
             raw_boundaries_path (str): Path to the directory containing the raw boundary forcing files.
             boundaries (List[str]): List of cardinal directions for which to create boundary forcing files.
                 Default is `["south", "north", "west", "east"]`.
@@ -1576,7 +1576,7 @@ class experiment:
         it creates a boundary forcing file for each one. Ensure that the raw boundaries are all saved in the same directory,
         and that they are named using the format `east_unprocessed.nc`
 
-        Args:
+        Arguments:
             raw_boundaries_path (str): Path to the directory containing the raw boundary forcing files.
             varnames (Dict[str, str]): Mapping from MOM6 variable/coordinate names to the name in the
                 input dataset.
@@ -1636,7 +1636,7 @@ class experiment:
         Here 'simple' refers to boundaries that are parallel to lines of constant longitude or latitude.
         Set up a boundary forcing file for a given orientation.
 
-        Args:
+        Arguments:
             path_to_bc (str): Path to boundary forcing file. Ideally this should be a pre cut-out
                 netCDF file containing only the boundary region and 3 extra boundary points on either
                 side. Users can also provide a large dataset containing their entire domain but this
@@ -1692,7 +1692,7 @@ class experiment:
         """
         We subset our tidal data and generate more boundary files!
 
-        Args:
+        Arguments:
             path_to_td (str): Path to boundary tidal file.
             tpxo_elevation_filepath: Filepath to the TPXO elevation product. Generally of the form h_tidalversion.nc
             tpxo_velocity_filepath: Filepath to the TPXO velocity product. Generally of the form u_tidalversion.nc
@@ -1808,7 +1808,7 @@ class experiment:
 
         Output is saved in the input directory of the experiment.
 
-        Args:
+        Arguments:
             bathymetry_path (str): Path to the netCDF file with the bathymetry.
             longitude_coordinate_name (Optional[str]): The name of the longitude coordinate in the bathymetry
                 dataset at ``bathymetry_path``. For example, for GEBCO bathymetry: ``'lon'`` (default).
@@ -1997,7 +1997,7 @@ class experiment:
         or fill in some channels, then call this function directly to read in the existing
         ``bathymetry_unfinished.nc`` file that should be in the input directory.
 
-        Args:
+        Arguments:
             fill_channels (Optional[bool]): Whether to fill in
                 diagonal channels. This removes more narrow inlets,
                 but can also connect extra islands to land. Default: ``False``.
@@ -2259,7 +2259,7 @@ class experiment:
         Set up the run directory for MOM6. Either copy a pre-made set of files, or modify
         existing files in the 'rundir' directory for the experiment.
 
-        Args:
+        Arguments:
             surface_forcing (Optional[str]): Specify the choice of surface forcing, one
                 of: ``'jra'`` or ``'era5'``. If not prescribed then constant fluxes are used.
             using_payu (Optional[bool]): Whether or not to use payu (https://github.com/payu-org/payu)
@@ -2597,7 +2597,7 @@ class experiment:
         Change a parameter in the MOM_input or MOM_override file. Returns original value if there was one.
         If delete is specified, ONLY MOM_override version will be deleted. Deleting from MOM_input is not safe.
         If the parameter does not exist, it will be added to the file. if delete is set to True, the parameter will be removed.
-        Args:
+        Arguments:
             param_name (str):
                 Parameter name we are working with
             param_value (Optional[str]):
@@ -2787,7 +2787,7 @@ class experiment:
         We need the following fields: "2t", "10u", "10v", "sp", "2d", "msdwswrf",
         "msdwlwrf", "lsrr", and "crr".
 
-        Args:
+        Arguments:
             era5_path (str): Path to the ERA5 forcing files. Specifically, the single-level
                 reanalysis product. For example, ``'SOMEPATH/era5/single-levels/reanalysis'``
         """
@@ -2901,7 +2901,7 @@ class segment:
     Note:
         Only supports z-star (z*) vertical coordinate.
 
-    Args:
+    Arguments:
         hgrid (xarray.Dataset): The horizontal grid used for domain.
         infile (Union[str, Path]): Path to the raw, unprocessed boundary segment.
         outfolder (Union[str, Path]): Path to folder where the model inputs will
@@ -2992,7 +2992,7 @@ class segment:
     def regrid_velocity_tracers(self, rotational_method=rot.RotationMethod.GIVEN_ANGLE):
         """
         Cut out and interpolate the velocities and tracers
-        Args:
+        Arguments:
         rotational_method (rot.RotationMethod): The method to use for rotation of the velocities. Currently, the default method, GIVEN_ANGLE, works even with non-rotated grids
         """
 
@@ -3259,7 +3259,7 @@ class segment:
         - Regridded the tidal elevation, and tidal velocity
         - Encoding the output
 
-        Args:
+        Arguments:
             infile_td (str): Raw Tidal File/Dir
             tpxo_v, tpxo_u, tpxo_h (xarray.Dataset): Specific adjusted for MOM6 tpxo datasets (Adjusted with setup_tides)
             times (pd.DateRange): The start date of our model period
@@ -3423,7 +3423,7 @@ class segment:
         - Provides an output file encoding
         - Exports the files.
 
-        Args:
+        Arguments:
             self.outfolder (str/path): The output folder to save the tidal files into
             dataset (xarray.Dataset): The processed tidal dataset
             filename (str): The output file name

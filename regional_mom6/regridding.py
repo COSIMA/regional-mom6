@@ -46,7 +46,7 @@ def coords(
     This function:
     Allows us to call the coords for use in the xesmf.Regridder in the regrid_tides function. self.coords gives us the subset of the hgrid based on the orientation.
 
-    Args:
+    Arguments:
         hgrid (xr.Dataset): The hgrid dataset
         orientation (str): The orientation of the boundary
         segment_name (str): The name of the segment
