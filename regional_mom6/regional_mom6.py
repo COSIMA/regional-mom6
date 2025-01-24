@@ -1710,13 +1710,13 @@ class experiment:
         - Combined all functions of NWA25 into a four function process (in the style of regional-mom6) (expt.setup_tides_rectangular_boundaries, coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
 
 
-        Original Code was sourced from:
-        Author(s): GFDL, James Simkins, Rob Cermak, etc..
-        Year: 2022
-        Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
-        Version: N/A
-        Type: Python Functions, Source Code
-        Web Address: https://github.com/jsimkins2/nwa25
+        Code sourced from::
+            Author(s): GFDL, James Simkins, Rob Cermak, etc..
+            Year: 2022
+            Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
+            Version: N/A
+            Type: Python Functions, Source Code
+            Web Address: https://github.com/jsimkins2/nwa25
         """
         if not (boundary_type == "rectangular" or boundary_type == "curvilinear"):
             raise ValueError(
@@ -3430,6 +3430,7 @@ class segment:
             self.outfolder (str/path): The output folder to save the tidal files into
             dataset (xarray.Dataset): The processed tidal dataset
             filename (str): The output file name
+
         Returns:
             .nc files: Regridded [FILENAME] files in 'self.outfolder/[filename]_[segmentname].nc'
 
@@ -3440,15 +3441,13 @@ class segment:
         - Combined all functions of NWA25 into a four function process (in the style of regional-mom6) (expt.setup_tides_rectangular_boundaries, coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
 
 
-        Original Code was sourced from:
-        Author(s): GFDL, James Simkins, Rob Cermak, etc..
-        Year: 2022
-        Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
-        Version: N/A
-        Type: Python Functions, Source Code
-        Web Address: https://github.com/jsimkins2/nwa25
-
-
+        Code was sourced from::
+            Author(s): GFDL, James Simkins, Rob Cermak, etc..
+            Year: 2022
+            Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
+            Version: N/A
+            Type: Python Functions, Source Code
+            Web Address: https://github.com/jsimkins2/nwa25
         """
         coords = rgd.coords(self.hgrid, self.orientation, self.segment_name)
 
