@@ -1701,10 +1701,11 @@ class experiment:
 
         Arguments:
             path_to_td (str): Path to boundary tidal file.
-            tpxo_elevation_filepath: Filepath to the TPXO elevation product. Generally of the form h_tidalversion.nc
-            tpxo_velocity_filepath: Filepath to the TPXO velocity product. Generally of the form u_tidalversion.nc
+            tpxo_elevation_filepath: Filepath to the TPXO elevation product. Generally of the form ``h_tidalversion.nc``
+            tpxo_velocity_filepath: Filepath to the TPXO velocity product. Generally of the form ``u_tidalversion.nc``
             tidal_constituents: List of tidal constituents to include in the regridding. Default is set in the constructor
-            boundary_type (str): Type of boundary. Currently, only rectangle is supported. Here, rectangle refers to boundaries that are parallel to lines of constant longitude or latitude. Curvilinear is also suported.
+            boundary_type (str): Type of boundary. Currently, only rectangle and curvilinear grids are supported.
+                Here, rectangle refers to grids with boundaries that are parallel to lines of constant longitude or latitude.
             bathymetry_path (str): Path to the bathymetry file. Default is None, in which case the BC is not masked
             rotational_method (str): Method to use for rotating the tidal velocities. Default is 'GIVEN_ANGLE'.
         Returns:
