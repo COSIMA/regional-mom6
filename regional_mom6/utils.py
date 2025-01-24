@@ -321,7 +321,7 @@ def setup_logger(
 
 def rotate_complex(u, v, radian_angle):
     """
-    Rotate velocities to grid orientation using complex number math (Same as rotate)
+    Rotate velocities to grid orientation using complex number math (Same as :func:`rotate`.)
 
     Arguments:
         u (xarray.DataArray): The u-component of the velocity.
