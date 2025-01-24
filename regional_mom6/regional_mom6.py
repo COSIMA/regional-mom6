@@ -1079,13 +1079,14 @@ class experiment:
 
     def write_config_file(self, path=None, export=True, quiet=False):
         """
-        Write a configuration file for the experiment. This is a simple json file
-        that contains the expirment variable information to allow for easy pass off to other users, with a strict computer independence restriction.
-        It also makes information about the expirement readable, and is good for just printing out information about the experiment.
+        Write a json configuration file for the experiment. This file contains the experiment
+        variable information to allow for easy pass off to other users, with a strict computer
+        independence restriction. It also makes information about the expirement readable, and
+        is good for just printing out information about the experiment.
 
         Arguments:
             path (str): Path to write the config file to. If not provided, the file is written to the ``mom_run_dir`` directory.
-            export (bool): If ``True`` (default), the configuration file is written to disk on the given path
+            export (bool): If ``True`` (default), the configuration file is written to disk on the given ``path``
             quiet (bool): If ``True``, no print statements are made.
         Returns:
             Dict: A dictionary containing the configuration information.
