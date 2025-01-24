@@ -1,6 +1,8 @@
 Contributing
 ============
 
+Instructions for contributors.
+
 .. toctree::
    :maxdepth: 1
 
