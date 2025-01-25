@@ -118,7 +118,7 @@ def modulo_around_point(x, x0, L):
     if L <= 0:
         return x
     else:
-        return ((x - (x0 - L / 2)) % L) - L / 2 + x0
+        return ((x - (x0 - L / 2)) % L) + (x0 - L / 2)
 
 
 def mom6_angle_calculation_method(
