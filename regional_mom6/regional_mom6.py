@@ -1718,16 +1718,11 @@ class experiment:
             - Combined all functions of NWA25 into a four function process (in the style of regional-mom6), i.e., ``expt.setup_tides_rectangular_boundaries``, ``coords``, ``segment.regrid_tides``, and ``segment.encode_tidal_files_and_output``.
 
         Code sourced from:
-            Author(s): GFDL, James Simkins, Rob Cermak, etc..
-
+            Author(s): GFDL, James Simkins, Rob Cermak, and contributors
             Year: 2022
-
             Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
-
             Version: N/A
-
             Type: Python Functions, Source Code
-
             Web Address: https://github.com/jsimkins2/nwa25
         """
 
