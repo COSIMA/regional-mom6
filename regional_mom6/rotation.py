@@ -96,8 +96,9 @@ def initialize_grid_rotation_angle(hgrid: xr.Dataset) -> xr.DataArray:
 
 def modulo_around_point(x, x0, L):
     """
-    Calculate the modulo around a point. Return the modulo value of ``x`` in the interval ``[x0 - L/2, x0 + L/2]``.
-    If ``L ≤ 0``, then method returns ``x``.
+    Return the modulo value of ``x`` in the interval ``[x0 - L/2, x0 + L/2]``. If ``L ≤ 0``, then method returns ``x``.
+
+    (Adapted from MOM6 code; https://github.com/mom-ocean/MOM6/blob/776be843e904d85c7035ffa00233b962a03bfbb4/src/initialization/MOM_shared_initialization.F90#L592-L606)
 
     Parameters
     ----------
