@@ -1712,13 +1712,10 @@ class experiment:
         Returns:
             netCDF files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
 
-        General Description:
-            These tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
+        The tidal data functions are sourced from the GFDL NWA25 and modified so that:
             - Converted code for regional-mom6 segment class
             - Implemented horizontal subsetting.
-            - Combined all functions of NWA25 into a four function process (in the style of regional-mom6), i.e.
-                ``expt.setup_tides_rectangular_boundaries``, ``coords``, ``segment.regrid_tides``, and
-                ``segment.encode_tidal_files_and_output``.
+            - Combined all functions of NWA25 into a four function process (in the style of regional-mom6), i.e., ``expt.setup_tides_rectangular_boundaries``, ``coords``, ``segment.regrid_tides``, and ``segment.encode_tidal_files_and_output``.
 
         Code sourced from:
             Author(s): GFDL, James Simkins, Rob Cermak, etc..
@@ -1730,7 +1727,7 @@ class experiment:
             Version: N/A
 
             Type: Python Functions, Source Code
-            
+
             Web Address: https://github.com/jsimkins2/nwa25
         """
 
@@ -1819,8 +1816,8 @@ class experiment:
         Cut out and interpolate the chosen bathymetry and then fill inland lakes.
 
         It's also possible to optionally fill narrow channels (see ``fill_channels``
-        below), although narrow channels are less of an issue for models that are
-        discretized on an Arakawa C grid, like MOM6.
+        keyword argument below), although narrow channels are less of an issue for
+        models that are discretized on an Arakawa C grid, like MOM6.
 
         Output is saved in the input directory of the experiment.
 
