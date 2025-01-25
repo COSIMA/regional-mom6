@@ -1640,8 +1640,7 @@ class experiment:
         rotational_method=rot.RotationMethod.GIVEN_ANGLE,
     ):
         """
-        Here 'simple' refers to boundaries that are parallel to lines of constant longitude or latitude.
-        Set up a boundary forcing file for a given orientation.
+        Set up a boundary forcing file for a given ``orientation``.
 
         Arguments:
             path_to_bc (str): Path to boundary forcing file. Ideally this should be a pre cut-out
@@ -1656,8 +1655,10 @@ class experiment:
                 the ``MOM_input``.
             arakawa_grid (Optional[str]): Arakawa grid staggering type of the boundary forcing.
                 Either ``'A'`` (default), ``'B'``, or ``'C'``.
-            bathymetry_path (str): Path to the bathymetry file. Default is ``None``, in which case the boundary condition is not masked
-            rotational_method (Optional[str]): Method to use for rotating the boundary velocities. Default is 'GIVEN_ANGLE'.
+            bathymetry_path (str): Path to the bathymetry file. Default is ``None``, in which case
+                the boundary condition is not masked.
+            rotational_method (Optional[str]): Method to use for rotating the boundary velocities.
+                Default is 'GIVEN_ANGLE'.
         """
 
         print(
