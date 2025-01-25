@@ -157,7 +157,6 @@ def mom6_angle_calculation_method(
     lonB = np.zeros((2, 2, len(point.nyp), len(point.nxp)))
 
     # Vectorized computation of lonB
-    # Vectorized computation of lonB
     lonB[0][0] = modulo_around_point(bottom_left.x, point.x, len_lon)  # Bottom Left
     lonB[1][0] = modulo_around_point(top_left.x, point.x, len_lon)  # Top Left
     lonB[1][1] = modulo_around_point(top_right.x, point.x, len_lon)  # Top Right
