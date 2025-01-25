@@ -1,4 +1,4 @@
-# Docker Image & Github Testing (For contributors)
+# Docker Image & Github Testing
 
 regional-mom6 uses a docker image in Github actions for holding large data. Here, we explain how contributors can use the docker image.
 
