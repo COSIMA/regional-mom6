@@ -55,6 +55,7 @@ jobs:
           ln -s /data demos/PATH_TO_GEBCO_FILE
           ln -s /build/FRE-NCtools/tools demos/PATH_TO_FRE_TOOLS
           python -m pytest --nbval demos/reanalysis-forced.ipynb --nbval-current-env --cov=regional_mom6 --cov-report=xml tests/
+          python -m pytest --nbval demos/BYO-domain.ipynb --nbval-current-env --cov=regional_mom6 --cov-report=xml tests/
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
