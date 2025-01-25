@@ -43,25 +43,26 @@ def coords(
     angle_variable_name="angle_dx",
 ) -> xr.Dataset:
     """
-    This function:
-    Allows us to call the coords for use in the xesmf.Regridder in the regrid_tides function. self.coords gives us the subset of the hgrid based on the orientation.
+    Allows us to call the coords for use in the ``xesmf.Regridder`` in the :func:`~regrid_tides` function.
+    ``self.coords`` gives us the subset of the ``hgrid`` based on the orientation.
 
     Arguments:
-        hgrid (xr.Dataset): The hgrid dataset
+        hgrid (xr.Dataset): The horizontal grid dataset
         orientation (str): The orientation of the boundary
         segment_name (str): The name of the segment
-        coords_at_t_points (bool, optional): Whether to return the boundary t-points instead of the q/u/v of a general boundary for rotation. Defaults to False.
+        coords_at_t_points (bool, optional): Whether to return the boundary t-points instead of
+    the q/u/v of a general boundary for rotation. Default: ``False``
+
     Returns:
         xr.Dataset: The correct coordinate space for the orientation
 
-    Code adapted from:
-    Author(s): GFDL, James Simkins, Rob Cermak, etc..
-    Year: 2022
-    Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
-    Version: N/A
-    Type: Python Functions, Source Code
-    Web Address: https://github.com/jsimkins2/nwa25
-
+    Code adapted from::
+        Author(s): GFDL, James Simkins, Rob Cermak, etc..
+        Year: 2022
+        Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
+        Version: N/A
+        Type: Python Functions, Source Code
+        Web Address: https://github.com/jsimkins2/nwa25
     """
 
     dataset_to_get_coords = None
