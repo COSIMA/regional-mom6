@@ -1717,7 +1717,7 @@ class experiment:
             - Implemented horizontal subsetting.
             - Combined all functions of NWA25 into a four function process (in the style of regional-mom6), i.e., ``expt.setup_tides_rectangular_boundaries``, ``coords``, ``segment.regrid_tides``, and ``segment.encode_tidal_files_and_output``.
 
-        Code sourced from: ::
+        Code sourced from:
             Author(s): GFDL, James Simkins, Rob Cermak, and contributors
             Year: 2022
             Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
@@ -3268,8 +3268,8 @@ class segment:
         - Regrid the tidal elevation, and tidal velocity
         - Encode the output
 
-        Method was inspired by::
-            Author(s): GFDL, James Simkins, Rob Cermak, etc..
+        Method was inspired by:
+            Author(s): GFDL, James Simkins, Rob Cermak, and contributors
             Year: 2022
             Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
             Type: Python Functions, Source Code
@@ -3286,7 +3286,7 @@ class segment:
             infile_td (str): Raw Tidal File/Dir
             tpxo_v, tpxo_u, tpxo_h (xarray.Dataset): Specific adjusted for MOM6 tpxo datasets (Adjusted with :func:`~setup_tides`)
             times (pd.DateRange): The start date of our model period
-            rotational_method (rot.RotationMethod): The method to use for rotation of the velocities. Currently, the default method, GIVEN_ANGLE, works even with non-rotated grids
+            rotational_method (rot.RotationMethod): The method to use for rotation of the velocities. Currently, the default method, GIVEN_ANGLE, works even with non-rotated grids.
 
         Returns:
             netCDF files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
@@ -3445,11 +3445,11 @@ class segment:
             This tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
 
             - Converted code for regional-mom6 segment class
-            - Implemented Horizontal Subsetting
-            - Combined all functions of NWA25 into a four function process (in the style of regional-mom6) (expt.setup_tides_rectangular_boundaries, coords, segment.regrid_tides, segment.encode_tidal_files_and_output)
+            - Implemented horizontal Subsetting
+            - Combined all functions of NWA25 into a four function process (in the style of regional-mom6), that is: ``expt.setup_tides_rectangular_boundaries``, ``segment.coords``, ``segment.regrid_tides``, ``segment.encode_tidal_files_and_output``.
 
-        Code was sourced from::
-            Author(s): GFDL, James Simkins, Rob Cermak, etc..
+        Code sourced from:
+            Author(s): GFDL, James Simkins, Rob Cermak, and contributors
             Year: 2022
             Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
             Version: N/A
