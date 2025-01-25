@@ -113,7 +113,7 @@ def modulo_around_point(x, x0, L):
     Returns
     -------
     float
-        ``x`` shifted by an integer multiple of ``L`` to be close to ``x0``
+        ``x`` shifted by an integer multiple of ``L`` to be closer to ``x0``, i.e., within the interval ``[x0 - L/2, x0 + L/2]``
     """
     if L <= 0:
         return x
