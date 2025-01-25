@@ -1591,7 +1591,7 @@ class experiment:
                 Either ``'A'`` (default), ``'B'``, or ``'C'``.
             boundary_type (str): Type of box around region. Currently, only ``'rectangular'`` or ``'curvilinear'``
                 is supported.
-            bathymetry_path (Optional[str]): Path to the bathymetry file. Default is None, in which case the
+            bathymetry_path (Optional[str]): Path to the bathymetry file. Default is ``None``, in which case the
                 boundary condition is not masked.
             rotational_method (Optional[str]): Method to use for rotating the boundary velocities. Default is ``GIVEN_ANGLE``.
         """
@@ -1656,7 +1656,7 @@ class experiment:
                 the ``MOM_input``.
             arakawa_grid (Optional[str]): Arakawa grid staggering type of the boundary forcing.
                 Either ``'A'`` (default), ``'B'``, or ``'C'``.
-            bathymetry_path (str): Path to the bathymetry file. Default is None, in which case the BC is not masked
+            bathymetry_path (str): Path to the bathymetry file. Default is ``None``, in which case the boundary condition is not masked
             rotational_method (Optional[str]): Method to use for rotating the boundary velocities. Default is 'GIVEN_ANGLE'.
         """
 
@@ -1705,7 +1705,7 @@ class experiment:
             tidal_constituents: List of tidal constituents to include in the regridding. Default is set in the constructor
             boundary_type (str): Type of boundary. Currently, only rectangle and curvilinear grids are supported.
                 Here, rectangle refers to grids with boundaries that are parallel to lines of constant longitude or latitude.
-            bathymetry_path (str): Path to the bathymetry file. Default is None, in which case the BC is not masked
+            bathymetry_path (str): Path to the bathymetry file. Default is ``None``, in which case the boundary condition is not masked
             rotational_method (str): Method to use for rotating the tidal velocities. Default is 'GIVEN_ANGLE'.
 
         Returns:
@@ -1714,7 +1714,7 @@ class experiment:
         General Description:
             These tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
                 - Converted code for regional-mom6 segment class
-                - Implemented Horizontal Subsetting
+                - Implemented horizontal subsetting.
                 - Combined all functions of NWA25 into a four function process (in the style of regional-mom6), i.e.
                 ``expt.setup_tides_rectangular_boundaries``, ``coords``, ``segment.regrid_tides``, and
                 ``segment.encode_tidal_files_and_output``.
