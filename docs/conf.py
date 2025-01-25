@@ -29,4 +29,4 @@ html_theme_options = {
 }
 
 # Disable demo notebook execution by nbsphinx (and therefore readthedocs notebook execution)
-nbsphinx_execute = 'always'
+nbsphinx_execute = 'never'
