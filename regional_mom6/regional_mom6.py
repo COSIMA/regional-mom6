@@ -1698,14 +1698,6 @@ class experiment:
     ):
         """Subset the tidal data and generate more boundary files.
 
-        Code sourced from::
-            Author(s): GFDL, James Simkins, Rob Cermak, etc..
-            Year: 2022
-            Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
-            Version: N/A
-            Type: Python Functions, Source Code
-            Web Address: https://github.com/jsimkins2/nwa25
-
         Arguments:
             path_to_td (str): Path to boundary tidal file.
             tpxo_elevation_filepath: Filepath to the TPXO elevation product. Generally of the form ``h_tidalversion.nc``
@@ -1720,13 +1712,20 @@ class experiment:
             netCDF files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
 
         General Description:
-        
-        This tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
+            These tidal data functions are sourced from the GFDL NWA25 and changed in the following ways:
+                - Converted code for regional-mom6 segment class
+                - Implemented Horizontal Subsetting
+                - Combined all functions of NWA25 into a four function process (in the style of regional-mom6), i.e.
+                ``expt.setup_tides_rectangular_boundaries``, ``coords``, ``segment.regrid_tides``, and
+                ``segment.encode_tidal_files_and_output``.
 
-        - Converted code for regional-mom6 segment class
-        - Implemented Horizontal Subsetting
-        - Combined all functions of NWA25 into a four function process (in the style of regional-mom6), i.e.
-            ``expt.setup_tides_rectangular_boundaries``, ``coords``, ``segment.regrid_tides``, and ``segment.encode_tidal_files_and_output``.
+        Code sourced from::
+            Author(s): GFDL, James Simkins, Rob Cermak, etc..
+            Year: 2022
+            Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
+            Version: N/A
+            Type: Python Functions, Source Code
+            Web Address: https://github.com/jsimkins2/nwa25
         """
 
         if not (boundary_type == "rectangular" or boundary_type == "curvilinear"):
