@@ -1696,8 +1696,15 @@ class experiment:
         bathymetry_path=None,
         rotational_method=rot.RotationMethod.GIVEN_ANGLE,
     ):
-        """
-        We subset our tidal data and generate more boundary files!
+        """Subset the tidal data and generate more boundary files.
+
+        Code sourced from::
+            Author(s): GFDL, James Simkins, Rob Cermak, etc..
+            Year: 2022
+            Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
+            Version: N/A
+            Type: Python Functions, Source Code
+            Web Address: https://github.com/jsimkins2/nwa25
 
         Arguments:
             path_to_td (str): Path to boundary tidal file.
@@ -1708,6 +1715,7 @@ class experiment:
                 Here, rectangle refers to grids with boundaries that are parallel to lines of constant longitude or latitude.
             bathymetry_path (str): Path to the bathymetry file. Default is None, in which case the BC is not masked
             rotational_method (str): Method to use for rotating the tidal velocities. Default is 'GIVEN_ANGLE'.
+
         Returns:
             .nc files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
 
@@ -1719,15 +1727,6 @@ class experiment:
         - Implemented Horizontal Subsetting
         - Combined all functions of NWA25 into a four function process (in the style of regional-mom6), i.e.
             ``expt.setup_tides_rectangular_boundaries``, ``coords``, ``segment.regrid_tides``, and ``segment.encode_tidal_files_and_output``.
-
-
-        Code sourced from::
-            Author(s): GFDL, James Simkins, Rob Cermak, etc..
-            Year: 2022
-            Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
-            Version: N/A
-            Type: Python Functions, Source Code
-            Web Address: https://github.com/jsimkins2/nwa25
         """
         if not (boundary_type == "rectangular" or boundary_type == "curvilinear"):
             raise ValueError(
