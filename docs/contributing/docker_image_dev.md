@@ -4,7 +4,7 @@ regional-mom6 uses a docker image in Github actions for holding large data. Here
 
 First things first install Docker by following [instructions at the docker docs](https://docs.docker.com/get-started/).
 
-The docker image lives at: 
+The docker image lives at:
 [https://github.com/COSIMA/regional-mom6/pkgs/container/regional-test-env](https://github.com/COSIMA/regional-mom6/pkgs/container/regional-test-env)
 
 For local development of the image, e.g., to add data to it that will be used in the packages tests, first we need to pull it.
@@ -15,7 +15,7 @@ docker pull ghcr.io/cosima/regional-test-env:updated
 
 Then to test the image, we go into the directory of our locally copy of regional-mom6, and run:
 
-```
+```bash
 docker run -it --rm \ -v $(pwd):/workspace \ -w /workspace \ ghcr.io/cosima/regional-test-env:updated \ /bin/bash
 ```
 
@@ -27,7 +27,7 @@ We need to download conda, python, pip, and all that business to properly run th
 To add data, we create a directory and add both the data we want and a file called `Dockerfile`.
 Within `Dockerfile`, we'll get the original image, then copy the data we need to the data directory.
 
-```
+```bash
 # Use the base image
 FROM ghcr.io/cosima/regional-test-env:<tag>
 
