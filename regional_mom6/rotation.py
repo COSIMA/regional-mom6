@@ -9,15 +9,18 @@ import numpy as np
 
 
 class RotationMethod(Enum):
-    """Prescribes the rotational method to be used in boundary conditions.
-
-    The main regional-mom6 class passes this ``Enum`` to :func:`~regrid_tides` and :func:`~regrid_velocity_tracers`
-    to determine the method used.
+    """Prescribes the rotational method to be used in boundary conditions when the grid
+    does not have coordinates along lines of constant longitude-latitude. regional-mom6 main
+    class passes this ``Enum`` to :func:`~regrid_tides` and to :func:`~regrid_velocity_tracers`.
 
     Attributes:
-        EXPAND_GRID (int): This method is used with the basis that we can find the angles at the q-u-v points by pretending we have another row/column of the ``hgrid`` with the same distances as the t-point to u/v points in the actual grid then use the four points to calculate the angle. This method replicates exactly what MOM6 does.
+        EXPAND_GRID (int): This method is used with the basis that we can find the angles at
+    the q-u-v points by pretending we have another row/column of the ``hgrid`` with the same distances
+    as the t-point to u/v points in the actual grid then use the four points to calculate the angle.
+    This method replicates exactly what MOM6 does.
         GIVEN_ANGLE (int): Expects a pre-given angle called ``angle_dx``.
-        NO_ROTATION (int): Grid is along lines of constant latitude-longitude and therefore no rotation is required.
+        NO_ROTATION (int): Grid is along lines of constant latitude-longitude and therefore no rotation
+    is required.
     """
 
     EXPAND_GRID = 1
@@ -129,7 +132,8 @@ def mom6_angle_calculation_method(
     point: xr.DataArray,
 ) -> xr.DataArray:
     """
-    Calculate the angle of the point using the MOM6 method in ``initialize_grid_rotation_angle``. Built for vectorized calculations.
+    Calculate the angle of the point using the MOM6 method in :func:`~initialize_grid_rotation_angle`.
+    This method can handle vectorized computations.
 
     Parameters
     ----------
