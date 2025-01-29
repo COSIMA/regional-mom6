@@ -306,7 +306,7 @@ def get_glorys_data(
         modify_existing (bool): Whether to add to an existing script or start a new one
     """
     buffer = 0.24  # Pads downloads to ensure that interpolation onto desired domain doesn't fail.
-                   # Default is 0.24, just under three times the Glorys cell width (3 x 1/12 = 0.25).
+    # Default is 0.24, just under three times the Glorys cell width (3 x 1/12 = 0.25).
 
     path = Path(download_path)
 

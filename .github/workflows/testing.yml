@@ -18,7 +18,7 @@ jobs:
   testing:
     needs: formatting
     runs-on: ubuntu-latest
-    container: ghcr.io/crocodile-cesm/crocodile_rm6_test_env:latest
+    container: ghcr.io/cosima/regional-test-env:updated_curvilinear
     defaults:
       run:
         shell: bash -el {0}
