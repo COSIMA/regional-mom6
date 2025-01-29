@@ -1906,8 +1906,6 @@ class experiment:
         if write_to_file:
             bathymetry_output.to_netcdf(
                 self.mom_input_dir / "bathymetry_original.nc",
-                mode="w",
-                engine="netcdf4",
             )
 
         tgrid = xr.Dataset(
