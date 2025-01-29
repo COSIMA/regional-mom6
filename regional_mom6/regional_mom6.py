@@ -1889,7 +1889,6 @@ class experiment:
 
         bathymetry.attrs["missing_value"] = -1e20  # missing value expected by FRE tools
         bathymetry_output = xr.Dataset({"depth": bathymetry})
-        
 
         bathymetry_output = bathymetry_output.rename(
             {coordinate_names["xh"]: "lon", coordinate_names["yh"]: "lat"}
