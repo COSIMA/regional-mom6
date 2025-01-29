@@ -2333,6 +2333,10 @@ class experiment:
                     "No files with 'tu' in their names found in the forcing or input directory. If you meant to use tides, please run the setup_tides_rectangle_boundaries method first. That does output some tidal files."
                 )
 
+
+        # Set local var
+        ncpus = None
+
         # 3 different cases to handle:
         #   1. User is creating a new run directory from scratch. Here we copy across all files and modify.
         #   2. User has already created a run directory, and wants to modify it. Here we only modify the MOM_layout file.
