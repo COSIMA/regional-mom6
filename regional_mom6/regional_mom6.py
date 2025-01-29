@@ -1889,6 +1889,7 @@ class experiment:
 
         bathymetry.attrs["missing_value"] = -1e20  # missing value expected by FRE tools
         bathymetry_output = xr.Dataset({"depth": bathymetry})
+        bathymetry.close()
 
         bathymetry_output = bathymetry_output.rename(
             {coordinate_names["xh"]: "lon", coordinate_names["yh"]: "lat"}
@@ -1905,8 +1906,10 @@ class experiment:
         if write_to_file:
             bathymetry_output.to_netcdf(
                 self.mom_input_dir / "bathymetry_original.nc",
+                mode="w",
+                engine="netcdf4",
             )
-        bathymetry.close()
+
         tgrid = xr.Dataset(
             data_vars={
                 "depth": (
