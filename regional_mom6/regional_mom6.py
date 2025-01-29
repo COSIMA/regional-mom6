@@ -2333,7 +2333,6 @@ class experiment:
                     "No files with 'tu' in their names found in the forcing or input directory. If you meant to use tides, please run the setup_tides_rectangle_boundaries method first. That does output some tidal files."
                 )
 
-
         # Set local var
         ncpus = None
 
