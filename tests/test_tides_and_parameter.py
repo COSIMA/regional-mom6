@@ -1,7 +1,3 @@
-"""
-Test suite for everything involed in pr #12
-"""
-
 import regional_mom6 as rmom6
 import os
 import pytest
@@ -11,11 +7,6 @@ import xarray as xr
 import numpy as np
 import shutil
 import importlib
-
-IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
-# @pytest.mark.skipif(
-#     IN_GITHUB_ACTIONS, reason="Test doesn't work in Github Actions."
-# )
 
 
 @pytest.fixture(scope="module")
@@ -136,7 +127,7 @@ def dummy_tidal_data():
 
 def test_tides(dummy_tidal_data, tmp_path):
     """
-    Test the main setup tides function!
+    Test setup_boundary_tides function.
     """
     expt_name = "testing"
 

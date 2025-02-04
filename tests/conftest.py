@@ -9,9 +9,7 @@ DOCKER_FILE_PATH = "/data/small_curvilinear_hgrid.nc"
 
 
 # Define the local directory where the user might have added the curvilinear hgrid file
-LOCAL_FILE_PATH = (
-    "/glade/u/home/manishrv/documents/nwa12_0.1/tides_dev/small_curvilinear_hgrid.nc"
-)
+LOCAL_FILE_PATH = str(os.getenv("local_curvilinear_hgrid"))
 
 
 @pytest.fixture

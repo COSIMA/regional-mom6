@@ -28,7 +28,7 @@ def initialize_grid_rotation_angles_using_expanded_hgrid(
     hgrid: xr.Dataset,
 ) -> xr.Dataset:
     """
-    Calculate the ``angle_dx`` in degrees from the true x (east?) direction counter-clockwise) and return as a dataarray.
+    Calculate the ``angle_dx`` in degrees from the true x direction (parallel to latitude) counter-clockwise and return as a dataarray.
 
     Parameters
     ----------
@@ -55,7 +55,7 @@ def initialize_grid_rotation_angles_using_expanded_hgrid(
 
 def initialize_grid_rotation_angle(hgrid: xr.Dataset) -> xr.DataArray:
     """
-    Calculate the ``angle_dx`` in degrees from the true x (east?) direction counter-clockwise) and return as a dataarray.
+    Calculate the ``angle_dx`` in degrees from the true x direction (parallel to latitude) counter-clockwise and return as a dataarray.
 
     Parameters
     ----------
@@ -266,7 +266,7 @@ def get_rotation_angle(
     rotational_method: RotationMethod, hgrid: xr.Dataset, orientation=None
 ):
     """
-    Returns the rotation angle - THIS IS ALWAYS BASED ON THE ASSUMPTION OF DEGREES - based on the rotational method and provided hgrid, if orientation & coords are provided, it will assume the boundary is requested.
+    Returns the rotation angle - with the assumption of degrees - based on the rotational method and provided hgrid, if orientation & coords are provided, it will assume the boundary is requested.
 
     Parameters
     ----------

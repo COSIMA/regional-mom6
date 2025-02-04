@@ -630,7 +630,10 @@ class experiment:
         boundaries=["south", "north", "west", "east"],
     ):
         """
-        Substitute init method to creates an empty expirement object, with the opportunity to override whatever values wanted.
+        Alternative to the init method to create an empty expirement object, with the opportunity to override whatever values wanted. This is an unsafe function only to be used by experienced users.
+
+        This function is a way for devs & more experienced users to set  specific variables for specific function requirements,
+        like just regridding the initial condition or subsetting bathymetry, instead of having to set so many other variables that aren't needed.
         """
         expt = cls(
             longitude_extent=None,
@@ -2420,7 +2423,7 @@ class experiment:
             )
         if (
             "LAYOUT" in MOM_layout_dict
-            and "IO" not in MOM_layout_dict
+            and "IO_Layout" not in MOM_layout_dict
             and layout != None
         ):
             MOM_layout_dict["LAYOUT"]["value"] = str(layout[1]) + "," + str(layout[0])

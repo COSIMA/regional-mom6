@@ -129,7 +129,7 @@ def test_quadrilateral_areas(lat, lon, true_area):
     ],
 )
 def test_rectangular_hgrid(lat, lon):
-    assert isinstance(generate_rectangular_hgrid(lat, lon), xr.Dataset)
+    assert isinstance(generate_rectangular_hgrid(lon, lat), xr.Dataset)
 
 
 def test_longitude_slicer():

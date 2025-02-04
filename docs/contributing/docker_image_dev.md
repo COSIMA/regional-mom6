@@ -2,7 +2,11 @@
 
 regional-mom6 uses a docker image in Github actions for holding large data. Here, we explain how contributors can use the docker image.
 
-First things first install Docker by following [instructions at the docker docs](https://docs.docker.com/get-started/).
+First things first, install Docker by following [instructions at the docker docs](https://docs.docker.com/get-started/). To ensure everything is working correctly, start the docker engine, and check that the following simple command doesn't output any errors.
+
+```bash
+docker info
+```
 
 The docker image lives at:
 [https://github.com/COSIMA/regional-mom6/pkgs/container/regional-test-env](https://github.com/COSIMA/regional-mom6/pkgs/container/regional-test-env)

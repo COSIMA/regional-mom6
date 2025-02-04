@@ -2,7 +2,7 @@
 
 Here we explain the implementation of MOM6 angle calculation in regional-mom6, which is the process by which regional-mom6 calculates the angle of curved horizontal grids (``hgrids``).
 
-**Issue:** MOM6 doesn't actually use the user-provided "angle_dx" field in input hgrids, but internally calculates the angle. 
+**Issue:** On a curved hgrid, we have to rotate the boundary conditions according to the angle the grid is rotated from lat-lon coordinates (true north vs model north). MOM6 calculates the angle internally. ``rotation.py`` copies that MOM6 calculation into python so we can rotate it based on that calculation. The issue is that usually users provide hgrids in MOM6 with an angle field (``angle_dx``) and we were using that field. We don't necessarily trust that the user calculation doesn't have slight differences, so we implemented a way to use MOM6s angle calculation instead. In short, MOM6 doesn't actually use the user-provided ``angle_dx`` field in input hgrids, but internally calculates the angle. 
 
 **Solution:** To accomodate this fact, when we rotate our boundary conditions, we implemented MOM6 angle calculation in a file called "rotation.py", and adjusted functions where we regrid the boundary conditions.
 
