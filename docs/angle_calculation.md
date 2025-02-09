@@ -35,7 +35,7 @@ Most calculation code is implemented in the rotation.py script, and the function
 ### Calculation Code (rotation.py)
 1. **Rotational Method Definition**:  Rotational Methods are defined in the enum class "Rotational Method" in rotation.py.
 2. **MOM6 Angle Calculation**: The method is implemented in "mom6_angle_calculation_method" in rotation.py and the direct t-point angle calculation is "initialize_grid_rotation_angle". 
-3. **Fred's Pseudo Grid Expansion**: The method to add the additional boundary row/columns is referenced in "pseudo_hgrid" functions in rotation.py
+3. **Fred Castruccio's Pseudo Grid Expansion**: This method adds the additional boundary row/columns and is implemented in the `create_expanded_hgrid` function in `rotation.py`
 
 ### Implementation Code (regional_mom6.py)
 Both regridding functions (regrid_velocity_tracers, regrid_tides) accept a parameter called "rotational_method" which takes the Enum class defining the rotational method.
