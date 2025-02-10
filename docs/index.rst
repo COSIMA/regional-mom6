@@ -20,25 +20,18 @@ stability issues or fiddling with bathymetry to deal with very narrow fjords or 
 Features
 --------
 
-- Automatic grid generation at chosen vertical and horizontal grid spacing.
+- Automatic grid generation at chosen vertical and horizontal grid spacing OR reads in existing custom grids provided by the user.
+- Handles rotation of the input files when the grid is rotated or curved relative to constant latitude & longitude lines. 
 - Automatic removal of non-advective cells from the bathymetry that cause the model to crash.
 - Handle slicing across 'seams' in of the forcing input datasets (e.g., when the regional
   configuration includes longitude 180 and the forcing longitude is defined in [-180, 180]).
+- Handles TPXO tidal forcing at the boundaries. 
 - Handles metadata encoding.
 - Creates directory structure with the configuration files as expected by MOM6.
 - Handles interpolation and interpretation of input data. No pre-processing of forcing datasets
   is required. (In some cases, slicing the forcing dataset before helps with hitting limitations
   related to the machine's available memory.)
 
-
-Limitations
-------------
-
-- Only generates regional horizontal grids with uniform spacing in longitude and latitude.
-  However, users can provide their own non-uniform grid, or ideally `open a pull request`_
-  with a method that generates other types of horizontal grids.
-- Only supports boundary segments that are parallel to either lines of constant longitude or lines of
-  constant latitude.
 
 
 What you need to get started
