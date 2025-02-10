@@ -8,7 +8,7 @@ Here we explain the implementation of MOM6 angle calculation in regional-mom6, w
 
 
 ## Boundary rotation algorithm
-Steps 1-5 are the same as MOM6's internal angle calculation. Step 6 is an additional step required to apply this algorithm to the boundaries
+Steps 1-5 replicate the angle calculation as done by MOM6. Step 6 is an additional step required to apply this algorithm to the boundary points.
 
 1. Calculate pi/4rads / 180 degrees  = Gives a 1/4 conversion of degrees to radians. I.E. multiplying an angle in degrees by this gives the conversion to radians at 1/4 the value. 
 2. Figure out the longitudunal extent of our domain, or periodic range of longitudes. For global cases it is len_lon = 360, for our regional cases it is given by the hgrid.
