@@ -23,8 +23,8 @@ Steps 1-5 replicate the angle calculation as done by MOM6. Step 6 is an addition
 Since the boundaries for a regional MOM6 domain are on the `q` points and not on the `t` points, to calculate the angle at the boundary points we need to expand the grid. This is implemented in the `create_expanded_hgrid` method.
 
 ## Convert this method to boundary angles - 2 Options
-1. **GIVEN_ANGLE**: Don't calculate the angle and use the user-provided field in the hgrid called "angle_dx"
-2. **EXPAND_GRID**: Calculate another boundary row/column points around the hgrid using simple difference techniques. Use the new points to calculate the angle at the boundaries. This works because we can now access the four points needed to calculate the angle, where previously at boundaries we would be missing at least two. 
+1. **EXPAND_GRID**: Compute grid angle replicating MOM6 calculations. Calculate another boundary row/column points around the hgrid using simple difference techniques. Use the new points to calculate the angle at the boundaries. This works because we can now access the four points needed to calculate the angle, where previously at boundaries we would be missing at least two.
+2. **GIVEN_ANGLE**: Don't calculate the angle and use the user-provided field in the hgrid called `angle_dx`.
 
 
 ## Force the usage of the provided angle_dx values
@@ -33,6 +33,4 @@ To use the provided angles instead of the default algorithm, when calling the re
 
 ## Code structure 
 
-Most calculation code is implemented in the rotation.py script, which is called by the regridding functions if rotation is required. 
-
-
+Most calculation code is implemented in the `rotation.py`, which is called by the regridding functions if rotation is required. 
