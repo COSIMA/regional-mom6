@@ -596,7 +596,7 @@ class experiment:
         depth (float): Depth of the domain.
         mom_run_dir (str): Path of the MOM6 control directory.
         mom_input_dir (str): Path of the MOM6 input directory, to receive the forcing files.
-        toolpath_dir (str): Path of GFDL's FRE tools (https://github.com/NOAA-GFDL/FRE-NCtools)
+        fre_tools_dir (str): Path of GFDL's FRE tools (https://github.com/NOAA-GFDL/FRE-NCtools)
             binaries.
         hgrid_type (Optional[str]): Type of horizontal grid to generate.
             Currently, only ``'even_spacing'`` is supported.
@@ -621,7 +621,7 @@ class experiment:
         depth=None,
         mom_run_dir=None,
         mom_input_dir=None,
-        toolpath_dir=None,
+        fre_tools_dir=None,
         hgrid_type="even_spacing",
         repeat_year_forcing=False,
         minimum_depth=4,
@@ -646,7 +646,7 @@ class experiment:
             minimum_depth=None,
             mom_run_dir=None,
             mom_input_dir=None,
-            toolpath_dir=None,
+            fre_tools_dir=None,
             create_empty=True,
             hgrid_type=None,
             repeat_year_forcing=None,
@@ -658,7 +658,7 @@ class experiment:
         expt.tidal_constituents = tidal_constituents
         expt.repeat_year_forcing = repeat_year_forcing
         expt.hgrid_type = hgrid_type
-        expt.toolpath_dir = toolpath_dir
+        expt.fre_tools_dir = fre_tools_dir
         expt.mom_run_dir = mom_run_dir
         expt.mom_input_dir = mom_input_dir
         expt.minimum_depth = minimum_depth
@@ -685,7 +685,7 @@ class experiment:
         depth,
         mom_run_dir,
         mom_input_dir,
-        toolpath_dir=None,
+        fre_tools_dir=None,
         longitude_extent=None,
         latitude_extent=None,
         hgrid_type="even_spacing",
@@ -714,7 +714,7 @@ class experiment:
 
         self.mom_run_dir = Path(mom_run_dir)
         self.mom_input_dir = Path(mom_input_dir)
-        self.toolpath_dir = Path(toolpath_dir) if toolpath_dir is not None else None
+        self.fre_tools_dir = Path(fre_tools_dir) if fre_tools_dir is not None else None
 
         self.mom_run_dir.mkdir(exist_ok=True)
         self.mom_input_dir.mkdir(exist_ok=True)
@@ -2204,7 +2204,7 @@ class experiment:
         print(
             "OUTPUT FROM MAKE SOLO MOSAIC:",
             subprocess.run(
-                str(self.toolpath_dir / "make_solo_mosaic/make_solo_mosaic")
+                str(self.fre_tools_dir / "make_solo_mosaic/make_solo_mosaic")
                 + " --num_tiles 1 --dir . --mosaic_name ocean_mosaic --tile_file hgrid.nc",
                 shell=True,
                 cwd=self.mom_input_dir,
@@ -2215,7 +2215,7 @@ class experiment:
         print(
             "OUTPUT FROM QUICK MOSAIC:",
             subprocess.run(
-                str(self.toolpath_dir / "make_quick_mosaic/make_quick_mosaic")
+                str(self.fre_tools_dir / "make_quick_mosaic/make_quick_mosaic")
                 + " --input_mosaic ocean_mosaic.nc --mosaic_name grid_spec --ocean_topog bathymetry.nc",
                 shell=True,
                 cwd=self.mom_input_dir,
@@ -2235,7 +2235,7 @@ class experiment:
         print(
             "OUTPUT FROM CHECK MASK:\n\n",
             subprocess.run(
-                str(self.toolpath_dir / "check_mask/check_mask")
+                str(self.fre_tools_dir / "check_mask/check_mask")
                 + f" --grid_file ocean_mosaic.nc --ocean_topog bathymetry.nc --layout {layout[0]},{layout[1]} --halo 4",
                 shell=True,
                 cwd=self.mom_input_dir,
