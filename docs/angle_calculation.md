@@ -20,7 +20,7 @@ Steps 1-5 replicate the angle calculation as done by MOM6. Step 6 is an addition
     3. Thus, given the same units, we can call arctan to get the angle in degrees
 
 6. **Additional step to apply to boundaries**
-Since the boundaries in a regional MOM6 model are on the q rather than t points, we need to expand the grid and calculate the angle at the boundary points. This is implemented in the `create_expanded_hgrid` function.
+Since the boundaries for a regional MOM6 domain are on the `q` points and not on the `t` points, to calculate the angle at the boundary points we need to expand the grid. This is implemented in the `create_expanded_hgrid` method.
 
 ## Convert this method to boundary angles - 3 Options
 1. **GIVEN_ANGLE**: Don't calculate the angle and use the user-provided field in the hgrid called "angle_dx"
