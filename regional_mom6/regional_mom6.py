@@ -132,9 +132,9 @@ def create_experiment_from_config(
         expt.date_range = None
 
     if mom_input_folder is None:
-        mom_input_folder = Path("mom_run" / "from_config")
+        mom_input_folder = Path("mom_input") / "from_config"
     if mom_run_folder is None:
-        mom_run_folder = Path("mom_input" / "from_config")
+        mom_run_folder = Path("mom_run") / "from_config"
     expt.mom_run_dir = Path(mom_run_folder)
     expt.mom_input_dir = Path(mom_input_folder)
     expt.mom_run_dir.mkdir(parents=True, exist_ok=True)
@@ -2416,7 +2416,7 @@ class experiment:
             MOM_layout_dict["NIGLOBAL"]["value"] = self.hgrid.nx.shape[0] // 2
         if "NJGLOBAL" in MOM_layout_dict:
             MOM_layout_dict["NJGLOBAL"]["value"] = self.hgrid.ny.shape[0] // 2
-
+        self.write_MOM_file(MOM_layout_dict)
         MOM_input_dict = self.read_MOM_file_as_dict("MOM_input")
         MOM_override_dict = self.read_MOM_file_as_dict("MOM_override")
         # The number of boundaries is reflected in the number of segments setup in setup_ocean_state_boundary under expt.segments.
@@ -2535,7 +2535,6 @@ class experiment:
                 MOM_override_dict[key]["override"] = True
         self.write_MOM_file(MOM_input_dict)
         self.write_MOM_file(MOM_override_dict)
-
         ## If using payu to run the model, create a payu configuration file
         if not using_payu and os.path.exists(f"{self.mom_run_dir}/config.yaml"):
             os.remove(f"{self.mom_run_dir}/config.yaml")
