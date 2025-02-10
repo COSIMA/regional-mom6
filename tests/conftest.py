@@ -211,7 +211,7 @@ def get_temperature_dataarrays(
         "silly_depth": silly_depth,
     }
 
-    toolpath_dir = "toolpath"
+    fre_tools_dir = "toolpath"
     hgrid_type = "even_spacing"
 
     nx, ny = number_of_gridpoints(longitude_extent, latitude_extent, resolution)

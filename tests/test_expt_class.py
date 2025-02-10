@@ -25,7 +25,7 @@ from .conftest import (
         "number_vertical_layers",
         "layer_thickness_ratio",
         "depth",
-        "toolpath_dir",
+        "fre_tools_dir",
         "hgrid_type",
     ),
     [
@@ -50,7 +50,7 @@ def test_setup_bathymetry(
     number_vertical_layers,
     layer_thickness_ratio,
     depth,
-    toolpath_dir,
+    fre_tools_dir,
     hgrid_type,
     tmp_path,
 ):
@@ -66,7 +66,7 @@ def test_setup_bathymetry(
         depth=depth,
         mom_run_dir=tmp_path / mom_run_dir,
         mom_input_dir=tmp_path / mom_input_dir,
-        toolpath_dir=toolpath_dir,
+        fre_tools_dir=fre_tools_dir,
         hgrid_type=hgrid_type,
     )
 
@@ -126,7 +126,7 @@ depth = 1000
         "number_vertical_layers",
         "layer_thickness_ratio",
         "depth",
-        "toolpath_dir",
+        "fre_tools_dir",
         "hgrid_type",
     ),
     [
@@ -151,7 +151,7 @@ def test_ocean_forcing(
     number_vertical_layers,
     layer_thickness_ratio,
     depth,
-    toolpath_dir,
+    fre_tools_dir,
     hgrid_type,
     temp_dataarray_initial_condition,
     tmp_path,
@@ -170,7 +170,7 @@ def test_ocean_forcing(
         depth=depth,
         mom_run_dir=tmp_path / mom_run_dir,
         mom_input_dir=tmp_path / mom_input_dir,
-        toolpath_dir=toolpath_dir,
+        fre_tools_dir=fre_tools_dir,
         hgrid_type=hgrid_type,
     )
 
@@ -220,7 +220,7 @@ def test_ocean_forcing(
         "number_vertical_layers",
         "layer_thickness_ratio",
         "depth",
-        "toolpath_dir",
+        "fre_tools_dir",
         "hgrid_type",
     ),
     [
@@ -245,7 +245,7 @@ def test_rectangular_boundaries(
     number_vertical_layers,
     layer_thickness_ratio,
     depth,
-    toolpath_dir,
+    fre_tools_dir,
     hgrid_type,
     tmp_path,
 ):
@@ -337,7 +337,7 @@ def test_rectangular_boundaries(
         depth=depth,
         mom_run_dir=tmp_path / mom_run_dir,
         mom_input_dir=tmp_path / mom_input_dir,
-        toolpath_dir=toolpath_dir,
+        fre_tools_dir=fre_tools_dir,
         hgrid_type=hgrid_type,
         boundaries=["east"],
     )

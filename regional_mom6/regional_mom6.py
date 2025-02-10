@@ -596,7 +596,7 @@ class experiment:
         depth (float): Depth of the domain.
         mom_run_dir (str): Path of the MOM6 control directory.
         mom_input_dir (str): Path of the MOM6 input directory, to receive the forcing files.
-        toolpath_dir (str): Path of GFDL's FRE tools (https://github.com/NOAA-GFDL/FRE-NCtools)
+        fre_tools_dir (str): Path of GFDL's FRE tools (https://github.com/NOAA-GFDL/FRE-NCtools)
             binaries.
         hgrid_type (Optional[str]): Type of horizontal grid to generate.
             Currently, only ``'even_spacing'`` is supported.
@@ -621,7 +621,7 @@ class experiment:
         depth=None,
         mom_run_dir=None,
         mom_input_dir=None,
-        toolpath_dir=None,
+        fre_tools_dir=None,
         hgrid_type="even_spacing",
         repeat_year_forcing=False,
         minimum_depth=4,
@@ -646,7 +646,7 @@ class experiment:
             minimum_depth=None,
             mom_run_dir=None,
             mom_input_dir=None,
-            toolpath_dir=None,
+            fre_tools_dir=None,
             create_empty=True,
             hgrid_type=None,
             repeat_year_forcing=None,
@@ -658,7 +658,7 @@ class experiment:
         expt.tidal_constituents = tidal_constituents
         expt.repeat_year_forcing = repeat_year_forcing
         expt.hgrid_type = hgrid_type
-        expt.toolpath_dir = toolpath_dir
+        expt.fre_tools_dir = fre_tools_dir
         expt.mom_run_dir = mom_run_dir
         expt.mom_input_dir = mom_input_dir
         expt.minimum_depth = minimum_depth
@@ -685,7 +685,7 @@ class experiment:
         depth,
         mom_run_dir,
         mom_input_dir,
-        toolpath_dir=None,
+        fre_tools_dir=None,
         longitude_extent=None,
         latitude_extent=None,
         hgrid_type="even_spacing",
@@ -714,7 +714,7 @@ class experiment:
 
         self.mom_run_dir = Path(mom_run_dir)
         self.mom_input_dir = Path(mom_input_dir)
-        self.toolpath_dir = Path(toolpath_dir) if toolpath_dir is not None else None
+        self.fre_tools_dir = Path(fre_tools_dir) if fre_tools_dir is not None else None
 
         self.mom_run_dir.mkdir(exist_ok=True)
         self.mom_input_dir.mkdir(exist_ok=True)
@@ -1575,7 +1575,6 @@ class experiment:
         raw_boundaries_path,
         varnames,
         arakawa_grid="A",
-        boundary_type="rectangular",
         bathymetry_path=None,
         rotational_method=rot.RotationMethod.EXPAND_GRID,
     ):
@@ -1592,16 +1591,10 @@ class experiment:
                 Default is ``["south", "north", "west", "east"]``.
             arakawa_grid (Optional[str]): Arakawa grid staggering type of the boundary forcing.
                 Either ``'A'`` (default), ``'B'``, or ``'C'``.
-            boundary_type (str): Type of box around region. Currently, only ``'rectangular'`` or ``'curvilinear'``
-                is supported.
             bathymetry_path (Optional[str]): Path to the bathymetry file. Default is ``None``, in which case the
                 boundary condition is not masked.
             rotational_method (Optional[str]): Method to use for rotating the boundary velocities. Default is ``EXPAND_GRID``.
         """
-        if not (boundary_type == "rectangular" or boundary_type == "curvilinear"):
-            raise ValueError(
-                "Only rectangular or curvilinear boundaries are supported by this method. To set up more complex boundary shapes you can manually call the 'simple_boundary' method for each boundary."
-            )
         for i in self.boundaries:
             if i not in ["south", "north", "west", "east"]:
                 raise ValueError(
@@ -1696,7 +1689,6 @@ class experiment:
         tpxo_elevation_filepath,
         tpxo_velocity_filepath,
         tidal_constituents=None,
-        boundary_type="rectangular",
         bathymetry_path=None,
         rotational_method=rot.RotationMethod.EXPAND_GRID,
     ):
@@ -1707,8 +1699,6 @@ class experiment:
             tpxo_elevation_filepath: Filepath to the TPXO elevation product. Generally of the form ``h_tidalversion.nc``
             tpxo_velocity_filepath: Filepath to the TPXO velocity product. Generally of the form ``u_tidalversion.nc``
             tidal_constituents: List of tidal constituents to include in the regridding. Default is set in the constructor
-            boundary_type (str): Type of boundary. Currently, only rectangle and curvilinear grids are supported.
-                Here, rectangle refers to grids with boundaries that are parallel to lines of constant longitude or latitude.
             bathymetry_path (str): Path to the bathymetry file. Default is ``None``, in which case the boundary condition is not masked
             rotational_method (str): Method to use for rotating the tidal velocities. Default is 'EXPAND_GRID'.
 
@@ -1728,11 +1718,6 @@ class experiment:
             Type: Python Functions, Source Code
             Web Address: https://github.com/jsimkins2/nwa25
         """
-
-        if not (boundary_type == "rectangular" or boundary_type == "curvilinear"):
-            raise ValueError(
-                "Only rectangular or curvilinear boundaries are supported by this method."
-            )
         if tidal_constituents is not None:
             self.tidal_constituents = tidal_constituents
         tpxo_h = (
@@ -2219,7 +2204,7 @@ class experiment:
         print(
             "OUTPUT FROM MAKE SOLO MOSAIC:",
             subprocess.run(
-                str(self.toolpath_dir / "make_solo_mosaic/make_solo_mosaic")
+                str(self.fre_tools_dir / "make_solo_mosaic/make_solo_mosaic")
                 + " --num_tiles 1 --dir . --mosaic_name ocean_mosaic --tile_file hgrid.nc",
                 shell=True,
                 cwd=self.mom_input_dir,
@@ -2230,7 +2215,7 @@ class experiment:
         print(
             "OUTPUT FROM QUICK MOSAIC:",
             subprocess.run(
-                str(self.toolpath_dir / "make_quick_mosaic/make_quick_mosaic")
+                str(self.fre_tools_dir / "make_quick_mosaic/make_quick_mosaic")
                 + " --input_mosaic ocean_mosaic.nc --mosaic_name grid_spec --ocean_topog bathymetry.nc",
                 shell=True,
                 cwd=self.mom_input_dir,
@@ -2250,7 +2235,7 @@ class experiment:
         print(
             "OUTPUT FROM CHECK MASK:\n\n",
             subprocess.run(
-                str(self.toolpath_dir / "check_mask/check_mask")
+                str(self.fre_tools_dir / "check_mask/check_mask")
                 + f" --grid_file ocean_mosaic.nc --ocean_topog bathymetry.nc --layout {layout[0]},{layout[1]} --halo 4",
                 shell=True,
                 cwd=self.mom_input_dir,
