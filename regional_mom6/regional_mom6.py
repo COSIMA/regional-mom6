@@ -1138,7 +1138,7 @@ class experiment:
         varnames,
         arakawa_grid="A",
         vcoord_type="height",
-        rotational_method=rot.RotationMethod.GIVEN_ANGLE,
+        rotational_method=rot.RotationMethod.EXPAND_GRID,
     ):
         """
         Reads the initial condition from files in ``ic_path``, interpolates to the
@@ -1577,7 +1577,7 @@ class experiment:
         arakawa_grid="A",
         boundary_type="rectangular",
         bathymetry_path=None,
-        rotational_method=rot.RotationMethod.GIVEN_ANGLE,
+        rotational_method=rot.RotationMethod.EXPAND_GRID,
     ):
         """
         This is a wrapper for :func:`~simple_boundary`. Given a list of up to four cardinal directions,
@@ -1596,7 +1596,7 @@ class experiment:
                 is supported.
             bathymetry_path (Optional[str]): Path to the bathymetry file. Default is ``None``, in which case the
                 boundary condition is not masked.
-            rotational_method (Optional[str]): Method to use for rotating the boundary velocities. Default is ``GIVEN_ANGLE``.
+            rotational_method (Optional[str]): Method to use for rotating the boundary velocities. Default is ``EXPAND_GRID``.
         """
         if not (boundary_type == "rectangular" or boundary_type == "curvilinear"):
             raise ValueError(
@@ -1640,7 +1640,7 @@ class experiment:
         segment_number,
         arakawa_grid="A",
         bathymetry_path=None,
-        rotational_method=rot.RotationMethod.GIVEN_ANGLE,
+        rotational_method=rot.RotationMethod.EXPAND_GRID,
     ):
         """
         Set up a boundary forcing file for a given ``orientation``.
@@ -1661,7 +1661,7 @@ class experiment:
             bathymetry_path (str): Path to the bathymetry file. Default is ``None``, in which case
                 the boundary condition is not masked.
             rotational_method (Optional[str]): Method to use for rotating the boundary velocities.
-                Default is 'GIVEN_ANGLE'.
+                Default is 'EXPAND_GRID'.
         """
 
         print(
@@ -1698,7 +1698,7 @@ class experiment:
         tidal_constituents=None,
         boundary_type="rectangular",
         bathymetry_path=None,
-        rotational_method=rot.RotationMethod.GIVEN_ANGLE,
+        rotational_method=rot.RotationMethod.EXPAND_GRID,
     ):
         """Subset the tidal data and generate more boundary files.
 
@@ -1710,7 +1710,7 @@ class experiment:
             boundary_type (str): Type of boundary. Currently, only rectangle and curvilinear grids are supported.
                 Here, rectangle refers to grids with boundaries that are parallel to lines of constant longitude or latitude.
             bathymetry_path (str): Path to the bathymetry file. Default is ``None``, in which case the boundary condition is not masked
-            rotational_method (str): Method to use for rotating the tidal velocities. Default is 'GIVEN_ANGLE'.
+            rotational_method (str): Method to use for rotating the tidal velocities. Default is 'EXPAND_GRID'.
 
         Returns:
             netCDF files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
@@ -3003,12 +3003,12 @@ class segment:
         self.segment_name = segment_name
         self.repeat_year_forcing = repeat_year_forcing
 
-    def regrid_velocity_tracers(self, rotational_method=rot.RotationMethod.GIVEN_ANGLE):
+    def regrid_velocity_tracers(self, rotational_method=rot.RotationMethod.EXPAND_GRID):
         """
         Cut out and interpolate the velocities and tracers.
 
         Arguments:
-            rotational_method (rot.RotationMethod): The method to use for rotation of the velocities. Currently, the default method, ``GIVEN_ANGLE``, works even with non-rotated grids.
+            rotational_method (rot.RotationMethod): The method to use for rotation of the velocities. Currently, the default method, ``EXPAND_GRID``, works even with non-rotated grids.
         """
 
         rawseg = xr.open_dataset(self.infile, decode_times=False, engine="netcdf4")
@@ -3264,7 +3264,7 @@ class segment:
         tpxo_u,
         tpxo_h,
         times,
-        rotational_method=rot.RotationMethod.GIVEN_ANGLE,
+        rotational_method=rot.RotationMethod.EXPAND_GRID,
     ):
         """
         Regrids and interpolates the tidal data for MOM6. Steps include:
@@ -3292,7 +3292,7 @@ class segment:
             infile_td (str): Raw Tidal File/Dir
             tpxo_v, tpxo_u, tpxo_h (xarray.Dataset): Specific adjusted for MOM6 tpxo datasets (Adjusted with :func:`~setup_tides`)
             times (pd.DateRange): The start date of our model period
-            rotational_method (rot.RotationMethod): The method to use for rotation of the velocities. Currently, the default method, GIVEN_ANGLE, works even with non-rotated grids.
+            rotational_method (rot.RotationMethod): The method to use for rotation of the velocities. Currently, the default method, EXPAND_GRID, works even with non-rotated grids.
 
         Returns:
             netCDF files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
