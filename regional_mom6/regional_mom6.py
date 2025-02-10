@@ -1575,7 +1575,6 @@ class experiment:
         raw_boundaries_path,
         varnames,
         arakawa_grid="A",
-        boundary_type="rectangular",
         bathymetry_path=None,
         rotational_method=rot.RotationMethod.GIVEN_ANGLE,
     ):
@@ -1592,16 +1591,10 @@ class experiment:
                 Default is ``["south", "north", "west", "east"]``.
             arakawa_grid (Optional[str]): Arakawa grid staggering type of the boundary forcing.
                 Either ``'A'`` (default), ``'B'``, or ``'C'``.
-            boundary_type (str): Type of box around region. Currently, only ``'rectangular'`` or ``'curvilinear'``
-                is supported.
             bathymetry_path (Optional[str]): Path to the bathymetry file. Default is ``None``, in which case the
                 boundary condition is not masked.
             rotational_method (Optional[str]): Method to use for rotating the boundary velocities. Default is ``GIVEN_ANGLE``.
         """
-        if not (boundary_type == "rectangular" or boundary_type == "curvilinear"):
-            raise ValueError(
-                "Only rectangular or curvilinear boundaries are supported by this method. To set up more complex boundary shapes you can manually call the 'simple_boundary' method for each boundary."
-            )
         for i in self.boundaries:
             if i not in ["south", "north", "west", "east"]:
                 raise ValueError(
@@ -1696,7 +1689,6 @@ class experiment:
         tpxo_elevation_filepath,
         tpxo_velocity_filepath,
         tidal_constituents=None,
-        boundary_type="rectangular",
         bathymetry_path=None,
         rotational_method=rot.RotationMethod.GIVEN_ANGLE,
     ):
@@ -1707,8 +1699,6 @@ class experiment:
             tpxo_elevation_filepath: Filepath to the TPXO elevation product. Generally of the form ``h_tidalversion.nc``
             tpxo_velocity_filepath: Filepath to the TPXO velocity product. Generally of the form ``u_tidalversion.nc``
             tidal_constituents: List of tidal constituents to include in the regridding. Default is set in the constructor
-            boundary_type (str): Type of boundary. Currently, only rectangle and curvilinear grids are supported.
-                Here, rectangle refers to grids with boundaries that are parallel to lines of constant longitude or latitude.
             bathymetry_path (str): Path to the bathymetry file. Default is ``None``, in which case the boundary condition is not masked
             rotational_method (str): Method to use for rotating the tidal velocities. Default is 'GIVEN_ANGLE'.
 
@@ -1728,11 +1718,6 @@ class experiment:
             Type: Python Functions, Source Code
             Web Address: https://github.com/jsimkins2/nwa25
         """
-
-        if not (boundary_type == "rectangular" or boundary_type == "curvilinear"):
-            raise ValueError(
-                "Only rectangular or curvilinear boundaries are supported by this method."
-            )
         if tidal_constituents is not None:
             self.tidal_constituents = tidal_constituents
         tpxo_h = (
