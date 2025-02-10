@@ -22,7 +22,7 @@ Steps 1-5 replicate the angle calculation as done by MOM6. Step 6 is an addition
 6. **Additional step to apply to boundaries**
 Since the boundaries for a regional MOM6 domain are on the `q` points and not on the `t` points, to calculate the angle at the boundary points we need to expand the grid. This is implemented in the `create_expanded_hgrid` method.
 
-## Convert this method to boundary angles - 3 Options
+## Convert this method to boundary angles - 2 Options
 1. **GIVEN_ANGLE**: Don't calculate the angle and use the user-provided field in the hgrid called "angle_dx"
 2. **EXPAND_GRID**: Calculate another boundary row/column points around the hgrid using simple difference techniques. Use the new points to calculate the angle at the boundaries. This works because we can now access the four points needed to calculate the angle, where previously at boundaries we would be missing at least two. 
 
