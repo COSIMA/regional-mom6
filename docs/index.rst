@@ -8,7 +8,7 @@ In brief...
 
 Users just need to provide some information about where, when, and how big their domain
 is and also where raw input forcing files are. The package sorts out all the boring details
-and creates a set of MOM6-friendly input files along with setup directories ready to go! 
+and creates a set of MOM6-friendly input files along with setup directories ready to go!
 
 The idea behind this package is that it should let the user sidestep some of the tricky
 issues with getting the model to run in the first place. This removes some of the steep
@@ -20,12 +20,12 @@ stability issues or fiddling with bathymetry to deal with very narrow fjords or 
 Features
 --------
 
-- Automatic grid generation at chosen vertical and horizontal grid spacing OR reads in existing custom grids provided by the user.
-- Handles rotation of the input files when the grid is rotated or curved relative to constant latitude & longitude lines. 
+- Automatic grid generation at chosen vertical and horizontal grid spacing *or* reads in existing custom grids provided by the user.
+- Handles rotation of the input files when the grid is rotated or curved relative to constant latitude & longitude lines.
 - Automatic removal of non-advective cells from the bathymetry that cause the model to crash.
-- Handle slicing across 'seams' in of the forcing input datasets (e.g., when the regional
+- Handles slicing across 'seams' in of the forcing input datasets (e.g., when the regional
   configuration includes longitude 180 and the forcing longitude is defined in [-180, 180]).
-- Handles TPXO tidal forcing at the boundaries. 
+- Handles TPXO tidal forcing at the boundaries.
 - Handles metadata encoding.
 - Creates directory structure with the configuration files as expected by MOM6.
 - Handles interpolation and interpretation of input data. No pre-processing of forcing datasets
@@ -33,12 +33,11 @@ Features
   related to the machine's available memory.)
 
 
-
 What you need to get started
 ----------------------------
 
 1. a cool idea for a new regional MOM6 domain,
-2. a working MOM6 executable on a machine of your choice, 
+2. a working MOM6 executable on a machine of your choice,
 3. a bathymetry file that at least covers your domain,
 4. 3D ocean forcing files *of any resolution* on your choice of A, B, or C Arakawa grid,
 5. surface forcing files (e.g., from ERA or JRA reanalysis), and
@@ -49,7 +48,7 @@ Browse through the `demos <demos.html>`_.
 Citing
 ------
 
-If you use regional-mom6 in research, teaching, or other activities, we would be grateful 
+If you use regional-mom6 in research, teaching, or other activities, we would be grateful
 if you could mention regional-mom6 and cite our paper in JOSS:
 
     Barnes et al., (2024). regional-mom6: A Python package for automatic generation of regional configurations for the Modular Ocean Model 6. *Journal of Open Source Software*, **9(100)**, 6857, doi:`10.21105/joss.06857 <https://doi.org/10.21105/joss.06857>`_.
@@ -88,7 +87,7 @@ The bibtex entry for the paper is:
    angle_calculation
    api
    contributing/index
-   
+
 
 Indices and tables
 ==================
