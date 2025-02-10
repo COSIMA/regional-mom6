@@ -47,7 +47,7 @@ def test_write_config(tmp_path):
         minimum_depth=25,
         mom_run_dir=run_dir,
         mom_input_dir=input_dir,
-        toolpath_dir="",
+        fre_tools_dir="",
         expt_name="test",
         boundaries=["south", "north"],
     )
@@ -125,7 +125,7 @@ def test_load_config(tmp_path):
         minimum_depth=25,
         mom_run_dir=run_dir,
         mom_input_dir=input_dir,
-        toolpath_dir="",
+        fre_tools_dir="",
     )
     path = tmp_path / "testing_config.json"
     config_expt = expt.write_config_file(path)
