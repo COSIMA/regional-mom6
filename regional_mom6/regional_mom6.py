@@ -38,6 +38,7 @@ __all__ = [
     "experiment",
     "segment",
     "create_experiment_from_config",
+    "get_glorys_data"
 ]
 
 
