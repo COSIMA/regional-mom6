@@ -5,7 +5,7 @@ on:
     branches:
       - '**'
       - '!joss-paper'
-
+  pull_request:
 jobs:
   formatting:
     runs-on: ubuntu-latest
