@@ -2536,6 +2536,7 @@ class experiment:
                 MOM_override_dict[key]["override"] = True
         self.write_MOM_file(MOM_input_dict)
         self.write_MOM_file(MOM_override_dict)
+        self.write_MOM_file(MOM_layout_dict)
 
         ## If using payu to run the model, create a payu configuration file
         if not using_payu and os.path.exists(f"{self.mom_run_dir}/config.yaml"):
