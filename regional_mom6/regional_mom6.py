@@ -305,6 +305,8 @@ def get_glorys_data(
         segment_range (str): name of the segment (without the ``.nc`` extension, e.g., ``east_unprocessed``)
         download_path (str): Location of where the script is saved
         modify_existing (bool): Whether to add to an existing script or start a new one
+    Returns:
+        file path
     """
     buffer = 0.24  # Pads downloads to ensure that interpolation onto desired domain doesn't fail.
     # Default is 0.24, just under three times the Glorys cell width (3 x 1/12 = 0.25).
@@ -328,7 +330,7 @@ copernicusmarine subset --dataset-id cmems_mod_glo_phy_my_0.083deg_P1D-m --varia
     )
     file.writelines(lines)
     file.close()
-    return
+    return Path(path / "get_glorys_data.sh")
 
 
 def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
