@@ -1,4 +1,4 @@
-## Premade Run Directories
+# Premade Run Directories
 
 These directories are used for the demo notebooks, and can be used as templates for setting up a new experiment. The [documentation](https://regional-mom6.readthedocs.io/en/latest/mom6-file-structure-primer.html) explains what all the files are for.
 
