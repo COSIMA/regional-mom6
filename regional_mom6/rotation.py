@@ -167,7 +167,7 @@ def mom6_angle_calculation_method(
 
     # Compute angle
     angle = np.arctan2(
-        cos_meanlat * ((lonB[1, 0] - lonB[1, 0]) + (lonB[1, 1] - lonB[0, 0])),
+        cos_meanlat * ((lonB[1, 0] - lonB[0, 1]) + (lonB[1, 1] - lonB[0, 0])),
         (top_right.y - bottom_left.y) + (top_left.y - bottom_right.y),
     )
     # Assign angle to angles_arr
