@@ -131,7 +131,7 @@ def mom6_angle_calculation_method(
 ) -> xr.DataArray:
     """
     Calculate the angle of the point using the MOM6 method adapted from the
-    MOM6 code: https://github.com/mom-ocean/MOM6/blob/e818ea4e792f0b85797247f955789b3c1210db8d/src/initialization/MOM_shared_initialization.F90#L535
+    MOM6 code: https://github.com/mom-ocean/MOM6/blob/05d8cc395c1c3c04dd04885bf8dd6df50a86b862/src/initialization/MOM_shared_initialization.F90#L572-L587
 
     This method can handle vectorized computations.
 
@@ -167,10 +167,9 @@ def mom6_angle_calculation_method(
 
     # Compute angle
     angle = np.arctan2(
-        cos_meanlat * ((lonB[0, 1] - lonB[1, 0]) + (lonB[1, 1] - lonB[0, 0])),
-        (bottom_left.y - top_right.y) + (top_left.y - bottom_right.y),
+        cos_meanlat * ((lonB[1, 0] - lonB[1, 0]) + (lonB[1, 1] - lonB[0, 0])),
+        (top_right.y - bottom_left.y) + (top_left.y - bottom_right.y),
     )
-
     # Assign angle to angles_arr
     angles_arr = np.rad2deg(angle) - 90
 
