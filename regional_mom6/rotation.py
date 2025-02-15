@@ -130,19 +130,20 @@ def mom6_angle_calculation_method(
     point: xr.DataArray,
 ) -> xr.DataArray:
     """
-    Calculate the angle of the point using the MOM6 method in :func:`~initialize_grid_rotation_angle`.
-    This method can handle vectorized computations.
+    Calculate the angle of the point using the MOM6 method adapted from the
+    MOM6 code: https://github.com/mom-ocean/MOM6/blob/e818ea4e792f0b85797247f955789b3c1210db8d/src/initialization/MOM_shared_initialization.F90#L535
 
-    (Adapted from MOM6 code; https://github.com/mom-ocean/MOM6/blob/e818ea4e792f0b85797247f955789b3c1210db8d/src/initialization/MOM_shared_initialization.F90#L535)
+    This method can handle vectorized computations.
 
     Parameters
     ----------
     len_lon: float
-        The length of the longitude of the regional domain
+        The extent of the longitude of the regional domain (in degrees).
     top_left, top_right, bottom_left, bottom_right: xr.DataArray
-        The four points around the point to calculate the angle from the hgrid requires an x and y component
+        The four points around the point to calculate the angle from the hgrid;
+    requires both an `x` and `y` component, both of which are in degrees.
     point: xr.DataArray
-        The point to calculate the angle from the hgrid
+        The point to calculate the angle from the ``hgrid``
 
     Returns
     -------
@@ -150,10 +151,6 @@ def mom6_angle_calculation_method(
         The angle of the point
     """
     rotation_logger.info("Calculating grid rotation angle")
-    # Direct Translation
-    pi_720deg = (
-        np.arctan(1) / 180
-    )  # One quarter the conversion factor from degrees to radians
 
     # Compute lonB for all points
     lonB = np.zeros((2, 2, len(point.nyp), len(point.nxp)))
@@ -164,16 +161,16 @@ def mom6_angle_calculation_method(
     lonB[1][1] = modulo_around_point(top_right.x, point.x, len_lon)  # Top Right
     lonB[0][1] = modulo_around_point(bottom_right.x, point.x, len_lon)  # Bottom Right
 
-    # Compute lon_scale
-    lon_scale = np.cos(
-        pi_720deg * ((bottom_left.y + bottom_right.y) + (top_right.y + top_left.y))
+    cos_meanlat = np.cos(
+        np.deg2rad((bottom_left.y + bottom_right.y + top_right.y + top_left.y) / 4)
     )
 
     # Compute angle
     angle = np.arctan2(
-        lon_scale * ((lonB[0, 1] - lonB[1, 0]) + (lonB[1, 1] - lonB[0, 0])),
+        cos_meanlat * ((lonB[0, 1] - lonB[1, 0]) + (lonB[1, 1] - lonB[0, 0])),
         (bottom_left.y - top_right.y) + (top_left.y - bottom_right.y),
     )
+
     # Assign angle to angles_arr
     angles_arr = np.rad2deg(angle) - 90
 
