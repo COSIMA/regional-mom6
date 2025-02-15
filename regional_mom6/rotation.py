@@ -171,7 +171,7 @@ def mom6_angle_calculation_method(
         (top_right.y - bottom_left.y) + (top_left.y - bottom_right.y),
     )
     # Assign angle to angles_arr
-    angles_arr = np.rad2deg(angle) - 90
+    angles_arr = -np.rad2deg(angle)
 
     # Assign angles_arr to hgrid
     t_angles = xr.DataArray(
