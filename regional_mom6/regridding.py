@@ -6,8 +6,8 @@ Steps:
 2. Work on some data issues
 
     1. For temperature - Make sure it's in Celsius
-    2. FILL IN NANS -> this is important for MOM6 (fill_missing_data) -> This diverges between 
-    
+    2. FILL IN NANS -> this is important for MOM6 (fill_missing_data) -> This diverges between
+
 3. For tides, we split the tides into an amplitude and a phase
 4. In some cases, here is a great place to rotate the velocities to match a curved grid (tidal_velocity), velocity is also a good place to do this.
 5. We then add the time coordinate

@@ -55,7 +55,8 @@ def initialize_grid_rotation_angles_using_expanded_hgrid(
 
 def initialize_grid_rotation_angle(hgrid: xr.Dataset) -> xr.DataArray:
     """
-    Calculate the ``angle_dx`` in degrees from the true x direction (parallel to latitude) counter-clockwise and return as a dataarray. (Mimics MOM6 angle calculation function :func:`~initialize_grid_rotation_angle`)
+    Calculate the ``angle_dx`` in degrees from the true ``x`` direction (parallel to latitude) counter-clockwise
+    and return as a dataarray. (Mimics MOM6 angle calculation function :func:`~mom6_angle_calculation_method`)
 
     Parameters
     ----------
