@@ -8,6 +8,8 @@ regional_mom6.egg-info
 .env
 env
 docker
+*.swp
 
 inputdir/
 rundir/
+
