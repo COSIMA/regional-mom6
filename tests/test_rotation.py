@@ -6,6 +6,7 @@ import xarray as xr
 import numpy as np
 import os
 
+tol_angle = 1e-4 # tolerance for angles (in degrees)
 
 def test_get_curvilinear_hgrid_fixture(get_curvilinear_hgrid):
     # If the fixture fails to find the file, the test will be skipped.
@@ -25,34 +26,33 @@ def test_expanded_hgrid_generation(get_curvilinear_hgrid):
     assert (expanded_hgrid.y.values[1:-1, 1:-1] == hgrid.y.values).all()
 
     # Check extra boundary has realistic values
-    diff_check = 1
     assert (
         (
             expanded_hgrid.x.values[0, 1:-1]
             - (hgrid.x.values[0, :] - (hgrid.x.values[1, :] - hgrid.x.values[0, :]))
         )
-        < diff_check
+        < tol_angle
     ).all()
     assert (
         (
             expanded_hgrid.x.values[1:-1, 0]
             - (hgrid.x.values[:, 0] - (hgrid.x.values[:, 1] - hgrid.x.values[:, 0]))
         )
-        < diff_check
+        < tol_angle
     ).all()
     assert (
         (
             expanded_hgrid.x.values[-1, 1:-1]
             - (hgrid.x.values[-1, :] - (hgrid.x.values[-2, :] - hgrid.x.values[-1, :]))
         )
-        < diff_check
+        < tol_angle
     ).all()
     assert (
         (
             expanded_hgrid.x.values[1:-1, -1]
             - (hgrid.x.values[:, -1] - (hgrid.x.values[:, -2] - hgrid.x.values[:, -1]))
         )
-        < diff_check
+        < tol_angle
     ).all()
 
     # Check corners for the same...
@@ -63,15 +63,15 @@ def test_expanded_hgrid_generation(get_curvilinear_hgrid):
     assert (
         expanded_hgrid.x.values[-1, 0]
         - (hgrid.x.values[-1, 0] - (hgrid.x.values[-2, 1] - hgrid.x.values[-1, 0]))
-    ) < diff_check
+    ) < tol_angle
     assert (
         expanded_hgrid.x.values[0, -1]
         - (hgrid.x.values[0, -1] - (hgrid.x.values[1, -2] - hgrid.x.values[0, -1]))
-    ) < diff_check
+    ) < tol_angle
     assert (
         expanded_hgrid.x.values[-1, -1]
         - (hgrid.x.values[-1, -1] - (hgrid.x.values[-2, -2] - hgrid.x.values[-1, -1]))
-    ) < diff_check
+    ) < tol_angle
 
     # Same for y
     assert (
@@ -79,46 +79,46 @@ def test_expanded_hgrid_generation(get_curvilinear_hgrid):
             expanded_hgrid.y.values[0, 1:-1]
             - (hgrid.y.values[0, :] - (hgrid.y.values[1, :] - hgrid.y.values[0, :]))
         )
-        < diff_check
+        < tol_angle
     ).all()
     assert (
         (
             expanded_hgrid.y.values[1:-1, 0]
             - (hgrid.y.values[:, 0] - (hgrid.y.values[:, 1] - hgrid.y.values[:, 0]))
         )
-        < diff_check
+        < tol_angle
     ).all()
     assert (
         (
             expanded_hgrid.y.values[-1, 1:-1]
             - (hgrid.y.values[-1, :] - (hgrid.y.values[-2, :] - hgrid.y.values[-1, :]))
         )
-        < diff_check
+        < tol_angle
     ).all()
     assert (
         (
             expanded_hgrid.y.values[1:-1, -1]
             - (hgrid.y.values[:, -1] - (hgrid.y.values[:, -2] - hgrid.y.values[:, -1]))
         )
-        < diff_check
+        < tol_angle
     ).all()
 
     assert (
         expanded_hgrid.y.values[0, 0]
         - (hgrid.y.values[0, 0] - (hgrid.y.values[1, 1] - hgrid.y.values[0, 0]))
-    ) < diff_check
+    ) < tol_angle
     assert (
         expanded_hgrid.y.values[-1, 0]
         - (hgrid.y.values[-1, 0] - (hgrid.y.values[-2, 1] - hgrid.y.values[-1, 0]))
-    ) < diff_check
+    ) < tol_angle
     assert (
         expanded_hgrid.y.values[0, -1]
         - (hgrid.y.values[0, -1] - (hgrid.y.values[1, -2] - hgrid.y.values[0, -1]))
-    ) < diff_check
+    ) < tol_angle
     assert (
         expanded_hgrid.y.values[-1, -1]
         - (hgrid.y.values[-1, -1] - (hgrid.y.values[-2, -2] - hgrid.y.values[-1, -1]))
-    ) < diff_check
+    ) < tol_angle
 
     return
 
@@ -197,7 +197,7 @@ def test_mom6_angle_calculation_method(get_curvilinear_hgrid):
             )
             - hgrid["angle_dx"].isel(nyp=ds_t.t_points_y, nxp=ds_t.t_points_x).values
         )
-        < 1
+        < tol_angle
     ).all()
 
     return
@@ -215,7 +215,7 @@ def test_initialize_grid_rotation_angle(get_curvilinear_hgrid):
             angle.values
             - hgrid["angle_dx"].isel(nyp=ds_t.t_points_y, nxp=ds_t.t_points_x).values
         )
-        < 1
+        < tol_angle
     ).all()  # Angle is correct
     assert angle.values.shape == ds_t.tlon.shape  # Shape is correct
     return
@@ -228,7 +228,7 @@ def test_initialize_grid_rotation_angle_using_expanded_hgrid(get_curvilinear_hgr
     hgrid = get_curvilinear_hgrid
     angle = rot.initialize_grid_rotation_angles_using_expanded_hgrid(hgrid)
 
-    assert (angle.values - hgrid.angle_dx < 1).all()
+    assert (angle.values - hgrid.angle_dx < tol_angle).all()
     assert angle.values.shape == hgrid.x.shape
     return
 
@@ -264,7 +264,7 @@ def test_get_rotation_angle(get_curvilinear_hgrid, get_rectilinear_hgrid):
     angle = rot.get_rotation_angle(rotational_method, curved_hgrid, orientation=o)
     assert angle.shape == curved_hgrid.x.shape
     assert (
-        abs(angle.values - curved_hgrid.angle_dx) < 1
+        abs(angle.values - curved_hgrid.angle_dx) < tol_angle
     ).all()  # There shouldn't be large differences
     angle = rot.get_rotation_angle(rotational_method, rect_hgrid, orientation=o)
     assert angle.shape == rect_hgrid.x.shape
