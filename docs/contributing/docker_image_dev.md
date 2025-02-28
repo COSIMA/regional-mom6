@@ -1,6 +1,6 @@
 # Docker Image & Github Testing
 
-regional-mom6 uses a docker image in Github actions for holding large data. Here, we explain how contributors can use the docker image.
+regional-mom6 uses a docker image in Github actions for holding large data. Here, we explain how contributors can use the docker image. Development on the docker image should be pushed to the "latest" tag whenever possible.
 
 First things first, install Docker by following [instructions at the docker docs](https://docs.docker.com/get-started/). To ensure everything is working correctly, start the docker engine, and check that the following simple command doesn't output any errors.
 
@@ -14,13 +14,13 @@ The docker image lives at:
 For local development of the image, e.g., to add data to it that will be used in the packages tests, first we need to pull it.
 
 ```bash
-docker pull ghcr.io/cosima/regional-test-env:updated
+docker pull ghcr.io/cosima/regional-test-env:latest
 ```
 
 Then to test the image, we go into the directory of our locally copy of regional-mom6, and run:
 
 ```bash
-docker run -it --rm \ -v $(pwd):/workspace \ -w /workspace \ ghcr.io/cosima/regional-test-env:updated \ /bin/bash
+docker run -it --rm \ -v $(pwd):/workspace \ -w /workspace \ ghcr.io/cosima/regional-test-env:latest \ /bin/bash
 ```
 
 The above command mounts the local copy of the package in the `/workspace` directory of the image.

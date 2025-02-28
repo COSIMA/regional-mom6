@@ -1,5 +1,10 @@
 # Rotation and angle calculation in regional-mom6 using MOM6 Angle Calculation
 
+## Default Behavior
+The package defaults to internally calculating the angle of curved horizontal grids (``hgrids``) using the MOM6 angle calculation rather than a user-provided angle calculation. The remainder of this page details this workflow.
+
+## Detailed Explanation
+
 Here we explain the implementation of MOM6 angle calculation in regional-mom6, which is the process by which regional-mom6 calculates the angle of curved horizontal grids (``hgrids``).
 
 **Issue:** On a curved hgrid, we have to rotate the boundary conditions according to the angle the grid is rotated from lat-lon coordinates (true north vs model north). Although horizontal grids supplied by users will contain an `angle_dx` field, MOM6 ignores this field entirely and calculates its own grid angles internally.
