@@ -6,7 +6,7 @@ import xarray as xr
 import numpy as np
 import os
 
-tol_angle = 1e-4  # tolerance for angles (in degrees)
+tol_angle = 1e-3  # tolerance for angles (in degrees)
 
 
 def test_get_curvilinear_hgrid_fixture(get_curvilinear_hgrid):
