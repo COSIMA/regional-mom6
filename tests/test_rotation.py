@@ -60,7 +60,7 @@ def test_expanded_hgrid_generation(get_curvilinear_hgrid):
     assert (
         expanded_hgrid.x.values[0, 0]
         - (hgrid.x.values[0, 0] - (hgrid.x.values[1, 1] - hgrid.x.values[0, 0]))
-    ) < diff_check
+    ) < tol_angle
     assert (
         expanded_hgrid.x.values[-1, 0]
         - (hgrid.x.values[-1, 0] - (hgrid.x.values[-2, 1] - hgrid.x.values[-1, 0]))
