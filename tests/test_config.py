@@ -130,7 +130,7 @@ def test_load_config(tmp_path):
     path = tmp_path / "testing_config.json"
     config_expt = expt.write_config_file(path)
     new_expt = rmom6.create_experiment_from_config(
-        os.path.join(path), mom_input_folder=tmp_path, mom_run_folder=tmp_path
+        os.path.join(path), mom_input_dir=tmp_path, mom_run_dir=tmp_path
     )
     assert str(new_expt) == str(expt)
     print(new_expt.vgrid)
