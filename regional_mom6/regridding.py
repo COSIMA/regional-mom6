@@ -17,7 +17,7 @@ Steps:
 10. (For fields with vertical dimension) Rename the vertical coordinate of the variable to ``nz_segment_num_var``.
 11. (For fields with vertical dimension) Declare this new vertical coordinate as a increasing series of integers.
 12. Re-add the "perpendicular" dimension.
-13. ....Add  layer thickness of dz to the vertical forcings
+13. ....Add  layer thickness ``dz`` to the forcing fields with vertical dimension.
 14. Add to encoding_dict a fill value(_FillValue) and zlib, dtype, for time, lat lon, ... and each variable (no type needed though).
 """
 
@@ -45,17 +45,20 @@ def coords(
     ``self.coords`` gives us the subset of the ``hgrid`` based on the orientation.
 
     Arguments:
-        hgrid (xr.Dataset): The horizontal grid dataset
-        orientation (str): The orientation of the boundary
-        segment_name (str): The name of the segment
+        hgrid (xr.Dataset): The horizontal grid dataset.
+        orientation (str): The orientation of the boundary.
+        segment_name (str): The name of the segment.
         coords_at_t_points (bool, optional): Whether to return the boundary t-points instead of
-    the q/u/v of a general boundary for rotation. Default: ``False``
+            the q/u/v of a general boundary for rotation. Default: ``False``.
 
     Returns:
         xr.Dataset: The correct coordinate space for the orientation
 
-    Code adapted from::
-        Author(s): GFDL, James Simkins, Rob Cermak, etc..
+    Code credit:
+
+    .. code-block:: bash
+
+        Author(s): GFDL, James Simkins, Rob Cermak, and contributors
         Year: 2022
         Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
         Version: N/A
@@ -68,7 +71,7 @@ def coords(
     if coords_at_t_points:
         regridding_logger.info("Creating coordinates of the boundary t-points")
 
-        # Calc T Point Info
+        # Calculate t-point information
         ds = get_hgrid_arakawa_c_points(hgrid, "t")
 
         tangle_dx = hgrid[angle_variable_name][(ds.t_points_y, ds.t_points_x)]
@@ -83,7 +86,8 @@ def coords(
         )
     else:
         regridding_logger.info("Creating coordinates of the boundary q/u/v points")
-        # Don't have to do anything because this is the actual boundary. t-points are one-index deep and require managing.
+        # Don't have to do anything because this is the actual boundary.
+        # t-points are one-index deep and require managing.
         dataset_to_get_coords = hgrid
 
     # Rename nxp and nyp to locations
@@ -380,6 +384,7 @@ def add_secondary_dimension(
         axis=coords.attrs["axis_to_expand"] - insert_behind_by,
     )
     return ds
+
 
 def vertical_coordinate_encoding(
     ds: xr.Dataset, var: str, segment_name: str, old_vert_coord_name: str
@@ -687,19 +692,18 @@ def generate_encoding(
     ds: xr.Dataset, encoding_dict, default_fill_value=netCDF4.default_fillvals["f8"]
 ) -> dict:
     """
-    Generate the encoding dictionary for the dataset
-    Parameters
-    ----------
-    ds : xr.Dataset
-        The dataset to generate the encoding for
-    encoding_dict : dict
-        The starting encoding dict with some specifications needed for time and other vars, this will be updated with encodings in this function
-    default_fill_value : float, optional
-        The default fill value, by default 1.0e20
-    Returns
-    -------
-    dict
-        The encoding dictionary
+    Generate the encoding dictionary for the dataset.
+
+    Parameters:
+
+        ds (xr.Dataset): The dataset to generate the encoding for
+        encoding_dict (dict): The starting encoding dict with some specifications needed
+            for time and other vars, this will be updated with encodings in this function
+        default_fill_value (float, optional): The default fill value; default: 1.0e20
+
+    Returns:
+
+        (dict): The encoding dictionary
     """
     regridding_logger.info("Generating encoding dictionary")
     for var in ds:

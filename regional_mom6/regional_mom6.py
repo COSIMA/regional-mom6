@@ -704,8 +704,8 @@ class experiment:
         boundaries=["south", "north", "west", "east"],
     ):
 
-        # Creates empty experiment object for testing and experienced user manipulation.
-        # Kinda seems like a logical spinoff of this is to divorce the hgrid/vgrid creation from the experiment object initialization.
+        # Creates an empty experiment object for testing and experienced user manipulation.
+        # Seems like a logical spinoff of this is to divorce the hgrid/vgrid creation from the experiment object initialization.
         # Probably more of a CS workflow. That way read_existing_grids could be a function on its own, which ties in better with
         # For now, check out the create_empty method for more explanation
         if create_empty:
@@ -882,7 +882,7 @@ class experiment:
         return find_files_by_pattern(
             [tides_path, self.mom_input_dir],
             patterns,
-            error_message="No tides files set up yet (or files misplaced from {}). Call `setup_tides_boundaries` method to set up tides.".format(
+            error_message="No tides files set up yet (or files misplaced from {}). Call `setup_boundary_tides` method to set up tides.".format(
                 tides_path
             ),
         )
@@ -2330,7 +2330,7 @@ class experiment:
 
             if not tidal_files_exist:
                 raise ValueError(
-                    "No files with 'tu' in their names found in the forcing or input directory. If you meant to use tides, please run the setup_tides_rectangle_boundaries method first. That does output some tidal files."
+                    "No files with 'tu' in their names found in the forcing or input directory. If you meant to use tides, please run the setup_boundary_tides method first. That does output some tidal files."
                 )
 
         # Set local var
@@ -2432,7 +2432,7 @@ class experiment:
         MOM_input_dict = self.read_MOM_file_as_dict("MOM_input")
         MOM_override_dict = self.read_MOM_file_as_dict("MOM_override")
         # The number of boundaries is reflected in the number of segments setup in setup_ocean_state_boundary under expt.segments.
-        # The setup_tides_boundaries function currently only works with rectangular grids amd sets up 4 segments, but DOESN"T save them to expt.segments.
+        # The setup_boundary_tides function currently only works with rectangular grids amd sets up 4 segments, but DOESN"T save them to expt.segments.
         # Therefore, we can use expt.segments to determine how many segments we need for MOM_input. We can fill the empty segments with a empty string to make sure it is overriden correctly.
 
         # Others
@@ -3439,7 +3439,7 @@ class segment:
 
     def encode_tidal_files_and_output(self, ds, filename):
         """
-        This function:
+        This method:
 
         - Expands the dimensions (with the segment name)
         - Renames some dimensions to be more specific to the segment
