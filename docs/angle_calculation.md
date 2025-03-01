@@ -1,16 +1,18 @@
-# Rotation and angle calculation in regional-mom6 using MOM6 Angle Calculation
+# Rotated grids and the angle calculation
+
+For rotated horizontal grids, that is grids whose coordinates do not align with lines of constant latitude and longitude, we have to rotate the boundary conditions appropriately by the angle that the grid is rotated from the latitude-longitude coordinates, i.e., the angle formed by the curved grid's constant ``x`` coordinate compared to the true north.
+
+**Issue:** Although horizontal grids supplied by users _do_ contain an `angle_dx` field, MOM6 by default ignores `angle_dx`  entirely and re-calculates the angles that correspond to each grid point.
+
+**Solution:** To be consistent with MOM6's treatment of grid angles, when we rotate our boundary conditions, we implemented MOM6 angle calculation in a file called "rotation.py", and included this in the the boundary regridding functions by default.
 
 ## Default Behavior
-The package defaults to internally calculating the angle of curved horizontal grids (``hgrids``) using the MOM6 angle calculation rather than a user-provided angle calculation. The remainder of this page details this workflow.
+regional-mom6 by default computes the the angle of curved horizontal grids (``hgrids``) using the same algorithm as MOM6 does.
+This algorithm is detailed below.
 
 ## Detailed Explanation
 
 Here we explain the implementation of MOM6 angle calculation in regional-mom6, which is the process by which regional-mom6 calculates the angle of curved horizontal grids (``hgrids``).
-
-**Issue:** On a curved hgrid, we have to rotate the boundary conditions according to the angle the grid is rotated from lat-lon coordinates (true north vs model north). Although horizontal grids supplied by users will contain an `angle_dx` field, MOM6 ignores this field entirely and calculates its own grid angles internally.
-
-**Solution:** To be consistent with MOM6's treatement of grid angles, when we rotate our boundary conditions, we implemented MOM6 angle calculation in a file called "rotation.py", and included this in the the boundary regridding functions by default.
-
 
 ## Boundary rotation algorithm
 Steps 1-5 replicate the angle calculation as done by MOM6. Step 6 is an additional step required to apply this algorithm to the boundary points.
@@ -31,10 +33,6 @@ Since the boundaries for a regional MOM6 domain are on the `q` points and not on
 2. **GIVEN_ANGLE**: Don't calculate the angle and use the user-provided field in the hgrid called `angle_dx`.
 
 
-## Force the usage of the provided angle_dx values
+## Force using the provided `angle_dx`
 
-To use the provided angles instead of the default algorithm, when calling the regridding functions `regrid_velocity_tracers` and `regrid_tides`, set the optional argument `rotational method = given_angle`
-
-## Code structure
-
-Most calculation code is implemented in the `rotation.py`, which is called by the regridding functions if rotation is required.
+To enforce using the provided angles instead of the default algorithm, when calling the regridding methods `regrid_velocity_tracers` and `regrid_tides`, set the optional keyword argument `rotational method = given_angle`
