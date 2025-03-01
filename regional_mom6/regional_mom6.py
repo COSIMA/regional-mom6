@@ -84,25 +84,24 @@ def convert_to_tpxo_tidal_constituents(tidal_constituents):
 
 def create_experiment_from_config(
     config_file_path,
-    mom_input_folder=None,
-    mom_run_folder=None,
+    mom_input_dir="mom_input/from_config",
+    mom_run_dir="mom_run/from_config",
     create_hgrid_and_vgrid=True,
 ):
     """
     Load experiment variables from a configuration file and generate the horizontal and vertical grids (``hgrid``/``vgrid``).
     Computer-specific functionality eliminates the ability to pass file paths.
-    This is basically another way to initialize and experiment.
 
-    Unless specified otherwise, method sets default directories: ``"mom_input/from_config"`` and ``"mom_run/from_config"``.
+    (This is basically another way to initialize and experiment.)
 
     Arguments:
         config_file_path (str): Path to the config file.
-        mom_input_folder (str): Path to the MOM6 input folder. Default is ``"mom_input/from_config"``.
-        mom_run_folder (str): Path to the MOM6 run folder. Default is ``"mom_run/from_config"``.
+        mom_input_dir (str): Path to the MOM6 input directory. Default: ``"mom_input/from_config"``.
+        mom_run_dir (str): Path to the MOM6 run directory. Default: ``"mom_run/from_config"``.
         create_hgrid_and_vgrid (bool): Whether to create the hgrid and the vgrid. Default is True.
 
     Returns:
-        experiment: An experiment object with the fields from the config loaded in.
+        An experiment object with the fields from the configuration at ``config_file_path``.
     """
     print("Reading from config file....")
     with open(config_file_path, "r") as f:
@@ -134,12 +133,8 @@ def create_experiment_from_config(
     except IndexError:
         expt.date_range = None
 
-    if mom_input_folder is None:
-        mom_input_folder = Path("mom_run" / "from_config")
-    if mom_run_folder is None:
-        mom_run_folder = Path("mom_input" / "from_config")
-    expt.mom_run_dir = Path(mom_run_folder)
-    expt.mom_input_dir = Path(mom_input_folder)
+    expt.mom_run_dir = Path(mom_run_dir)
+    expt.mom_input_dir = Path(mom_input_dir)
     expt.mom_run_dir.mkdir(parents=True, exist_ok=True)
     expt.mom_input_dir.mkdir(parents=True, exist_ok=True)
 
@@ -176,7 +171,7 @@ def create_experiment_from_config(
 
 def longitude_slicer(data, longitude_extent, longitude_coords):
     """
-    Slice longitudes while handling periodicity and the 'seams', that is the
+    Slices longitudes while handling periodicity and the 'seams', that is the
     longitude values where the data wraps around in a global domain (for example,
     longitudes are defined, usually, within domain [0, 360] or [-180, 180]).
 
@@ -309,8 +304,9 @@ def get_glorys_data(
     Returns:
         file path
     """
-    buffer = 0.24  # Pads downloads to ensure that interpolation onto desired domain doesn't fail.
-    # Default is 0.24, just under three times the Glorys cell width (3 x 1/12 = 0.25).
+
+    buffer = 0.24  # Pads download regions to ensure that interpolation onto desired domain doesn't fail.
+    # Default is 0.24 degrees; just under three times the Glorys cell width (3 x 1/12 = 0.25).
 
     path = Path(download_path)
 
