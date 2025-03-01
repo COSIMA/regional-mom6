@@ -1,23 +1,21 @@
 """
-Custom-built helper functions to regrid the boundary conditions and encoding for MOM6.
+Custom-built helper functions to regrid the boundary conditions and ensure proper encoding for MOM6.
 
 Steps:
-1. Initial Regridding -> Find the boundary of the ``hgrid``, and regrid the forcing variables to that boundary. Call (``initial_regridding``) and then use the xesmf.Regridder with whatever datasets you need.
+1. Initial Regridding -> Find the boundary of the ``hgrid``, and regrid the forcing variables to that boundary. Call (``initial_regridding``) and then use the ``xesmf.Regridder`` with any datasets you need.
 2. Work on some data issues
-
-    1. For temperature - Make sure it's in Celsius
-    2. FILL IN NANS -> this is important for MOM6 (fill_missing_data) -> This diverges between
-
+    * Ensure temperatures are in Celsius.
+    * Fill in NaNs. This step is important for MOM6 (``fill_missing_data``) -> This diverges between
 3. For tides, we split the tides into an amplitude and a phase
 4. In some cases, here is a great place to rotate the velocities to match a curved grid (tidal_velocity), velocity is also a good place to do this.
 5. We then add the time coordinate
 6. For vars that are not just surface variables, we need to add several depth related variables
-    1. Add a dz variable in layer thickness
-    2. Some metadata issues later on
+    * Add a `dz` variable in layer thickness
+    * Some metadata issues later on
 7. Now we do up the metadata
 8. Rename variables to var_segment_num
-9. (IF VERTICAL EXISTS) Rename the vertical coordinate of the variable to nz_segment_num_var
-10. (IF VERTICAL EXISTS)  Declare this new vertical coordiante as a increasing series of integers
+9. (If vertical dimension exists) Rename the vertical coordinate of the variable to nz_segment_num_var
+10. (If vertical dimension exists) Declare this new vertical coordinate as a increasing series of integers
 11. Re-add the "perpendicular" dimension
 12. ....Add  layer thickness of dz to the vertical forcings
 13. Add to encoding_dict a fill value(_FillValue) and zlib, dtype, for time, lat long, ....and each variable (no type needed though)
@@ -148,11 +146,15 @@ def coords(
 
 def get_hgrid_arakawa_c_points(hgrid: xr.Dataset, point_type="t") -> xr.Dataset:
     """
-    Get the Arakawa C points from the Hgrid, originally written by Fred (Castruccio) and moved to regional-mom6
+    Get the Arakawa C points from the hgrid.
+
+    Credit: Method originally by Fred Castruccio.
+
     Parameters
     ----------
     hgrid: xr.Dataset
         The hgrid dataset
+
     Returns
     -------
     xr.Dataset
@@ -209,27 +211,31 @@ def create_regridder(
     periodic: bool = False,
 ) -> xe.Regridder:
     """
-    Basic Regridder for any forcing variables, this just wraps the xesmf regridder for a few defaults
+    Basic regridder for any forcing variables. This is essentially a wrapper for
+    the xesmf regridder with some default parameter choices.
+
     Parameters
     ----------
     forcing_variables : xr.Dataset
-        The dataset of the forcing variables
+        The dataset of the forcing variables.
     output_grid : xr.Dataset
-        The dataset of the output grid -> this is the boundary of the hgrid
+        The dataset of the output grid. This is the boundary of the ``hgrid``
     outfile : Path, optional
-        The path to the output file for weights I believe, by default Path(".temp")
+        The path to the output file for weights; default: `None`
     method : str, optional
-        The regridding method, by default "bilinear"
+        The regridding method; default: ``"bilinear"``
     locstream_out : bool, optional
-        Whether to output the locstream, by default True
+        Whether to output the locstream; default: ``True``
     periodic : bool, optional
-        Whether the grid is periodic, by default False
+        Whether the grid is periodic; default: ``False``
+
     Returns
     -------
     xe.Regridder
         The regridding object
     """
     regridding_logger.info("Creating Regridder")
+
     regridder = xe.Regridder(
         forcing_variables,
         output_grid,
@@ -239,6 +245,7 @@ def create_regridder(
         filename=outfile,
         reuse_weights=False,
     )
+
     return regridder
 
 
@@ -246,17 +253,25 @@ def fill_missing_data(
     ds: xr.Dataset, xdim: str = "locations", zdim: str = "z", fill: str = "b"
 ) -> xr.Dataset:
     """
-    Fill in missing values, taken from GFDL NWA 25 Repo
-    Parameters
-    ----------
-    ds : xr.Dataset
-        The dataset to fill in
-    z_dim_name : str
-        The name of the z dimension
-    Returns
-    -------
-    xr.Dataset
-        The filled in dataset
+    Fill in missing values.
+
+    Arguments:
+        ds (xr.Dataset): The dataset to be filled in
+        z_dim_name (str): The name of the ``z`` dimension
+
+    Returns:
+        xr.Dataset: The filled dataset
+
+    Code credit:
+
+    .. code-block:: bash
+
+        Author(s): GFDL, James Simkins, Rob Cermak, and contributors
+        Year: 2022
+        Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
+        Version: N/A
+        Type: Python Functions, Source Code
+        Web Address: https://github.com/jsimkins2/nwa25
     """
     regridding_logger.info("Filling in missing data horizontally, then vertically")
     if fill == "f":
@@ -271,16 +286,13 @@ def fill_missing_data(
 def add_or_update_time_dim(ds: xr.Dataset, times) -> xr.Dataset:
     """
     Add the time dimension to the dataset, in tides case can be one time step.
-    Parameters
-    ----------
-    ds : xr.Dataset
-        The dataset to add the time dimension to
-    times : list, np.Array, xr.DataArray
-        The list of times
-    Returns
-    -------
-    xr.Dataset
-        The dataset with the time dimension added
+
+    Parameters:
+        ds (xr.Dataset): The dataset to add the time dimension to
+        times (list, np.Array, xr.DataArray): The list of times
+
+    Returns:
+        (xr.Dataset): The dataset with the time dimension added
     """
     regridding_logger.info("Adding time dimension")
 
@@ -306,17 +318,14 @@ def add_or_update_time_dim(ds: xr.Dataset, times) -> xr.Dataset:
 
 def generate_dz(ds: xr.Dataset, z_dim_name: str) -> xr.Dataset:
     """
-    For vertical coordinates, you need to have the layer thickness or something. Generate the dz variable for the dataset
-    Parameters
-    ----------
-    ds : xr.Dataset
-        The dataset to get the z variable from
-    z_dim_name : str
-        The name of the z dimension
+    Generate the vertical coordinate spacing.
+
+    Parameters:
+        ds (xr.Dataset): The dataset from which we extract the vertical coordinate.
+        z_dim_name (str): The name of the vertical coordinate.
+
     Returns
-    -------
-    xr.Dataset
-        the dz variable
+        (xr.Dataset): The vertical spacing variable.
     """
     dz = ds[z_dim_name].diff(z_dim_name)
     dz.name = "dz"
@@ -327,25 +336,20 @@ def generate_dz(ds: xr.Dataset, z_dim_name: str) -> xr.Dataset:
 def add_secondary_dimension(
     ds: xr.Dataset, var: str, coords, segment_name: str, to_beginning=False
 ) -> xr.Dataset:
-    """Add the perpendiciular dimension to the dataset, even if it's like one val. It's required.
-    Parameters
-    -----------
-    ds : xr.Dataset
-        The dataset to add the perpendicular dimension to
-    var : str
-        The variable to add the perpendicular dimension to
-    coords : xr.Dataset
-        The coordinates from the function coords...
-    segment_name : str
-        The segment name
-    to_beginning : bool, optional
-        Whether to add the perpendicular dimension to the beginning or to the selected position, by default False
+    """Add the perpendiciular dimension to the dataset, even if it is
+    only one value since it is required.
+
+    Parameters:
+        ds (xr.Dataset): The dataset to add the perpendicular dimension to
+        var (str): The variable to add the perpendicular dimension to
+        coords (xr.Dataset): The coordinates from the function coords.
+        segment_name (str): The segment name
+        to_beginning (bool, optional): Whether to add the perpendicular dimension to the
+            beginning or to the selected position, by default False
+
     Returns
-    -------
-    xr.Dataset
-        The dataset with the perpendicular dimension added
 
-
+        (xr.Dataset): The dataset with the vertical dimension added
     """
 
     # Check if we need to insert the dim earlier or later
@@ -376,7 +380,6 @@ def add_secondary_dimension(
         axis=coords.attrs["axis_to_expand"] - insert_behind_by,
     )
     return ds
-
 
 def vertical_coordinate_encoding(
     ds: xr.Dataset, var: str, segment_name: str, old_vert_coord_name: str
