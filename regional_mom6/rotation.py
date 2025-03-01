@@ -28,7 +28,8 @@ def initialize_grid_rotation_angles_using_expanded_hgrid(
     hgrid: xr.Dataset,
 ) -> xr.Dataset:
     """
-    Calculate the ``angle_dx`` in degrees from the true x direction (parallel to latitude) counter-clockwise and return as a dataarray.
+    Calculate the ``angle_dx`` (in degrees) from the true ``x`` direction (parallel to latitude)
+    counter-clockwise and return as a dataarray.
 
     Parameters
     ----------
@@ -131,7 +132,7 @@ def mom6_angle_calculation_method(
     point: xr.DataArray,
 ) -> xr.DataArray:
     """
-    Calculate the angle of the point using the MOM6 method adapted from the
+    Calculate the angle of the grid point using the MOM6 method adapted from the
     MOM6 code: https://github.com/mom-ocean/MOM6/blob/05d8cc395c1c3c04dd04885bf8dd6df50a86b862/src/initialization/MOM_shared_initialization.F90#L572-L587
 
     This method can handle vectorized computations.
@@ -142,14 +143,14 @@ def mom6_angle_calculation_method(
         The extent of the longitude of the regional domain (in degrees).
     top_left, top_right, bottom_left, bottom_right: xr.DataArray
         The four points around the point to calculate the angle from the hgrid;
-    requires both an `x` and `y` component, both of which are in degrees.
+        requires both an `x` and `y` component (both in degrees).
     point: xr.DataArray
         The point to calculate the angle from the ``hgrid``
 
     Returns
     -------
     xr.DataArray
-        The angle of the point
+        The angle that corresponds to the grid point
     """
     rotation_logger.info("Calculating grid rotation angle")
 
@@ -188,7 +189,7 @@ def mom6_angle_calculation_method(
 
 def create_expanded_hgrid(hgrid: xr.Dataset, expansion_width=1) -> xr.Dataset:
     """
-    Adds an additional boundary to the hgrid to allow for the calculation of the ``angle_dx`` for the boundary points using the method in MOM6.
+    Adds an additional boundary to the hgrid to allow for the calculation of the ``angle_dx`` for the boundary points using :func:`~mom6_angle_calculation_method`.
     """
     if expansion_width != 1:
         raise NotImplementedError("Only expansion_width = 1 is supported")
