@@ -301,8 +301,9 @@ def setup_logger(
     name: str, set_handler=False, log_level=logging.INFO
 ) -> logging.Logger:
     """
-    Setup general config for a logger.
+    Setup general configuration for a logger.
     """
+
     logger = logging.getLogger(name)
     logger.setLevel(log_level)
     if set_handler and not logger.hasHandlers():
@@ -321,23 +322,24 @@ def setup_logger(
 
 def rotate_complex(u, v, radian_angle):
     """
-    Rotate velocities to grid orientation using complex number math (Same as :func:`rotate`.)
+    Rotate velocities by angle ``radian_angle`` (in radians) using complex number math (Same as :func:`rotate`.)
 
     Arguments:
-        u (xarray.DataArray): The u-component of the velocity.
-        v (xarray.DataArray): The v-component of the velocity.
-        radian_angle (xarray.DataArray): The angle of the grid in radians.
+        u (xarray.DataArray): The :math:`u`-component of the velocity.
+        v (xarray.DataArray): The :math:`v`-component of the velocity.
+        radian_angle (xarray.DataArray): The angle of rotation (in radians).
 
     Returns:
-        Tuple[xarray.DataArray, xarray.DataArray]: The rotated u and v components of the velocity.
+        Tuple[xarray.DataArray, xarray.DataArray]: The rotated :math:`u` and :math:`v` components of the velocity.
     """
 
-    # express velocity in the complex plan
+    # complexify the velocity
     vel = u + v * 1j
-    # rotate velocity using grid angle theta
+
+    # rotate velocity by radian_angle
     vel = vel * np.exp(1j * radian_angle)
 
-    # From here you can easily get the rotated u, v, or the magnitude/direction of the currents:
+    # extract the rotated u and v components from vel
     u = np.real(vel)
     v = np.imag(vel)
 
@@ -346,19 +348,20 @@ def rotate_complex(u, v, radian_angle):
 
 def rotate(u, v, radian_angle):
     """
-    Rotate the velocities to the grid orientation.
+    Rotate the velocities by an angle ``radian_angle`` (in radians).  (Same as :func:`rotate_complex`.)
 
     Arguments:
-        u (xarray.DataArray): The u-component of the velocity.
-        v (xarray.DataArray): The v-component of the velocity.
-        radian_angle (xarray.DataArray): The angle of the grid in radians.
+        u (xarray.DataArray): The :math:`u`-component of the velocity.
+        v (xarray.DataArray): The :math:`v`-component of the velocity.
+        radian_angle (xarray.DataArray): The angle of rotation (in radians).
 
     Returns:
-        Tuple[xarray.DataArray, xarray.DataArray]: The rotated u and v components of the velocity.
+        Tuple[xarray.DataArray, xarray.DataArray]: The rotated :math:`u` and :math:`v` components of the velocity.
     """
 
     u_rot = u * np.cos(radian_angle) - v * np.sin(radian_angle)
     v_rot = u * np.sin(radian_angle) + v * np.cos(radian_angle)
+
     return u_rot, v_rot
 
 
