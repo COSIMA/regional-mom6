@@ -38,4 +38,3 @@ regional\_mom6.utils module
    :members:
    :undoc-members:
    :show-inheritance:
-
