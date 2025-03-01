@@ -1,8 +1,8 @@
 A primer on MOM6 file structure
 ===============================
 
-Here we describe the various directories and files that the `regional-mom6` package produces, and provide
-useful insights that, hopefully, will help users deal with troubleshooting and more advanced customisations.
+Here we describe the various directories and files that the regional-mom6 package produces, and provide
+useful insights that, we hope, help users deal with troubleshooting and more advanced customisations.
 
 ## `run` directory
 
@@ -44,7 +44,7 @@ These files are:
 * `MOM_input / SIS_input`:
   Basic settings for the core MOM and SIS code with reasonably good documentation.
   After running the experiment for a short amount of time, you can find a `MOM_parameter_doc.all` file which lists every possible setting your can modify for your experiment.
-  The `regional-mom6` package can copy and modify a default set of input files to work with your experiment.
+  regional-mom6 can copy and modify a default set of input files to work with your experiment.
   There's too much in these files to explain here.
   The aforementioned vertical diagnostic coordinates are specified here, as are all of the different parameterisation schemes and hyperparameters used by the model.
   Some of these parameters are important, e.g., the timesteps, which will likely need to be fiddled with to get your model running quickly but stably.
@@ -54,7 +54,7 @@ These files are:
   A separate line for each boundary in our domain is included and also any additional tracers need to be specified here.
 
 * `MOM_override`:
-  This file serves to override settings chosen in other input files. This is helpful for making a distinction between the thing you're fiddling with and 95% of the settings that you'll always be leaving alone. For instance, you might need to temporarily change your baroclinic (`DT`), tracer (`DT_THERM`) or barotropic (`DT_BT`) timesteps, or are doing perturbation experiments that require you to switch between different bathymetry files.
+  This file serves to override settings chosen in other input files. This is helpful for making a distinction between the thing you're fiddling with and 95% of the settings that you'll always be leaving alone. For instance, you might need to temporarily change your baroclinic (`DT`), tracer (`DT_THERM`), or barotropic (`DT_BT`) timesteps, or are doing perturbation experiments that require you to switch between different bathymetry files.
 
 * `MOM_layout`:
   This file provides information on the model grid, processor layout and I/O layout.
@@ -84,19 +84,18 @@ These files can be big, so it is usually helpful to store them somewhere without
   grids can set `read_existing_grid` to `True` when creating an experiment.
 
 * `vcoord.nc`
-  The values of the vertical coordinate. By default, `regional-mom6` sets up a `z*` vertical coordinate, but other
+  The values of the vertical coordinate. By default, regional-mom6 sets up a `z*` vertical coordinate; other
   coordinates may be provided after appropriate adjustments in the `MOM_input` file. Users who would like to
-  customise the vertical coordinate can initialise an `experiment` object to begin with, then modify the `vcoord.nc`
+  customise the vertical coordinate can initialise an {meth}`experiment <regional_mom6.regional_mom6.experiment>` object to begin with, then modify the `vcoord.nc`
   file and save. Users can provide additional vertical coordinates (under different names) for diagnostic purposes.
   These additional vertical coordinates allow diagnostics to be remapped and output during the model run.
 
 * `bathymetry.nc`
   Fairly self-explanatory, but can be the source of some difficulty. The package automatically attempts to remove "non-advective cells". These are small enclosed lakes at the boundary that can cause numerical problems whereby water might flow in but have no way to flow out. Likewise, there can be issues with very shallow (only 1 or 2 layers) or very narrow (1 cell wide) channels. If your model runs for a while but then gets extreme sea surface height values, it could be caused by an unlucky combination of boundary and bathymetry.
 
-  Another thing to note is that the bathymetry interpolation can be computationally intensive. For a high-resolution
-  dataset like GEBCO and a large domain, one might not be able to execute the `.setup_bathymetry` method within
-  a Jupyter notebook. In that case, instructions for running the interpolation via `mpirun` will be printed upon
-  executing the `setup_bathymetry` method.
+  Another thing to note is that the bathymetry interpolation can be computationally intensive.
+  For a high-resolution dataset like GEBCO and a large domain, one might not be able to execute the {meth}`experiment.setup_bathymetry <regional_mom6.regional_mom6.experiment.setup_bathymetry>` from a Jupyter notebook.
+  In that case, instructions for running the interpolation via `mpirun` will be printed upon calling {meth}`setup_bathymetry <regional_mom6.regional_mom6.experiment.setup_bathymetry>`.
 
 * `forcing/init_*.nc`
   The initial conditions bunched into velocities, tracers, and the free surface height.
