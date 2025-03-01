@@ -2,6 +2,7 @@
 Custom-built helper methods to regrid the boundary conditions and ensure proper encoding for MOM6.
 
 Steps:
+
 1. Initial Regridding -> Find the boundary of the ``hgrid``, and regrid the forcing variables to that boundary. Call (``initial_regridding``) and then use the ``xesmf.Regridder`` with any datasets you need.
 2. Ensure temperatures are in Celsius.
 3. Fill in NaNs. This step is important for MOM6 (``fill_missing_data``) -> This diverges between
@@ -9,15 +10,15 @@ Steps:
 5. In some cases, here is a great place to rotate the velocities to match a curved grid (tidal_velocity), velocity is also a good place to do this.
 6. We then add the time coordinate
 7. Add several depth-related coordinates to fields that are not related to the ocean's surface (like, e.g., surface wind stress).
-    * Add a `dz` variable in layer thickness
+    * Add a ``dz`` variable in layer thickness
     * Some metadata issues later on
 8. Now we do up the metadata
 9. Rename variables to var_segment_num
-10. (If vertical dimension exists) Rename the vertical coordinate of the variable to nz_segment_num_var
-11. (If vertical dimension exists) Declare this new vertical coordinate as a increasing series of integers
-12. Re-add the "perpendicular" dimension
+10. (For fields with vertical dimension) Rename the vertical coordinate of the variable to ``nz_segment_num_var``.
+11. (For fields with vertical dimension) Declare this new vertical coordinate as a increasing series of integers.
+12. Re-add the "perpendicular" dimension.
 13. ....Add  layer thickness of dz to the vertical forcings
-14. Add to encoding_dict a fill value(_FillValue) and zlib, dtype, for time, lat long, ....and each variable (no type needed though)
+14. Add to encoding_dict a fill value(_FillValue) and zlib, dtype, for time, lat lon, ... and each variable (no type needed though).
 """
 
 import xesmf as xe
