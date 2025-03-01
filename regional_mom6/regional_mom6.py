@@ -89,14 +89,16 @@ def create_experiment_from_config(
     create_hgrid_and_vgrid=True,
 ):
     """
-    Load an experiment variables from a configuration file and generate the hgrid/vgrid.
+    Load experiment variables from a configuration file and generate the horizontal and vertical grids (``hgrid``/``vgrid``).
     Computer-specific functionality eliminates the ability to pass file paths.
-    Basically another way to initialize. Sets a default folder of "mom_input/from_config" and "mom_run/from_config" unless specified.
+    This is basically another way to initialize and experiment.
+
+    Unless specified otherwise, method sets default directories: ``"mom_input/from_config"`` and ``"mom_run/from_config"``.
 
     Arguments:
         config_file_path (str): Path to the config file.
-        mom_input_folder (str): Path to the MOM6 input folder. Default is "mom_input/from_config".
-        mom_run_folder (str): Path to the MOM6 run folder. Default is "mom_run/from_config".
+        mom_input_folder (str): Path to the MOM6 input folder. Default is ``"mom_input/from_config"``.
+        mom_run_folder (str): Path to the MOM6 run folder. Default is ``"mom_run/from_config"``.
         create_hgrid_and_vgrid (bool): Whether to create the hgrid and the vgrid. Default is True.
 
     Returns:
@@ -633,10 +635,14 @@ class experiment:
         boundaries=["south", "north", "west", "east"],
     ):
         """
-        Alternative to the init method to create an empty expirement object, with the opportunity to override whatever values wanted. This is an unsafe function only to be used by experienced users.
+        **Note**: This method is unsafe; *only* experience users are urged to use it!
 
-        This function is a way for devs & more experienced users to set  specific variables for specific function requirements,
-        like just regridding the initial condition or subsetting bathymetry, instead of having to set so many other variables that aren't needed.
+        Alternative to the initialisation method to create an empty expirement object, with the opportunity to override
+        whatever values wanted.
+
+        This method allows developers and experienced users to set specific variables for specific function requirements,
+        like just regridding the initial condition or subsetting bathymetry, instead of having to set so many other variables
+        that aren't needed.
         """
         expt = cls(
             longitude_extent=None,
@@ -1085,10 +1091,10 @@ class experiment:
 
     def write_config_file(self, path=None, export=True, quiet=False):
         """
-        Write a json configuration file for the experiment. This file contains the experiment
-        variable information to allow for easy pass off to other users, with a strict computer
+        Write a ``json`` configuration file for the experiment. The ``json`` file contains
+        the experiment variable information to allow for easy pass off to other users, with a strict computer
         independence restriction. It also makes information about the expirement readable, and
-        is good for just printing out information about the experiment.
+        can be also userful for simply printing out information about the experiment.
 
         Arguments:
             path (str): Path to write the config file to. If not provided, the file is written to the ``mom_run_dir`` directory.
@@ -1582,7 +1588,7 @@ class experiment:
         rotational_method=rot.RotationMethod.EXPAND_GRID,
     ):
         """
-        This is a wrapper for :func:`~simple_boundary`. Given a list of up to four cardinal directions,
+        This is a wrapper for :func:`~setup_single_boundary`. Given a list of up to four cardinal directions,
         it creates a boundary forcing file for each one. Ensure that the raw boundaries are all saved
         in the same directory, and that they are named using the format ``east_unprocessed.nc``.
 
@@ -1596,7 +1602,8 @@ class experiment:
                 Either ``'A'`` (default), ``'B'``, or ``'C'``.
             bathymetry_path (Optional[str]): Path to the bathymetry file. Default is ``None``, in which case the
                 boundary condition is not masked.
-            rotational_method (Optional[str]): Method to use for rotating the boundary velocities. Default is ``EXPAND_GRID``.
+            rotational_method (Optional[str]): Method to use for rotating the boundary velocities.
+                Default is ``EXPAND_GRID``.
         """
         for i in self.boundaries:
             if i not in ["south", "north", "west", "east"]:
@@ -1987,19 +1994,19 @@ class experiment:
         latitude_coordinate_name="lat",
     ):
         """
-        An auxiliary function for bathymetry used to fix up the metadata and remove inland
-        lakes after regridding the bathymetry. Having `tidy_bathymetry` as a separate
+        An auxiliary method for bathymetry used to fix up the metadata and remove inland
+        lakes after regridding the bathymetry. Having :func:`~tidy_bathymetry` as a separate
         method from :func:`~setup_bathymetry` allows for the regridding to be done separately,
         since regridding can be really expensive for large domains.
 
         If the bathymetry is already regridded and what is left to be done is fixing the metadata
-        or fill in some channels, then call this function directly to read in the existing
+        or fill in some channels, then :func:`~tidy_bathymetry` directly can read the existing
         ``bathymetry_unfinished.nc`` file that should be in the input directory.
 
         Arguments:
-            fill_channels (Optional[bool]): Whether to fill in
-                diagonal channels. This removes more narrow inlets,
-                but can also connect extra islands to land. Default: ``False``.
+            fill_channels (Optional[bool]): Whether to fill in diagonal channels.
+                This removes more narrow inlets, but can also connect extra islands to land.
+                Default: ``False``.
             positive_down (Optional[bool]): If ``False`` (default), assume that
                 bathymetry vertical coordinate is positive down, as is the case in GEBCO for example.
             bathymetry (Optional[xr.Dataset]): The bathymetry dataset to tidy up. If not provided,
@@ -2596,20 +2603,22 @@ class experiment:
         self, param_name, param_value=None, comment=None, override=True, delete=False
     ):
         """
-        *Requires already copied MOM parameter files in the run directory*
-        Change a parameter in the MOM_input or MOM_override file. Returns original value if there was one.
-        If delete is specified, ONLY MOM_override version will be deleted. Deleting from MOM_input is not safe.
-        If the parameter does not exist, it will be added to the file. if delete is set to True, the parameter will be removed.
+        **Requires MOM parameter files present in the run directory**
+
+        Changes a parameter in the ``MOM_input`` or ``MOM_override`` file. Returns original value, if there was one.
+        If `delete` keyword argument is `True` the parameter is removed. But note, that **only** parameters from
+        the ``MOM_override`` are be deleted since deleting parameters from ``MOM_input`` is not safe and can lead to errors.
+        If the parameter does not exist, it will be added to the file.
+
         Arguments:
             param_name (str):
-                Parameter name we are working with
+                Parameter name to modify
             param_value (Optional[str]):
-                New Assigned Value
+                New assigned Value
             comment (Optional[str]):
                 Any comment to add
             delete (Optional[bool]):
-                Whether to delete the specified param_name
-
+                Whether to delete the specified ``param_name``
         """
         if not delete and param_value is None:
             raise ValueError(

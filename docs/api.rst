@@ -1,8 +1,11 @@
 API reference
 =============
 
-Submodules
-----------
+.. automodule:: regional_mom6
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 
 regional\_mom6.regional\_mom6 module
 ------------------------------------
@@ -36,10 +39,3 @@ regional\_mom6.utils module
    :undoc-members:
    :show-inheritance:
 
-Module contents
----------------
-
-.. automodule:: regional_mom6
-   :members:
-   :undoc-members:
-   :show-inheritance:
