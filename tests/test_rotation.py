@@ -124,6 +124,7 @@ def test_expanded_hgrid_generation(get_curvilinear_hgrid):
 
     return
 
+
 @pytest.mark.parametrize(("angle"), [0, 12.5, 65, -20])
 def test_mom6_angle_calculation_method_simple_square_grids(angle):
     """
@@ -133,9 +134,8 @@ def test_mom6_angle_calculation_method_simple_square_grids(angle):
     """
 
     # Rotation matrix
-    θ = np.deg2rad(angle) # radians
-    R = np.array([[np.cos(θ), -np.sin(θ)],
-                  [np.sin(θ),  np.cos(θ)]])
+    θ = np.deg2rad(angle)  # radians
+    R = np.array([[np.cos(θ), -np.sin(θ)], [np.sin(θ), np.cos(θ)]])
 
     # Define four point points on a square with side of
     # length 2 and centered at (0, 0)
@@ -195,7 +195,9 @@ def test_mom6_angle_calculation_method_simple_square_grids(angle):
         }
     )
 
-    computed_angle = rot.mom6_angle_calculation_method(102, top_left, top_right, bottom_left, bottom_right, point)
+    computed_angle = rot.mom6_angle_calculation_method(
+        4, top_left, top_right, bottom_left, bottom_right, point
+    )
 
     assert math.isclose(computed_angle, angle)
 
