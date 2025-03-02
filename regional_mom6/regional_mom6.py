@@ -735,8 +735,8 @@ class experiment:
         self.vgrid_type = vgrid_type
         self.repeat_year_forcing = repeat_year_forcing
         self.ocean_mask = None
-        self.layout = None  # This should be a tuple. Leaving in a dummy 'None' makes it easy to remind the user to provide a value later on.
-        self.minimum_depth = minimum_depth  # Minimum depth allowed in bathy file
+        self.layout = None  # This should be a tuple. Leaving it as 'None' makes it easy to remind the user to provide a value later.
+        self.minimum_depth = minimum_depth  # Minimum depth allowed in the bathymetry
         self.tidal_constituents = tidal_constituents
         if hgrid_type == "from_file":
             if hgrid_path is None:
@@ -822,7 +822,7 @@ class experiment:
             )
         except Exception as e:
             print(
-                f"Error: {e}. Opening bathymetry threw an error! Make sure you've successfully run the setup_bathmetry method, or copied your own bathymetry.nc file into {self.mom_input_dir}."
+                f"Error: {e}. Opening bathymetry threw an error! Make sure you've successfully run the setup_bathymetry method, or copied a bathymetry.nc file into {self.mom_input_dir}."
             )
             return None
 
@@ -836,7 +836,7 @@ class experiment:
             )
         except Exception as e:
             print(
-                f"Error: {e}. Opening init_vel threw an error! Make sure you've successfully run the setup_initial_condition method, or copied your own init_vel.nc file into {self.mom_input_dir}."
+                f"Error: {e}. Opening init_vel threw an error! Make sure you've successfully run the setup_initial_condition method, or copied an init_vel.nc file into {self.mom_input_dir}."
             )
             return
 
@@ -850,7 +850,7 @@ class experiment:
             )
         except Exception as e:
             print(
-                f"Error: {e}. Opening init_tracers threw an error! Make sure you've successfully run the setup_initial_condition method, or copied your own init_tracers.nc file into {self.mom_input_dir}."
+                f"Error: {e}. Opening init_tracers threw an error! Make sure you've successfully run the setup_initial_condition method, or copied an init_tracers.nc file into {self.mom_input_dir}."
             )
             return
 
@@ -897,7 +897,7 @@ class experiment:
         return find_files_by_pattern(
             [era5_path],
             ["*_ERA5.nc"],
-            error_message="No era5 files set up yet (or files misplaced from {}). Call `setup_era5` method to set up era5.".format(
+            error_message="No ERA5 files set up yet (or files misplaced from {}). Call `setup_era5` method to set up era5.".format(
                 era5_path
             ),
         )
@@ -919,7 +919,7 @@ class experiment:
     @property
     def bathymetry_path(self):
         """
-        Finds the bathymetry file from disk, and prints the file path
+        Finds the bathymetry file from disk, and returns the file path.
         """
         if (self.mom_input_dir / "bathymetry.nc").exists():
             return str(self.mom_input_dir / "bathymetry.nc")
@@ -938,7 +938,7 @@ class experiment:
                 )
             except Exception as e:
                 print(
-                    f"Error: {e}. {name} files threw an error! Make sure you've successfully run the setup_ocean_state_boundaries method, or copied your own segment files file into {self.mom_input_dir}."
+                    f"Error: {e}. {name} files threw an error! Make sure you've successfully run the setup_ocean_state_boundaries method, or copied your own segment files into {self.mom_input_dir}."
                 )
                 return None
 
@@ -952,7 +952,7 @@ class experiment:
 
     def find_MOM6_rectangular_orientation(self, input):
         """
-        Convert between MOM6 boundary and the specific segment number needed, or the inverse
+        Convert between MOM6 boundary and the specific segment number needed, or the inverse.
         """
 
         direction_dir = {}
@@ -1145,7 +1145,7 @@ class experiment:
         rotational_method=rot.RotationMethod.EXPAND_GRID,
     ):
         """
-        Reads the initial condition from files in ``ic_path``, interpolates to the
+        Reads the initial condition from files in ``raw_ic_path``, interpolates to the
         model grid, fixes up metadata, and saves back to the input directory.
 
         Arguments:
@@ -1583,7 +1583,7 @@ class experiment:
         rotational_method=rot.RotationMethod.EXPAND_GRID,
     ):
         """
-        This is a wrapper for :func:`~setup_single_boundary`. Given a list of up to four cardinal directions,
+        A wrapper for :func:`~setup_single_boundary`. Given a list of up to four cardinal directions,
         it creates a boundary forcing file for each one. Ensure that the raw boundaries are all saved
         in the same directory, and that they are named using the format ``east_unprocessed.nc``.
 
