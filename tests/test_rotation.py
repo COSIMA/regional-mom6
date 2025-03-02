@@ -1,6 +1,7 @@
 import regional_mom6 as rmom6
 import regional_mom6.rotation as rot
 import regional_mom6.regridding as rgd
+import math
 import pytest
 import xarray as xr
 import numpy as np
@@ -123,52 +124,84 @@ def test_expanded_hgrid_generation(get_curvilinear_hgrid):
 
     return
 
-
-def test_mom6_angle_calculation_method(get_curvilinear_hgrid):
+@pytest.mark.parametrize(("angle"), [0, 12.5, 65, -20])
+def test_mom6_angle_calculation_method_simple_square_grids(angle):
     """
-    Check no rotation, up tilt, down tilt.
+    Create a square of length 2. Rotate it by an `angle` and then compute
+    the angle using rot.mom6_angle_calculation_method to ensure it gets
+    the angle right.
     """
 
-    # Check no rotation
+    # Rotation matrix
+    θ = np.deg2rad(angle) # radians
+    R = np.array([[np.cos(θ), -np.sin(θ)],
+                  [np.sin(θ),  np.cos(θ)]])
+
+    # Define four point points on a square with side of
+    # length 2 and centered at (0, 0)
+    top_left = np.array([-1, +1])
+    top_right = np.array([+1, +1])
+    bottom_left = np.array([-1, -1])
+    bottom_right = np.array([+1, -1])
+
+    # Apply the rotation
+    top_left = R @ top_left
+    top_right = R @ top_right
+    bottom_left = R @ bottom_left
+    bottom_right = R @ bottom_right
+
+    # translate the 4 rotated square points so that
+    # the center of the square is at (center_x, center_y)
+    center_x, center_y = 0, 0
+
+    top_left[0] += center_x
+    top_left[1] += center_y
+    top_right[0] += center_x
+    top_right[1] += center_y
+    bottom_left[0] += center_x
+    bottom_left[1] += center_y
+    bottom_right[0] += center_x
+    bottom_right[1] += center_y
+
+    # create that dataset with the points
     top_left = xr.Dataset(
         {
-            "x": (("nyp", "nxp"), [[0]]),
-            "y": (("nyp", "nxp"), [[1]]),
+            "x": (("nyp", "nxp"), [[top_left[0]]]),
+            "y": (("nyp", "nxp"), [[top_left[1]]]),
         }
     )
     top_right = xr.Dataset(
         {
-            "x": (("nyp", "nxp"), [[1]]),
-            "y": (("nyp", "nxp"), [[1]]),
+            "x": (("nyp", "nxp"), [[top_right[0]]]),
+            "y": (("nyp", "nxp"), [[top_right[1]]]),
         }
     )
     bottom_left = xr.Dataset(
         {
-            "x": (("nyp", "nxp"), [[0]]),
-            "y": (("nyp", "nxp"), [[0]]),
+            "x": (("nyp", "nxp"), [[bottom_left[0]]]),
+            "y": (("nyp", "nxp"), [[bottom_left[1]]]),
         }
     )
     bottom_right = xr.Dataset(
         {
-            "x": (("nyp", "nxp"), [[1]]),
-            "y": (("nyp", "nxp"), [[0]]),
+            "x": (("nyp", "nxp"), [[bottom_right[0]]]),
+            "y": (("nyp", "nxp"), [[bottom_right[1]]]),
         }
     )
     point = xr.Dataset(
         {
-            "x": (("nyp", "nxp"), [[0.5]]),
-            "y": (("nyp", "nxp"), [[0.5]]),
+            "x": (("nyp", "nxp"), [[center_x]]),
+            "y": (("nyp", "nxp"), [[center_y]]),
         }
     )
 
-    assert (
-        rot.mom6_angle_calculation_method(
-            2, top_left, top_right, bottom_left, bottom_right, point
-        )
-        == 0
-    )
+    computed_angle = rot.mom6_angle_calculation_method(102, top_left, top_right, bottom_left, bottom_right, point)
 
-    # Angled
+    assert math.isclose(computed_angle, angle)
+
+
+def test_mom6_angle_calculation_method(get_curvilinear_hgrid):
+    # Rotated grid
     hgrid = get_curvilinear_hgrid
     ds_t = rgd.get_hgrid_arakawa_c_points(hgrid, "t")
     ds_q = rgd.get_hgrid_arakawa_c_points(hgrid, "q")
