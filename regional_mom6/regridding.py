@@ -346,7 +346,7 @@ def add_secondary_dimension(
     Parameters:
         ds (xr.Dataset): The dataset to add the perpendicular dimension to
         var (str): The variable to add the perpendicular dimension to
-        coords (xr.Dataset): The coordinates from the function coords.
+        coords (xr.Dataset): The output xarray Dataset from the coords function. Contains information required to add the perpendicular dimension.
         segment_name (str): The segment name
         to_beginning (bool, optional): Whether to add the perpendicular dimension to the
             beginning or to the selected position, by default False

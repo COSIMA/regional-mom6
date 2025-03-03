@@ -583,10 +583,6 @@ class experiment:
     an existing one (when ``read_existing_grids=True``; see argument description below).
 
     Arguments:
-        longitude_extent (Tuple[float]): Extent of the region in longitude (in degrees). For
-            example: ``(40.5, 50.0)``.
-        latitude_extent (Tuple[float]): Extent of the region in latitude (in degrees). For
-            example: ``(-20.0, 30.0)``.
         date_range (Tuple[str]): Start and end dates of the boundary forcing window. For
             example: ``("2003-01-01", "2003-01-31")``.
         resolution (float): Lateral resolution of the domain (in degrees).
@@ -598,15 +594,22 @@ class experiment:
         mom_input_dir (str): Path of the MOM6 input directory, to receive the forcing files.
         fre_tools_dir (str): Path of GFDL's FRE tools (https://github.com/NOAA-GFDL/FRE-NCtools)
             binaries.
-        hgrid_type (Optional[str]): Type of horizontal grid to generate.
-            Currently, only ``'even_spacing'`` is supported.
-        repeat_year_forcing (Optional[bool]): When ``True`` the experiment runs with
+        longitude_extent (Tuple[float]): Extent of the region in longitude (in degrees). For
+            example: ``(40.5, 50.0)``.
+        latitude_extent (Tuple[float]): Extent of the region in latitude (in degrees). For
+            example: ``(-20.0, 30.0)``.
+        hgrid_type (str): Type of horizontal grid to generate. Currently, only ``'even_spacing'`` is supported. Setting this argument to ``'from_file'`` requires the additional hgrid_path argument
+        hgrid_path (str): Path to the horizontal grid file if the hgrid_type is ``'from_file'``.
+        vgrid_type (str): Type of vertical grid to generate.
+            Currently, only ``'hyperbolic_tangent'`` is supported. Setting this argument to ``'from_file'`` requires the additional vgrid_path argument
+        vgrid_path (str): Path to the vertical grid file if the vgrid_type is ``'from_file'``.
+        repeat_year_forcing (bool): When ``True`` the experiment runs with
             repeat-year forcing. When ``False`` (default) then inter-annual forcing is used.
-        read_existing_grids (Optional[Bool]): When ``True``, instead of generating the grids,
-            the grids and the ocean mask are being read from within the ``mom_input_dir`` and
-            ``mom_run_dir`` directories. Useful for modifying or troubleshooting experiments.
-            Default: ``False``.
-        minimum_depth (Optional[int]): The minimum depth in meters of a grid cell allowed before it is masked out and treated as land.
+        minimum_depth (int): The minimum depth in meters of a grid cell allowed before it is masked out and treated as land.
+        tidal_constituents (List[str]): List of tidal constituents to be used in the experiment. Default is ``["M2", "S2", "N2", "K2", "K1", "O1", "P1", "Q1", "MM", "MF"]``.
+        create_empty (bool): If ``True``, the experiment object is initialized empty. This is used for testing and experienced user manipulation.
+        expt_name (str): The name of the experiment (for config file use)
+        boundaries (List[str]): List of boundaries to be set. Default is ``["south", "north", "west", "east"]``.
     """
 
     @classmethod
@@ -705,9 +708,6 @@ class experiment:
     ):
 
         # Creates an empty experiment object for testing and experienced user manipulation.
-        # Seems like a logical spinoff of this is to divorce the hgrid/vgrid creation from the experiment object initialization.
-        # Probably more of a CS workflow. That way read_existing_grids could be a function on its own, which ties in better with
-        # For now, check out the create_empty method for more explanation
         if create_empty:
             return
 
@@ -1704,7 +1704,7 @@ class experiment:
             path_to_td (str): Path to boundary tidal file.
             tpxo_elevation_filepath: Filepath to the TPXO elevation product. Generally of the form ``h_tidalversion.nc``
             tpxo_velocity_filepath: Filepath to the TPXO velocity product. Generally of the form ``u_tidalversion.nc``
-            tidal_constituents: List of tidal constituents to include in the regridding. Default is set in the constructor
+            tidal_constituents: List of tidal constituents to include in the regridding. Default is set in the experiment constructor (See :class:`~Experiment`)
             bathymetry_path (str): Path to the bathymetry file. Default is ``None``, in which case the boundary condition is not masked
             rotational_method (str): Method to use for rotating the tidal velocities. Default is 'EXPAND_GRID'.
 
