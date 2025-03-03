@@ -609,7 +609,7 @@ class experiment:
         tidal_constituents (List[str]): List of tidal constituents to be used in the experiment. Default is ``["M2", "S2", "N2", "K2", "K1", "O1", "P1", "Q1", "MM", "MF"]``.
         create_empty (bool): If ``True``, the experiment object is initialized empty. This is used for testing and experienced user manipulation.
         expt_name (str): The name of the experiment (for config file use)
-        boundaries (List[str]): List of boundaries to be set. Default is ``["south", "north", "west", "east"]``.
+        boundaries (List[str]): List of (rectangular) boundaries to be set. Default is ``["south", "north", "west", "east"]``. The boundaries are set as (list index + 1) in MOM_override in the order of the list, and less than 4 boundaries can be set.
     """
 
     @classmethod
