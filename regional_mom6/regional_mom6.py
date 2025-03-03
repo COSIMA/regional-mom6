@@ -580,7 +580,7 @@ class experiment:
     from MOM6 variable/coordinate name to the name in the input dataset.
 
     The class can be used to generate the grids for a new experiment, or to read in
-    an existing one (when ``read_existing_grids=True``; see argument description below).
+    an existing one (see argument description below).
 
     Arguments:
         date_range (Tuple[str]): Start and end dates of the boundary forcing window. For
