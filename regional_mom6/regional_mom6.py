@@ -148,6 +148,8 @@ def create_experiment_from_config(
         "minimum_depth",
         "tidal_constituents",
         "boundaries",
+        "regridding_method",
+        "fill_method",
     ]
     for param in config_params:
         setattr(expt, param, config_dict[param])
@@ -610,6 +612,8 @@ class experiment:
         create_empty (bool): If ``True``, the experiment object is initialized empty. This is used for testing and experienced user manipulation.
         expt_name (str): The name of the experiment (for config file use)
         boundaries (List[str]): List of (rectangular) boundaries to be set. Default is ``["south", "north", "west", "east"]``. The boundaries are set as (list index + 1) in MOM_override in the order of the list, and less than 4 boundaries can be set.
+        regridding_method (str): regridding method to use throughout the entire experiment. Default is ``'bilinear'``
+        fill_method (Function): The fill function to be used after regridding datasets
     """
 
     @classmethod
@@ -631,6 +635,8 @@ class experiment:
         tidal_constituents=["M2", "S2", "N2", "K2", "K1", "O1", "P1", "Q1", "MM", "MF"],
         expt_name=None,
         boundaries=["south", "north", "west", "east"],
+        regridding_method="bilinear",
+        fill_method=rgd.fill_missing_data,
     ):
         """
         **Note**: This method is unsafe; *only* experience users are urged to use it!
@@ -659,6 +665,8 @@ class experiment:
             repeat_year_forcing=None,
             tidal_constituents=None,
             expt_name=None,
+            regridding_method=None,
+            fill_method=None,
         )
 
         expt.expt_name = expt_name
@@ -680,6 +688,8 @@ class experiment:
         expt.layout = None
         cls.segments = {}
         cls.boundaries = boundaries
+        cls.regridding_method = regridding_method
+        cls.fill_method = fill_method
         return expt
 
     def __init__(
@@ -705,6 +715,8 @@ class experiment:
         create_empty=False,
         expt_name=None,
         boundaries=["south", "north", "west", "east"],
+        regridding_method="bilinear",
+        fill_method=rgd.fill_missing_data,
     ):
 
         # Creates an empty experiment object for testing and experienced user manipulation.
@@ -738,6 +750,8 @@ class experiment:
         self.layout = None  # This should be a tuple. Leaving it as 'None' makes it easy to remind the user to provide a value later.
         self.minimum_depth = minimum_depth  # Minimum depth allowed in the bathymetry
         self.tidal_constituents = tidal_constituents
+        self.regridding_method = regridding_method
+        self.fill_method = fill_method
         if hgrid_type == "from_file":
             if hgrid_path is None:
                 hgrid_path = self.mom_input_dir / "hgrid.nc"
@@ -1123,6 +1137,8 @@ class experiment:
             "minimum_depth": self.minimum_depth,
             "tidal_constituents": self.tidal_constituents,
             "boundaries": self.boundaries,
+            "regridding_method": self.regridding_method,
+            "fill_method": self.fill_method,
         }
         if export:
             export_path = path or (self.mom_run_dir / "rmom6_config.json")
@@ -1143,6 +1159,7 @@ class experiment:
         arakawa_grid="A",
         vcoord_type="height",
         rotational_method=rot.RotationMethod.EXPAND_GRID,
+        regridding_method=None,
     ):
         """
         Reads the initial condition from files in ``raw_ic_path``, interpolates to the
@@ -1157,11 +1174,13 @@ class experiment:
             vcoord_type (Optional[str]): The type of vertical coordinate used in the forcing files.
                 Either ``'height'`` or ``'thickness'``.
             rotational_method (Optional[RotationMethod]): The method used to rotate the velocities.
+            regridding_method (Optional[str]): The type of regridding method to use. Defaults to self.regridding_method
         """
+        if regridding_method is None:
+            regridding_method = self.regridding_method
 
         # Remove time dimension if present in the IC.
         # Assume that the first time dim is the intended on if more than one is present
-
         ic_raw = xr.open_mfdataset(raw_ic_path)
         if varnames["time"] in ic_raw.dims:
             ic_raw = ic_raw.isel({varnames["time"]: 0})
@@ -1329,13 +1348,13 @@ class experiment:
         ## Make our three horizontal regridders
 
         regridder_u = rgd.create_regridder(
-            ic_raw_u, self.hgrid, locstream_out=False, method="bilinear"
+            ic_raw_u, self.hgrid, locstream_out=False, method=regridding_method
         )
         regridder_v = rgd.create_regridder(
-            ic_raw_v, self.hgrid, locstream_out=False, method="bilinear"
+            ic_raw_v, self.hgrid, locstream_out=False, method=regridding_method
         )
         regridder_t = rgd.create_regridder(
-            ic_raw_tracers, tgrid, locstream_out=False, method="bilinear"
+            ic_raw_tracers, tgrid, locstream_out=False, method=regridding_method
         )  # Doesn't need to be rotated, so we can regrid to just tracers
 
         # ugrid= rgd.get_hgrid_arakawa_c_points(self.hgrid, "u").rename({"ulon": "lon", "ulat": "lat"}).set_coords(["lat", "lon"])
@@ -1581,6 +1600,7 @@ class experiment:
         arakawa_grid="A",
         bathymetry_path=None,
         rotational_method=rot.RotationMethod.EXPAND_GRID,
+        regridding_method=None,
     ):
         """
         A wrapper for :func:`~setup_single_boundary`. Given a list of up to four cardinal directions,
@@ -1599,7 +1619,13 @@ class experiment:
                 boundary condition is not masked.
             rotational_method (Optional[str]): Method to use for rotating the boundary velocities.
                 Default is ``EXPAND_GRID``.
+            regridding_method (Optional[str]): The type of regridding method to use. Defaults to self.regridding_method
+            fill_method (Function): Fill method to use throughout the function. Default is ``rgd.fill_missing_data``
         """
+        if regridding_method is None:
+            regridding_method = self.regridding_method
+        if fill_method is None:
+            fill_method = self.fill_method
         for i in self.boundaries:
             if i not in ["south", "north", "west", "east"]:
                 raise ValueError(
@@ -1628,6 +1654,8 @@ class experiment:
                 arakawa_grid=arakawa_grid,
                 bathymetry_path=bathymetry_path,
                 rotational_method=rotational_method,
+                regridding_method=regridding_method,
+                fill_method=fill_method,
             )
 
     def setup_single_boundary(
@@ -1639,6 +1667,8 @@ class experiment:
         arakawa_grid="A",
         bathymetry_path=None,
         rotational_method=rot.RotationMethod.EXPAND_GRID,
+        regridding_method=None,
+        fill_method=None,
     ):
         """
         Set up a boundary forcing file for a given ``orientation``.
@@ -1660,7 +1690,14 @@ class experiment:
                 the boundary condition is not masked.
             rotational_method (Optional[str]): Method to use for rotating the boundary velocities.
                 Default is 'EXPAND_GRID'.
+            regridding_method (Optional[str]): The type of regridding method to use. Defaults to self.regridding_method
+            fill_method (Function): Fill method to use throughout the function. Default is ``rgd.fill_missing_data``
+
         """
+        if regridding_method is None:
+            regridding_method = self.regridding_method
+        if fill_method is None:
+            fill_method = self.fill_method
 
         print(
             "Processing {} boundary velocity & tracers...".format(orientation), end=""
@@ -1683,7 +1720,9 @@ class experiment:
         )
 
         self.segments[orientation].regrid_velocity_tracers(
-            rotational_method=rotational_method
+            rotational_method=rotational_method,
+            regridding_method=regridding_method,
+            fill_method=fill_method,
         )
 
         print("Done.")
@@ -1696,6 +1735,8 @@ class experiment:
         tidal_constituents=None,
         bathymetry_path=None,
         rotational_method=rot.RotationMethod.EXPAND_GRID,
+        regridding_method=None,
+        fill_method=None,
     ):
         """
         Subset the tidal data and generate more boundary files.
@@ -1707,6 +1748,8 @@ class experiment:
             tidal_constituents: List of tidal constituents to include in the regridding. Default is set in the experiment constructor (See :class:`~Experiment`)
             bathymetry_path (str): Path to the bathymetry file. Default is ``None``, in which case the boundary condition is not masked
             rotational_method (str): Method to use for rotating the tidal velocities. Default is 'EXPAND_GRID'.
+            regridding_method (Optional[str]): The type of regridding method to use. Defaults to self.regridding_method
+            fill_method (Function): Fill method to use throughout the function. Default is ``rgd.fill_missing_data``
 
         Returns:
             netCDF files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
@@ -1730,6 +1773,11 @@ class experiment:
             Type: Python Functions, Source Code
             Web Address: https://github.com/jsimkins2/nwa25
         """
+
+        if regridding_method is None:
+            regridding_method = self.regridding_method
+        if fill_method is None:
+            fill_method = self.fill_method
         if tidal_constituents is not None:
             self.tidal_constituents = tidal_constituents
         tpxo_h = (
@@ -1792,7 +1840,12 @@ class experiment:
 
             # Output and regrid tides
             seg.regrid_tides(
-                tpxo_v, tpxo_u, tpxo_h, times, rotational_method=rotational_method
+                tpxo_v,
+                tpxo_u,
+                tpxo_h,
+                times,
+                rotational_method=rotational_method,
+                regridding_method=regridding_method,
             )
             print("Done")
 
@@ -1806,6 +1859,7 @@ class experiment:
         fill_channels=False,
         positive_down=False,
         write_to_file=True,
+        regridding_method=None,
     ):
         """
         Cut out and interpolate the chosen bathymetry and then fill inland lakes.
@@ -1830,7 +1884,10 @@ class experiment:
             positive_down (Optional[bool]): If ``True``, it assumes that the
                 bathymetry vertical coordinate is positive downwards. Default: ``False``.
             write_to_file (Optional[bool]): Whether to write the bathymetry to a file. Default: ``True``.
+            regridding_method (Optional[str]): The type of regridding method to use. Defaults to self.regridding_method
         """
+        if regridding_method is None:
+            regridding_method = self.regridding_method
 
         ## Convert the provided coordinate names into a dictionary mapping to the
         ## coordinate names that MOM6 expects.
@@ -3004,12 +3061,20 @@ class segment:
         self.segment_name = segment_name
         self.repeat_year_forcing = repeat_year_forcing
 
-    def regrid_velocity_tracers(self, rotational_method=rot.RotationMethod.EXPAND_GRID):
+    def regrid_velocity_tracers(
+        self,
+        rotational_method=rot.RotationMethod.EXPAND_GRID,
+        regridding_method="bilinear",
+        fill_method=rgd.fill_missing_data,
+    ):
         """
         Cut out and interpolate the velocities and tracers.
 
         Arguments:
             rotational_method (rot.RotationMethod): The method to use for rotation of the velocities. Currently, the default method, ``EXPAND_GRID``, works even with non-rotated grids.
+            regridding_method (str): regridding method to use throughout the function. Default is ``'bilinear'``
+            fill_method (Function): Fill method to use throughout the function. Default is ``rgd.fill_missing_data``
+
         """
 
         # Create weights directory
@@ -3028,7 +3093,7 @@ class segment:
                 coords,
                 self.outfolder
                 / f"weights/bilinear_velocity_weights_{self.orientation}.nc",
-                method="bilinear",
+                method=regridding_method,
             )
 
             regridded = regridder(
@@ -3063,12 +3128,14 @@ class segment:
                 coords,
                 self.outfolder
                 / f"weights/bilinear_velocity_weights_{self.orientation}.nc",
+                method=regridding_method,
             )
             regridder_tracer = rgd.create_regridder(
                 rawseg[self.tracers["salt"]].rename({self.xh: "lon", self.yh: "lat"}),
                 coords,
                 self.outfolder
                 / f"weights/bilinear_tracer_weights_{self.orientation}.nc",
+                method=regridding_method,
             )
 
             velocities_out = regridder_velocity(
@@ -3104,6 +3171,7 @@ class segment:
                 coords,
                 self.outfolder
                 / f"weights/bilinear_uvelocity_weights_{self.orientation}.nc",
+                method=regridding_method,
             )
 
             regridder_vvelocity = rgd.create_regridder(
@@ -3111,6 +3179,7 @@ class segment:
                 coords,
                 self.outfolder
                 / f"weights/bilinear_vvelocity_weights_{self.orientation}.nc",
+                method=regridding_method,
             )
 
             regridder_tracer = rgd.create_regridder(
@@ -3118,6 +3187,7 @@ class segment:
                 coords,
                 self.outfolder
                 / f"weights/bilinear_tracer_weights_{self.orientation}.nc",
+                method=regridding_method,
             )
 
             regridded_u = regridder_uvelocity(rawseg[[self.u]])
@@ -3164,8 +3234,7 @@ class segment:
             segment_out[self.tracers["temp"]].attrs["units"] = "degrees Celsius"
 
         # fill in NaNs
-        # segment_out = rgd.fill_missing_data(segment_out, self.z)
-        segment_out = rgd.fill_missing_data(
+        segment_out = fill_method(
             segment_out,
             xdim=f"{coords.attrs['parallel']}_{self.segment_name}",
             zdim=self.z,
@@ -3269,6 +3338,8 @@ class segment:
         tpxo_h,
         times,
         rotational_method=rot.RotationMethod.EXPAND_GRID,
+        regridding_method="bilinear",
+        fill_method=rgd.fill_missing_data,
     ):
         """
         Regrids and interpolates the tidal data for MOM6. Steps include:
@@ -3293,6 +3364,8 @@ class segment:
             times (pd.DateRange): The start date of our model period.
             rotational_method (rot.RotationMethod): The method to use for rotation of the velocities.
                 The default method, ``EXPAND_GRID``, works even with non-rotated grids.
+            regridding_method (str): regridding method to use throughout the function. Default is ``'bilinear'``
+            fill_method (Function): Fill method to use throughout the function. Default is ``rgd.fill_missing_data``
 
         Returns:
             netCDF files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
@@ -3319,6 +3392,7 @@ class segment:
             Path(
                 self.outfolder / "forcing" / f"regrid_{self.segment_name}_tidal_elev.nc"
             ),
+            method=regridding_method,
         )
 
         redest = regrid(tpxo_h[["lon", "lat", "hRe"]])
@@ -3326,11 +3400,11 @@ class segment:
 
         # Fill missing data.
         # Need to do this first because complex would get converted to real
-        redest = rgd.fill_missing_data(
+        redest = fill_method(
             redest, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
         )
         redest = redest["hRe"]
-        imdest = rgd.fill_missing_data(
+        imdest = fill_method(
             imdest, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
         )
         imdest = imdest["hIm"]
@@ -3365,8 +3439,12 @@ class segment:
 
         ########### Regrid Tidal Velocity ######################
 
-        regrid_u = rgd.create_regridder(tpxo_u[["lon", "lat", "uRe"]], coords)
-        regrid_v = rgd.create_regridder(tpxo_v[["lon", "lat", "vRe"]], coords)
+        regrid_u = rgd.create_regridder(
+            tpxo_u[["lon", "lat", "uRe"]], coords, method=regridding_method
+        )
+        regrid_v = rgd.create_regridder(
+            tpxo_v[["lon", "lat", "vRe"]], coords, method=regridding_method
+        )
 
         # Interpolate each real and imaginary parts to self.
         uredest = regrid_u(tpxo_u[["lon", "lat", "uRe"]])["uRe"]
@@ -3376,16 +3454,16 @@ class segment:
 
         # Fill missing data.
         # Need to do this first because complex would get converted to real
-        uredest = rgd.fill_missing_data(
+        uredest = fill_method(
             uredest, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
         )
-        uimdest = rgd.fill_missing_data(
+        uimdest = fill_method(
             uimdest, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
         )
-        vredest = rgd.fill_missing_data(
+        vredest = fill_method(
             vredest, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
         )
-        vimdest = rgd.fill_missing_data(
+        vimdest = fill_method(
             vimdest, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
         )
 
@@ -3433,7 +3511,7 @@ class segment:
         )
 
         # Some things may have become missing during the transformation
-        ds_ap = rgd.fill_missing_data(
+        ds_ap = fill_method(
             ds_ap, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
         )
 
