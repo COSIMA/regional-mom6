@@ -14,10 +14,8 @@ import importlib.resources
 import datetime
 import pandas as pd
 from pathlib import Path
-import glob
-from collections import defaultdict
 import json
-import copy
+from regional_mom6 import MOM_parameter_tools as mpt
 from regional_mom6 import regridding as rgd
 from regional_mom6 import rotation as rot
 from regional_mom6.config import Config
@@ -25,8 +23,8 @@ from regional_mom6.utils import (
     quadrilateral_areas,
     ap2ep,
     ep2ap,
-    is_rectilinear_hgrid,
     rotate,
+    find_files_by_pattern,
 )
 
 
@@ -459,26 +457,6 @@ def generate_rectangular_hgrid(lons, lats):
             "arcx": ((), np.array(b"small_circle", dtype="|S255"), attrs["arcx"]),
         }
     )
-
-
-def find_files_by_pattern(paths: list, patterns: list, error_message=None) -> list:
-    """
-    Function searchs paths for patterns and returns the list of the file paths with that pattern
-    """
-    # Use glob to find all files
-    all_files = []
-    for pattern in patterns:
-        for path in paths:
-            all_files.extend(Path(path).glob(pattern))
-
-    if len(all_files) == 0:
-        if error_message is None:
-            return "No files found at the following paths: {} for the following patterns: {}".format(
-                paths, patterns
-            )
-        else:
-            return error_message
-    return all_files
 
 
 class experiment:
@@ -2328,7 +2306,7 @@ class experiment:
 
         ## Modify the MOM_layout file to have correct horizontal dimensions and CPU layout
         # TODO Re-implement with package that works for this file type? or at least tidy up code
-        MOM_layout_dict = self.read_MOM_file_as_dict("MOM_layout")
+        MOM_layout_dict = mpt.read_MOM_file_as_dict("MOM_layout", self.mom_run_dir)
         if "MASKTABLE" in MOM_layout_dict:
             MOM_layout_dict["MASKTABLE"]["value"] = (
                 mask_table or " # MASKTABLE = no mask table"
@@ -2344,8 +2322,8 @@ class experiment:
         if "NJGLOBAL" in MOM_layout_dict:
             MOM_layout_dict["NJGLOBAL"]["value"] = self.hgrid.ny.shape[0] // 2
 
-        MOM_input_dict = self.read_MOM_file_as_dict("MOM_input")
-        MOM_override_dict = self.read_MOM_file_as_dict("MOM_override")
+        MOM_input_dict = mpt.read_MOM_file_as_dict("MOM_input", self.mom_run_dir)
+        MOM_override_dict = mpt.read_MOM_file_as_dict("MOM_override", self.mom_run_dir)
         # The number of boundaries is reflected in the number of segments setup in setup_ocean_state_boundary under expt.segments.
         # The setup_boundary_tides function currently only works with rectangular grids amd sets up 4 segments, but DOESN"T save them to expt.segments.
         # Therefore, we can use expt.segments to determine how many segments we need for MOM_input. We can fill the empty segments with a empty string to make sure it is overriden correctly.
@@ -2460,9 +2438,9 @@ class experiment:
         for key, val in MOM_override_dict.items():
             if isinstance(val, dict) and key != "original":
                 MOM_override_dict[key]["override"] = True
-        self.write_MOM_file(MOM_input_dict)
-        self.write_MOM_file(MOM_override_dict)
-        self.write_MOM_file(MOM_layout_dict)
+        mpt.write_MOM_file(MOM_input_dict, self.mom_run_dir)
+        mpt.write_MOM_file(MOM_override_dict, self.mom_run_dir)
+        mpt.write_MOM_file(MOM_layout_dict, self.mom_run_dir)
 
         ## If using payu to run the model, create a payu configuration file
         if not using_payu and os.path.exists(f"{self.mom_run_dir}/config.yaml"):
@@ -2515,199 +2493,6 @@ class experiment:
             file.writelines(lines)
 
         return
-
-    def change_MOM_parameter(
-        self, param_name, param_value=None, comment=None, override=True, delete=False
-    ):
-        """
-        **Requires MOM parameter files present in the run directory**
-
-        Changes a parameter in the ``MOM_input`` or ``MOM_override`` file. Returns original value, if there was one.
-        If `delete` keyword argument is `True` the parameter is removed. But note, that **only** parameters from
-        the ``MOM_override`` are be deleted since deleting parameters from ``MOM_input`` is not safe and can lead to errors.
-        If the parameter does not exist, it will be added to the file.
-
-        Arguments:
-            param_name (str):
-                Parameter name to modify
-            param_value (Optional[str]):
-                New assigned Value
-            comment (Optional[str]):
-                Any comment to add
-            delete (Optional[bool]):
-                Whether to delete the specified ``param_name``
-        """
-        if not delete and param_value is None:
-            raise ValueError(
-                "If not deleting a parameter, you must specify a new value for it."
-            )
-
-        MOM_override_dict = self.read_MOM_file_as_dict("MOM_override")
-        original_val = "No original val"
-        if not delete:
-
-            if param_name in MOM_override_dict.keys():
-                original_val = MOM_override_dict[param_name]["value"]
-                print(
-                    "This parameter {} is being replaced from {} to {} in MOM_override".format(
-                        param_name, original_val, param_value
-                    )
-                )
-
-            MOM_override_dict[param_name]["value"] = param_value
-            MOM_override_dict[param_name]["comment"] = comment
-            MOM_override_dict[param_name]["override"] = override
-        else:
-            if param_name in MOM_override_dict.keys():
-                original_val = MOM_override_dict[param_name]["value"]
-                print("Deleting parameter {} from MOM_override".format(param_name))
-                del MOM_override_dict[param_name]
-            else:
-                print(
-                    "Key to be deleted {} was not in MOM_override to begin with.".format(
-                        param_name
-                    )
-                )
-        self.write_MOM_file(MOM_override_dict)
-        return original_val
-
-    def read_MOM_file_as_dict(self, filename):
-        """
-        Read the MOM_input file and return a dictionary of the variables and their values.
-        """
-
-        # Default information for each parameter
-        default_layout = {"value": None, "override": False, "comment": None}
-
-        if not os.path.exists(Path(self.mom_run_dir / filename)):
-            raise ValueError(
-                f"File {filename} does not exist in the run directory {self.mom_run_dir}"
-            )
-        with open(Path(self.mom_run_dir / filename), "r") as file:
-            lines = file.readlines()
-
-            # Set the default initialization for a new key
-            MOM_file_dict = defaultdict(lambda: copy.deepcopy(default_layout))
-            MOM_file_dict["filename"] = filename
-            dlc = copy.deepcopy(default_layout)
-            for jj in range(len(lines)):
-                if "=" in lines[jj] and not "===" in lines[jj]:
-                    split = lines[jj].split("=", 1)
-                    var = split[0]
-                    value = split[1]
-                    if "#override" in var:
-                        var = var.split("#override")[1].strip()
-                        dlc["override"] = True
-                    else:
-                        dlc["override"] = False
-                    if "!" in value:
-                        dlc["comment"] = value.split("!")[1]
-                        value = value.split("!")[0].strip()  # Remove Comments
-                        dlc["value"] = str(value)
-                    else:
-                        dlc["value"] = str(value.strip())
-                        dlc["comment"] = None
-
-                    MOM_file_dict[var.strip()] = copy.deepcopy(dlc)
-
-            # Save a copy of the original dictionary
-            MOM_file_dict["original"] = copy.deepcopy(MOM_file_dict)
-        return MOM_file_dict
-
-    def write_MOM_file(self, MOM_file_dict):
-        """
-        Write the MOM_input file from a dictionary of variables and their values. Does not support removing fields.
-        """
-        # Replace specific variable values
-        original_MOM_file_dict = MOM_file_dict.pop("original")
-        with open(Path(self.mom_run_dir / MOM_file_dict["filename"]), "r") as file:
-            lines = file.readlines()
-            for jj in range(len(lines)):
-                if "=" in lines[jj] and not "===" in lines[jj]:
-                    var = lines[jj].split("=", 1)[0].strip()
-                    if "#override" in var:
-                        var = var.replace("#override", "")
-                        var = var.strip()
-                    else:
-                        # As in there wasn't an override before but we want one
-                        if MOM_file_dict[var]["override"]:
-                            lines[jj] = "#override " + lines[jj]
-                            print("Added override to variable " + var + "!")
-                    if var in MOM_file_dict.keys() and (
-                        str(MOM_file_dict[var]["value"])
-                    ) != str(original_MOM_file_dict[var]["value"]):
-                        lines[jj] = lines[jj].replace(
-                            str(original_MOM_file_dict[var]["value"]),
-                            str(MOM_file_dict[var]["value"]),
-                        )
-                        if original_MOM_file_dict[var]["comment"] != None:
-                            lines[jj] = lines[jj].replace(
-                                original_MOM_file_dict[var]["comment"],
-                                str(MOM_file_dict[var]["comment"]),
-                            )
-                        else:
-                            lines[jj] = (
-                                lines[jj].replace("\n", "")
-                                + " !"
-                                + str(MOM_file_dict[var]["comment"])
-                                + "\n"
-                            )
-
-                        print(
-                            "Changed "
-                            + str(var)
-                            + " from "
-                            + str(original_MOM_file_dict[var]["value"])
-                            + " to "
-                            + str(MOM_file_dict[var]["value"])
-                            + "in {}!".format(str(MOM_file_dict["filename"]))
-                        )
-
-        # Add new fields
-        lines.append("! === Added with regional-mom6 ===\n")
-        for key in MOM_file_dict.keys():
-            if key not in original_MOM_file_dict.keys():
-                if MOM_file_dict[key]["override"]:
-                    lines.append(
-                        f"#override {key} = {MOM_file_dict[key]['value']} !{MOM_file_dict[key]['comment']}\n"
-                    )
-                else:
-                    lines.append(
-                        f"{key} = {MOM_file_dict[key]['value']} !{MOM_file_dict[key]['comment']}\n"
-                    )
-                print(
-                    "Added",
-                    key,
-                    "to",
-                    MOM_file_dict["filename"],
-                    "with value",
-                    MOM_file_dict[key],
-                )
-
-        # Check any fields removed
-        for key in original_MOM_file_dict.keys():
-            if key not in MOM_file_dict.keys():
-                search_words = [
-                    key,
-                    original_MOM_file_dict[key]["value"],
-                    original_MOM_file_dict[key]["comment"],
-                ]
-                lines = [
-                    line
-                    for line in lines
-                    if not all(word in line for word in search_words)
-                ]
-                print(
-                    "Removed",
-                    key,
-                    "in",
-                    MOM_file_dict["filename"],
-                    "with value",
-                    original_MOM_file_dict[key],
-                )
-
-        with open(Path(self.mom_run_dir / MOM_file_dict["filename"]), "w") as f:
-            f.writelines(lines)
 
     def setup_era5(self, era5_path):
         """
