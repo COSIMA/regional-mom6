@@ -20,6 +20,7 @@ import json
 import copy
 from regional_mom6 import regridding as rgd
 from regional_mom6 import rotation as rot
+from regional_mom6.config import Config
 from regional_mom6.utils import (
     quadrilateral_areas,
     ap2ep,
@@ -37,7 +38,6 @@ __all__ = [
     "generate_rectangular_hgrid",
     "experiment",
     "segment",
-    "create_experiment_from_config",
     "get_glorys_data",
 ]
 
@@ -77,95 +77,6 @@ def convert_to_tpxo_tidal_constituents(tidal_constituents):
         raise ValueError(f"Invalid tidal constituent: {e.args[0]}")
 
     return constituent_indices
-
-
-## Load Experiment Function
-
-
-def create_experiment_from_config(
-    config_file_path,
-    mom_input_dir="mom_input/from_config",
-    mom_run_dir="mom_run/from_config",
-    create_hgrid_and_vgrid=True,
-):
-    """
-    Load experiment variables from a configuration file and generate the horizontal and vertical grids (``hgrid``/``vgrid``).
-    Computer-specific functionality eliminates the ability to pass file paths.
-
-    (This is basically another way to initialize and experiment.)
-
-    Arguments:
-        config_file_path (str): Path to the config file.
-        mom_input_dir (str): Path to the MOM6 input directory. Default: ``"mom_input/from_config"``.
-        mom_run_dir (str): Path to the MOM6 run directory. Default: ``"mom_run/from_config"``.
-        create_hgrid_and_vgrid (bool): Whether to create the hgrid and the vgrid. Default is True.
-
-    Returns:
-        An experiment object with the fields from the configuration at ``config_file_path``.
-    """
-    print("Reading from config file....")
-    with open(config_file_path, "r") as f:
-        config_dict = json.load(f)
-
-    print("Creating Empty Experiment Object....")
-    expt = experiment.create_empty()
-
-    print("Setting Default Variables.....")
-    expt.expt_name = config_dict["expt_name"]
-
-    if (
-        config_dict["longitude_extent"] != None
-        and config_dict["latitude_extent"] != None
-    ):
-        expt.longitude_extent = tuple(config_dict["longitude_extent"])
-        expt.latitude_extent = tuple(config_dict["latitude_extent"])
-    else:
-        expt.longitude_extent = None
-        expt.latitude_extent = None
-    try:
-        expt.date_range = config_dict["date_range"]
-        expt.date_range[0] = dt.datetime.strptime(
-            expt.date_range[0], "%Y-%m-%d %H:%M:%S"
-        )
-        expt.date_range[1] = dt.datetime.strptime(
-            expt.date_range[1], "%Y-%m-%d %H:%M:%S"
-        )
-    except IndexError:
-        expt.date_range = None
-
-    expt.mom_run_dir = Path(mom_run_dir)
-    expt.mom_input_dir = Path(mom_input_dir)
-    expt.mom_run_dir.mkdir(parents=True, exist_ok=True)
-    expt.mom_input_dir.mkdir(parents=True, exist_ok=True)
-
-    config_params = [
-        "resolution",
-        "number_vertical_layers",
-        "layer_thickness_ratio",
-        "depth",
-        "hgrid_type",
-        "repeat_year_forcing",
-        "minimum_depth",
-        "tidal_constituents",
-        "boundaries",
-        "regridding_method",
-        "fill_method",
-    ]
-    for param in config_params:
-        setattr(expt, param, config_dict[param])
-
-    expt.ocean_mask = None
-    expt.layout = None
-
-    if create_hgrid_and_vgrid:
-        print("Creating hgrid and vgrid....")
-        expt.hgrid = expt._make_hgrid()
-        expt.vgrid = expt._make_vgrid()
-    else:
-        print("Skipping hgrid and vgrid creation....")
-
-    print("Done!")
-    return expt
 
 
 ## Auxiliary functions
@@ -824,7 +735,7 @@ class experiment:
             input_rundir.symlink_to(self.mom_run_dir.resolve())
 
     def __str__(self) -> str:
-        return json.dumps(self.write_config_file(export=False, quiet=True), indent=4)
+        return json.dumps(Config.save_to_json(export=False, quiet=True), indent=4)
 
     @property
     def bathymetry(self):
@@ -1097,60 +1008,6 @@ class experiment:
         vcoord.to_netcdf(self.mom_input_dir / "vcoord.nc")
 
         return vcoord
-
-    def write_config_file(self, path=None, export=True, quiet=False):
-        """
-        Write a ``json`` configuration file for the experiment. The ``json`` file contains
-        the experiment variable information to allow for easy pass off to other users, with a strict computer
-        independence restriction. It also makes information about the expirement readable, and
-        can be also userful for simply printing out information about the experiment.
-
-        Arguments:
-            path (str): Path to write the config file to. If not provided, the file is written to the ``mom_run_dir`` directory.
-            export (bool): If ``True`` (default), the configuration file is written to disk on the given ``path``
-            quiet (bool): If ``True``, no print statements are made.
-        Returns:
-            Dict: A dictionary containing the configuration information.
-        """
-        if not quiet:
-            print("Writing Config File.....")
-        try:
-            date_range = [
-                self.date_range[0].strftime("%Y-%m-%d %H:%M:%S"),
-                self.date_range[1].strftime("%Y-%m-%d %H:%M:%S"),
-            ]
-        except IndexError:
-            date_range = None
-        config_dict = {
-            "expt_name": self.expt_name,
-            "date_range": date_range,
-            "latitude_extent": self.latitude_extent,
-            "longitude_extent": self.longitude_extent,
-            "resolution": self.resolution,
-            "number_vertical_layers": self.number_vertical_layers,
-            "layer_thickness_ratio": self.layer_thickness_ratio,
-            "depth": self.depth,
-            "hgrid_type": self.hgrid_type,
-            "repeat_year_forcing": self.repeat_year_forcing,
-            "ocean_mask": self.ocean_mask,
-            "layout": self.layout,
-            "minimum_depth": self.minimum_depth,
-            "tidal_constituents": self.tidal_constituents,
-            "boundaries": self.boundaries,
-            "regridding_method": self.regridding_method,
-            "fill_method": self.fill_method,
-        }
-        if export:
-            export_path = path or (self.mom_run_dir / "rmom6_config.json")
-            with open(export_path, "w") as f:
-                json.dump(
-                    config_dict,
-                    f,
-                    indent=4,
-                )
-        if not quiet:
-            print("Done.")
-        return config_dict
 
     def setup_initial_condition(
         self,
