@@ -1458,6 +1458,7 @@ class experiment:
         bathymetry_path=None,
         rotational_method=rot.RotationMethod.EXPAND_GRID,
         regridding_method=None,
+        fill_method=None,
     ):
         """
         A wrapper for :func:`~setup_single_boundary`. Given a list of up to four cardinal directions,
