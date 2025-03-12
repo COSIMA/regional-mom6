@@ -18,7 +18,7 @@ class Config:
         """Write a ``json`` configuration file for the experiment. The ``json`` file contains
         the experiment variable information to allow for easy pass off to other users, with a strict computer
         independence restriction. It also makes information about the expirement readable, and
-        can be also userful for simply printing out information about the experiment.
+        can be also useful for simply printing out information about the experiment.
 
         Arguments:
             obj (rm6.Experiment): The experiment object to save.
@@ -27,20 +27,6 @@ class Config:
         Returns:
             Dict: A dictionary containing the configuration information."""
         config = {"args": {}}
-
-        def convert_value(value):
-            """Helper function to handle serialization of different types."""
-            if isinstance(value, dt.datetime):
-                return value.isoformat()
-            elif isinstance(value, (tuple, list)):
-                return {
-                    "type": type(value[0]).__name__,
-                    "values": [convert_value(v) for v in value],
-                }  # Convert each element
-            elif isinstance(value, (str, int, float, dict, bool, type(None))):
-                return value
-            else:
-                return str(value)  # Fallback: Convert unknown types to strings
 
         for key, value in obj.__dict__.items():
             if inspect.isfunction(value):
@@ -52,7 +38,7 @@ class Config:
             else:
                 config["args"][key] = {
                     "type": type(value).__name__,
-                    "value": convert_value(value),
+                    "value": convert_value_to_string(value),
                 }
 
         if export:
@@ -85,23 +71,6 @@ class Config:
         with open(filename, "r") as f:
             config = json.load(f)
 
-        def convert_value(value, value_type):
-            """Helper function to handle deserialization of different types."""
-            if value_type == "datetime":
-                return dt.datetime.fromisoformat(value)
-            if value_type == "PosixPath":
-                return Path(value)
-            elif value_type == "tuple":
-                return tuple(
-                    convert_value(v, value["type"]) for v in value["values"]
-                )  # Handle tuple elements recursively
-            elif value_type == "list":
-                return [
-                    convert_value(v, value["type"]) for v in value["values"]
-                ]  # Handle list elements recursively
-
-            return value  # If the type is not handled, just return the value
-
             # Dynamically import class
 
         expt = rm6.experiment.create_empty()
@@ -117,8 +86,8 @@ class Config:
                     f"Loading function {val['name']} from module {val['module']}"
                 )
                 try:
-                    module = __import__(val["module"], fromlist=[val["name"]])
-                    func = getattr(module, val["name"])
+                    module = importlib.import_module(val["module"])
+                    func = getattr(module, val["name"], None)
                     setattr(expt, key, func)
                 except Exception as e:
                     config_logger.error(
@@ -127,7 +96,7 @@ class Config:
 
             else:
                 # Handle unsupported types or custom logic as needed
-                setattr(expt, key, convert_value(value, value_type))
+                setattr(expt, key, convert_string_to_value(value, value_type))
         if expt.mom_run_dir is None:
             expt.mom_run_dir = Path(mom_run_dir)
         if expt.mom_input_dir is None:
@@ -140,3 +109,36 @@ class Config:
             expt.vgrid = expt._make_vgrid()
 
         return expt
+
+
+def convert_value_to_string(value):
+    """Helper function to handle serialization of different types."""
+    if isinstance(value, dt.datetime):
+        return value.isoformat()
+    elif isinstance(value, (tuple, list)):
+        return {
+            "type": type(value[0]).__name__,
+            "values": [convert_value_to_string(v) for v in value],
+        }  # Convert each element
+    elif isinstance(value, (str, int, float, dict, bool, type(None))):
+        return value
+    else:
+        return str(value)  # Fallback: Convert unknown types to strings
+
+
+def convert_string_to_value(value, value_type: str):
+    """Helper function to handle deserialization of different types."""
+    if value_type == "datetime":
+        return dt.datetime.fromisoformat(value)
+    if value_type == "PosixPath":
+        return Path(value)
+    elif value_type == "tuple":
+        return tuple(
+            convert_string_to_value(v, value["type"]) for v in value["values"]
+        )  # Handle tuple elements recursively
+    elif value_type == "list":
+        return [
+            convert_string_to_value(v, value["type"]) for v in value["values"]
+        ]  # Handle list elements recursively
+
+    return value  # If the type is not handled, just return the value
