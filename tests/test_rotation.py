@@ -195,8 +195,12 @@ def test_mom6_angle_calculation_method_simple_square_grids(angle):
         }
     )
 
+    # Calculate len_lon
+    top_left_bottom_right_diag = abs(top_left.x.item() - bottom_right.x.item())
+    top_right_bottom_left_diag = abs(top_right.x.item() - bottom_left.x.item())
+    len_lon = max(top_left_bottom_right_diag, top_right_bottom_left_diag)
     computed_angle = rot.mom6_angle_calculation_method(
-        4, top_left, top_right, bottom_left, bottom_right, point
+        len_lon, top_left, top_right, bottom_left, bottom_right, point
     )
 
     assert math.isclose(computed_angle, angle)
