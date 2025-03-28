@@ -36,7 +36,7 @@ def change_MOM_parameter(
     original_val = "No original val"
     if not delete:
 
-        if param_name in MOM_override_dict.keys():
+        if param_name in MOM_override_dict:
             original_val = MOM_override_dict[param_name]["value"]
             print(
                 "This parameter {} is being replaced from {} to {} in MOM_override".format(
@@ -48,7 +48,7 @@ def change_MOM_parameter(
         MOM_override_dict[param_name]["comment"] = comment
         MOM_override_dict[param_name]["override"] = override
     else:
-        if param_name in MOM_override_dict.keys():
+        if param_name in MOM_override_dict:
             original_val = MOM_override_dict[param_name]["value"]
             print("Deleting parameter {} from MOM_override".format(param_name))
             del MOM_override_dict[param_name]
@@ -81,12 +81,12 @@ def read_MOM_file_as_dict(
         lines = file.readlines()
 
         # Set the default initialization for a new key
-        MOM_file_dict = defaultdict(lambda: copy.deepcopy(default_layout))
+        MOM_file_dict = defaultdict(lambda: default_layout.copy())
         MOM_file_dict["filename"] = filename
         dlc = copy.deepcopy(default_layout)
-        for jj in range(len(lines)):
-            if "=" in lines[jj] and not "===" in lines[jj]:
-                split = lines[jj].split("=", 1)
+        for j in range(len(lines)):
+            if "=" in lines[j] and not "===" in lines[j]:
+                split = lines[j].split("=", 1)
                 var = split[0]
                 value = split[1]
                 if "#override" in var:
@@ -96,8 +96,7 @@ def read_MOM_file_as_dict(
                     dlc["override"] = False
                 if "!" in value:
                     dlc["comment"] = value.split("!")[1]
-                    value = value.split("!")[0].strip()  # Remove Comments
-                    dlc["value"] = str(value)
+                    dlc["value"] = value.split("!")[0].strip()
                 else:
                     dlc["value"] = str(value.strip())
                     dlc["comment"] = None
@@ -180,13 +179,14 @@ def write_MOM_file(MOM_file_dict, directory):
             )
 
     # Check any fields removed
-    for key in original_MOM_file_dict.keys():
-        if key not in MOM_file_dict.keys():
+    for key, entry in original_MOM_file_dict.items():
+        if key not in MOM_file_dict:
             search_words = [
                 key,
-                original_MOM_file_dict[key]["value"],
-                original_MOM_file_dict[key]["comment"],
+                entry["value"],
+                entry["comment"],
             ]
+
             lines = [
                 line for line in lines if not all(word in line for word in search_words)
             ]
