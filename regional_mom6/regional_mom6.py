@@ -3225,13 +3225,13 @@ class segment:
         )
 
         # Overwrite the actual lat/lon values in the dimensions, replace with incrementing integers
-        segment_out[f"{coords.attrs['parallel']}_{self.segment_name}"] = np.arange(
-            segment_out[f"{coords.attrs['parallel']}_{self.segment_name}"].size
-        )
-        segment_out[f"{coords.attrs['parallel']}_{self.segment_name}"] = np.arange(
-            segment_out[f"{coords.attrs['parallel']}_{self.segment_name}"].size
-        )
+
         segment_out[f"{coords.attrs['perpendicular']}_{self.segment_name}"] = [0]
+
+        segment_out[f"{coords.attrs['parallel']}_{self.segment_name}"] = np.arange(
+            segment_out[f"{coords.attrs['parallel']}_{self.segment_name}"].size
+        )
+
         encoding_dict = {
             "time": {"dtype": "double"},
             f"nx_{self.segment_name}": {
