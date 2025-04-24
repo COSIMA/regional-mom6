@@ -5,7 +5,7 @@ on:
     branches:
       - '**'
       - '!joss-paper'
-
+  pull_request:
 jobs:
   formatting:
     runs-on: ubuntu-latest
@@ -18,7 +18,7 @@ jobs:
   testing:
     needs: formatting
     runs-on: ubuntu-latest
-    container: ghcr.io/cosima/regional-test-env:updated
+    container: ghcr.io/cosima/regional-test-env:latest
     defaults:
       run:
         shell: bash -el {0}
@@ -54,7 +54,9 @@ jobs:
           ln -s /data demos/PATH_TO_GLORYS_DATA
           ln -s /data demos/PATH_TO_GEBCO_FILE
           ln -s /build/FRE-NCtools/tools demos/PATH_TO_FRE_TOOLS
-          python -m pytest --nbval demos/reanalysis-forced.ipynb --nbval-current-env --cov=regional_mom6 --cov-report=xml tests/
+          ln -s /data demos/PATH_TO_YOUR_HORIZONTAL_GRID
+          ln -s /data demos/PATH_TO_ERA5_DATA
+          python -m pytest --nbval demos/reanalysis-forced.ipynb demos/BYO-domain.ipynb --nbval-current-env --cov=regional_mom6 --cov-report=xml tests/
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
