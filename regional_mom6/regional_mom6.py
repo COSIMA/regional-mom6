@@ -2951,6 +2951,7 @@ class segment:
         time_units="days",
         repeat_year_forcing=False,
     ):
+
         ## Store coordinate names
         if arakawa_grid == "A" and infile is not None:
             try:
@@ -3010,6 +3011,9 @@ class segment:
         Arguments:
             rotational_method (rot.RotationMethod): The method to use for rotation of the velocities. Currently, the default method, ``EXPAND_GRID``, works even with non-rotated grids.
         """
+
+        # Create weights directory
+        (self.outfolder / "weights").mkdir(exist_ok=True)
 
         rawseg = xr.open_dataset(self.infile, decode_times=False, engine="netcdf4")
 
@@ -3221,13 +3225,13 @@ class segment:
         )
 
         # Overwrite the actual lat/lon values in the dimensions, replace with incrementing integers
-        segment_out[f"{coords.attrs['parallel']}_{self.segment_name}"] = np.arange(
-            segment_out[f"{coords.attrs['parallel']}_{self.segment_name}"].size
-        )
-        segment_out[f"{coords.attrs['parallel']}_{self.segment_name}"] = np.arange(
-            segment_out[f"{coords.attrs['parallel']}_{self.segment_name}"].size
-        )
+
         segment_out[f"{coords.attrs['perpendicular']}_{self.segment_name}"] = [0]
+
+        segment_out[f"{coords.attrs['parallel']}_{self.segment_name}"] = np.arange(
+            segment_out[f"{coords.attrs['parallel']}_{self.segment_name}"].size
+        )
+
         encoding_dict = {
             "time": {"dtype": "double"},
             f"nx_{self.segment_name}": {
