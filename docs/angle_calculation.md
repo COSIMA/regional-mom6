@@ -2,7 +2,7 @@
 
 For rotated horizontal grids, that is grids whose coordinates do not align with lines of constant latitude and longitude, we have to rotate the boundary conditions appropriately by the angle that the grid is rotated from the latitude-longitude coordinates, i.e., the angle formed by the curved grid's constant ``x`` coordinate compared to the true north.
 
-**Issue:** Although horizontal grids supplied by users _do_ contain an `angle_dx` field, MOM6 by default ignores `angle_dx`  entirely and re-calculates the angles that correspond to each grid point.
+**Issue:** Although horizontal grids supplied by users usually _do_ contain an `angle_dx` field, MOM6 ignores `angle_dx`  entirely and re-calculates the angles that correspond to each grid point.
 
 **Solution:** To be consistent with MOM6's treatment of grid angles, when we rotate our boundary conditions, we implemented MOM6 angle calculation in a file called "rotation.py", and included this in the the boundary regridding functions by default.
 
@@ -19,7 +19,7 @@ Steps 1-5 replicate the angle calculation as done by MOM6. Step 6 is an addition
 
 1. Figure out the longitudinal extent of our domain, or periodic range of longitudes. For global cases it is len_lon = 360, for our regional cases it is given by the hgrid.
 2. At each ``t``-point on the `hgrid`, we find the four adjacent ``q``-points. We adjust each of these longitudes to be in the range of len_lon around the point itself. ({meth}`rotation.modulo_around_point <regional_mom6.rotation.modulo_around_point>`)
-3. We then find the lon_scale, which is the "trigonometric scaling factor converting changes in longitude to equivalent distances in latitudes". Whatever that actually means is we add the latitude of all four of these points from part 3 and basically average it and convert to radians. We then take the cosine of it. As I understand it, it's a conversion of longitude to equivalent latitude distance.
+3. We then find the lon_scale, which is the "trigonometric scaling factor converting changes in longitude to equivalent distances in latitudes". What that means is we add the latitude of all four of these points from part 3, average it, and convert to radians. We then take the cosine of it. It's a factor we can use to convert a difference in longitude to equivalent latitude difference.
 4. Then we calculate the angle. This is a simple arctan2 so y/x.
     1. The "y" component is the addition of the difference between the diagonals in longitude (adjusted by modulo_around_point in step 3) multiplied by the lon_scale, which is our conversion to latitude.
     2. The "x" component is the same addition of differences in latitude.
