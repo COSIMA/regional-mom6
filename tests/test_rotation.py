@@ -7,7 +7,10 @@ import xarray as xr
 import numpy as np
 import os
 
-tol_angle = 5e-2  # tolerance for angles (in degrees)
+tol_angle = 5e-2  # tolerance for angles (in degrees) from seperate calculations
+tol_angle_unit_test = (
+    1e-10  # tolerance for angles (in degrees) from unit test generation
+)
 
 
 def test_get_curvilinear_hgrid_fixture(get_curvilinear_hgrid):
@@ -139,10 +142,11 @@ def test_mom6_angle_calculation_method_simple_square_grids(angle):
 
     # Define four point points on a square with side of
     # length 2 and centered at (0, 0)
-    top_left = np.array([-1, +1])
-    top_right = np.array([+1, +1])
-    bottom_left = np.array([-1, -1])
-    bottom_right = np.array([+1, -1])
+    square_size = 0.0001
+    top_left = np.array([-square_size, +square_size])
+    top_right = np.array([+square_size, +square_size])
+    bottom_left = np.array([-square_size, -square_size])
+    bottom_right = np.array([+square_size, -square_size])
 
     # Apply the rotation
     top_left = R @ top_left
@@ -202,7 +206,6 @@ def test_mom6_angle_calculation_method_simple_square_grids(angle):
     computed_angle = rot.mom6_angle_calculation_method(
         len_lon, top_left, top_right, bottom_left, bottom_right, point
     )
-
     assert math.isclose(computed_angle, angle)
 
 
