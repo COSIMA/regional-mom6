@@ -501,8 +501,8 @@ class experiment:
         create_empty (bool): If ``True``, the experiment object is initialized empty. This is used for testing and experienced user manipulation.
         expt_name (str): The name of the experiment (for config file use)
         boundaries (List[str]): List of (rectangular) boundaries to be set. Default is ``["south", "north", "west", "east"]``. The boundaries are set as (list index + 1) in MOM_override in the order of the list, and less than 4 boundaries can be set.
-        regridding_method (str): regridding method to use throughout the entire experiment. Default is ``'bilinear'``
-        fill_method (Function): The fill function to be used after regridding datasets
+        regridding_method (str): regridding method to use throughout the entire experiment. Default is ``'bilinear'``. Any other xesmf regridding method can be used.
+        fill_method (Function): The fill function to be used after regridding datasets. it takes a xarray DataArray and returns a filled DataArray. Default is ``rgd.fill_missing_data``.
     """
 
     @classmethod
@@ -713,7 +713,7 @@ class experiment:
             input_rundir.symlink_to(self.mom_run_dir.resolve())
 
     def __str__(self) -> str:
-        return json.dumps(Config.save_to_json(export=False, quiet=True), indent=4)
+        return json.dumps(Config.save_to_json(self, export=False), indent=4)
 
     @property
     def bathymetry(self):
@@ -1456,7 +1456,7 @@ class experiment:
             rotational_method (Optional[str]): Method to use for rotating the boundary velocities.
                 Default is ``EXPAND_GRID``.
             regridding_method (Optional[str]): The type of regridding method to use. Defaults to self.regridding_method
-            fill_method (Function): Fill method to use throughout the function. Default is ``rgd.fill_missing_data``
+            fill_method (Function): Fill method to use throughout the function. Default is ``self.fill_method``
         """
         if regridding_method is None:
             regridding_method = self.regridding_method
@@ -1585,7 +1585,7 @@ class experiment:
             bathymetry_path (str): Path to the bathymetry file. Default is ``None``, in which case the boundary condition is not masked
             rotational_method (str): Method to use for rotating the tidal velocities. Default is 'EXPAND_GRID'.
             regridding_method (Optional[str]): The type of regridding method to use. Defaults to self.regridding_method
-            fill_method (Function): Fill method to use throughout the function. Default is ``rgd.fill_missing_data``
+            fill_method (Function): Fill method to use throughout the function. Default is ``self.fill_method``
 
         Returns:
             netCDF files: Regridded tidal velocity and elevation files in 'inputdir/forcing'

@@ -26,6 +26,10 @@ class Config:
             export (bool): If ``True`` (default), the configuration file is written to disk on the given ``path``
         Returns:
             Dict: A dictionary containing the configuration information."""
+        
+        if export and path is None:
+            raise ValueError("The 'path' argument must be provided when 'export' is True.")
+
         config = {"args": {}}
 
         for key, value in obj.__dict__.items():
@@ -54,10 +58,9 @@ class Config:
         create_hgrid_and_vgrid=True,
     ):
         """
-            Load experiment variables from a configuration file and generate the horizontal and vertical grids (``hgrid``/``vgrid``).
-        Computer-specific functionality eliminates the ability to pass file paths.
+        Load experiment variables from a configuration file and generate the horizontal and vertical grids (``hgrid``/``vgrid``).
 
-        (This is basically another way to initialize and experiment.)
+        (This is basically another way to initialize an experiment.)
 
         Arguments:
         config_file_path (str): Path to the config file.

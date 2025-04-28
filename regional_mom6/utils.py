@@ -399,9 +399,9 @@ def find_files_by_pattern(paths: list, patterns: list, error_message=None) -> li
 
     if len(all_files) == 0:
         if error_message is None:
-            return "No files found at the following paths: {} for the following patterns: {}".format(
+            raise ValueError ("No files found at the following paths: {} for the following patterns: {}".format(
                 paths, patterns
-            )
+            ))
         else:
-            return error_message
+            raise ValueError(error_message)
     return all_files
