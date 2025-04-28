@@ -117,3 +117,15 @@ def test_read_config(create_expt, tmp_path):
     assert os.path.exists(new_expt.mom_input_dir / "hgrid.nc") & os.path.exists(
         new_expt.mom_input_dir / "vcoord.nc"
     )
+
+
+def test_str_dump(create_expt):
+    expt = create_expt
+    result = str(expt)
+    assert isinstance(result, str)
+
+
+def test_write_config_fail(create_expt):
+    expt = create_expt
+    with pytest.raises(ValueError):
+        Config.save_to_json(expt, None, export=True)

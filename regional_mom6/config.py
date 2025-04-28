@@ -26,9 +26,11 @@ class Config:
             export (bool): If ``True`` (default), the configuration file is written to disk on the given ``path``
         Returns:
             Dict: A dictionary containing the configuration information."""
-        
+
         if export and path is None:
-            raise ValueError("The 'path' argument must be provided when 'export' is True.")
+            raise ValueError(
+                "The 'path' argument must be provided when 'export' is True."
+            )
 
         config = {"args": {}}
 
