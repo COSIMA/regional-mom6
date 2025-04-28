@@ -134,7 +134,7 @@ def mom6_angle_calculation_method(
     point: xr.DataArray,
 ) -> xr.DataArray:
     """
-    Calculate the angle of the grid point using the MOM6 method adapted from the
+    Calculate the counterclockwise from true north angle of the grid point using the MOM6 method adapted from the
     MOM6 code: https://github.com/mom-ocean/MOM6/blob/05d8cc395c1c3c04dd04885bf8dd6df50a86b862/src/initialization/MOM_shared_initialization.F90#L572-L587
 
     This method can handle vectorized computations.
@@ -174,7 +174,7 @@ def mom6_angle_calculation_method(
         cos_meanlat * ((lonB[1, 0] - lonB[0, 1]) + (lonB[1, 1] - lonB[0, 0])),
         (top_right.y - bottom_left.y) + (top_left.y - bottom_right.y),
     )
-    # Assign angle to angles_arr
+    # Assign angle to angles_arr, with negative sign for counter-clockwise angle
     angles_arr = -np.rad2deg(angle)
 
     # Assign angles_arr to hgrid

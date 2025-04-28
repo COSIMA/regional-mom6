@@ -15,13 +15,13 @@ This algorithm is detailed below.
 Here we explain the implementation of MOM6 angle calculation in regional-mom6, which is the process by which regional-mom6 calculates the angle of curved horizontal grids (``hgrids``).
 
 ## Boundary rotation algorithm
-Steps 1-5 replicate the angle calculation as done by MOM6. Step 6 is an additional step required to apply this algorithm to the boundary points.
+Steps 1-4 replicate the angle calculation as done by MOM6. Step 5 is an additional step required to apply this algorithm to the boundary points.
 
 1. Figure out the longitudinal extent of our domain, or periodic range of longitudes. For global cases it is len_lon = 360, for our regional cases it is given by the hgrid.
 2. At each ``t``-point on the `hgrid`, we find the four adjacent ``q``-points. We adjust each of these longitudes to be in the range of len_lon around the point itself. ({meth}`rotation.modulo_around_point <regional_mom6.rotation.modulo_around_point>`)
-3. We then find the lon_scale, which is the "trigonometric scaling factor converting changes in longitude to equivalent distances in latitudes". What that means is we add the latitude of all four of these points from part 3, average it, and convert to radians. We then take the cosine of it. It's a factor we can use to convert a difference in longitude to equivalent latitude difference.
+3. We then find the lon_scale, which is the "trigonometric scaling factor converting changes in longitude to equivalent distances in latitudes". What that means is we add the latitude of all four of these points from part 2, average it, and convert to radians. We then take the cosine of it. It's a factor we can use to convert a difference in longitude to equivalent latitude difference.
 4. Then we calculate the angle. This is a simple arctan2 so y/x.
-    1. The "y" component is the addition of the difference between the diagonals in longitude (adjusted by modulo_around_point in step 3) multiplied by the lon_scale, which is our conversion to latitude.
+    1. The "y" component is the addition of the difference between the diagonals in longitude (adjusted by modulo_around_point in step 2) multiplied by the lon_scale, which is our conversion to latitude.
     2. The "x" component is the same addition of differences in latitude.
     3. Thus, given the same units, we can call arctan to get the angle in degrees
 

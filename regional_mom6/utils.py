@@ -322,7 +322,7 @@ def setup_logger(
 
 def rotate_complex(u, v, radian_angle):
     """
-    Rotate velocities by angle ``radian_angle`` (in radians) using complex number math (Same as :func:`rotate`.)
+    Rotate velocities counter-clockwise by angle ``radian_angle`` (in radians) using complex number math (Same as :func:`rotate`.)
 
     Arguments:
         u (xarray.DataArray): The :math:`u`-component of the velocity.
@@ -348,7 +348,7 @@ def rotate_complex(u, v, radian_angle):
 
 def rotate(u, v, radian_angle):
     """
-    Rotate the velocities by an angle ``radian_angle`` (in radians).  (Same as :func:`rotate_complex`.)
+    Rotate the velocities counter-clockwise by an angle ``radian_angle`` (in radians).  (Same as :func:`rotate_complex`.)
 
     Arguments:
         u (xarray.DataArray): The :math:`u`-component of the velocity.
