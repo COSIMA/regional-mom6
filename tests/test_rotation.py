@@ -357,8 +357,8 @@ def test_modulo_around_point():
     L = 1
     assert rot.modulo_around_point(x, x0, L) == x + L
 
-    # Multiple Rectangular Case
-    x = xr.DataArray([0.5, 0.6])
-    x0 = xr.DataArray([0, 0.1])
+    # Multiple Values Case
+    x = xr.DataArray([[0.5, 0.6], [0.5, 0.6]])
+    x0 = xr.DataArray([[0, 0.1], [0, 0.1]])
     L = 1
-    assert list(rot.modulo_around_point(x, x0, L)) == list(x)
+    assert np.all(rot.modulo_around_point(x, x0, L) == x)
