@@ -7,26 +7,23 @@ For rotated horizontal grids, that is grids whose coordinates do not align with 
 **Solution:** To be consistent with MOM6's treatment of grid angles, when we rotate our boundary conditions, we implemented MOM6 angle calculation in a file called "rotation.py", and included this in the the boundary regridding functions by default.
 
 ## Default Behavior
-regional-mom6 by default computes the the angle of curved horizontal grids (``hgrids``) using the same algorithm as MOM6 does.
-This algorithm is detailed below.
+regional-mom6 by default computes the the angle of curved horizontal grids (``hgrids``) using the same algorithm as MOM6 does, detailed below.
 
 ## Detailed Explanation
 
 Here we explain the implementation of MOM6 angle calculation in regional-mom6, which is the process by which regional-mom6 calculates the angle of curved horizontal grids (``hgrids``).
 
-## Boundary rotation algorithm
+## Grid-cell angle of rotation algorithm
 Steps 1-5 replicate the angle calculation as done by MOM6. Step 6 is an additional step required to apply this algorithm to the boundary points.
 
-1. Figure out the longitudinal extent of our domain, or periodic range of longitudes. For global cases it is len_lon = 360, for our regional cases it is given by the hgrid.
-2. At each ``t``-point on the `hgrid`, we find the four adjacent ``q``-points. We adjust each of these longitudes to be in the range of len_lon around the point itself. ({meth}`rotation.modulo_around_point <regional_mom6.rotation.modulo_around_point>`)
-3. We then find the lon_scale, which is the "trigonometric scaling factor converting changes in longitude to equivalent distances in latitudes". Whatever that actually means is we add the latitude of all four of these points from part 3 and basically average it and convert to radians. We then take the cosine of it. As I understand it, it's a conversion of longitude to equivalent latitude distance.
-4. Then we calculate the angle. This is a simple arctan2 so y/x.
-    1. The "y" component is the addition of the difference between the diagonals in longitude (adjusted by modulo_around_point in step 3) multiplied by the lon_scale, which is our conversion to latitude.
-    2. The "x" component is the same addition of differences in latitude.
-    3. Thus, given the same units, we can call arctan to get the angle in degrees
-
-5. **Additional step to apply to boundaries**
-Since the boundaries for a regional MOM6 domain are on the `q` points and not on the `t` points, to calculate the angle at the boundary points we need to expand the grid. This is implemented in the {meth}`rotation.create_expanded_hgrid <regional_mom6.rotation.create_expanded_hgrid>` method.
+1. Determine the longitudinal extent of our domain, or periodic range of longitudes. For grids that go around the globe ``len_lon = 360``; for regional domains ``len_lon`` is provided by the ``hgrid``.
+2. Find the four ``q``-points surrounding each ``t``-point in our grid. These four ``q`` points form a quadrilateral; let's denote them as top-left (TL), top-right (TR), bottom-left (BL), bottom-right (BR). We want to determine the average angle of rotation of this quadrilateral compared to the North-South direction. We ensure that the longitudes of the ``q`` points are within the range of ``len_lon`` around the ``t``-point itself via ({meth}`rotation.modulo_around_point <regional_mom6.rotation.modulo_around_point>`).
+3. We convert the longitudes and latitudes to distances on the globe. For that, we ensure to scale the longitudes with the `cos(latitude)` factor. The latitude we use for the scaling factor is the average of the latitudes of all four ``q`` points.
+4. To determine the average rotation of the quadrilateral we form the vectors of its two diagonal and then their vectorial sum. The angle that vector of the sum of the diagonals forms with the East-West direction is a good approximation for the average angle of the quadrilateral and thus the angle we associate with the ``t`` point. The diagram below shows two quadrilaterals: the left one is already oriented along longitude-latitude coordinates and therefore the sum of the diagonals is oriented along North-South direction; the one on the right is rotated by a negative acute angle compared to North-South.
+   ![Logo](_static/images/angle_via_diagonals.png)
+   We use `numpy.arctan2(x, y)` to compute the angle of the sum-of-diagonals vector with the North-South direction (note that `numpy.arctan2(x, y)` returns `atan(x/y)`). We ensure that we use a counter-clockwise convention for the angle and also convert the angel to degrees.
+5. **Additional step for the grid boundaries**
+Since the boundaries for a regional MOM6 domain are on the `q` points and not on the `t` points, to calculate the angle for those boundary points we extend the grid a bit; see the {meth}`rotation.create_expanded_hgrid <regional_mom6.rotation.create_expanded_hgrid>` method.
 
 ## Convert this method to boundary angles - 2 Options
 
