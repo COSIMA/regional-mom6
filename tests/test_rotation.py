@@ -301,7 +301,7 @@ def test_get_rotation_angle(get_curvilinear_hgrid, get_rectilinear_hgrid):
     assert (angle.values == curved_hgrid.angle_dx).all()
     angle = rot.get_rotation_angle(rotational_method, rect_hgrid, orientation=o)
     assert angle.shape == rect_hgrid.x.shape
-    assert np.all(np.isclose(angle.values, 0, atol=1e-10))
+    assert np.all(np.isclose(angle.values, 0, atol=tol_angle_unit_test))
 
     rotational_method = rot.RotationMethod.EXPAND_GRID
     angle = rot.get_rotation_angle(rotational_method, curved_hgrid, orientation=o)
@@ -311,21 +311,21 @@ def test_get_rotation_angle(get_curvilinear_hgrid, get_rectilinear_hgrid):
     ).all()  # There shouldn't be large differences
     angle = rot.get_rotation_angle(rotational_method, rect_hgrid, orientation=o)
     assert angle.shape == rect_hgrid.x.shape
-    assert np.all(np.isclose(angle.values, 0, atol=1e-10))
+    assert np.all(np.isclose(angle.values, 0, atol=tol_angle_unit_test))
 
     # Check if o is boundary that the shape is of a boundary
     o = "north"
     rotational_method = rot.RotationMethod.NO_ROTATION
     angle = rot.get_rotation_angle(rotational_method, rect_hgrid, orientation=o)
     assert angle.shape == rect_hgrid.x[-1].shape
-    assert np.all(np.isclose(angle.values, 0, atol=1e-10))
+    assert np.all(np.isclose(angle.values, 0, atol=tol_angle_unit_test))
 
     rotational_method = rot.RotationMethod.EXPAND_GRID
     angle = rot.get_rotation_angle(rotational_method, rect_hgrid, orientation=o)
     assert angle.shape == rect_hgrid.x[-1].shape
-    assert np.all(np.isclose(angle.values, 0, atol=1e-10))
+    assert np.all(np.isclose(angle.values, 0, atol=tol_angle_unit_test))
 
     rotational_method = rot.RotationMethod.GIVEN_ANGLE
     angle = rot.get_rotation_angle(rotational_method, rect_hgrid, orientation=o)
     assert angle.shape == rect_hgrid.x[-1].shape
-    assert np.all(np.isclose(angle.values, 0, atol=1e-10))
+    assert np.all(np.isclose(angle.values, 0, atol=tol_angle_unit_test))
