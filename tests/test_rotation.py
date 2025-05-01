@@ -8,9 +8,7 @@ import numpy as np
 import os
 
 tol_angle = 5e-2  # tolerance for angles (in degrees) from seperate calculations
-tol_angle_unit_test = (
-    1e-10  # tolerance for angles (in degrees) from unit test generation
-)
+tol_angle_unit_test = 0  # tolerance for angles (in degrees) from unit test generation
 
 
 def test_get_curvilinear_hgrid_fixture(get_curvilinear_hgrid):
