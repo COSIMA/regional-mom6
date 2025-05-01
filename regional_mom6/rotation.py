@@ -168,19 +168,23 @@ def mom6_angle_calculation_method(
         np.deg2rad((bottom_left.y + bottom_right.y + top_right.y + top_left.y) / 4)
     )
 
-    # quadrilateral diagonals components
+    # Quadrilateral diagonals
+
+    # top-left--bottom-right diagonal components
     TL_BR_diagonal_x = cos_meanlat * (lonB[1, 0] - lonB[0, 1])
     TL_BR_diagonal_y = top_left.y - bottom_right.y
 
+    # top-right--bottom-left diagonal components
     TR_BL_diagonal_x = cos_meanlat * (lonB[1, 1] - lonB[0, 0])
     TR_BL_diagonal_y = top_right.y - bottom_left.y
 
+    # Sum of diagonals components
     sum_of_diagonals_x = TR_BL_diagonal_x + TL_BR_diagonal_x
     sum_of_diagonals_y = TR_BL_diagonal_y + TL_BR_diagonal_y
 
-    # Angle of sum-of-diagonals vector with North-South direction
+    # Angle of sum-of-diagonals vector with the North-South direction
     # Note: the minus sign changes convention from clockwise to counter-clockwise
-    angle = -np.arctan2(sum_of_diagonals_x, sum_of_diagonals_y)  # = atan(x/y)
+    angle = - np.arctan2(sum_of_diagonals_x, sum_of_diagonals_y)  # = - atan(x/y)
 
     # Convert to degrees and assign to angles_arr
     angles_arr = np.rad2deg(angle)
