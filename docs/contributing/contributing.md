@@ -8,11 +8,10 @@ to ensure that there isn't already any related work being done or discussed.
 
 It's always a good idea to start by [opening an issue](https://github.com/COSIMA/regional-mom6/issues/new) to discuss before putting a lot of work into implementing something.
 
-Contributors should strive to keep [pull requests](https://github.com/COSIMA/regional-mom6/pulls)
-as self-contained as possible. Want to contribute several features into the package? Then each
-feature deserves its own pull request. And each feature-pull request should come with some tests
-and documentation of the feature implemented. Tests and documentation are equally valuable as
-the source code!
+Contributors should strive to keep pull requests as self-contained as possible. Thinking of
+contributing several new features into the package? Great! But each feature deserves its
+own pull request. And each feature-pull request should come with some tests and documentation
+of the feature implemented. Tests and documentation are equally valuable as the source code!
 
 Before opening a [pull request](https://github.com/COSIMA/regional-mom6/pulls) it's always a
 good idea to run the tests locally to catch any potential bugs/errors that might have been
