@@ -13,7 +13,7 @@
 
 [![status](https://joss.theoj.org/papers/d396435c09aae4c2f4b62cdbc1493c1e/status.svg)](https://joss.theoj.org/papers/d396435c09aae4c2f4b62cdbc1493c1e)
 
-Users just need to provide some information about where, when, and how big their domain is and also where raw input forcing files are. The package sorts out all the boring details and creates a set of MOM6-friendly input files along with setup directories ready to go! 
+Users just need to provide some information about where, when, and how big their domain is and also where raw input forcing files are. The package sorts out all the boring details and creates a set of MOM6-friendly input files along with setup directories ready to go!
 
 The idea behind this package is that it should let the user sidestep some of the tricky issues with getting the model to run in the first place. This removes some of the steep learning curve for people new to working with MOM6. Note that the resultant model configuration might still need some tweaking (e.g., fiddling with timestep to avoid CFL-related numerical stability issues or fiddling with bathymetry to deal with very narrow fjords or channels that may exist).
 
@@ -40,13 +40,13 @@ The idea behind this package is that it should let the user sidestep some of the
 
 ## We want to hear from you
 
-If you have any suggestions please feel free to open an [issue](https://github.com/COSIMA/regional-mom6/issues) or start a [discussion](https://github.com/COSIMA/regional-mom6/discussions). We welcome any [new contributors](https://regional-mom6.readthedocs.io/en/latest/contributing.html) and we are very keen to help you out along the way!
+If you have any suggestions please feel free to open an [issue](https://github.com/COSIMA/regional-mom6/issues) or start a [discussion](https://github.com/COSIMA/regional-mom6/discussions). We welcome any [new contributors](https://regional-mom6.readthedocs.io/en/latest/contributing/contributing.html) and we are very keen to help you out along the way!
 
 
 ## What you need to get started:
 
 1. a cool idea for a new regional MOM6 domain,
-2. a working MOM6 executable on a machine of your choice, 
+2. a working MOM6 executable on a machine of your choice,
 3. a bathymetry file that at least covers your domain,
 4. 3D ocean forcing files *of any resolution* on your choice of A, B, or C Arakawa grid,
 5. surface forcing files (e.g., from ERA or JRA reanalysis), and
@@ -133,7 +133,7 @@ You can download the notebooks [from Github](https://github.com/COSIMA/regional-
 
 ## Citing
 
-If you use regional-mom6 in research, teaching, or other activities, we would be grateful 
+If you use regional-mom6 in research, teaching, or other activities, we would be grateful
 if you could mention regional-mom6 and cite our paper in JOSS:
 
 > Barnes et al., (2024). regional-mom6: A Python package for automatic generation of regional configurations for the Modular Ocean Model 6. _Journal of Open Source Software_, **9(100)**, 6857, doi:[10.21105/joss.06857](https://doi.org/10.21105/joss.06857).
