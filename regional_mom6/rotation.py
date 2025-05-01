@@ -133,8 +133,8 @@ def mom6_angle_calculation_method(
     point: xr.DataArray,
 ) -> xr.DataArray:
     """
-    Calculate the angle of the grid point using the MOM6 method adapted from the
-    MOM6 code: https://github.com/mom-ocean/MOM6/blob/05d8cc395c1c3c04dd04885bf8dd6df50a86b862/src/initialization/MOM_shared_initialization.F90#L572-L587
+    Calculate the angle of the grid point's local constant-y direction compared to East-West direction
+    using the MOM6 method adapted from: https://github.com/mom-ocean/MOM6/blob/05d8cc395c1c3c04dd04885bf8dd6df50a86b862/src/initialization/MOM_shared_initialization.F90#L572-L587
 
     This method can handle vectorized computations.
 
@@ -151,7 +151,7 @@ def mom6_angle_calculation_method(
     Returns
     -------
     xr.DataArray
-        The angle that corresponds to the grid point
+        The angle angle of the grid point's local constant-y direction compared to East-West direction.
     """
     rotation_logger.info("Calculating grid rotation angle")
 
@@ -171,20 +171,19 @@ def mom6_angle_calculation_method(
     # Quadrilateral diagonals
 
     # top-left--bottom-right diagonal components
-    TL_BR_diagonal_x = cos_meanlat * (lonB[1, 0] - lonB[0, 1])
-    TL_BR_diagonal_y = top_left.y - bottom_right.y
+    BR_TL_diagonal_x = cos_meanlat * (lonB[0, 1] - lonB[1, 0])
+    BR_TL_diagonal_y = bottom_right.y - top_left.y
 
     # top-right--bottom-left diagonal components
     TR_BL_diagonal_x = cos_meanlat * (lonB[1, 1] - lonB[0, 0])
     TR_BL_diagonal_y = top_right.y - bottom_left.y
 
     # Sum of diagonals components
-    sum_of_diagonals_x = TR_BL_diagonal_x + TL_BR_diagonal_x
-    sum_of_diagonals_y = TR_BL_diagonal_y + TL_BR_diagonal_y
+    sum_of_diagonals_x = TR_BL_diagonal_x + BR_TL_diagonal_x
+    sum_of_diagonals_y = TR_BL_diagonal_y + BR_TL_diagonal_y
 
-    # Angle of sum-of-diagonals vector with the North-South direction
-    # Note: the minus sign changes convention from clockwise to counter-clockwise
-    angle = -np.arctan2(sum_of_diagonals_x, sum_of_diagonals_y)  # = - atan(x/y)
+    # Angle of sum-of-diagonals vector with the East-West direction
+    angle = np.arctan2(sum_of_diagonals_x, sum_of_diagonals_y)  # = atan(x/y)
 
     # Convert to degrees and assign to angles_arr
     angles_arr = np.rad2deg(angle)
