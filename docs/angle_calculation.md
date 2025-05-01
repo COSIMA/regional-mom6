@@ -1,6 +1,6 @@
 # Rotated grids and the angle calculation
 
-For rotated horizontal grids, that is grids whose coordinates do not align with lines of constant latitude and longitude, we have to rotate the boundary conditions appropriately by the angle that the grid is rotated from the latitude-longitude coordinates, i.e., the angle formed by the curved grid's local direction of constant ``x`` coordinate compared to the North-South direction.
+For rotated horizontal grids, that is grids whose coordinates do not align with lines of constant latitude and longitude, we have to rotate the boundary conditions appropriately by the angle that the grid is rotated from the latitude-longitude coordinates, i.e., the angle formed by the curved grid's local ``y`` direction compared to the North-South direction.
 
 **Issue:** Although horizontal grids supplied by users _do_ contain an `angle_dx` field, MOM6 by default ignores `angle_dx`  entirely and re-calculates the angles that correspond to each grid point.
 
@@ -15,16 +15,14 @@ We explain below the implementation of MOM6 angle calculation in regional-mom6, 
 Steps 1 through 4 replicate the angle calculation in the interior ``t``-points, as done by MOM6 (see {meth}`rotation.mom6_angle_calculation_method <regional_mom6.rotation.mom6_angle_calculation_method>`). Step 5 describes how we can apply this algorithm to all boundary points (``q``, ``u``, and ``v`` points).
 
 1. Determine the longitudinal extent of our domain, or periodic range of longitudes. For grids that go around the globe ``len_lon = 360``; for regional domains ``len_lon`` is provided by the ``hgrid``.
-2. Find the four ``q``-points surrounding each ``t``-point in our grid. These four ``q`` points form a quadrilateral; let's denote them as top-left (TL), top-right (TR), bottom-left (BL), bottom-right (BR). We want to determine the average angle of rotation of this quadrilateral compared to the North-South direction. We ensure that the longitudes of the ``q`` points are within the range of ``len_lon`` around the ``t``-point itself via ({meth}`rotation.modulo_around_point <regional_mom6.rotation.modulo_around_point>`).
-3. We convert the longitudes and latitudes to distances on the globe. For that, we ensure to scale the horizontal distances with the `cos(latitude)` factor. The latitude we use for the scaling factor is the average of the latitudes of all four ``q`` points.
+2. Find the four ``q``-points surrounding each ``t``-point in our grid. These four ``q`` points form a quadrilateral; let's denote them as top-left (TL), top-right (TR), bottom-left (BL), bottom-right (BR). We want to determine the average angle of rotation of this quadrilateral's local ``y``-direction compared to the North-South direction. We ensure that the longitudes of ``q`` points that are the vertices of the quadrilateral are within the range of ``len_lon`` around the ``t``-point itself via ({meth}`rotation.modulo_around_point <regional_mom6.rotation.modulo_around_point>`).
+3. We convert the longitudes and latitudes of all points to distances on the globe. For that, we ensure to scale the horizontal distances with the `cos(latitude)` factor. The latitude we use for the scaling factor is the average of the latitudes of all four ``q`` points.
 4. To determine the average rotation of the quadrilateral we form the vectors of its two diagonals (the ones that start from the left points and end on the right ones) and then the vectorial sum of the two diagonals. The angle that vector of the sum of the diagonals forms with the North-South direction is a good approximation for the average angle of the quadrilateral and thus this is the angle we associate with the ``t`` point. The diagram below shows two quadrilaterals: the left one is already oriented along longitude-latitude coordinates and therefore the sum of the diagonals is oriented along North-South direction; the one on the right is rotated counter-clockwise by a negative acute angle compared to North-South direction.
    ![Logo](_static/images/angle_via_diagonals.png)
    We compute the angle of the sum-of-diagonals vector with the East-West direction via `numpy.arctan2(x, y)`; note that `numpy.arctan2(x, y)` returns `atan(x/y)`. We ensure that we use a counter-clockwise convention for the angle and also convert the angle to degrees.
 5. **Additional step for the grid boundary points**
 
    Since the boundaries for a regional MOM6 domain are `q` points and not on the `t` points, to calculate the angle for those boundary points we extend the grid by a bit; see the {meth}`rotation.create_expanded_hgrid <regional_mom6.rotation.create_expanded_hgrid>` method. Doing so, we can apply the method above since now there exist four `t`-points around each boundary `q` point that form a quadrilateral around the `q` points.
-
-**Remark**: The angle formed by the curved grid's local direction of constant ``x`` coordinate compared to the North-South and the angle formed by the local direction of constant ``y`` coordinate compared to the East-West are the same. The latter is what is expected in `angle_dx` and this is one reason we ensure we have counter-clockwise convention.
 
 ### Available options for angle-of-rotation for boundary points
 

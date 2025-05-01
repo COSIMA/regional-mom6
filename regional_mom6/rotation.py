@@ -133,8 +133,10 @@ def mom6_angle_calculation_method(
     point: xr.DataArray,
 ) -> xr.DataArray:
     """
-    Calculate the angle of the grid point's local constant-y direction compared to East-West direction
+    Calculate the angle of the grid point's local x-direction compared to East-West direction
     using the MOM6 method adapted from: https://github.com/mom-ocean/MOM6/blob/05d8cc395c1c3c04dd04885bf8dd6df50a86b862/src/initialization/MOM_shared_initialization.F90#L572-L587
+
+    Note: this is exactly the same as the angle of the grid point's local y-direction compared to North-Southe direction.
 
     This method can handle vectorized computations.
 
@@ -143,15 +145,15 @@ def mom6_angle_calculation_method(
     len_lon: float
         The extent of the longitude of the regional domain (in degrees).
     top_left, top_right, bottom_left, bottom_right: xr.DataArray
-        The four points around the point to calculate the angle from the hgrid;
-        requires both an `x` and `y` component (both in degrees).
+        The four points around the point to calculate the angle from the ``hgrid``;
+        requires both an ``x``` and ``y`` component (both in degrees).
     point: xr.DataArray
         The point to calculate the angle from the ``hgrid``
 
     Returns
     -------
     xr.DataArray
-        The angle of the grid point's local constant-y direction compared to East-West direction.
+        The angle of the grid point's local ``x``-direction compared to East-West direction.
     """
     rotation_logger.info("Calculating grid rotation angle")
 
