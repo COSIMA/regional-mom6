@@ -184,7 +184,7 @@ def mom6_angle_calculation_method(
 
     # Angle of sum-of-diagonals vector with the North-South direction
     # Note: the minus sign changes convention from clockwise to counter-clockwise
-    angle = - np.arctan2(sum_of_diagonals_x, sum_of_diagonals_y)  # = - atan(x/y)
+    angle = -np.arctan2(sum_of_diagonals_x, sum_of_diagonals_y)  # = - atan(x/y)
 
     # Convert to degrees and assign to angles_arr
     angles_arr = np.rad2deg(angle)
