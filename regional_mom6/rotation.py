@@ -171,8 +171,8 @@ def mom6_angle_calculation_method(
     # Quadrilateral diagonals
 
     # top-left--bottom-right diagonal components
-    BR_TL_diagonal_x = cos_meanlat * (lonB[0, 1] - lonB[1, 0])
-    BR_TL_diagonal_y = bottom_right.y - top_left.y
+    BR_TL_diagonal_x = cos_meanlat * (lonB[1, 0] - lonB[0, 1])
+    BR_TL_diagonal_y = top_left.y - bottom_right.y
 
     # top-right--bottom-left diagonal components
     TR_BL_diagonal_x = cos_meanlat * (lonB[1, 1] - lonB[0, 0])
