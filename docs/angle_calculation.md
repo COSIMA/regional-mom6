@@ -12,7 +12,7 @@ regional-mom6 by default computes the the angle of curved horizontal grids (``hg
 We explain below the implementation of MOM6 angle calculation in regional-mom6, which is the process by which regional-mom6 calculates the angle of curved horizontal grids (``hgrids``).
 
 ### Grid-cell angle of rotation algorithm
-Steps 1 through 4 replicate the angle calculation in the interior ``t``-points, as done by MOM6 (see {meth}`rotation.mom6_angle_calculation_method <regional_mom6.rotation.mom6_angle_calculation_method>`). Step 5 is an additional step required to apply this algorithm to the boundary ``q``-points.
+Steps 1 through 4 replicate the angle calculation in the interior ``t``-points, as done by MOM6 (see {meth}`rotation.mom6_angle_calculation_method <regional_mom6.rotation.mom6_angle_calculation_method>`). Step 5 describes how we can apply this algorithm to the boundary ``q``-points.
 
 1. Determine the longitudinal extent of our domain, or periodic range of longitudes. For grids that go around the globe ``len_lon = 360``; for regional domains ``len_lon`` is provided by the ``hgrid``.
 2. Find the four ``q``-points surrounding each ``t``-point in our grid. These four ``q`` points form a quadrilateral; let's denote them as top-left (TL), top-right (TR), bottom-left (BL), bottom-right (BR). We want to determine the average angle of rotation of this quadrilateral compared to the North-South direction. We ensure that the longitudes of the ``q`` points are within the range of ``len_lon`` around the ``t``-point itself via ({meth}`rotation.modulo_around_point <regional_mom6.rotation.modulo_around_point>`).
@@ -20,8 +20,9 @@ Steps 1 through 4 replicate the angle calculation in the interior ``t``-points, 
 4. To determine the average rotation of the quadrilateral we form the vectors of its two diagonals and then the vectorial sum of the diagonals. The angle that vector of the sum of the diagonals forms with the North-South direction is a good approximation for the average angle of the quadrilateral and thus this is the angle we associate with the ``t`` point. The diagram below shows two quadrilaterals: the left one is already oriented along longitude-latitude coordinates and therefore the sum of the diagonals is oriented along North-South direction; the one on the right is rotated by a negative acute angle compared to North-South.
    ![Logo](_static/images/angle_via_diagonals.png)
    We compute the angle of the sum-of-diagonals vector with the North-South direction via `numpy.arctan2(x, y)`; note that `numpy.arctan2(x, y)` returns `atan(x/y)`. We ensure that we use a counter-clockwise convention for the angle and also convert the angel to degrees.
-5. **Additional step for the grid boundaries**
-Since the boundaries for a regional MOM6 domain are on the `q` points and not on the `t` points, to calculate the angle for those boundary points we extend the grid a bit; see the {meth}`rotation.create_expanded_hgrid <regional_mom6.rotation.create_expanded_hgrid>` method.
+5. **Additional step for the grid boundary points**
+
+   Since the boundaries for a regional MOM6 domain are `q` points and not on the `t` points, to calculate the angle for those boundary points we extend the grid by a bit; see the {meth}`rotation.create_expanded_hgrid <regional_mom6.rotation.create_expanded_hgrid>` method. Doing so, we can apply the method above since now there exist four `t`-points around each boundary `q` point that form a quadrilateral around the `q` points.
 
 ### Available options for angle-of-rotation for boundary points
 
