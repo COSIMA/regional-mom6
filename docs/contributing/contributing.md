@@ -1,8 +1,16 @@
 Instructions for Contributors
 =============================
 
+We welcome and support new contributions. No matter how small, your contribution is always welcomed!
+
+Before contributing we suggest browsing the [open issues](https://github.com/COSIMA/regional-mom6/issues)/[open pull requests](https://github.com/COSIMA/regional-mom6/pulls) to ensure that there isn't already  related work being done or discussed.
+
+It's always a good idea to start by [opening an issue](https://github.com/COSIMA/regional-mom6/issues/new) to discuss before putting a lot of work into implementing something.
+
+Contributors should strive to keep [pull request](https://github.com/COSIMA/regional-mom6/pulls) as self-contained as possible. Want to contribute several features into the package? Each feature deserves its own pull request. And each feature-pull request should come also with some tests and documentation of the feature the pull request is contributing.
+
 Before you submit a [pull request](https://github.com/COSIMA/regional-mom6/pulls) it's always a
-good idea to run the tests locally and catch any potential bugs/errors that might have been
+good idea to run the tests locally to catch any potential bugs/errors that might have been
 introduced. Also, sometimes it's also a good idea to build the documentation locally to see
 how new docstrings or any new bits of documentation that you may have added look like.
 
