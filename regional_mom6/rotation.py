@@ -136,7 +136,7 @@ def mom6_angle_calculation_method(
     Calculate the angle of the grid point's local x-direction compared to East-West direction
     using the MOM6 method adapted from: https://github.com/mom-ocean/MOM6/blob/05d8cc395c1c3c04dd04885bf8dd6df50a86b862/src/initialization/MOM_shared_initialization.F90#L572-L587
 
-    Note: this is exactly the same as the angle of the grid point's local y-direction compared to North-Southe direction.
+    Note: this is exactly the same as the angle of the grid point's local y-direction compared to North-South direction.
 
     This method can handle vectorized computations.
 
