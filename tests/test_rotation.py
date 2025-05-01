@@ -327,3 +327,38 @@ def test_get_rotation_angle(get_curvilinear_hgrid, get_rectilinear_hgrid):
     angle = rot.get_rotation_angle(rotational_method, rect_hgrid, orientation=o)
     assert angle.shape == rect_hgrid.x[-1].shape
     assert np.all(np.isclose(angle.values, 0, atol=tol_angle_unit_test))
+
+
+def test_modulo_around_point():
+    """
+    Test the modulo_around_point function
+    """
+
+    # Edge Cases if x is on the boundary of the domain
+    x = xr.DataArray([0.5])
+    x0 = xr.DataArray([0])
+    L = 1
+
+    assert rot.modulo_around_point(x, x0, L) == x
+    x = xr.DataArray([-0.5])
+    x0 = xr.DataArray([0])
+    L = 1
+    assert rot.modulo_around_point(x, x0, L) == x
+
+    # Inside Case
+    x = xr.DataArray([-0.2])
+    x0 = xr.DataArray([0])
+    L = 1
+    assert rot.modulo_around_point(x, x0, L) == x
+
+    # Outside Case
+    x = xr.DataArray([-0.6])
+    x0 = xr.DataArray([0])
+    L = 1
+    assert rot.modulo_around_point(x, x0, L) == x + L
+
+    # Multiple Rectangular Case
+    x = xr.DataArray([0.5, 0.6])
+    x0 = xr.DataArray([0, 0.1])
+    L = 1
+    assert list(rot.modulo_around_point(x, x0, L)) == list(x)
