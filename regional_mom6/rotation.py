@@ -106,10 +106,10 @@ def modulo_around_point(x, x0, L):
 
     Parameters
     ----------
-    x: float
-       Value to which to apply modulo arithmetic
-    x0: float
-        Center of modulo range
+    x: xr.DataArray
+       Value(s) to which to apply modulo arithmetic
+    x0: xr.DataArray
+        Center(s) of modulo range
     L: float
        Modulo range width
 
@@ -121,7 +121,17 @@ def modulo_around_point(x, x0, L):
     if L <= 0:
         return x
     else:
-        return ((x - (x0 - L / 2)) % L) + (x0 - L / 2)
+
+        # Find that boundary point x0 + L/2
+        edge_indexes = np.where((x == x0 + L / 2))
+
+        # Modulo calculation
+        calc = ((x - (x0 - L / 2)) % L) + (x0 - L / 2)
+
+        # Find that boundary point x0 + L/2 does not flip to x0 - L/2
+        calc[edge_indexes] = x[edge_indexes]
+
+        return calc
 
 
 def mom6_angle_calculation_method(
