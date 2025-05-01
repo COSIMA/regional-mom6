@@ -151,7 +151,7 @@ def mom6_angle_calculation_method(
     Returns
     -------
     xr.DataArray
-        The angle angle of the grid point's local constant-y direction compared to East-West direction.
+        The angle of the grid point's local constant-y direction compared to East-West direction.
     """
     rotation_logger.info("Calculating grid rotation angle")
 
