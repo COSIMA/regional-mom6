@@ -22,7 +22,7 @@ Steps 1 through 4 replicate the angle calculation in the interior ``t``-points, 
    We compute the angle of the sum-of-diagonals vector with the East-West direction via `numpy.arctan2(x, y)`; note that `numpy.arctan2(x, y)` returns `atan(x/y)`. We ensure that we use a counter-clockwise convention for the angle and also convert the angle to degrees.
 5. **Additional step for the grid boundary points**
 
-   Since the boundaries for a regional MOM6 domain are `q` points and not on the `t` points, to calculate the angle for those boundary points we extend the grid by a bit; see the {meth}`rotation.create_expanded_hgrid <regional_mom6.rotation.create_expanded_hgrid>` method. Doing so, we can apply the method above since now there exist four `t`-points around each boundary `q` point that form a quadrilateral around the `q` points.
+   Since the boundaries for a regional MOM6 domain are `q`, `u`, and 'v' points and not on the `t` points, to calculate the angle for those boundary points we extend the grid by a bit; see the {meth}`rotation.create_expanded_hgrid <regional_mom6.rotation.create_expanded_hgrid>` method. Doing so, we can apply the method above since now there exist four points around each boundary point that form a quadrilateral.
 
 ### Available options for angle-of-rotation for boundary points
 
