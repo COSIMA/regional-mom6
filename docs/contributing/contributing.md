@@ -7,7 +7,7 @@ Before contributing we suggest browsing the [open issues](https://github.com/COS
 
 It's always a good idea to start by [opening an issue](https://github.com/COSIMA/regional-mom6/issues/new) to discuss before putting a lot of work into implementing something.
 
-Contributors should strive to keep [pull request](https://github.com/COSIMA/regional-mom6/pulls) as self-contained as possible. Want to contribute several features into the package? Each feature deserves its own pull request. And each feature-pull request should come also with some tests and documentation of the feature the pull request is contributing.
+Contributors should strive to keep [pull requests](https://github.com/COSIMA/regional-mom6/pulls) as self-contained as possible. Want to contribute several features into the package? Then each feature deserves its own pull request. And each feature-pull request should come with some tests and documentation of the feature the pull request is contributing. Tests and documentation are equally valuable as the source code.
 
 Before you submit a [pull request](https://github.com/COSIMA/regional-mom6/pulls) it's always a
 good idea to run the tests locally to catch any potential bugs/errors that might have been
