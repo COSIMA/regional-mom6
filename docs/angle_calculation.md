@@ -7,14 +7,12 @@ For rotated horizontal grids, that is grids whose coordinates do not align with 
 **Solution:** To be consistent with MOM6's treatment of grid angles, when we rotate our boundary conditions, we implemented MOM6 angle calculation in a file called "rotation.py", and included this in the the boundary regridding functions by default.
 
 ## Default Behavior
-regional-mom6 by default computes the the angle of curved horizontal grids (``hgrids``) using the same algorithm as MOM6 does, detailed below.
+regional-mom6 by default computes the the angle of curved horizontal grids (``hgrids``) using the same algorithm as MOM6 does.
 
-## Detailed Explanation
+We explain below the implementation of MOM6 angle calculation in regional-mom6, which is the process by which regional-mom6 calculates the angle of curved horizontal grids (``hgrids``).
 
-Here we explain the implementation of MOM6 angle calculation in regional-mom6, which is the process by which regional-mom6 calculates the angle of curved horizontal grids (``hgrids``).
-
-## Grid-cell angle of rotation algorithm
-Steps 1-4 replicate the angle calculation in the interior ``t``-points, as done by MOM6 (see {meth}`rotation.mom6_angle_calculation_method <regional_mom6.rotation.mom6_angle_calculation_method>`). Step 5 is an additional step required to apply this algorithm to the boundary ``q``-points.
+### Grid-cell angle of rotation algorithm
+Steps 1 through 4 replicate the angle calculation in the interior ``t``-points, as done by MOM6 (see {meth}`rotation.mom6_angle_calculation_method <regional_mom6.rotation.mom6_angle_calculation_method>`). Step 5 is an additional step required to apply this algorithm to the boundary ``q``-points.
 
 1. Determine the longitudinal extent of our domain, or periodic range of longitudes. For grids that go around the globe ``len_lon = 360``; for regional domains ``len_lon`` is provided by the ``hgrid``.
 2. Find the four ``q``-points surrounding each ``t``-point in our grid. These four ``q`` points form a quadrilateral; let's denote them as top-left (TL), top-right (TR), bottom-left (BL), bottom-right (BR). We want to determine the average angle of rotation of this quadrilateral compared to the North-South direction. We ensure that the longitudes of the ``q`` points are within the range of ``len_lon`` around the ``t``-point itself via ({meth}`rotation.modulo_around_point <regional_mom6.rotation.modulo_around_point>`).
@@ -25,12 +23,12 @@ Steps 1-4 replicate the angle calculation in the interior ``t``-points, as done 
 5. **Additional step for the grid boundaries**
 Since the boundaries for a regional MOM6 domain are on the `q` points and not on the `t` points, to calculate the angle for those boundary points we extend the grid a bit; see the {meth}`rotation.create_expanded_hgrid <regional_mom6.rotation.create_expanded_hgrid>` method.
 
-## Convert this method to boundary angles - 2 Options
+### Available options for angle-of-rotation for boundary points
 
 1. **EXPAND_GRID**: Compute grid angle replicating MOM6 calculations. Calculate another boundary row/column points around the hgrid using simple difference techniques. Use the new points to calculate the angle at the boundaries. This works because we can now access the four points needed to calculate the angle, where previously at boundaries we would be missing at least two.
 2. **GIVEN_ANGLE**: Do not calculate the grid angle but rather use the user-provided field in the horizontal grid called `angle_dx`.
 
 
-### Force using the provided `angle_dx`
+### Enforce using the provided `angle_dx`
 
 To enforce using the provided angles instead of the default algorithm, when calling the regridding methods {meth}`segment.regrid_velocity_tracers <regional_mom6.regional_mom6.segment.regrid_velocity_tracers>` and {meth}`segment.regrid_tides <regional_mom6.regional_mom6.segment.regrid_tides>`, set the optional keyword argument `rotational method = GIVEN_ANGLE`
