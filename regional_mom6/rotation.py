@@ -106,10 +106,10 @@ def modulo_around_point(x, x0, L):
 
     Parameters
     ----------
-    x: float
-       Value to which to apply modulo arithmetic
-    x0: float
-        Center of modulo range
+    x: xr.DataArray
+       Value(s) to which to apply modulo arithmetic
+    x0: xr.DataArray
+        Center(s) of modulo range
     L: float
        Modulo range width
 
@@ -121,7 +121,17 @@ def modulo_around_point(x, x0, L):
     if L <= 0:
         return x
     else:
-        return ((x - (x0 - L / 2)) % L) + (x0 - L / 2)
+
+        # Find that boundary point x0 + L/2
+        edge_indexes = np.where((x == x0 + L / 2))
+
+        # Modulo calculation
+        calc = ((x - (x0 - L / 2)) % L) + (x0 - L / 2)
+
+        # Find that boundary point x0 + L/2 does not flip to x0 - L/2
+        calc[edge_indexes] = x[edge_indexes]
+
+        return calc
 
 
 def mom6_angle_calculation_method(
@@ -133,8 +143,10 @@ def mom6_angle_calculation_method(
     point: xr.DataArray,
 ) -> xr.DataArray:
     """
-    Calculate the angle of the grid point using the MOM6 method adapted from the
-    MOM6 code: https://github.com/mom-ocean/MOM6/blob/05d8cc395c1c3c04dd04885bf8dd6df50a86b862/src/initialization/MOM_shared_initialization.F90#L572-L587
+    Calculate the angle of the grid point's local x-direction compared to East-West direction
+    using the MOM6 method adapted from: https://github.com/mom-ocean/MOM6/blob/05d8cc395c1c3c04dd04885bf8dd6df50a86b862/src/initialization/MOM_shared_initialization.F90#L572-L587
+
+    Note: this is exactly the same as the angle of the grid point's local y-direction compared to North-South direction.
 
     This method can handle vectorized computations.
 
@@ -143,15 +155,15 @@ def mom6_angle_calculation_method(
     len_lon: float
         The extent of the longitude of the regional domain (in degrees).
     top_left, top_right, bottom_left, bottom_right: xr.DataArray
-        The four points around the point to calculate the angle from the hgrid;
-        requires both an `x` and `y` component (both in degrees).
+        The four points around the point to calculate the angle from the ``hgrid``;
+        requires both an ``x``` and ``y`` component (both in degrees).
     point: xr.DataArray
         The point to calculate the angle from the ``hgrid``
 
     Returns
     -------
     xr.DataArray
-        The angle that corresponds to the grid point
+        The angle of the grid point's local ``x``-direction compared to East-West direction.
     """
     rotation_logger.info("Calculating grid rotation angle")
 
@@ -168,13 +180,26 @@ def mom6_angle_calculation_method(
         np.deg2rad((bottom_left.y + bottom_right.y + top_right.y + top_left.y) / 4)
     )
 
-    # Compute angle
-    angle = np.arctan2(
-        cos_meanlat * ((lonB[1, 0] - lonB[0, 1]) + (lonB[1, 1] - lonB[0, 0])),
-        (top_right.y - bottom_left.y) + (top_left.y - bottom_right.y),
-    )
-    # Assign angle to angles_arr
-    angles_arr = -np.rad2deg(angle)
+    # Quadrilateral diagonals
+
+    # top-left--bottom-right diagonal components
+    TL_BR_diagonal_x = cos_meanlat * (lonB[1, 0] - lonB[0, 1])
+    TL_BR_diagonal_y = top_left.y - bottom_right.y
+
+    # top-right--bottom-left diagonal components
+    TR_BL_diagonal_x = cos_meanlat * (lonB[1, 1] - lonB[0, 0])
+    TR_BL_diagonal_y = top_right.y - bottom_left.y
+
+    # Sum of diagonals components
+    sum_of_diagonals_x = TR_BL_diagonal_x + TL_BR_diagonal_x
+    sum_of_diagonals_y = TR_BL_diagonal_y + TL_BR_diagonal_y
+
+    # Angle of sum-of-diagonals vector with the North-South direction
+    # Note: the minus sign changes convention from clockwise to counter-clockwise
+    angle = -np.arctan2(sum_of_diagonals_x, sum_of_diagonals_y)  # = - atan(x/y)
+
+    # Convert to degrees and assign to angles_arr
+    angles_arr = np.rad2deg(angle)
 
     # Assign angles_arr to hgrid
     t_angles = xr.DataArray(

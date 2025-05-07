@@ -1787,8 +1787,7 @@ class experiment:
         bathymetry_output = bathymetry_output.rename(
             {coordinate_names["xh"]: "lon", coordinate_names["yh"]: "lat"}
         )
-        bathymetry_output.lon.attrs["units"] = "degrees_east"
-        bathymetry_output.lat.attrs["units"] = "degrees_north"
+
         bathymetry_output.depth.attrs["_FillValue"] = -1e20
         bathymetry_output.depth.attrs["units"] = "meters"
         bathymetry_output.depth.attrs["standard_name"] = (
@@ -1803,62 +1802,42 @@ class experiment:
                 engine="netcdf4",
             )
 
-        tgrid = xr.Dataset(
-            data_vars={
-                "depth": (
-                    ["ny", "nx"],
-                    np.zeros(
-                        self.hgrid.x.isel(
-                            nxp=slice(1, None, 2), nyp=slice(1, None, 2)
-                        ).shape
-                    ),
-                )
-            },
-            coords={
-                "lon": (
-                    ["ny", "nx"],
-                    self.hgrid.x.isel(
-                        nxp=slice(1, None, 2), nyp=slice(1, None, 2)
-                    ).values,
-                ),
-                "lat": (
-                    ["ny", "nx"],
-                    self.hgrid.y.isel(
-                        nxp=slice(1, None, 2), nyp=slice(1, None, 2)
-                    ).values,
-                ),
-            },
+        empty_bathy = rgd.get_hgrid_arakawa_c_points(self.hgrid, "t")
+        empty_bathy = empty_bathy.rename(
+            {"tlon": "lon", "tlat": "lat", "nyp": "ny", "nxp": "nx"}
         )
-
-        # rewrite chunks to use lat/lon now for use with xesmf
-        tgrid.lon.attrs["units"] = "degrees_east"
-        tgrid.lon.attrs["_FillValue"] = 1e20
-        tgrid.lat.attrs["units"] = "degrees_north"
-        tgrid.lat.attrs["_FillValue"] = 1e20
-        tgrid.depth.attrs["units"] = "meters"
-        tgrid.depth.attrs["coordinates"] = "lon lat"
+        empty_bathy = empty_bathy.set_coords(("lon", "lat"))
+        empty_bathy["depth"] = xr.zeros_like(empty_bathy["lon"])
+        empty_bathy.lon.attrs["units"] = "degrees_east"
+        empty_bathy.lon.attrs["_FillValue"] = 1e20
+        empty_bathy.lat.attrs["units"] = "degrees_north"
+        empty_bathy.lat.attrs["_FillValue"] = 1e20
+        empty_bathy.depth.attrs["units"] = "meters"
+        empty_bathy.depth.attrs["coordinates"] = "lon lat"
         if write_to_file:
-            tgrid.to_netcdf(
+            empty_bathy.to_netcdf(
                 self.mom_input_dir / "bathymetry_unfinished.nc",
                 mode="w",
                 engine="netcdf4",
             )
-            tgrid.close()
+            empty_bathy.close()
 
         bathymetry_output = bathymetry_output.load()
-
         print(
             "Begin regridding bathymetry...\n\n"
             + f"Original bathymetry size: {bathymetry_output.nbytes/1e6:.2f} Mb\n"
-            + f"Regridded size: {tgrid.nbytes/1e6:.2f} Mb\n"
+            + f"Regridded size: {empty_bathy.nbytes/1e6:.2f} Mb\n"
             + "Automatic regridding may fail if your domain is too big! If this process hangs or crashes,"
+            + "make sure function argument write_to_file = True and,"
             + "open a terminal with appropriate computational and resources try calling ESMF "
             + f"directly in the input directory {self.mom_input_dir} via\n\n"
             + "`mpirun -np NUMBER_OF_CPUS ESMF_Regrid -s bathymetry_original.nc -d bathymetry_unfinished.nc -m bilinear --src_var depth --dst_var depth --netcdf4 --src_regional --dst_regional`\n\n"
             + "For details see https://xesmf.readthedocs.io/en/latest/large_problems_on_HPC.html\n\n"
             + "Afterwards, we run the 'expt.tidy_bathymetry' method to skip the expensive interpolation step, and finishing metadata, encoding and cleanup.\n\n\n"
         )
-        regridder = xe.Regridder(bathymetry_output, tgrid, "bilinear", parallel=False)
+        regridder = rgd.create_regridder(
+            bathymetry_output, empty_bathy, locstream_out=False
+        )
         bathymetry = regridder(bathymetry_output)
         if write_to_file:
             bathymetry.to_netcdf(

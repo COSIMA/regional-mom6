@@ -7,7 +7,8 @@ import xarray as xr
 import numpy as np
 import os
 
-tol_angle = 5e-2  # tolerance for angles (in degrees)
+tol_angle = 5e-2  # tolerance for angles (in degrees) from seperate calculations
+tol_angle_unit_test = 0  # tolerance for angles (in degrees) from unit test generation
 
 
 def test_get_curvilinear_hgrid_fixture(get_curvilinear_hgrid):
@@ -128,7 +129,7 @@ def test_expanded_hgrid_generation(get_curvilinear_hgrid):
 @pytest.mark.parametrize(("angle"), [0, 12.5, 65, -20])
 def test_mom6_angle_calculation_method_simple_square_grids(angle):
     """
-    Create a square of length 2. Rotate it by an `angle` and then compute
+    Create a square of length 2 (square_size). Rotate it by an `angle` and then compute
     the angle using rot.mom6_angle_calculation_method to ensure it gets
     the angle right.
     """
@@ -138,11 +139,12 @@ def test_mom6_angle_calculation_method_simple_square_grids(angle):
     R = np.array([[np.cos(θ), -np.sin(θ)], [np.sin(θ), np.cos(θ)]])
 
     # Define four point points on a square with side of
-    # length 2 and centered at (0, 0)
-    top_left = np.array([-1, +1])
-    top_right = np.array([+1, +1])
-    bottom_left = np.array([-1, -1])
-    bottom_right = np.array([+1, -1])
+    # length 2 (square_size) and centered at (0, 0)
+    square_size = 2.0
+    top_left = np.array([-square_size / 2, +square_size / 2])
+    top_right = np.array([+square_size / 2, +square_size / 2])
+    bottom_left = np.array([-square_size / 2, -square_size / 2])
+    bottom_right = np.array([+square_size / 2, -square_size / 2])
 
     # Apply the rotation
     top_left = R @ top_left
@@ -195,10 +197,13 @@ def test_mom6_angle_calculation_method_simple_square_grids(angle):
         }
     )
 
+    # Calculate len_lon
+    top_left_bottom_right_diag = abs(top_left.x.item() - bottom_right.x.item())
+    top_right_bottom_left_diag = abs(top_right.x.item() - bottom_left.x.item())
+    len_lon = max(top_left_bottom_right_diag, top_right_bottom_left_diag)
     computed_angle = rot.mom6_angle_calculation_method(
-        4, top_left, top_right, bottom_left, bottom_right, point
+        len_lon, top_left, top_right, bottom_left, bottom_right, point
     )
-
     assert math.isclose(computed_angle, angle)
 
 
@@ -294,7 +299,7 @@ def test_get_rotation_angle(get_curvilinear_hgrid, get_rectilinear_hgrid):
     assert (angle.values == curved_hgrid.angle_dx).all()
     angle = rot.get_rotation_angle(rotational_method, rect_hgrid, orientation=o)
     assert angle.shape == rect_hgrid.x.shape
-    assert (angle.values == 0).all()
+    assert np.all(np.isclose(angle.values, 0, atol=tol_angle_unit_test))
 
     rotational_method = rot.RotationMethod.EXPAND_GRID
     angle = rot.get_rotation_angle(rotational_method, curved_hgrid, orientation=o)
@@ -304,19 +309,56 @@ def test_get_rotation_angle(get_curvilinear_hgrid, get_rectilinear_hgrid):
     ).all()  # There shouldn't be large differences
     angle = rot.get_rotation_angle(rotational_method, rect_hgrid, orientation=o)
     assert angle.shape == rect_hgrid.x.shape
-    assert (angle.values == 0).all()
+    assert np.all(np.isclose(angle.values, 0, atol=tol_angle_unit_test))
 
     # Check if o is boundary that the shape is of a boundary
     o = "north"
     rotational_method = rot.RotationMethod.NO_ROTATION
     angle = rot.get_rotation_angle(rotational_method, rect_hgrid, orientation=o)
     assert angle.shape == rect_hgrid.x[-1].shape
-    assert (angle.values == 0).all()
+    assert np.all(np.isclose(angle.values, 0, atol=tol_angle_unit_test))
+
     rotational_method = rot.RotationMethod.EXPAND_GRID
     angle = rot.get_rotation_angle(rotational_method, rect_hgrid, orientation=o)
     assert angle.shape == rect_hgrid.x[-1].shape
-    assert (angle.values == 0).all()
+    assert np.all(np.isclose(angle.values, 0, atol=tol_angle_unit_test))
+
     rotational_method = rot.RotationMethod.GIVEN_ANGLE
     angle = rot.get_rotation_angle(rotational_method, rect_hgrid, orientation=o)
     assert angle.shape == rect_hgrid.x[-1].shape
-    assert (angle.values == 0).all()
+    assert np.all(np.isclose(angle.values, 0, atol=tol_angle_unit_test))
+
+
+def test_modulo_around_point():
+    """
+    Test the modulo_around_point function
+    """
+
+    # Edge Cases if x is on the boundary of the domain
+    x = xr.DataArray([0.5])
+    x0 = xr.DataArray([0])
+    L = 1
+
+    assert rot.modulo_around_point(x, x0, L) == x
+    x = xr.DataArray([-0.5])
+    x0 = xr.DataArray([0])
+    L = 1
+    assert rot.modulo_around_point(x, x0, L) == x
+
+    # Inside Case
+    x = xr.DataArray([-0.2])
+    x0 = xr.DataArray([0])
+    L = 1
+    assert rot.modulo_around_point(x, x0, L) == x
+
+    # Outside Case
+    x = xr.DataArray([-0.6])
+    x0 = xr.DataArray([0])
+    L = 1
+    assert rot.modulo_around_point(x, x0, L) == x + L
+
+    # Multiple Values Case
+    x = xr.DataArray([[0.5, 0.6], [0.5, 0.6]])
+    x0 = xr.DataArray([[0, 0.1], [0, 0.1]])
+    L = 1
+    assert np.all(rot.modulo_around_point(x, x0, L) == x)
