@@ -8,12 +8,12 @@ def change_MOM_parameter(
     directory, param_name, param_value=None, comment=None, override=True, delete=False
 ):
     """
-    **Requires MOM parameter files present in the run directory**
-
     Changes a parameter in the ``MOM_input`` or ``MOM_override`` file. Returns original value, if there was one.
     If `delete` keyword argument is `True` the parameter is removed. But note, that **only** parameters from
-    the ``MOM_override`` are be deleted since deleting parameters from ``MOM_input`` is not safe and can lead to errors.
-    If the parameter does not exist, it will be added to the file.
+    the ``MOM_override`` are be deleted, since deleting parameters from ``MOM_input`` is not safe and can lead to errors.
+    If the parameter does not exist, it will be added to the MOM_override file.
+
+    **MOM parameter files need to be present in the run directory**
 
     Arguments:
         param_name (str):
