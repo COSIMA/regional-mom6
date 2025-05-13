@@ -14,18 +14,17 @@ import importlib.resources
 import datetime
 import pandas as pd
 from pathlib import Path
-import glob
-from collections import defaultdict
 import json
-import copy
+from regional_mom6 import MOM_parameter_tools as mpt
 from regional_mom6 import regridding as rgd
 from regional_mom6 import rotation as rot
+from regional_mom6.config import Config
 from regional_mom6.utils import (
     quadrilateral_areas,
     ap2ep,
     ep2ap,
-    is_rectilinear_hgrid,
     rotate,
+    find_files_by_pattern,
 )
 
 
@@ -37,7 +36,6 @@ __all__ = [
     "generate_rectangular_hgrid",
     "experiment",
     "segment",
-    "create_experiment_from_config",
     "get_glorys_data",
 ]
 
@@ -77,93 +75,6 @@ def convert_to_tpxo_tidal_constituents(tidal_constituents):
         raise ValueError(f"Invalid tidal constituent: {e.args[0]}")
 
     return constituent_indices
-
-
-## Load Experiment Function
-
-
-def create_experiment_from_config(
-    config_file_path,
-    mom_input_dir="mom_input/from_config",
-    mom_run_dir="mom_run/from_config",
-    create_hgrid_and_vgrid=True,
-):
-    """
-    Load experiment variables from a configuration file and generate the horizontal and vertical grids (``hgrid``/``vgrid``).
-    Computer-specific functionality eliminates the ability to pass file paths.
-
-    (This is basically another way to initialize and experiment.)
-
-    Arguments:
-        config_file_path (str): Path to the config file.
-        mom_input_dir (str): Path to the MOM6 input directory. Default: ``"mom_input/from_config"``.
-        mom_run_dir (str): Path to the MOM6 run directory. Default: ``"mom_run/from_config"``.
-        create_hgrid_and_vgrid (bool): Whether to create the hgrid and the vgrid. Default is True.
-
-    Returns:
-        An experiment object with the fields from the configuration at ``config_file_path``.
-    """
-    print("Reading from config file....")
-    with open(config_file_path, "r") as f:
-        config_dict = json.load(f)
-
-    print("Creating Empty Experiment Object....")
-    expt = experiment.create_empty()
-
-    print("Setting Default Variables.....")
-    expt.expt_name = config_dict["expt_name"]
-
-    if (
-        config_dict["longitude_extent"] != None
-        and config_dict["latitude_extent"] != None
-    ):
-        expt.longitude_extent = tuple(config_dict["longitude_extent"])
-        expt.latitude_extent = tuple(config_dict["latitude_extent"])
-    else:
-        expt.longitude_extent = None
-        expt.latitude_extent = None
-    try:
-        expt.date_range = config_dict["date_range"]
-        expt.date_range[0] = dt.datetime.strptime(
-            expt.date_range[0], "%Y-%m-%d %H:%M:%S"
-        )
-        expt.date_range[1] = dt.datetime.strptime(
-            expt.date_range[1], "%Y-%m-%d %H:%M:%S"
-        )
-    except IndexError:
-        expt.date_range = None
-
-    expt.mom_run_dir = Path(mom_run_dir)
-    expt.mom_input_dir = Path(mom_input_dir)
-    expt.mom_run_dir.mkdir(parents=True, exist_ok=True)
-    expt.mom_input_dir.mkdir(parents=True, exist_ok=True)
-
-    config_params = [
-        "resolution",
-        "number_vertical_layers",
-        "layer_thickness_ratio",
-        "depth",
-        "hgrid_type",
-        "repeat_year_forcing",
-        "minimum_depth",
-        "tidal_constituents",
-        "boundaries",
-    ]
-    for param in config_params:
-        setattr(expt, param, config_dict[param])
-
-    expt.ocean_mask = None
-    expt.layout = None
-
-    if create_hgrid_and_vgrid:
-        print("Creating hgrid and vgrid....")
-        expt.hgrid = expt._make_hgrid()
-        expt.vgrid = expt._make_vgrid()
-    else:
-        print("Skipping hgrid and vgrid creation....")
-
-    print("Done!")
-    return expt
 
 
 ## Auxiliary functions
@@ -548,26 +459,6 @@ def generate_rectangular_hgrid(lons, lats):
     )
 
 
-def find_files_by_pattern(paths: list, patterns: list, error_message=None) -> list:
-    """
-    Function searchs paths for patterns and returns the list of the file paths with that pattern
-    """
-    # Use glob to find all files
-    all_files = []
-    for pattern in patterns:
-        for path in paths:
-            all_files.extend(Path(path).glob(pattern))
-
-    if len(all_files) == 0:
-        if error_message is None:
-            return "No files found at the following paths: {} for the following patterns: {}".format(
-                paths, patterns
-            )
-        else:
-            return error_message
-    return all_files
-
-
 class experiment:
     """The main class for setting up a regional experiment.
 
@@ -610,6 +501,8 @@ class experiment:
         create_empty (bool): If ``True``, the experiment object is initialized empty. This is used for testing and experienced user manipulation.
         expt_name (str): The name of the experiment (for config file use)
         boundaries (List[str]): List of (rectangular) boundaries to be set. Default is ``["south", "north", "west", "east"]``. The boundaries are set as (list index + 1) in MOM_override in the order of the list, and less than 4 boundaries can be set.
+        regridding_method (str): regridding method to use throughout the entire experiment. Default is ``'bilinear'``. Any other xesmf regridding method can be used.
+        fill_method (Function): The fill function to be used after regridding datasets. it takes a xarray DataArray and returns a filled DataArray. Default is ``rgd.fill_missing_data``.
     """
 
     @classmethod
@@ -631,6 +524,8 @@ class experiment:
         tidal_constituents=["M2", "S2", "N2", "K2", "K1", "O1", "P1", "Q1", "MM", "MF"],
         expt_name=None,
         boundaries=["south", "north", "west", "east"],
+        regridding_method="bilinear",
+        fill_method=rgd.fill_missing_data,
     ):
         """
         **Note**: This method is unsafe; *only* experience users are urged to use it!
@@ -659,6 +554,8 @@ class experiment:
             repeat_year_forcing=None,
             tidal_constituents=None,
             expt_name=None,
+            regridding_method=None,
+            fill_method=None,
         )
 
         expt.expt_name = expt_name
@@ -680,6 +577,8 @@ class experiment:
         expt.layout = None
         cls.segments = {}
         cls.boundaries = boundaries
+        cls.regridding_method = regridding_method
+        cls.fill_method = fill_method
         return expt
 
     def __init__(
@@ -705,6 +604,8 @@ class experiment:
         create_empty=False,
         expt_name=None,
         boundaries=["south", "north", "west", "east"],
+        regridding_method="bilinear",
+        fill_method=rgd.fill_missing_data,
     ):
 
         # Creates an empty experiment object for testing and experienced user manipulation.
@@ -738,6 +639,8 @@ class experiment:
         self.layout = None  # This should be a tuple. Leaving it as 'None' makes it easy to remind the user to provide a value later.
         self.minimum_depth = minimum_depth  # Minimum depth allowed in the bathymetry
         self.tidal_constituents = tidal_constituents
+        self.regridding_method = regridding_method
+        self.fill_method = fill_method
         if hgrid_type == "from_file":
             if hgrid_path is None:
                 hgrid_path = self.mom_input_dir / "hgrid.nc"
@@ -810,7 +713,7 @@ class experiment:
             input_rundir.symlink_to(self.mom_run_dir.resolve())
 
     def __str__(self) -> str:
-        return json.dumps(self.write_config_file(export=False, quiet=True), indent=4)
+        return json.dumps(Config.save_to_json(self, export=False), indent=4)
 
     @property
     def bathymetry(self):
@@ -1084,58 +987,6 @@ class experiment:
 
         return vcoord
 
-    def write_config_file(self, path=None, export=True, quiet=False):
-        """
-        Write a ``json`` configuration file for the experiment. The ``json`` file contains
-        the experiment variable information to allow for easy pass off to other users, with a strict computer
-        independence restriction. It also makes information about the expirement readable, and
-        can be also userful for simply printing out information about the experiment.
-
-        Arguments:
-            path (str): Path to write the config file to. If not provided, the file is written to the ``mom_run_dir`` directory.
-            export (bool): If ``True`` (default), the configuration file is written to disk on the given ``path``
-            quiet (bool): If ``True``, no print statements are made.
-        Returns:
-            Dict: A dictionary containing the configuration information.
-        """
-        if not quiet:
-            print("Writing Config File.....")
-        try:
-            date_range = [
-                self.date_range[0].strftime("%Y-%m-%d %H:%M:%S"),
-                self.date_range[1].strftime("%Y-%m-%d %H:%M:%S"),
-            ]
-        except IndexError:
-            date_range = None
-        config_dict = {
-            "expt_name": self.expt_name,
-            "date_range": date_range,
-            "latitude_extent": self.latitude_extent,
-            "longitude_extent": self.longitude_extent,
-            "resolution": self.resolution,
-            "number_vertical_layers": self.number_vertical_layers,
-            "layer_thickness_ratio": self.layer_thickness_ratio,
-            "depth": self.depth,
-            "hgrid_type": self.hgrid_type,
-            "repeat_year_forcing": self.repeat_year_forcing,
-            "ocean_mask": self.ocean_mask,
-            "layout": self.layout,
-            "minimum_depth": self.minimum_depth,
-            "tidal_constituents": self.tidal_constituents,
-            "boundaries": self.boundaries,
-        }
-        if export:
-            export_path = path or (self.mom_run_dir / "rmom6_config.json")
-            with open(export_path, "w") as f:
-                json.dump(
-                    config_dict,
-                    f,
-                    indent=4,
-                )
-        if not quiet:
-            print("Done.")
-        return config_dict
-
     def setup_initial_condition(
         self,
         raw_ic_path,
@@ -1143,6 +994,7 @@ class experiment:
         arakawa_grid="A",
         vcoord_type="height",
         rotational_method=rot.RotationMethod.EXPAND_GRID,
+        regridding_method=None,
     ):
         """
         Reads the initial condition from files in ``raw_ic_path``, interpolates to the
@@ -1157,11 +1009,13 @@ class experiment:
             vcoord_type (Optional[str]): The type of vertical coordinate used in the forcing files.
                 Either ``'height'`` or ``'thickness'``.
             rotational_method (Optional[RotationMethod]): The method used to rotate the velocities.
+            regridding_method (Optional[str]): The type of regridding method to use. Defaults to self.regridding_method
         """
+        if regridding_method is None:
+            regridding_method = self.regridding_method
 
         # Remove time dimension if present in the IC.
         # Assume that the first time dim is the intended on if more than one is present
-
         ic_raw = xr.open_mfdataset(raw_ic_path)
         if varnames["time"] in ic_raw.dims:
             ic_raw = ic_raw.isel({varnames["time"]: 0})
@@ -1328,10 +1182,14 @@ class experiment:
 
         ## Make our three horizontal regridders
 
-        regridder_u = rgd.create_regridder(ic_raw_u, self.hgrid, locstream_out=False)
-        regridder_v = rgd.create_regridder(ic_raw_v, self.hgrid, locstream_out=False)
+        regridder_u = rgd.create_regridder(
+            ic_raw_u, self.hgrid, locstream_out=False, method=regridding_method
+        )
+        regridder_v = rgd.create_regridder(
+            ic_raw_v, self.hgrid, locstream_out=False, method=regridding_method
+        )
         regridder_t = rgd.create_regridder(
-            ic_raw_tracers, tgrid, locstream_out=False
+            ic_raw_tracers, tgrid, locstream_out=False, method=regridding_method
         )  # Doesn't need to be rotated, so we can regrid to just tracers
 
         # ugrid= rgd.get_hgrid_arakawa_c_points(self.hgrid, "u").rename({"ulon": "lon", "ulat": "lat"}).set_coords(["lat", "lon"])
@@ -1577,6 +1435,8 @@ class experiment:
         arakawa_grid="A",
         bathymetry_path=None,
         rotational_method=rot.RotationMethod.EXPAND_GRID,
+        regridding_method=None,
+        fill_method=None,
     ):
         """
         A wrapper for :func:`~setup_single_boundary`. Given a list of up to four cardinal directions,
@@ -1595,7 +1455,13 @@ class experiment:
                 boundary condition is not masked.
             rotational_method (Optional[str]): Method to use for rotating the boundary velocities.
                 Default is ``EXPAND_GRID``.
+            regridding_method (Optional[str]): The type of regridding method to use. Defaults to self.regridding_method
+            fill_method (Function): Fill method to use throughout the function. Default is ``self.fill_method``
         """
+        if regridding_method is None:
+            regridding_method = self.regridding_method
+        if fill_method is None:
+            fill_method = self.fill_method
         for i in self.boundaries:
             if i not in ["south", "north", "west", "east"]:
                 raise ValueError(
@@ -1624,6 +1490,8 @@ class experiment:
                 arakawa_grid=arakawa_grid,
                 bathymetry_path=bathymetry_path,
                 rotational_method=rotational_method,
+                regridding_method=regridding_method,
+                fill_method=fill_method,
             )
 
     def setup_single_boundary(
@@ -1635,6 +1503,8 @@ class experiment:
         arakawa_grid="A",
         bathymetry_path=None,
         rotational_method=rot.RotationMethod.EXPAND_GRID,
+        regridding_method=None,
+        fill_method=None,
     ):
         """
         Set up a boundary forcing file for a given ``orientation``.
@@ -1656,7 +1526,14 @@ class experiment:
                 the boundary condition is not masked.
             rotational_method (Optional[str]): Method to use for rotating the boundary velocities.
                 Default is 'EXPAND_GRID'.
+            regridding_method (Optional[str]): The type of regridding method to use. Defaults to self.regridding_method
+            fill_method (Function): Fill method to use throughout the function. Default is ``rgd.fill_missing_data``
+
         """
+        if regridding_method is None:
+            regridding_method = self.regridding_method
+        if fill_method is None:
+            fill_method = self.fill_method
 
         print(
             "Processing {} boundary velocity & tracers...".format(orientation), end=""
@@ -1679,7 +1556,9 @@ class experiment:
         )
 
         self.segments[orientation].regrid_velocity_tracers(
-            rotational_method=rotational_method
+            rotational_method=rotational_method,
+            regridding_method=regridding_method,
+            fill_method=fill_method,
         )
 
         print("Done.")
@@ -1692,6 +1571,8 @@ class experiment:
         tidal_constituents=None,
         bathymetry_path=None,
         rotational_method=rot.RotationMethod.EXPAND_GRID,
+        regridding_method=None,
+        fill_method=None,
     ):
         """
         Subset the tidal data and generate more boundary files.
@@ -1703,6 +1584,8 @@ class experiment:
             tidal_constituents: List of tidal constituents to include in the regridding. Default is set in the experiment constructor (See :class:`~Experiment`)
             bathymetry_path (str): Path to the bathymetry file. Default is ``None``, in which case the boundary condition is not masked
             rotational_method (str): Method to use for rotating the tidal velocities. Default is 'EXPAND_GRID'.
+            regridding_method (Optional[str]): The type of regridding method to use. Defaults to self.regridding_method
+            fill_method (Function): Fill method to use throughout the function. Default is ``self.fill_method``
 
         Returns:
             netCDF files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
@@ -1726,6 +1609,11 @@ class experiment:
             Type: Python Functions, Source Code
             Web Address: https://github.com/jsimkins2/nwa25
         """
+
+        if regridding_method is None:
+            regridding_method = self.regridding_method
+        if fill_method is None:
+            fill_method = self.fill_method
         if tidal_constituents is not None:
             self.tidal_constituents = tidal_constituents
         tpxo_h = (
@@ -1788,7 +1676,12 @@ class experiment:
 
             # Output and regrid tides
             seg.regrid_tides(
-                tpxo_v, tpxo_u, tpxo_h, times, rotational_method=rotational_method
+                tpxo_v,
+                tpxo_u,
+                tpxo_h,
+                times,
+                rotational_method=rotational_method,
+                regridding_method=regridding_method,
             )
             print("Done")
 
@@ -1802,6 +1695,7 @@ class experiment:
         fill_channels=False,
         positive_down=False,
         write_to_file=True,
+        regridding_method=None,
     ):
         """
         Cut out and interpolate the chosen bathymetry and then fill inland lakes.
@@ -1826,7 +1720,10 @@ class experiment:
             positive_down (Optional[bool]): If ``True``, it assumes that the
                 bathymetry vertical coordinate is positive downwards. Default: ``False``.
             write_to_file (Optional[bool]): Whether to write the bathymetry to a file. Default: ``True``.
+            regridding_method (Optional[str]): The type of regridding method to use. Defaults to self.regridding_method
         """
+        if regridding_method is None:
+            regridding_method = self.regridding_method
 
         ## Convert the provided coordinate names into a dictionary mapping to the
         ## coordinate names that MOM6 expects.
@@ -2388,7 +2285,7 @@ class experiment:
 
         ## Modify the MOM_layout file to have correct horizontal dimensions and CPU layout
         # TODO Re-implement with package that works for this file type? or at least tidy up code
-        MOM_layout_dict = self.read_MOM_file_as_dict("MOM_layout")
+        MOM_layout_dict = mpt.read_MOM_file_as_dict("MOM_layout", self.mom_run_dir)
         if "MASKTABLE" in MOM_layout_dict:
             MOM_layout_dict["MASKTABLE"]["value"] = (
                 mask_table or " # MASKTABLE = no mask table"
@@ -2404,8 +2301,8 @@ class experiment:
         if "NJGLOBAL" in MOM_layout_dict:
             MOM_layout_dict["NJGLOBAL"]["value"] = self.hgrid.ny.shape[0] // 2
 
-        MOM_input_dict = self.read_MOM_file_as_dict("MOM_input")
-        MOM_override_dict = self.read_MOM_file_as_dict("MOM_override")
+        MOM_input_dict = mpt.read_MOM_file_as_dict("MOM_input", self.mom_run_dir)
+        MOM_override_dict = mpt.read_MOM_file_as_dict("MOM_override", self.mom_run_dir)
         # The number of boundaries is reflected in the number of segments setup in setup_ocean_state_boundary under expt.segments.
         # The setup_boundary_tides function currently only works with rectangular grids amd sets up 4 segments, but DOESN"T save them to expt.segments.
         # Therefore, we can use expt.segments to determine how many segments we need for MOM_input. We can fill the empty segments with a empty string to make sure it is overriden correctly.
@@ -2520,9 +2417,9 @@ class experiment:
         for key, val in MOM_override_dict.items():
             if isinstance(val, dict) and key != "original":
                 MOM_override_dict[key]["override"] = True
-        self.write_MOM_file(MOM_input_dict)
-        self.write_MOM_file(MOM_override_dict)
-        self.write_MOM_file(MOM_layout_dict)
+        mpt.write_MOM_file(MOM_input_dict, self.mom_run_dir)
+        mpt.write_MOM_file(MOM_override_dict, self.mom_run_dir)
+        mpt.write_MOM_file(MOM_layout_dict, self.mom_run_dir)
 
         ## If using payu to run the model, create a payu configuration file
         if not using_payu and os.path.exists(f"{self.mom_run_dir}/config.yaml"):
@@ -2575,199 +2472,6 @@ class experiment:
             file.writelines(lines)
 
         return
-
-    def change_MOM_parameter(
-        self, param_name, param_value=None, comment=None, override=True, delete=False
-    ):
-        """
-        **Requires MOM parameter files present in the run directory**
-
-        Changes a parameter in the ``MOM_input`` or ``MOM_override`` file. Returns original value, if there was one.
-        If `delete` keyword argument is `True` the parameter is removed. But note, that **only** parameters from
-        the ``MOM_override`` are be deleted since deleting parameters from ``MOM_input`` is not safe and can lead to errors.
-        If the parameter does not exist, it will be added to the file.
-
-        Arguments:
-            param_name (str):
-                Parameter name to modify
-            param_value (Optional[str]):
-                New assigned Value
-            comment (Optional[str]):
-                Any comment to add
-            delete (Optional[bool]):
-                Whether to delete the specified ``param_name``
-        """
-        if not delete and param_value is None:
-            raise ValueError(
-                "If not deleting a parameter, you must specify a new value for it."
-            )
-
-        MOM_override_dict = self.read_MOM_file_as_dict("MOM_override")
-        original_val = "No original val"
-        if not delete:
-
-            if param_name in MOM_override_dict.keys():
-                original_val = MOM_override_dict[param_name]["value"]
-                print(
-                    "This parameter {} is being replaced from {} to {} in MOM_override".format(
-                        param_name, original_val, param_value
-                    )
-                )
-
-            MOM_override_dict[param_name]["value"] = param_value
-            MOM_override_dict[param_name]["comment"] = comment
-            MOM_override_dict[param_name]["override"] = override
-        else:
-            if param_name in MOM_override_dict.keys():
-                original_val = MOM_override_dict[param_name]["value"]
-                print("Deleting parameter {} from MOM_override".format(param_name))
-                del MOM_override_dict[param_name]
-            else:
-                print(
-                    "Key to be deleted {} was not in MOM_override to begin with.".format(
-                        param_name
-                    )
-                )
-        self.write_MOM_file(MOM_override_dict)
-        return original_val
-
-    def read_MOM_file_as_dict(self, filename):
-        """
-        Read the MOM_input file and return a dictionary of the variables and their values.
-        """
-
-        # Default information for each parameter
-        default_layout = {"value": None, "override": False, "comment": None}
-
-        if not os.path.exists(Path(self.mom_run_dir / filename)):
-            raise ValueError(
-                f"File {filename} does not exist in the run directory {self.mom_run_dir}"
-            )
-        with open(Path(self.mom_run_dir / filename), "r") as file:
-            lines = file.readlines()
-
-            # Set the default initialization for a new key
-            MOM_file_dict = defaultdict(lambda: copy.deepcopy(default_layout))
-            MOM_file_dict["filename"] = filename
-            dlc = copy.deepcopy(default_layout)
-            for jj in range(len(lines)):
-                if "=" in lines[jj] and not "===" in lines[jj]:
-                    split = lines[jj].split("=", 1)
-                    var = split[0]
-                    value = split[1]
-                    if "#override" in var:
-                        var = var.split("#override")[1].strip()
-                        dlc["override"] = True
-                    else:
-                        dlc["override"] = False
-                    if "!" in value:
-                        dlc["comment"] = value.split("!")[1]
-                        value = value.split("!")[0].strip()  # Remove Comments
-                        dlc["value"] = str(value)
-                    else:
-                        dlc["value"] = str(value.strip())
-                        dlc["comment"] = None
-
-                    MOM_file_dict[var.strip()] = copy.deepcopy(dlc)
-
-            # Save a copy of the original dictionary
-            MOM_file_dict["original"] = copy.deepcopy(MOM_file_dict)
-        return MOM_file_dict
-
-    def write_MOM_file(self, MOM_file_dict):
-        """
-        Write the MOM_input file from a dictionary of variables and their values. Does not support removing fields.
-        """
-        # Replace specific variable values
-        original_MOM_file_dict = MOM_file_dict.pop("original")
-        with open(Path(self.mom_run_dir / MOM_file_dict["filename"]), "r") as file:
-            lines = file.readlines()
-            for jj in range(len(lines)):
-                if "=" in lines[jj] and not "===" in lines[jj]:
-                    var = lines[jj].split("=", 1)[0].strip()
-                    if "#override" in var:
-                        var = var.replace("#override", "")
-                        var = var.strip()
-                    else:
-                        # As in there wasn't an override before but we want one
-                        if MOM_file_dict[var]["override"]:
-                            lines[jj] = "#override " + lines[jj]
-                            print("Added override to variable " + var + "!")
-                    if var in MOM_file_dict.keys() and (
-                        str(MOM_file_dict[var]["value"])
-                    ) != str(original_MOM_file_dict[var]["value"]):
-                        lines[jj] = lines[jj].replace(
-                            str(original_MOM_file_dict[var]["value"]),
-                            str(MOM_file_dict[var]["value"]),
-                        )
-                        if original_MOM_file_dict[var]["comment"] != None:
-                            lines[jj] = lines[jj].replace(
-                                original_MOM_file_dict[var]["comment"],
-                                str(MOM_file_dict[var]["comment"]),
-                            )
-                        else:
-                            lines[jj] = (
-                                lines[jj].replace("\n", "")
-                                + " !"
-                                + str(MOM_file_dict[var]["comment"])
-                                + "\n"
-                            )
-
-                        print(
-                            "Changed "
-                            + str(var)
-                            + " from "
-                            + str(original_MOM_file_dict[var]["value"])
-                            + " to "
-                            + str(MOM_file_dict[var]["value"])
-                            + "in {}!".format(str(MOM_file_dict["filename"]))
-                        )
-
-        # Add new fields
-        lines.append("! === Added with regional-mom6 ===\n")
-        for key in MOM_file_dict.keys():
-            if key not in original_MOM_file_dict.keys():
-                if MOM_file_dict[key]["override"]:
-                    lines.append(
-                        f"#override {key} = {MOM_file_dict[key]['value']} !{MOM_file_dict[key]['comment']}\n"
-                    )
-                else:
-                    lines.append(
-                        f"{key} = {MOM_file_dict[key]['value']} !{MOM_file_dict[key]['comment']}\n"
-                    )
-                print(
-                    "Added",
-                    key,
-                    "to",
-                    MOM_file_dict["filename"],
-                    "with value",
-                    MOM_file_dict[key],
-                )
-
-        # Check any fields removed
-        for key in original_MOM_file_dict.keys():
-            if key not in MOM_file_dict.keys():
-                search_words = [
-                    key,
-                    original_MOM_file_dict[key]["value"],
-                    original_MOM_file_dict[key]["comment"],
-                ]
-                lines = [
-                    line
-                    for line in lines
-                    if not all(word in line for word in search_words)
-                ]
-                print(
-                    "Removed",
-                    key,
-                    "in",
-                    MOM_file_dict["filename"],
-                    "with value",
-                    original_MOM_file_dict[key],
-                )
-
-        with open(Path(self.mom_run_dir / MOM_file_dict["filename"]), "w") as f:
-            f.writelines(lines)
 
     def setup_era5(self, era5_path):
         """
@@ -2979,12 +2683,20 @@ class segment:
         self.segment_name = segment_name
         self.repeat_year_forcing = repeat_year_forcing
 
-    def regrid_velocity_tracers(self, rotational_method=rot.RotationMethod.EXPAND_GRID):
+    def regrid_velocity_tracers(
+        self,
+        rotational_method=rot.RotationMethod.EXPAND_GRID,
+        regridding_method="bilinear",
+        fill_method=rgd.fill_missing_data,
+    ):
         """
         Cut out and interpolate the velocities and tracers.
 
         Arguments:
             rotational_method (rot.RotationMethod): The method to use for rotation of the velocities. Currently, the default method, ``EXPAND_GRID``, works even with non-rotated grids.
+            regridding_method (str): regridding method to use throughout the function. Default is ``'bilinear'``
+            fill_method (Function): Fill method to use throughout the function. Default is ``rgd.fill_missing_data``
+
         """
 
         # Create weights directory
@@ -3003,6 +2715,7 @@ class segment:
                 coords,
                 self.outfolder
                 / f"weights/bilinear_velocity_weights_{self.orientation}.nc",
+                method=regridding_method,
             )
 
             regridded = regridder(
@@ -3037,12 +2750,14 @@ class segment:
                 coords,
                 self.outfolder
                 / f"weights/bilinear_velocity_weights_{self.orientation}.nc",
+                method=regridding_method,
             )
             regridder_tracer = rgd.create_regridder(
                 rawseg[self.tracers["salt"]].rename({self.xh: "lon", self.yh: "lat"}),
                 coords,
                 self.outfolder
                 / f"weights/bilinear_tracer_weights_{self.orientation}.nc",
+                method=regridding_method,
             )
 
             velocities_out = regridder_velocity(
@@ -3078,6 +2793,7 @@ class segment:
                 coords,
                 self.outfolder
                 / f"weights/bilinear_uvelocity_weights_{self.orientation}.nc",
+                method=regridding_method,
             )
 
             regridder_vvelocity = rgd.create_regridder(
@@ -3085,6 +2801,7 @@ class segment:
                 coords,
                 self.outfolder
                 / f"weights/bilinear_vvelocity_weights_{self.orientation}.nc",
+                method=regridding_method,
             )
 
             regridder_tracer = rgd.create_regridder(
@@ -3092,6 +2809,7 @@ class segment:
                 coords,
                 self.outfolder
                 / f"weights/bilinear_tracer_weights_{self.orientation}.nc",
+                method=regridding_method,
             )
 
             regridded_u = regridder_uvelocity(rawseg[[self.u]])
@@ -3138,8 +2856,7 @@ class segment:
             segment_out[self.tracers["temp"]].attrs["units"] = "degrees Celsius"
 
         # fill in NaNs
-        # segment_out = rgd.fill_missing_data(segment_out, self.z)
-        segment_out = rgd.fill_missing_data(
+        segment_out = fill_method(
             segment_out,
             xdim=f"{coords.attrs['parallel']}_{self.segment_name}",
             zdim=self.z,
@@ -3243,6 +2960,8 @@ class segment:
         tpxo_h,
         times,
         rotational_method=rot.RotationMethod.EXPAND_GRID,
+        regridding_method="bilinear",
+        fill_method=rgd.fill_missing_data,
     ):
         """
         Regrids and interpolates the tidal data for MOM6. Steps include:
@@ -3267,6 +2986,8 @@ class segment:
             times (pd.DateRange): The start date of our model period.
             rotational_method (rot.RotationMethod): The method to use for rotation of the velocities.
                 The default method, ``EXPAND_GRID``, works even with non-rotated grids.
+            regridding_method (str): regridding method to use throughout the function. Default is ``'bilinear'``
+            fill_method (Function): Fill method to use throughout the function. Default is ``rgd.fill_missing_data``
 
         Returns:
             netCDF files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
@@ -3293,6 +3014,7 @@ class segment:
             Path(
                 self.outfolder / "forcing" / f"regrid_{self.segment_name}_tidal_elev.nc"
             ),
+            method=regridding_method,
         )
 
         redest = regrid(tpxo_h[["lon", "lat", "hRe"]])
@@ -3300,11 +3022,11 @@ class segment:
 
         # Fill missing data.
         # Need to do this first because complex would get converted to real
-        redest = rgd.fill_missing_data(
+        redest = fill_method(
             redest, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
         )
         redest = redest["hRe"]
-        imdest = rgd.fill_missing_data(
+        imdest = fill_method(
             imdest, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
         )
         imdest = imdest["hIm"]
@@ -3339,8 +3061,12 @@ class segment:
 
         ########### Regrid Tidal Velocity ######################
 
-        regrid_u = rgd.create_regridder(tpxo_u[["lon", "lat", "uRe"]], coords)
-        regrid_v = rgd.create_regridder(tpxo_v[["lon", "lat", "vRe"]], coords)
+        regrid_u = rgd.create_regridder(
+            tpxo_u[["lon", "lat", "uRe"]], coords, method=regridding_method
+        )
+        regrid_v = rgd.create_regridder(
+            tpxo_v[["lon", "lat", "vRe"]], coords, method=regridding_method
+        )
 
         # Interpolate each real and imaginary parts to self.
         uredest = regrid_u(tpxo_u[["lon", "lat", "uRe"]])["uRe"]
@@ -3350,16 +3076,16 @@ class segment:
 
         # Fill missing data.
         # Need to do this first because complex would get converted to real
-        uredest = rgd.fill_missing_data(
+        uredest = fill_method(
             uredest, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
         )
-        uimdest = rgd.fill_missing_data(
+        uimdest = fill_method(
             uimdest, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
         )
-        vredest = rgd.fill_missing_data(
+        vredest = fill_method(
             vredest, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
         )
-        vimdest = rgd.fill_missing_data(
+        vimdest = fill_method(
             vimdest, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
         )
 
@@ -3407,7 +3133,7 @@ class segment:
         )
 
         # Some things may have become missing during the transformation
-        ds_ap = rgd.fill_missing_data(
+        ds_ap = fill_method(
             ds_ap, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
         )
 

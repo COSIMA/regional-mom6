@@ -38,3 +38,19 @@ regional\_mom6.utils module
    :members:
    :undoc-members:
    :show-inheritance:
+
+regional\_mom6.MOM\_parameter\_tools module
+-------------------------------------------
+
+.. automodule:: regional_mom6.MOM_parameter_tools
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+regional\_mom6.config module
+----------------------------
+
+.. automodule:: regional_mom6.config
+   :members:
+   :undoc-members:
+   :show-inheritance:

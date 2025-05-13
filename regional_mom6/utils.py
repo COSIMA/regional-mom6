@@ -3,6 +3,7 @@ import logging
 import sys
 import xarray as xr
 from regional_mom6 import regridding as rgd
+from pathlib import Path
 
 
 def vecdot(v1, v2):
@@ -384,3 +385,25 @@ def is_rectilinear_hgrid(hgrid: xr.Dataset, rtol: float = 1e-3) -> bool:
     ):
         return True
     return False
+
+
+def find_files_by_pattern(paths: list, patterns: list, error_message=None) -> list:
+    """
+    Function searchs paths for patterns and returns the list of the file paths with that pattern
+    """
+    # Use glob to find all files
+    all_files = []
+    for pattern in patterns:
+        for path in paths:
+            all_files.extend(Path(path).glob(pattern))
+
+    if len(all_files) == 0:
+        if error_message is None:
+            raise ValueError(
+                "No files found at the following paths: {} for the following patterns: {}".format(
+                    paths, patterns
+                )
+            )
+        else:
+            raise ValueError(error_message)
+    return all_files
