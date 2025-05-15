@@ -575,10 +575,10 @@ class experiment:
         expt.longitude_extent = longitude_extent
         expt.ocean_mask = None
         expt.layout = None
-        cls.segments = {}
-        cls.boundaries = boundaries
-        cls.regridding_method = regridding_method
-        cls.fill_method = fill_method
+        expt.segments = {}
+        expt.boundaries = boundaries
+        expt.regridding_method = regridding_method
+        expt.fill_method = fill_method
         return expt
 
     def __init__(
