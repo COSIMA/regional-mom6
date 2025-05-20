@@ -480,6 +480,7 @@ def get_boundary_mask(
     x_dim_name="lonh",
     y_dim_name="lath",
     add_land_exceptions=True,
+    add_even_cooler_land_exceptions = False,
 ) -> np.ndarray:
     """
     Mask out the boundary conditions based on the bathymetry. We don't want to have boundary conditions on land.
@@ -503,6 +504,8 @@ def get_boundary_mask(
         The boundary mask
     """
 
+    if add_land_exceptions and add_even_cooler_land_exceptions:
+        raise ValueError("Can't have both land exceptions true")
     # Hide the bathy as an hgrid so we can take advantage of the coords function to get the boundary points.
 
     # First rename bathy dims to nyp and nxp
@@ -567,12 +570,8 @@ def get_boundary_mask(
                 land  # u/v point on the second level just like mask2DCu
             )
             boundary_mask[(i * 2)] = land
-
-    if add_land_exceptions:
-        # Land points that can't be NaNs: Corners & 3 points at the coast
-
-        # Looks like in the boundary between land and ocean - in NWA for example - we basically need to remove 3 points closest to ocean as a buffer.
-        # Search for intersections
+    
+    if add_even_cooler_land_exceptions or add_land_exceptions:
         coasts_lower_index = []
         coasts_higher_index = []
         for index in range(1, len(boundary_mask) - 1):
@@ -580,6 +579,31 @@ def get_boundary_mask(
                 coasts_lower_index.append(index)
             elif boundary_mask[index + 1] == land and boundary_mask[index] == ocean:
                 coasts_higher_index.append(index)
+        # Corner Q-points defined as land should be zeroed out
+        if boundary_mask[0] == land:
+            boundary_mask[0] = np.nan
+        if boundary_mask[-1] == land:
+            boundary_mask[-1] = np.nan
+
+                
+    if add_even_cooler_land_exceptions:
+        # add the q point on the land side 
+        for i in range(1):
+            for coast in coasts_lower_index:
+                if coast - 1 - i >= 0:
+                    boundary_mask[coast - 1 - i] = ocean
+            for coast in coasts_higher_index:
+                if coast + 1 + i < len(boundary_mask):
+                    boundary_mask[coast + 1 + i] = ocean
+
+
+
+    elif add_land_exceptions:
+        # Land points that can't be NaNs: Corners & 3 points at the coast
+
+        # Looks like in the boundary between land and ocean - in NWA for example - we basically need to remove 3 points closest to ocean as a buffer.
+        # Search for intersections
+        
 
         # Remove 3 land points from the coast, and make them zeroed out real values
         for i in range(3):
@@ -590,15 +614,8 @@ def get_boundary_mask(
                 if coast + 1 + i < len(boundary_mask):
                     boundary_mask[coast + 1 + i] = zero_out
 
-        # Corner Q-points defined as land should be zeroed out
-        if boundary_mask[0] == land:
-            boundary_mask[0] = zero_out
-        if boundary_mask[-1] == land:
-            boundary_mask[-1] = zero_out
-
     # Convert land points to nans
     boundary_mask[np.where(boundary_mask == land)] = np.nan
-
     return boundary_mask
 
 
@@ -611,6 +628,7 @@ def mask_dataset(
     y_dim_name="lath",
     x_dim_name="lonh",
     add_land_exceptions=True,
+    add_even_cooler_land_exceptions = False
 ) -> xr.Dataset:
     """
     This function masks the dataset to the provided bathymetry. If bathymetry is not provided, it fills all NaNs with 0.
@@ -643,6 +661,7 @@ def mask_dataset(
             x_dim_name=x_dim_name,
             y_dim_name=y_dim_name,
             add_land_exceptions=add_land_exceptions,
+            add_even_cooler_land_exceptions=add_even_cooler_land_exceptions
         )
         if orientation in ["east", "west"]:
             mask = mask[:, np.newaxis]
@@ -687,12 +706,13 @@ def mask_dataset(
 
             ## Apply the mask ## # Multiplication allows us to use 1, 0, and nan in the mask
             ds[var] = ds[var] * mask
+            ds[var] = ds[var].fillna(-1.0e20)
     else:
         regridding_logger.warning(
             "All NaNs filled b/c bathymetry wasn't provided to the function. Add bathymetry_path to the segment class to avoid this"
         )
         ds = ds.fillna(
-            0
+            -1.0e20
         )  # Without bathymetry, we can't assume the nans will be allowed in Boundary Conditions
     return ds
 
