@@ -27,7 +27,7 @@ from pathlib import Path
 import dask.array as da
 import numpy as np
 import netCDF4
-from regional_mom6.utils import setup_logger
+from regional_mom6.utils import setup_logger, get_edge
 
 
 regridding_logger = setup_logger(__name__, set_handler=False)
@@ -472,94 +472,47 @@ def generate_layer_thickness(
 
 
 def get_boundary_mask(
-    hgrid: xr.Dataset,
     bathy: xr.Dataset,
     side: str,
-    segment_name: str,
     minimum_depth=0,
-    x_dim_name="lonh",
-    y_dim_name="lath",
+    x_dim_name="nx",
+    y_dim_name="ny",
 ) -> np.ndarray:
     """
     Mask out the boundary conditions based on the bathymetry. We don't want to have boundary conditions on land.
     Parameters
     ----------
-    hgrid : xr.Dataset
-        The hgrid dataset
     bathy : xr.Dataset
         The bathymetry dataset
     side : str
         The side of the boundary, "north", "south", "east", or "west"
-    segment_name : str
-        The segment name
     minimum_depth : float, optional
         The minimum depth to consider land, by default 0
-    add_land_exceptions : bool
-        Add the corners and 3 coast point exceptions
     Returns
     -------
     np.ndarray
         The boundary mask
     """
 
-    # Hide the bathy as an hgrid so we can take advantage of the coords function to get the boundary points.
+    # Get the boundary depth
+    depth = get_edge(bathy, side, x_name=x_dim_name, y_name=y_dim_name).depth
 
-    # First rename bathy dims to nyp and nxp
-    try:
-        bathy = bathy.rename({y_dim_name: "nyp", x_dim_name: "nxp"})
-    except:
-        try:
-            bathy = bathy.rename({"ny": "nyp", "nx": "nxp"})
-        except:
-            regridding_logger.error("Could not rename bathy to nyp and nxp")
-            raise ValueError("Please provide the bathymetry x and y dimension names")
-
-    # Copy Hgrid
-    bathy_as_hgrid = hgrid.copy(deep=True)
-
-    # Create new depth field
-    bathy_as_hgrid["depth"] = bathy_as_hgrid["angle_dx"]
-    bathy_as_hgrid["depth"][:, :] = np.nan
-
-    # Fill at t_points (what bathy is determined at)
-    ds_t = get_hgrid_arakawa_c_points(hgrid, "t")
-
-    # Drop any extra dimension (e.g., 'ntiles') by selecting the first index
-    extra_dims = [dim for dim in bathy.dims if dim not in ["nyp", "nxp"]]
-    if extra_dims:
-        bathy = bathy.isel({extra_dims[0]: 0})
-
-    bathy_as_hgrid["depth"][
-        ds_t.t_points_y.values, ds_t.t_points_x.values
-    ] = bathy.depth
-
-    bathy_as_hgrid_coords = coords(
-        bathy_as_hgrid,
-        side,
-        segment_name,
-        angle_variable_name="depth",
-        coords_at_t_points=True,
-    )
-
-    # Get the Boundary Depth
-    bathy_as_hgrid_coords["boundary_depth"] = bathy_as_hgrid_coords["angle"]
-
-    # Mask Fill Values
+    # Mask fill values
     land = 0.0
     ocean = 1.0
 
-    # Create empty mask as all ocean
-    boundary_mask = np.full(np.shape(coords(hgrid, side, segment_name).angle), ocean)
+    # Create mask of all ocean
+    boundary_mask = np.full(depth.shape[0] * 2 + 1, ocean)
 
     # Fill with MOM6 version of mask (wet, wet_u,wet_c, wet_v)
-    for i in range(len(bathy_as_hgrid_coords["boundary_depth"])):
-        if bathy_as_hgrid_coords["boundary_depth"][i] <= minimum_depth:
+    for i in range(len(depth)):
+        if depth[i] <= minimum_depth:
             # The points to the left and right of this t-point are land points
             boundary_mask[(i * 2) + 2] = land
             boundary_mask[(i * 2) + 1] = land
             boundary_mask[(i * 2)] = land
 
-    # Add Exceptions. The Mask (Wet vs Not Wet) does not include the neighboring q point as ocean. That point is used at the boundary.
+    # Add Exceptions. The MOM6 mask (wet, not wet) does not include the neighboring q point as ocean. However, that point is used at the boundary.
     boundary_mask_og = boundary_mask.copy()
     for index in range(1, len(boundary_mask) - 1):
         if boundary_mask_og[index - 1] == land and boundary_mask_og[index] == ocean:
@@ -572,12 +525,10 @@ def get_boundary_mask(
 
 def mask_dataset(
     ds: xr.Dataset,
-    hgrid: xr.Dataset,
     bathymetry: xr.Dataset,
     orientation,
-    segment_name: str,
-    y_dim_name="lath",
-    x_dim_name="lonh",
+    y_dim_name="ny",
+    x_dim_name="nx",
     fill_value=-1e20,
 ) -> xr.Dataset:
     """
@@ -586,16 +537,12 @@ def mask_dataset(
     ----------
     ds : xr.Dataset
         The dataset to mask
-    hgrid : xr.Dataset
-        The hgrid dataset
     bathymetry : xr.Dataset
         The bathymetry dataset
     orientation : str
         The orientation of the boundary
-    segment_name : str
-        The segment name
-    add_land_exceptions : bool
-        To add the corner and 3 point coast exception
+    fill_value : float
+        The value land points should be filled with
     """
     ## Add Boundary Mask ##
     if bathymetry is not None:
@@ -603,10 +550,8 @@ def mask_dataset(
             "Masking to bathymetry. If you don't want this, set bathymetry_path to None in the segment class."
         )
         mask = get_boundary_mask(
-            hgrid,
             bathymetry,
             orientation,
-            segment_name,
             minimum_depth=0,
             x_dim_name=x_dim_name,
             y_dim_name=y_dim_name,

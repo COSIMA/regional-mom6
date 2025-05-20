@@ -140,34 +140,26 @@ def test_get_boundary_mask(get_curvilinear_hgrid):
     bathy = hgrid.isel(nyp=t_points.t_points_y, nxp=t_points.t_points_x)
     bathy["depth"] = (("t_points_y", "t_points_x"), (np.full(bathy.x.shape, 0)))
     north_mask = rgd.get_boundary_mask(
-        hgrid,
         bathy,
         "north",
-        "segment_002",
         y_dim_name="t_points_y",
         x_dim_name="t_points_x",
     )
     south_mask = rgd.get_boundary_mask(
-        hgrid,
         bathy,
         "south",
-        "segment_001",
         y_dim_name="t_points_y",
         x_dim_name="t_points_x",
     )
     east_mask = rgd.get_boundary_mask(
-        hgrid,
         bathy,
         "east",
-        "segment_003",
         y_dim_name="t_points_y",
         x_dim_name="t_points_x",
     )
     west_mask = rgd.get_boundary_mask(
-        hgrid,
         bathy,
         "west",
-        "segment_004",
         y_dim_name="t_points_y",
         x_dim_name="t_points_x",
     )
@@ -186,10 +178,8 @@ def test_get_boundary_mask(get_curvilinear_hgrid):
     for i in range(start_ind, end_ind + 1):
         bathy["depth"][-1][i] = 15
     north_mask = rgd.get_boundary_mask(
-        hgrid,
         bathy,
         "north",
-        "segment_002",
         y_dim_name="t_points_y",
         x_dim_name="t_points_x",
     )
@@ -207,10 +197,8 @@ def test_get_boundary_mask(get_curvilinear_hgrid):
     for i in range(start_ind, end_ind + 1):
         bathy["depth"][:, 0][i] = 15
     west_mask = rgd.get_boundary_mask(
-        hgrid,
         bathy,
         "west",
-        "segment_004",
         y_dim_name="t_points_y",
         x_dim_name="t_points_x",
     )
@@ -242,10 +230,8 @@ def test_mask_dataset(get_curvilinear_hgrid):
     fill_value = 36
     ds = rgd.mask_dataset(
         ds,
-        hgrid,
         bathy,
         "north",
-        "segment_002",
         y_dim_name="t_points_y",
         x_dim_name="t_points_x",
         fill_value=fill_value,
