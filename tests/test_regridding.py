@@ -174,10 +174,7 @@ def test_get_boundary_mask(get_curvilinear_hgrid):
 
     # Check corner property of mask, and ensure each direction is following what we expect
     for mask in [north_mask, south_mask, east_mask, west_mask]:
-        assert (
-            mask[0] == 0 and mask[-1] == 0
-        )  # Ensure Corners are oceans and set to zero for zeroing out values
-        assert np.isnan(mask[1:-1]).all()  # Ensure all other points are land
+        assert (mask==0).all()  # Ensure all other points are land
     assert north_mask.shape == (hgrid.x[-1].shape)  # Ensure mask is the right shape
     assert south_mask.shape == (hgrid.x[0].shape)  # Ensure mask is the right shape
     assert east_mask.shape == (hgrid.x[:, -1].shape)  # Ensure mask is the right shape
@@ -196,20 +193,19 @@ def test_get_boundary_mask(get_curvilinear_hgrid):
         y_dim_name="t_points_y",
         x_dim_name="t_points_x",
     )
+
+    # Ensure coasts are ocean with a 1 cell buffer, for the 1-point (remember mask is on the hgrid boundary - so (6 *2 +2) - 1 -> (9 *2 +2) + 1)
     assert (
-        north_mask[0] == 0 and north_mask[-1] == 0
-    )  # Ensure Corners are oceans and zeroed out if land
+        north_mask[(((start_ind * 2) + 1)-1) : (((end_ind * 2) + 1) + 1+ 1)] == 1
+    ).all()  
     assert (
-        north_mask[(((start_ind * 2) + 1)) : (((end_ind * 2) + 1) + 1)] == 1
-    ).all()  # Ensure coasts are ocean with a 3 cell buffer (remeber mask is on the hgrid boundary) so (6 *2 +2) - 3 -> (9 *2 +2) + 3
-    assert (
-        north_mask[(((start_ind * 2) + 1) - 3) : (((start_ind * 2) + 1))] == 0
+        north_mask[0: (((start_ind * 2) + 1) - 1) ] == 0
     ).all()  # Left Side
     assert (
-        north_mask[(((end_ind * 2) + 1) + 1) : (((end_ind * 2) + 1) + 3 + 1)] == 0
+        north_mask[ (((end_ind * 2) + 1) + 1 + 1):] == 0
     ).all()  # Right Side
 
-    ## On E/W
+    # On E/W
     start_ind = 6
     end_ind = 9
     for i in range(start_ind, end_ind + 1):
@@ -222,16 +218,16 @@ def test_get_boundary_mask(get_curvilinear_hgrid):
         y_dim_name="t_points_y",
         x_dim_name="t_points_x",
     )
-    assert west_mask[0] == 0 and west_mask[-1] == 0  # Ensure Corners are oceans
+    # Ensure coasts are ocean with a 1 cell buffer, for the 1-point (remember mask is on the hgrid boundary - so (6 *2 +2) - 1 -> (9 *2 +2) + 1)
     assert (
-        west_mask[(((start_ind * 2) + 1)) : (((end_ind * 2) + 1) + 1)] == 1
-    ).all()  # Ensure coasts are ocean with a 3 cell buffer (remeber mask is on the hgrid boundary) so (6 *2 +2) - 3 -> (9 *2 +2) + 3
+        west_mask[(((start_ind * 2) + 1)-1) : (((end_ind * 2) + 1) + 1+ 1)] == 1
+    ).all()  
     assert (
-        west_mask[(((start_ind * 2) + 1) - 3) : (((start_ind * 2) + 1))] == 0
-    ).all()  # Ensure left side is zeroed out
+        west_mask[0: (((start_ind * 2) + 1) - 1) ] == 0
+    ).all()  # Left Side
     assert (
-        west_mask[(((end_ind * 2) + 1) + 1) : (((end_ind * 2) + 1) + 3 + 1)] == 0
-    ).all()  # Right Side is zeroed out
+        west_mask[ (((end_ind * 2) + 1) + 1 + 1):] == 0
+    ).all()  # Right Side
 
 
 def test_mask_dataset(get_curvilinear_hgrid):
@@ -250,10 +246,10 @@ def test_mask_dataset(get_curvilinear_hgrid):
 
     ds["temp"][
         start_ind * 2 + 2
-    ] = (
-        np.nan
-    )  # Add a missing value not in the land mask to make sure it is filled with a dummy value
+    ] = np.nan
+    
     ds["temp"] = ds["temp"].expand_dims("nz_temp", axis=0)
+    fill_value = 36
     ds = rgd.mask_dataset(
         ds,
         hgrid,
@@ -262,6 +258,7 @@ def test_mask_dataset(get_curvilinear_hgrid):
         "segment_002",
         y_dim_name="t_points_y",
         x_dim_name="t_points_x",
+        fill_value = fill_value
     )
 
     assert (
@@ -269,11 +266,11 @@ def test_mask_dataset(get_curvilinear_hgrid):
     )  # Ensure missing value was filled
     assert (
         np.isnan(
-            ds["temp"][0][(((start_ind * 2) + 1) - 3) : (((end_ind * 2) + 1) + 3 + 1)]
+            ds["temp"][0][(((start_ind * 2) + 1) - 1) : (((end_ind * 2) + 1) + 1 + 1)]
         )
     ).all() == False  # Ensure data is kept in ocean area
     assert (
-        np.isnan(ds["temp"][0][1 : (((start_ind * 2) + 1) - 3)])
+        (ds["temp"][0][1 : (((start_ind * 2) + 1) - 1)] == fill_value)
     ).all() == True and (
-        np.isnan(ds["temp"][0][(((end_ind * 2) + 1) + 3 + 1) : -1])
+        (ds["temp"][0][(((end_ind * 2) + 1) + 1 + 1) : -1] == fill_value)
     ).all() == True  # Ensure data is not in land area

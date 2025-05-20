@@ -478,7 +478,7 @@ def get_boundary_mask(
     segment_name: str,
     minimum_depth=0,
     x_dim_name="lonh",
-    y_dim_name="lath",
+    y_dim_name="lath"
 ) -> np.ndarray:
     """
     Mask out the boundary conditions based on the bathymetry. We don't want to have boundary conditions on land.
@@ -560,11 +560,11 @@ def get_boundary_mask(
             boundary_mask[(i * 2)] = land
 
     # Add Exceptions. The Mask (Wet vs Not Wet) does not include the neighboring q point as ocean. That point is used at the boundary.
-
+    boundary_mask_og = boundary_mask.copy()
     for index in range(1, len(boundary_mask) - 1):
-        if boundary_mask[index - 1] == land and boundary_mask[index] == ocean:
+        if boundary_mask_og[index - 1] == land and boundary_mask_og[index] == ocean:
             boundary_mask[index - 1] = ocean
-        elif boundary_mask[index + 1] == land and boundary_mask[index] == ocean:
+        elif boundary_mask_og[index + 1] == land and boundary_mask_og[index] == ocean:
             boundary_mask[index + 1] = ocean
 
     return boundary_mask
@@ -578,6 +578,7 @@ def mask_dataset(
     segment_name: str,
     y_dim_name="lath",
     x_dim_name="lonh",
+    fill_value=-1e20
 ) -> xr.Dataset:
     """
     This function masks the dataset to the provided bathymetry. If bathymetry is not provided, it fills all NaNs with 0.
@@ -648,7 +649,7 @@ def mask_dataset(
             ds[var] = ds[var] * mask
 
             # Replace the land NaNs with a large FillValue
-            ds[var] = ds[var].fillna(-1.0e20)
+            ds[var] = ds[var].fillna(fill_value)
     else:
         regridding_logger.warning(
             "All NaNs filled b/c bathymetry wasn't provided to the function. Add bathymetry_path to the segment class to avoid this"
