@@ -174,7 +174,7 @@ def test_get_boundary_mask(get_curvilinear_hgrid):
 
     # Check corner property of mask, and ensure each direction is following what we expect
     for mask in [north_mask, south_mask, east_mask, west_mask]:
-        assert (mask==0).all()  # Ensure all other points are land
+        assert (mask == 0).all()  # Ensure all other points are land
     assert north_mask.shape == (hgrid.x[-1].shape)  # Ensure mask is the right shape
     assert south_mask.shape == (hgrid.x[0].shape)  # Ensure mask is the right shape
     assert east_mask.shape == (hgrid.x[:, -1].shape)  # Ensure mask is the right shape
@@ -196,14 +196,10 @@ def test_get_boundary_mask(get_curvilinear_hgrid):
 
     # Ensure coasts are ocean with a 1 cell buffer, for the 1-point (remember mask is on the hgrid boundary - so (6 *2 +2) - 1 -> (9 *2 +2) + 1)
     assert (
-        north_mask[(((start_ind * 2) + 1)-1) : (((end_ind * 2) + 1) + 1+ 1)] == 1
-    ).all()  
-    assert (
-        north_mask[0: (((start_ind * 2) + 1) - 1) ] == 0
-    ).all()  # Left Side
-    assert (
-        north_mask[ (((end_ind * 2) + 1) + 1 + 1):] == 0
-    ).all()  # Right Side
+        north_mask[(((start_ind * 2) + 1) - 1) : (((end_ind * 2) + 1) + 1 + 1)] == 1
+    ).all()
+    assert (north_mask[0 : (((start_ind * 2) + 1) - 1)] == 0).all()  # Left Side
+    assert (north_mask[(((end_ind * 2) + 1) + 1 + 1) :] == 0).all()  # Right Side
 
     # On E/W
     start_ind = 6
@@ -220,14 +216,10 @@ def test_get_boundary_mask(get_curvilinear_hgrid):
     )
     # Ensure coasts are ocean with a 1 cell buffer, for the 1-point (remember mask is on the hgrid boundary - so (6 *2 +2) - 1 -> (9 *2 +2) + 1)
     assert (
-        west_mask[(((start_ind * 2) + 1)-1) : (((end_ind * 2) + 1) + 1+ 1)] == 1
-    ).all()  
-    assert (
-        west_mask[0: (((start_ind * 2) + 1) - 1) ] == 0
-    ).all()  # Left Side
-    assert (
-        west_mask[ (((end_ind * 2) + 1) + 1 + 1):] == 0
-    ).all()  # Right Side
+        west_mask[(((start_ind * 2) + 1) - 1) : (((end_ind * 2) + 1) + 1 + 1)] == 1
+    ).all()
+    assert (west_mask[0 : (((start_ind * 2) + 1) - 1)] == 0).all()  # Left Side
+    assert (west_mask[(((end_ind * 2) + 1) + 1 + 1) :] == 0).all()  # Right Side
 
 
 def test_mask_dataset(get_curvilinear_hgrid):
@@ -244,10 +236,8 @@ def test_mask_dataset(get_curvilinear_hgrid):
     for i in range(start_ind, end_ind + 1):
         bathy["depth"][-1][i] = 15
 
-    ds["temp"][
-        start_ind * 2 + 2
-    ] = np.nan
-    
+    ds["temp"][start_ind * 2 + 2] = np.nan
+
     ds["temp"] = ds["temp"].expand_dims("nz_temp", axis=0)
     fill_value = 36
     ds = rgd.mask_dataset(
@@ -258,7 +248,7 @@ def test_mask_dataset(get_curvilinear_hgrid):
         "segment_002",
         y_dim_name="t_points_y",
         x_dim_name="t_points_x",
-        fill_value = fill_value
+        fill_value=fill_value,
     )
 
     assert (

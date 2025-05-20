@@ -478,7 +478,7 @@ def get_boundary_mask(
     segment_name: str,
     minimum_depth=0,
     x_dim_name="lonh",
-    y_dim_name="lath"
+    y_dim_name="lath",
 ) -> np.ndarray:
     """
     Mask out the boundary conditions based on the bathymetry. We don't want to have boundary conditions on land.
@@ -578,7 +578,7 @@ def mask_dataset(
     segment_name: str,
     y_dim_name="lath",
     x_dim_name="lonh",
-    fill_value=-1e20
+    fill_value=-1e20,
 ) -> xr.Dataset:
     """
     This function masks the dataset to the provided bathymetry. If bathymetry is not provided, it fills all NaNs with 0.
