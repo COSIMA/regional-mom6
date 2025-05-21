@@ -225,8 +225,9 @@ def test_mask_dataset(get_curvilinear_hgrid):
         bathy["depth"][-1][i] = 15
 
     ds["temp"][start_ind * 2 + 2] = np.nan
-
+    ds["temp"] = ds["temp"].expand_dims("y", axis=0)
     ds["temp"] = ds["temp"].expand_dims("nz_temp", axis=0)
+    ds["temp"] = ds["temp"].expand_dims("time", axis=0)
     fill_value = 36
     ds = rgd.mask_dataset(
         ds,
@@ -238,15 +239,17 @@ def test_mask_dataset(get_curvilinear_hgrid):
     )
 
     assert (
-        np.isnan(ds["temp"][0][start_ind * 2 + 2]) == False
+        np.isnan(ds["temp"][0, 0, 0][start_ind * 2 + 2]) == False
     )  # Ensure missing value was filled
     assert (
         np.isnan(
-            ds["temp"][0][(((start_ind * 2) + 1) - 1) : (((end_ind * 2) + 1) + 1 + 1)]
+            ds["temp"][0, 0, 0][
+                (((start_ind * 2) + 1) - 1) : (((end_ind * 2) + 1) + 1 + 1)
+            ]
         )
     ).all() == False  # Ensure data is kept in ocean area
     assert (
-        (ds["temp"][0][1 : (((start_ind * 2) + 1) - 1)] == fill_value)
+        (ds["temp"][0, 0, 0][1 : (((start_ind * 2) + 1) - 1)] == fill_value)
     ).all() == True and (
-        (ds["temp"][0][(((end_ind * 2) + 1) + 1 + 1) : -1] == fill_value)
+        (ds["temp"][0, 0, 0][(((end_ind * 2) + 1) + 1 + 1) : -1] == fill_value)
     ).all() == True  # Ensure data is not in land area

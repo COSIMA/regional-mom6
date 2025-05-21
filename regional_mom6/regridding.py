@@ -566,28 +566,18 @@ def mask_dataset(
 
         for var in ds.data_vars.keys():
 
-            # Drop all but the last two dims by selecting index 0 along leading dims
-            da = ds[var]
-            for dim in list(da.dims)[:-2]:
-                da = da.isel({dim: 0})
+            # Drop to just the Boundary Dim
+            da = ds[var].isel({dim: 0 for dim in list(ds.dims)[:-2]}).squeeze()
 
-            # Extract relevant boundary slice
-            if orientation in ["east", "west"]:
-                dataset_reduce_dim = da[:, 0]
-                mask_reduce = mask[:, 0]
-            else:
-                dataset_reduce_dim = da[0, :]
-                mask_reduce = mask[0, :]
-            loc_nans_data = np.where(np.isnan(dataset_reduce_dim))
-            loc_nans_mask = np.where(np.isnan(mask_reduce))
+            nans_in_data = np.where(np.isnan(da))
+            nans_in_mask = np.where(np.isnan(mask.squeeze()))
 
-            # Check if all nans in the data are in the mask
-            if not np.isin(loc_nans_data, loc_nans_mask).all():
+            # Check if all nans in the data are in the ocean and fill if so
+            if not np.isin(nans_in_data, nans_in_mask).all():
                 regridding_logger.warning(
-                    f"NaNs in {var} not in mask. Which means there are NaNs over ocean. This values are filled with zeroes b/c they could cause issues with boundary conditions."
+                    f"NaNs in {var} not in mask. Which means there are NaNs over ocean."
+                    + " These values are filled with zeroes b/c they could cause issues with boundary conditions."
                 )
-
-                # Remove Nans
                 ds[var] = ds[var].fillna(0)
 
             # Apply the mask where land is NaN
@@ -597,7 +587,8 @@ def mask_dataset(
             ds[var] = ds[var].fillna(fill_value)
     else:
         regridding_logger.warning(
-            "All NaNs filled b/c bathymetry wasn't provided to the function. Add bathymetry_path to the segment class to avoid this"
+            "All NaNs filled b/c bathymetry wasn't provided to the function. "
+            + "Add bathymetry_path to the segment class to avoid this"
         )
         ds = ds.fillna(
             0
