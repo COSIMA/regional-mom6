@@ -18,14 +18,16 @@ def test_change_MOM_parameter(tmp_path):
         mom_run_dir=tmp_path,
     )
     # Copy over the MOM Files to the dump_files_dir
-    base_run_dir = Path(
-        os.path.join(
-            importlib.resources.files("regional_mom6").parent,
-            "demos",
-            "premade_run_directories",
-        )
-    )
+    module_path = Path(importlib.resources.files("regional_mom6"))
+    # handle editable vs. full installations
+    if (module_path / "demos").exists():
+        demos_dir = module_path / "demos"
+    else:
+        demos_dir = module_path.parent / "demos"
+
+    base_run_dir = demos_dir / "premade_run_directories"
     shutil.copytree(base_run_dir / "common_files", expt.mom_run_dir, dirs_exist_ok=True)
+
     MOM_override_dict = mpt.read_MOM_file_as_dict("MOM_override", expt.mom_run_dir)
     og = mpt.change_MOM_parameter(expt.mom_run_dir, "DT", "30", "COOL COMMENT")
     MOM_override_dict_new = mpt.read_MOM_file_as_dict("MOM_override", expt.mom_run_dir)
