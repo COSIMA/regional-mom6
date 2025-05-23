@@ -2934,10 +2934,8 @@ class segment:
         }
         segment_out = rgd.mask_dataset(
             segment_out,
-            self.hgrid,
             self.bathymetry,
             self.orientation,
-            self.segment_name,
         )
         encoding_dict = rgd.generate_encoding(
             segment_out,
@@ -3192,9 +3190,7 @@ class segment:
             {"lon": f"lon_{self.segment_name}", "lat": f"lat_{self.segment_name}"}
         )
 
-        ds = rgd.mask_dataset(
-            ds, self.hgrid, self.bathymetry, self.orientation, self.segment_name
-        )
+        ds = rgd.mask_dataset(ds, self.bathymetry, self.orientation)
         ## Perform Encoding ##
 
         fname = f"{filename}_{self.segment_name}.nc"
