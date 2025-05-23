@@ -567,7 +567,7 @@ def mask_dataset(
         for var in ds.data_vars.keys():
 
             # Drop to just the Boundary Dim
-            da = ds[var].isel({dim: 0 for dim in list(ds.dims)[:-2]}).squeeze()
+            da = ds[var].isel({dim: 0 for dim in list(ds[var].dims)[:-2]}).squeeze()
 
             nans_in_data = np.where(np.isnan(da))
             nans_in_mask = np.where(np.isnan(mask.squeeze()))
