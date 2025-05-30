@@ -3002,6 +3002,9 @@ class segment:
             Web Address: https://github.com/jsimkins2/nwa25
         """
 
+        # Create weights directory
+        (self.outfolder / "weights").mkdir(exist_ok=True)
+
         # Establish Coords
         coords = rgd.coords(self.hgrid, self.orientation, self.segment_name)
 
@@ -3190,6 +3193,10 @@ class segment:
             {"lon": f"lon_{self.segment_name}", "lat": f"lat_{self.segment_name}"}
         )
 
+        if self.bathymetry is not None:
+            print(
+                "Masking tides dataset with bathymetry may not work. Please expect an error if masking to bathymetry"
+            )
         ds = rgd.mask_dataset(ds, self.bathymetry, self.orientation)
         ## Perform Encoding ##
 
