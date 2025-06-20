@@ -2934,10 +2934,8 @@ class segment:
         }
         segment_out = rgd.mask_dataset(
             segment_out,
-            self.hgrid,
             self.bathymetry,
             self.orientation,
-            self.segment_name,
         )
         encoding_dict = rgd.generate_encoding(
             segment_out,
@@ -3003,6 +3001,9 @@ class segment:
             Type: Python Functions, Source Code
             Web Address: https://github.com/jsimkins2/nwa25
         """
+
+        # Create weights directory
+        (self.outfolder / "weights").mkdir(exist_ok=True)
 
         # Establish Coords
         coords = rgd.coords(self.hgrid, self.orientation, self.segment_name)
@@ -3192,9 +3193,13 @@ class segment:
             {"lon": f"lon_{self.segment_name}", "lat": f"lat_{self.segment_name}"}
         )
 
-        ds = rgd.mask_dataset(
-            ds, self.hgrid, self.bathymetry, self.orientation, self.segment_name
-        )
+        if self.bathymetry is not None:
+            print(
+                "Bathymetry has been provided to the regridding tides function. "
+                "Masking tides dataset with bathymetry may result in errors like large surface values one timestep in. "
+                " To avoid masking tides, do not pass in bathymetry path to the tides function."
+            )
+        ds = rgd.mask_dataset(ds, self.bathymetry, self.orientation)
         ## Perform Encoding ##
 
         fname = f"{filename}_{self.segment_name}.nc"
