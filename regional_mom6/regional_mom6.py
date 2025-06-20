@@ -3195,7 +3195,9 @@ class segment:
 
         if self.bathymetry is not None:
             print(
-                "Masking tides dataset with bathymetry may not work. Please expect an error if masking to bathymetry"
+                "Bathymetry has been provided to the regridding tides function. "
+                "Masking tides dataset with bathymetry may result in errors like large surface values one timestep in. "
+                " To avoid masking tides, do not pass in bathymetry path to the tides function."
             )
         ds = rgd.mask_dataset(ds, self.bathymetry, self.orientation)
         ## Perform Encoding ##
