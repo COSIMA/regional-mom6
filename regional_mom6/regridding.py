@@ -496,6 +496,8 @@ def get_boundary_mask(
 
     # Get the boundary depth
     depth = get_edge(bathy, side, x_name=x_dim_name, y_name=y_dim_name).depth
+    # Force loading and copying to avoid shared references or lazy arrays
+    depth = depth.load().copy()
 
     # If ntiles in bathymetry, remove it.
     if "ntiles" in depth.dims:
@@ -584,11 +586,11 @@ def mask_dataset(
                 )
                 ds[var] = ds[var].fillna(0)
 
-            # Apply the mask where land is NaN
-            ds[var] = ds[var] * mask
+            # Apply the mask where land is NaN (using values because of conflicting indexes)
+            ds[var].values = ds[var] * mask
 
             # Replace the land NaNs with a large FillValue
-            ds[var] = ds[var].fillna(fill_value)
+            ds[var].values = ds[var].fillna(fill_value)
     else:
         regridding_logger.warning(
             "All NaNs filled b/c bathymetry wasn't provided to the function. "
