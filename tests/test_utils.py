@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from regional_mom6.utils import vecdot, angle_between
+from regional_mom6.utils import vecdot, angle_between, get_edge
 
 V1 = np.zeros((2, 4, 3))
 V2 = np.zeros((2, 4, 3))
@@ -39,3 +39,15 @@ def test_vecdot(v1, v2, true_v1dotv2):
 )
 def test_angle_between(v1, v2, v3, true_angle):
     assert np.isclose(angle_between(v1, v2, v3), true_angle)
+
+
+def test_get_edge(get_rectilinear_hgrid):
+    hgrid = get_rectilinear_hgrid
+    res = get_edge(hgrid, "north")
+    assert (res.x == hgrid.x.isel(nyp=-1)).all()
+    res = get_edge(hgrid, "south")
+    assert (res.x == hgrid.x.isel(nyp=0)).all()
+    res = get_edge(hgrid, "east")
+    assert (res.x == hgrid.x.isel(nxp=-1)).all()
+    res = get_edge(hgrid, "west")
+    assert (res.x == hgrid.x.isel(nxp=0)).all()

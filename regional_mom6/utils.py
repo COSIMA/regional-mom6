@@ -407,3 +407,28 @@ def find_files_by_pattern(paths: list, patterns: list, error_message=None) -> li
         else:
             raise ValueError(error_message)
     return all_files
+
+
+def get_edge(ds, edge, x_name=None, y_name=None):
+    edge = edge.lower()
+    if edge not in {"north", "south", "east", "west"}:
+        raise ValueError("edge must be one of: 'north', 'south', 'east', 'west'")
+
+    # Infer x and y coordinate names if not given
+    if x_name is None or y_name is None:
+        for dim in ds.dims:
+            if x_name is None and dim.lower() in ("x", "lon", "longitude", "nxp"):
+                x_name = dim
+            if y_name is None and dim.lower() in ("y", "lat", "latitude", "nyp"):
+                y_name = dim
+    if x_name is None or y_name is None:
+        raise ValueError("Could not infer x/y coordinate names. Pass x_name/y_name.")
+
+    if edge == "north":
+        return ds.isel({y_name: -1})
+    if edge == "south":
+        return ds.isel({y_name: 0})
+    if edge == "east":
+        return ds.isel({x_name: -1})
+    if edge == "west":
+        return ds.isel({x_name: 0})
