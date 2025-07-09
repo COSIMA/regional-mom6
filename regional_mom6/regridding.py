@@ -209,7 +209,7 @@ def get_hgrid_arakawa_c_points(hgrid: xr.Dataset, point_type="t") -> xr.Dataset:
 def create_regridder(
     forcing_variables: xr.Dataset,
     output_grid: xr.Dataset,
-    outfile: Path = Path(""),
+    outfile: Path = None,
     method: str = "bilinear",
     locstream_out: bool = True,
     periodic: bool = False,
@@ -247,7 +247,7 @@ def create_regridder(
         locstream_out=locstream_out,
         periodic=periodic,
         filename=outfile,
-        reuse_weights=isfile(outfile),
+        reuse_weights=bool(outfile) and isfile(outfile),
     )
 
     return regridder
