@@ -15,6 +15,7 @@ import datetime
 import pandas as pd
 from pathlib import Path
 import json
+import cdsapi
 from regional_mom6 import MOM_parameter_tools as mpt
 from regional_mom6 import regridding as rgd
 from regional_mom6 import rotation as rot
@@ -1427,6 +1428,71 @@ class experiment:
             f"4. Thus, on certain systems, you may need to run this script as a batch job.\n"
         )
         return
+    def  download_ear5(self,raw_boundaries_path,latitude_longitude_extent,year,month,day):
+        '''
+
+        Args:
+            raw_boundaries_path:(str): Path to the directory containing the raw boundary forcing files.
+            latitude_longitude_extent:Download range
+            year:What year was the download
+            month:Which month was the download
+            day:day was the download
+
+        Returns:
+
+        '''
+        dataset = "reanalysis-era5-single-levels"
+        request = {
+            "product_type": ["reanalysis"],
+            "variable": [
+                "10m_u_component_of_wind",
+                "10m_v_component_of_wind",
+                "2m_dewpoint_temperature",
+                "2m_temperature",
+                "surface_pressure"
+            ],
+            "year": [year],
+            "month": [month],
+            "day": [day],
+            "time": [
+                "00:00", "01:00", "02:00",
+                "03:00", "04:00", "05:00",
+                "06:00", "07:00", "08:00",
+                "09:00", "10:00", "11:00",
+                "12:00", "13:00", "14:00",
+                "15:00", "16:00", "17:00",
+                "18:00", "19:00", "20:00",
+                "21:00", "22:00", "23:00"
+            ],
+            "data_format": "netcdf",
+            "download_format": "unarchived",
+            "area": latitude_longitude_extent
+        }
+        client = cdsapi.Client()
+        download_file_name=Path(raw_boundaries_path,year+month+day+'.nc')
+        client.retrieve(dataset, request,target=download_file_name)
+
+    def get_era5(self, raw_boundaries_path):
+        '''
+
+        Args:
+            raw_boundaries_path:Path to the directory containing the raw boundary forcing files.
+
+        Returns:
+
+        '''
+        latitude_longitude_extent = [float(self.hgrid.y.max()), float(self.hgrid.x.min()),
+                                     float(self.hgrid.y.min()), float(self.hgrid.x.max())]
+
+        day_freq = pd.date_range(self.date_range[0], self.date_range[1], freq='D')
+
+        years = (day_freq.strftime('%Y')).values
+        months = (day_freq.strftime('%m')).values
+        days = (day_freq.strftime('%d')).values
+        for year in years:
+            for month in months:
+                for day in days:
+                    self.download_ear5(raw_boundaries_path,latitude_longitude_extent, year, month, day)
 
     def setup_ocean_state_boundaries(
         self,
