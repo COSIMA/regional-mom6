@@ -1430,7 +1430,8 @@ class experiment:
         return
     def  download_ear5(self,raw_boundaries_path,latitude_longitude_extent,year,month,day):
         '''
-
+        https://cds.climate.copernicus.eu/how-to-api
+        Here is how to setup the CDS API personal access token
         Args:
             raw_boundaries_path:(str): Path to the directory containing the raw boundary forcing files.
             latitude_longitude_extent:Download range
