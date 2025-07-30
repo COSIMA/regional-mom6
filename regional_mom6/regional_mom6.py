@@ -1428,30 +1428,28 @@ class experiment:
             f"4. Thus, on certain systems, you may need to run this script as a batch job.\n"
         )
         return
-    def  download_ear5(self,raw_boundaries_path,latitude_longitude_extent,year,month,day):
+
+    def download_ear5(self, raw_boundaries_path, latitude_longitude_extent, variables, year_moonth_day):
         '''
         https://cds.climate.copernicus.eu/how-to-api
         Here is how to setup the CDS API personal access token
         Args:
             raw_boundaries_path:(str): Path to the directory containing the raw boundary forcing files.
             latitude_longitude_extent:Download range
-            year:What year was the download
-            month:Which month was the download
-            day:day was the download
+            variables (list):
+            year_moonth_day:download time
 
         Returns:
 
         '''
+        year = year_moonth_day[0:4]
+        month = year_moonth_day[4:6]
+        day = year_moonth_day[6:8]
+
         dataset = "reanalysis-era5-single-levels"
         request = {
             "product_type": ["reanalysis"],
-            "variable": [
-                "10m_u_component_of_wind",
-                "10m_v_component_of_wind",
-                "2m_dewpoint_temperature",
-                "2m_temperature",
-                "surface_pressure"
-            ],
+            "variable": variables,
             "year": [year],
             "month": [month],
             "day": [day],
@@ -1470,31 +1468,49 @@ class experiment:
             "area": latitude_longitude_extent
         }
         client = cdsapi.Client()
-        download_file_name=Path(raw_boundaries_path,year+month+day+'.nc')
-        client.retrieve(dataset, request,target=download_file_name)
+        filename = year + month + day + '.nc'
+        download_file_name = Path(raw_boundaries_path, filename)
+        client.retrieve(dataset, request, target=download_file_name)
 
-    def get_era5(self, raw_boundaries_path):
+    def get_era5(self, raw_boundaries_path,
+                 variables=["10m_u_component_of_wind", "10m_v_component_of_wind",
+                            "2m_dewpoint_temperature", "2m_temperature", "surface_pressure"
+                                                                         "mean_surface_downward_long_wave_radiation_flux",
+                            "mean_surface_downward_short_wave_radiation_flux",
+                            "convective_rain_rate", "large_scale_rain_rate"
+                            ], ):
         '''
-
         Args:
+            variables (list): ear5 variable
             raw_boundaries_path:Path to the directory containing the raw boundary forcing files.
 
         Returns:
 
         '''
-        latitude_longitude_extent = [float(self.hgrid.y.max()), float(self.hgrid.x.min()),
-                                     float(self.hgrid.y.min()), float(self.hgrid.x.max())]
+        for i in variables:
+            if i not in ["10m_u_component_of_wind", "10m_v_component_of_wind",
+                         "2m_dewpoint_temperature", "2m_temperature", "surface_pressure"
+                                                                      "mean_surface_downward_long_wave_radiation_flux",
+                         "mean_surface_downward_short_wave_radiation_flux",
+                         "convective_rain_rate", "large_scale_rain_rate"
+                         ]:
+                raise ValueError(
+                    f'''Invalid era5 variables: {i}. Must be in of
+                       ["10m_u_component_of_wind", "10m_v_component_of_wind",
+                        "2m_dewpoint_temperature", "2m_temperature", "surface_pressure"
+                        "mean_surface_downward_long_wave_radiation_flux",
+                        "mean_surface_downward_short_wave_radiation_flux",
+                        "convective_rain_rate", "large_scale_rain_rate"
+                       ]'''
+                )
 
-        day_freq = pd.date_range(self.date_range[0], self.date_range[1], freq='D')
+            latitude_longitude_extent = [float(self.hgrid.y.max()), float(self.hgrid.x.min()),
+                                         float(self.hgrid.y.min()), float(self.hgrid.x.max())]
 
-        years = (day_freq.strftime('%Y')).values
-        months = (day_freq.strftime('%m')).values
-        days = (day_freq.strftime('%d')).values
-        for year in years:
-            for month in months:
-                for day in days:
-                    self.download_ear5(raw_boundaries_path,latitude_longitude_extent, year, month, day)
-
+            day_freq = pd.date_range(self.date_range[0], self.date_range[1], freq='D')
+            days_str = (day_freq.strftime('%Y%m%d')).values
+            for year_moonth_day in days_str:
+                self.download_ear5(raw_boundaries_path, latitude_longitude_extent, variables, year_moonth_day)
     def setup_ocean_state_boundaries(
         self,
         raw_boundaries_path,
