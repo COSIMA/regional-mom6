@@ -1475,7 +1475,7 @@ class experiment:
     def get_era5(self, raw_boundaries_path,
                  variables=["10m_u_component_of_wind", "10m_v_component_of_wind",
                             "2m_dewpoint_temperature", "2m_temperature", "surface_pressure"
-                                                                         "mean_surface_downward_long_wave_radiation_flux",
+                             "mean_surface_downward_long_wave_radiation_flux",
                             "mean_surface_downward_short_wave_radiation_flux",
                             "convective_rain_rate", "large_scale_rain_rate"
                             ], ):
@@ -1490,7 +1490,7 @@ class experiment:
         for i in variables:
             if i not in ["10m_u_component_of_wind", "10m_v_component_of_wind",
                          "2m_dewpoint_temperature", "2m_temperature", "surface_pressure"
-                                                                      "mean_surface_downward_long_wave_radiation_flux",
+                         "mean_surface_downward_long_wave_radiation_flux",
                          "mean_surface_downward_short_wave_radiation_flux",
                          "convective_rain_rate", "large_scale_rain_rate"
                          ]:
