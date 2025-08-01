@@ -1429,7 +1429,7 @@ class experiment:
         )
         return
 
-    def download_ear5(self, raw_boundaries_path, latitude_longitude_extent, variables, year_moonth_day):
+    def download_ear5(self, raw_boundaries_path, latitude_longitude_extent, variables, year,month,day):
         '''
         https://cds.climate.copernicus.eu/how-to-api
         Here is how to setup the CDS API personal access token
@@ -1442,17 +1442,13 @@ class experiment:
         Returns:
 
         '''
-        year = year_moonth_day[0:4]
-        month = year_moonth_day[4:6]
-        day = year_moonth_day[6:8]
-
         dataset = "reanalysis-era5-single-levels"
         request = {
             "product_type": ["reanalysis"],
             "variable": variables,
             "year": [year],
             "month": [month],
-            "day": [day],
+            "day": day,
             "time": [
                 "00:00", "01:00", "02:00",
                 "03:00", "04:00", "05:00",
@@ -1468,7 +1464,7 @@ class experiment:
             "area": latitude_longitude_extent
         }
         client = cdsapi.Client()
-        filename = year + month + day + '.nc'
+        filename = 'era5' + year + month + '.nc'
         download_file_name = Path(raw_boundaries_path, filename)
         client.retrieve(dataset, request, target=download_file_name)
 
@@ -1507,10 +1503,18 @@ class experiment:
             latitude_longitude_extent = [float(self.hgrid.y.max()), float(self.hgrid.x.min()),
                                          float(self.hgrid.y.min()), float(self.hgrid.x.max())]
 
-            day_freq = pd.date_range(self.date_range[0], self.date_range[1], freq='D')
-            days_str = (day_freq.strftime('%Y%m%d')).values
-            for year_moonth_day in days_str:
-                self.download_ear5(raw_boundaries_path, latitude_longitude_extent, variables, year_moonth_day)
+            day = [ "01", "02", "03", "04", "05", "06", "07", "08", "09",
+                    "10", "11", "12","13", "14", "15","16", "17", "18",
+                    "19", "20", "21","22", "23", "24","25", "26", "27",
+                    "28", "29", "30","31"
+                  ]
+            month_freq = pd.date_range(self.date_range[0], self.date_range[1], freq='MS')
+            month_str = (month_freq.strftime('%Y%m')).values
+            for month_str in month_str:
+                year = month_str[0:4]
+                month = month_str[4:6]
+                self.download_ear5(raw_boundaries_path, latitude_longitude_extent, variables, year, month, day)
+
     def setup_ocean_state_boundaries(
         self,
         raw_boundaries_path,
