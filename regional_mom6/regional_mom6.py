@@ -1435,6 +1435,8 @@ class experiment:
         https://cds.climate.copernicus.eu/how-to-api
         Here is how to setup the CDS API personal access token
         Args:
+            is_donwload_file (bool): The fastest way to download era5 is to log in to the website and download it yourself.
+            By default, it does not download, but only sends a request.
             raw_boundaries_path:(str): Path to the directory containing the raw boundary forcing files.
             latitude_longitude_extent(list):Download range
             variables (list):ear5 variable
@@ -1502,6 +1504,8 @@ class experiment:
                             ], proxies=None,is_donwload_file=False):
         '''
         Args:
+            is_donwload_file (bool): The fastest way to download era5 is to log in to the website and download it yourself.
+            By default, it does not download, but only sends a request.
             proxies (dict): Proxy Address
             variables (list): ear5 variable
             raw_boundaries_path(str):Path to the directory containing the raw boundary forcing files.
@@ -1525,11 +1529,6 @@ class experiment:
                         "convective_rain_rate", "large_scale_rain_rate"
                        ]'''
                 )
-
-        if proxies != None:
-            session = requests.Session()
-            session.proxies.update(proxies)
-
         latitude_longitude_extent = [float(self.hgrid.y.max()), float(self.hgrid.x.min()),
                                      float(self.hgrid.y.min()), float(self.hgrid.x.max())]
 
