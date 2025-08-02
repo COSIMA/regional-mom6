@@ -16,6 +16,7 @@ import pandas as pd
 from pathlib import Path
 import json
 import cdsapi
+import requests
 from regional_mom6 import MOM_parameter_tools as mpt
 from regional_mom6 import regridding as rgd
 from regional_mom6 import rotation as rot
@@ -1429,44 +1430,68 @@ class experiment:
         )
         return
 
-    def download_ear5(self, raw_boundaries_path, latitude_longitude_extent, variables, year,month,day):
+    def download_ear5(self,raw_boundaries_path, latitude_longitude_extent, variables, month_freq,proxies,is_donwload_file):
         '''
         https://cds.climate.copernicus.eu/how-to-api
         Here is how to setup the CDS API personal access token
         Args:
             raw_boundaries_path:(str): Path to the directory containing the raw boundary forcing files.
-            latitude_longitude_extent:Download range
-            variables (list):
-            year_moonth_day:download time
-
+            latitude_longitude_extent(list):Download range
+            variables (list):ear5 variable
+            month_freq (pandas.DatetimeIndex): download year and month
+            proxies (dict): Proxy Address
         Returns:
 
         '''
-        dataset = "reanalysis-era5-single-levels"
-        request = {
-            "product_type": ["reanalysis"],
-            "variable": variables,
-            "year": [year],
-            "month": [month],
-            "day": day,
-            "time": [
-                "00:00", "01:00", "02:00",
-                "03:00", "04:00", "05:00",
-                "06:00", "07:00", "08:00",
-                "09:00", "10:00", "11:00",
-                "12:00", "13:00", "14:00",
-                "15:00", "16:00", "17:00",
-                "18:00", "19:00", "20:00",
-                "21:00", "22:00", "23:00"
-            ],
-            "data_format": "netcdf",
-            "download_format": "unarchived",
-            "area": latitude_longitude_extent
-        }
-        client = cdsapi.Client()
-        filename = 'era5' + year + month + '.nc'
-        download_file_name = Path(raw_boundaries_path, filename)
-        client.retrieve(dataset, request, target=download_file_name)
+        for i in month_freq:
+            year = str(i.year)
+            month = str(i.month)
+            dataset = "reanalysis-era5-single-levels"
+            request = {
+                "product_type": ["reanalysis"],
+                "variable": variables,
+                "year": [year],
+                "month": [month],
+                "day": [
+                    "01", "02", "03",
+                    "04", "05", "06",
+                    "07", "08", "09",
+                    "10", "11", "12",
+                    "13", "14", "15",
+                    "16", "17", "18",
+                    "19", "20", "21",
+                    "22", "23", "24",
+                    "25", "26", "27",
+                    "28", "29", "30",
+                    "31"
+                ],
+                "time": [
+                    "00:00", "01:00", "02:00",
+                    "03:00", "04:00", "05:00",
+                    "06:00", "07:00", "08:00",
+                    "09:00", "10:00", "11:00",
+                    "12:00", "13:00", "14:00",
+                    "15:00", "16:00", "17:00",
+                    "18:00", "19:00", "20:00",
+                    "21:00", "22:00", "23:00"
+                ],
+                "data_format": "netcdf",
+                "download_format": "unarchived",
+                "area": latitude_longitude_extent
+            }
+            if proxies != None:
+                session = requests.Session()
+                session.proxies.update(proxies)
+                client = cdsapi.Client(session=session)
+            else:
+                client = cdsapi.Client()
+
+            if is_donwload_file:
+                filename = 'era5' + year + month + '.nc'
+                download_file_name = Path(raw_boundaries_path, filename)
+                client.retrieve(dataset, request, target=download_file_name)
+            else:
+                client.retrieve(dataset, request)
 
     def get_era5(self, raw_boundaries_path,
                  variables=["10m_u_component_of_wind", "10m_v_component_of_wind",
@@ -1474,11 +1499,12 @@ class experiment:
                              "mean_surface_downward_long_wave_radiation_flux",
                             "mean_surface_downward_short_wave_radiation_flux",
                             "convective_rain_rate", "large_scale_rain_rate"
-                            ], ):
+                            ], proxies=None,is_donwload_file=False):
         '''
         Args:
+            proxies (dict): Proxy Address
             variables (list): ear5 variable
-            raw_boundaries_path:Path to the directory containing the raw boundary forcing files.
+            raw_boundaries_path(str):Path to the directory containing the raw boundary forcing files.
 
         Returns:
 
@@ -1500,20 +1526,15 @@ class experiment:
                        ]'''
                 )
 
-            latitude_longitude_extent = [float(self.hgrid.y.max()), float(self.hgrid.x.min()),
-                                         float(self.hgrid.y.min()), float(self.hgrid.x.max())]
+        if proxies != None:
+            session = requests.Session()
+            session.proxies.update(proxies)
 
-            day = [ "01", "02", "03", "04", "05", "06", "07", "08", "09",
-                    "10", "11", "12","13", "14", "15","16", "17", "18",
-                    "19", "20", "21","22", "23", "24","25", "26", "27",
-                    "28", "29", "30","31"
-                  ]
-            month_freq = pd.date_range(self.date_range[0], self.date_range[1], freq='MS')
-            month_str = (month_freq.strftime('%Y%m')).values
-            for month_str in month_str:
-                year = month_str[0:4]
-                month = month_str[4:6]
-                self.download_ear5(raw_boundaries_path, latitude_longitude_extent, variables, year, month, day)
+        latitude_longitude_extent = [float(self.hgrid.y.max()), float(self.hgrid.x.min()),
+                                     float(self.hgrid.y.min()), float(self.hgrid.x.max())]
+
+        month_freq = pd.date_range(self.date_range[0], self.date_range[1], freq='MS')
+        self.download_ear5(raw_boundaries_path, latitude_longitude_extent, variables, month_freq,proxies,is_donwload_file)
 
     def setup_ocean_state_boundaries(
         self,
