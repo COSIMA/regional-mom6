@@ -1015,7 +1015,7 @@ class experiment:
             regridding_method = self.regridding_method
 
         # Remove time dimension if present in the IC.
-        # Assume that the first time dim is the intended on if more than one is present
+        # Assume that the first time dim is the intended one if more than one is present
         ic_raw = xr.open_mfdataset(raw_ic_path)
         if varnames["time"] in ic_raw.dims:
             ic_raw = ic_raw.isel({varnames["time"]: 0})
@@ -2088,7 +2088,7 @@ class experiment:
         print(
             "OUTPUT FROM MAKE SOLO MOSAIC:",
             subprocess.run(
-                str(self.fre_tools_dir / "make_solo_mosaic/make_solo_mosaic")
+                str(self.fre_tools_dir / "make_solo_mosaic")
                 + " --num_tiles 1 --dir . --mosaic_name ocean_mosaic --tile_file hgrid.nc",
                 shell=True,
                 cwd=self.mom_input_dir,
@@ -2099,7 +2099,7 @@ class experiment:
         print(
             "OUTPUT FROM QUICK MOSAIC:",
             subprocess.run(
-                str(self.fre_tools_dir / "make_quick_mosaic/make_quick_mosaic")
+                str(self.fre_tools_dir / "make_quick_mosaic")
                 + " --input_mosaic ocean_mosaic.nc --mosaic_name grid_spec --ocean_topog bathymetry.nc",
                 shell=True,
                 cwd=self.mom_input_dir,
@@ -2119,7 +2119,7 @@ class experiment:
         print(
             "OUTPUT FROM CHECK MASK:\n\n",
             subprocess.run(
-                str(self.fre_tools_dir / "check_mask/check_mask")
+                str(self.fre_tools_dir / "check_mask")
                 + f" --grid_file ocean_mosaic.nc --ocean_topog bathymetry.nc --layout {layout[0]},{layout[1]} --halo 4",
                 shell=True,
                 cwd=self.mom_input_dir,
