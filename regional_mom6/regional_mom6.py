@@ -1434,6 +1434,7 @@ class experiment:
         varnames,
         arakawa_grid="A",
         bathymetry_path=None,
+        time_units = "days",
         rotational_method=rot.RotationMethod.EXPAND_GRID,
         regridding_method=None,
         fill_method=None,
@@ -1453,6 +1454,7 @@ class experiment:
                 Either ``'A'`` (default), ``'B'``, or ``'C'``.
             bathymetry_path (Optional[str]): Path to the bathymetry file. Default is ``None``, in which case the
                 boundary condition is not masked.
+            time_units (Optional[str]): The time units to use in the boundary files. Default is "days".
             rotational_method (Optional[str]): Method to use for rotating the boundary velocities.
                 Default is ``EXPAND_GRID``.
             regridding_method (Optional[str]): The type of regridding method to use. Defaults to self.regridding_method
@@ -1491,6 +1493,7 @@ class experiment:
                 bathymetry_path=bathymetry_path,
                 rotational_method=rotational_method,
                 regridding_method=regridding_method,
+                time_units=time_units,
                 fill_method=fill_method,
             )
 
@@ -1504,6 +1507,7 @@ class experiment:
         bathymetry_path=None,
         rotational_method=rot.RotationMethod.EXPAND_GRID,
         regridding_method=None,
+        time_units="days",
         fill_method=None,
     ):
         """
@@ -1527,7 +1531,9 @@ class experiment:
             rotational_method (Optional[str]): Method to use for rotating the boundary velocities.
                 Default is 'EXPAND_GRID'.
             regridding_method (Optional[str]): The type of regridding method to use. Defaults to self.regridding_method
-            fill_method (Function): Fill method to use throughout the function. Default is ``rgd.fill_missing_data``
+            fill_method (Function): Fill method to use throughout the function. Default is ``rgd.
+            time_units (Optional[str]): The time units to use in the boundary files. Default is "days".
+            fill_missing_data``
 
         """
         if regridding_method is None:
@@ -1552,6 +1558,7 @@ class experiment:
             orientation=orientation,  # orienataion
             startdate=self.date_range[0],
             arakawa_grid=arakawa_grid,
+            time_units=time_units,
             repeat_year_forcing=self.repeat_year_forcing,
         )
 
