@@ -27,14 +27,12 @@ from regional_mom6.utils import (
     find_files_by_pattern,
 )
 from mom6_bathy.vgrid import *
-
+from mom6_bathy.grid import *
 
 warnings.filterwarnings("ignore")
 
 __all__ = [
     "longitude_slicer",
-    "hyperbolictan_thickness_profile",
-    "generate_rectangular_hgrid",
     "experiment",
     "segment",
     "get_glorys_data",
@@ -240,224 +238,6 @@ copernicusmarine subset --dataset-id cmems_mod_glo_phy_my_0.083deg_P1D-m --varia
     file.writelines(lines)
     file.close()
     return Path(path / "get_glorys_data.sh")
-
-
-def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
-    """Generate a hyperbolic tangent thickness profile with ``nlayers`` vertical
-    layers and total depth of ``total_depth`` whose bottom layer is (about) ``ratio``
-    times larger than the top layer.
-
-    The thickness profile transitions from the top-layer thickness to
-    the bottom-layer thickness via a hyperbolic tangent proportional to
-    ``tanh(2π * (k / (nlayers - 1) - 1 / 2))``, where ``k = 0, 1, ..., nlayers - 1``
-    is the layer index with ``k = 0`` corresponding to the top-most layer.
-
-    The sum of all layer thicknesses is ``total_depth``.
-
-    Positive parameter ``ratio`` prescribes (approximately) the ratio of the thickness
-    of the bottom-most layer to the top-most layer. The final ratio of the bottom-most
-    layer to the top-most layer ends up a bit different from the prescribed ``ratio``.
-    In particular, the final ratio of the bottom over the top-most layer thickness is
-    ``(1 + ratio * exp(2π)) / (ratio + exp(2π))``. This slight departure comes about
-    because of the value of the hyperbolic tangent profile at the end-points ``tanh(π)``,
-    which is approximately 0.9963 and not 1. Note that because ``exp(2π)`` is much greater
-    than 1, the value of the actual ratio is not that different from the prescribed value
-    ``ratio``, e.g., for ``ratio`` values between 1/100 and 100 the final ratio of the
-    bottom-most layer to the top-most layer only departs from the prescribed ``ratio``
-    by ±20%.
-
-    Arguments:
-        nlayers (int): Number of vertical layers.
-        ratio (float): The desired value of the ratio of bottom-most to
-            the top-most layer thickness. Note that the final value of
-            the ratio of bottom-most to the top-most layer thickness
-            ends up ``(1 + ratio * exp(2π)) / (ratio + exp(2π))``. Must
-            be positive.
-        total_depth (float): The total depth of grid, i.e., the sum
-            of all thicknesses.
-
-    Returns:
-        numpy.array: An array containing the layer thicknesses.
-
-    Examples:
-
-        The spacings for a vertical grid with 20 layers, with maximum depth 1000 meters,
-        and for which the top-most layer is about 4 times thinner than the bottom-most
-        one.
-
-        >>> from regional_mom6 import hyperbolictan_thickness_profile
-        >>> nlayers, total_depth = 20, 1000
-        >>> ratio = 4
-        >>> dz = hyperbolictan_thickness_profile(nlayers, ratio, total_depth)
-        >>> dz
-        array([20.11183771, 20.2163053 , 20.41767549, 20.80399084, 21.53839043,
-               22.91063751, 25.3939941 , 29.6384327 , 36.23006369, 45.08430684,
-               54.91569316, 63.76993631, 70.3615673 , 74.6060059 , 77.08936249,
-               78.46160957, 79.19600916, 79.58232451, 79.7836947 , 79.88816229])
-        >>> dz.sum()
-        1000.0
-        >>> dz[-1] / dz[0]
-        3.9721960481753706
-
-        If we want the top layer to be thicker then we need to prescribe ``ratio < 1``.
-
-        >>> from regional_mom6 import hyperbolictan_thickness_profile
-        >>> nlayers, total_depth = 20, 1000
-        >>> ratio = 1/4
-        >>> dz = hyperbolictan_thickness_profile(nlayers, ratio, total_depth)
-        >>> dz
-        array([79.88816229, 79.7836947 , 79.58232451, 79.19600916, 78.46160957,
-               77.08936249, 74.6060059 , 70.3615673 , 63.76993631, 54.91569316,
-               45.08430684, 36.23006369, 29.6384327 , 25.3939941 , 22.91063751,
-               21.53839043, 20.80399084, 20.41767549, 20.2163053 , 20.11183771])
-        >>> dz.sum()
-        1000.0
-        >>> dz[-1] / dz[0]
-        0.25174991059652
-
-        Now how about a grid with the same total depth as above but with equally-spaced
-        layers.
-
-        >>> from regional_mom6 import hyperbolictan_thickness_profile
-        >>> nlayers, total_depth = 20, 1000
-        >>> ratio = 1
-        >>> dz = hyperbolictan_thickness_profile(nlayers, ratio, total_depth)
-        >>> dz
-        array([50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50.,
-               50., 50., 50., 50., 50., 50., 50.])
-    """
-
-    assert isinstance(nlayers, int), "nlayers must be an integer"
-
-    if nlayers == 1:
-        return np.array([float(total_depth)])
-
-    assert ratio > 0, "ratio must be > 0"
-
-    # The hyberbolic tangent profile below implies that the sum of
-    # all layer thicknesses is:
-    #
-    # nlayers * (top_layer_thickness + bottom_layer_thickness) / 2
-    #
-    # By choosing the top_layer_thickness appropriately we ensure that
-    # the sum of all layer thicknesses is the prescribed total_depth.
-    top_layer_thickness = 2 * total_depth / (nlayers * (1 + ratio))
-
-    bottom_layer_thickness = ratio * top_layer_thickness
-
-    layer_thicknesses = top_layer_thickness + 0.5 * (
-        bottom_layer_thickness - top_layer_thickness
-    ) * (1 + np.tanh(2 * np.pi * (np.arange(nlayers) / (nlayers - 1) - 1 / 2)))
-
-    sum_of_thicknesses = np.sum(layer_thicknesses)
-
-    atol = np.finfo(type(sum_of_thicknesses)).eps
-
-    assert np.isclose(total_depth, sum_of_thicknesses, atol=atol)  # just checking ;)
-
-    return layer_thicknesses
-
-
-def generate_rectangular_hgrid(lons, lats):
-    """
-    Construct a horizontal grid with all the metadata required by MOM6, based on
-    arrays of longitudes (``lons``) and latitudes (``lats``) on the supergrid.
-    Here, 'supergrid' refers to both cell edges and centres, meaning that there
-    are twice as many points along each axis than for any individual field.
-
-    Caution:
-        It is assumed the grid's boundaries are lines of constant latitude and
-        longitude. Rotated grids need to be handled differently.
-
-        It is also assumed here that the longitude array values are uniformly spaced.
-
-        Ensure both ``lons`` and ``lats`` are monotonically increasing.
-
-    Arguments:
-        lons (numpy.array): All longitude points on the supergrid. Must be uniformly spaced.
-        lats (numpy.array): All latitude points on the supergrid.
-
-    Returns:
-        xarray.Dataset: An FMS-compatible horizontal grid (``hgrid``) that includes all required attributes.
-    """
-
-    assert np.all(
-        np.diff(lons) > 0
-    ), "longitudes array lons must be monotonically increasing"
-    assert np.all(
-        np.diff(lats) > 0
-    ), "latitudes array lats must be monotonically increasing"
-
-    R = 6371e3  # mean radius of the Earth; https://en.wikipedia.org/wiki/Earth_radius
-
-    # compute longitude spacing and ensure that longitudes are uniformly spaced
-    dlons = lons[1] - lons[0]
-
-    assert np.allclose(
-        np.diff(lons), dlons * np.ones(np.size(lons) - 1)
-    ), "provided array of longitudes must be uniformly spaced"
-
-    # dx = R * cos(np.deg2rad(lats)) * np.deg2rad(dlons) / 2
-    # Note: division by 2 because we're on the supergrid
-    dx = np.broadcast_to(
-        R * np.cos(np.deg2rad(lats)) * np.deg2rad(dlons) / 2,
-        (lons.shape[0] - 1, lats.shape[0]),
-    ).T
-
-    # dy = R * np.deg2rad(dlats) / 2
-    # Note: division by 2 because we're on the supergrid
-    dy = np.broadcast_to(
-        R * np.deg2rad(np.diff(lats)) / 2, (lons.shape[0], lats.shape[0] - 1)
-    ).T
-
-    lon, lat = np.meshgrid(lons, lats)
-
-    area = quadrilateral_areas(lat, lon, R)
-
-    attrs = {
-        "tile": {
-            "standard_name": "grid_tile_spec",
-            "geometry": "spherical",
-            "north_pole": "0.0 90.0",
-            "discretization": "logically_rectangular",
-            "conformal": "true",
-        },
-        "x": {"standard_name": "geographic_longitude", "units": "degree_east"},
-        "y": {"standard_name": "geographic_latitude", "units": "degree_north"},
-        "dx": {
-            "standard_name": "grid_edge_x_distance",
-            "units": "meters",
-        },
-        "dy": {
-            "standard_name": "grid_edge_y_distance",
-            "units": "meters",
-        },
-        "area": {
-            "standard_name": "grid_cell_area",
-            "units": "m**2",
-        },
-        "angle_dx": {
-            "standard_name": "grid_vertex_x_angle_WRT_geographic_east",
-            "units": "degrees_east",
-        },
-        "arcx": {
-            "standard_name": "grid_edge_x_arc_type",
-            "north_pole": "0.0 90.0",
-        },
-    }
-
-    return xr.Dataset(
-        {
-            "tile": ((), np.array(b"tile1", dtype="|S255"), attrs["tile"]),
-            "x": (["nyp", "nxp"], lon, attrs["x"]),
-            "y": (["nyp", "nxp"], lat, attrs["y"]),
-            "dx": (["nyp", "nx"], dx, attrs["dx"]),
-            "dy": (["ny", "nxp"], dy, attrs["dy"]),
-            "area": (["ny", "nx"], area, attrs["area"]),
-            "angle_dx": (["nyp", "nxp"], lon * 0, attrs["angle_dx"]),
-            "arcx": ((), np.array(b"small_circle", dtype="|S255"), attrs["arcx"]),
-        }
-    )
 
 
 class experiment:
@@ -905,44 +685,9 @@ class experiment:
         ), "only even_spacing grid type is implemented"
 
         if self.hgrid_type == "even_spacing":
-
-            # longitudes are evenly spaced based on resolution and bounds
-            nx = int(
-                (self.longitude_extent[1] - self.longitude_extent[0])
-                / (self.resolution / 2)
-            )
-            if nx % 2 != 1:
-                nx += 1
-
-            lons = np.linspace(
-                self.longitude_extent[0], self.longitude_extent[1], nx
-            )  # longitudes in degrees
-
-            # Latitudes evenly spaced by dx * cos(central_latitude)
-            central_latitude = np.mean(self.latitude_extent)  # degrees
-            latitudinal_resolution = self.resolution * np.cos(
-                np.deg2rad(central_latitude)
-            )
-
-            ny = (
-                int(
-                    (self.latitude_extent[1] - self.latitude_extent[0])
-                    / (latitudinal_resolution / 2)
-                )
-                + 1
-            )
-
-            if ny % 2 != 1:
-                ny += 1
-
-            lats = np.linspace(
-                self.latitude_extent[0], self.latitude_extent[1], ny
-            )  # latitudes in degrees
-
-            hgrid = generate_rectangular_hgrid(lons, lats)
-            hgrid.to_netcdf(self.mom_input_dir / "hgrid.nc")
-
-            return hgrid
+            
+            self.grid = Grid.even_spacing_grid(self.latitude_extent, self.longitude_extent, self.resolution)
+            return self.grid.write_supergrid(self.mom_input_dir / "hgrid.nc")
 
     def _make_vgrid(self, thicknesses=None):
         """
