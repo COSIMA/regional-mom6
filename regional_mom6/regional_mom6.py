@@ -1434,7 +1434,7 @@ class experiment:
         varnames,
         arakawa_grid="A",
         bathymetry_path=None,
-        time_units = "days",
+        time_units="days",
         rotational_method=rot.RotationMethod.EXPAND_GRID,
         regridding_method=None,
         fill_method=None,
