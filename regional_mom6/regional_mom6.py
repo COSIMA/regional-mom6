@@ -27,7 +27,8 @@ from regional_mom6.utils import (
 )
 from mom6_bathy.vgrid import *
 from mom6_bathy.grid import *
-from mom6_bathy.topo import * 
+from mom6_bathy.topo import *
+
 warnings.filterwarnings("ignore")
 
 __all__ = [
@@ -76,8 +77,6 @@ def convert_to_tpxo_tidal_constituents(tidal_constituents):
 
 
 ## Auxiliary functions
-
-
 
 
 def get_glorys_data(
@@ -572,8 +571,10 @@ class experiment:
         ), "only even_spacing grid type is implemented"
 
         if self.hgrid_type == "even_spacing":
-            
-            self.grid = Grid.even_spacing_grid(self.latitude_extent, self.longitude_extent, self.resolution)
+
+            self.grid = Grid.even_spacing_grid(
+                self.latitude_extent, self.longitude_extent, self.resolution
+            )
             return self.grid.write_supergrid(self.mom_input_dir / "hgrid.nc")
 
     def _make_vgrid(self, thicknesses=None):
@@ -1349,21 +1350,21 @@ class experiment:
             regridding_method = self.regridding_method
 
         self.topo = Topo(
-            grid = self.grid,
-            min_depth = self.minimum_depth,
+            grid=self.grid,
+            min_depth=self.minimum_depth,
         )
 
         self.topo.set_from_dataset(
-            bathymetry_path = bathymetry_path,
-            output_dir = self.mom_input_dir,
-            latitude_extent = self.latitude_extent,
-            longitude_extent = self.longitude_extent,
+            bathymetry_path=bathymetry_path,
+            output_dir=self.mom_input_dir,
+            latitude_extent=self.latitude_extent,
+            longitude_extent=self.longitude_extent,
             longitude_coordinate_name="lon",
             latitude_coordinate_name="lat",
             vertical_coordinate_name="elevation",
-            regridding_method = regridding_method
+            regridding_method=regridding_method,
         )
-        self.topo.write_topo(self.mom_input_dir/"bathymetry.nc")
+        self.topo.write_topo(self.mom_input_dir / "bathymetry.nc")
 
     def run_FRE_tools(self, layout=None):
         """A wrapper for FRE Tools ``check_mask``, ``make_solo_mosaic``, and ``make_quick_mosaic``.
