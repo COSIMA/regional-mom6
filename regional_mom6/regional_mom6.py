@@ -26,7 +26,7 @@ from regional_mom6.utils import (
     rotate,
     find_files_by_pattern,
 )
-from mom6_bathy.vgrid import Vgrid
+from mom6_bathy.vgrid import *
 
 
 warnings.filterwarnings("ignore")
@@ -958,23 +958,23 @@ class experiment:
         """
 
         if thicknesses is None:
-            vgrid = Vgrid.hyperbolic(
+            self.vgrid = VGrid.hyperbolic(
                 self.number_vertical_layers, self.depth, self.layer_thickness_ratio
             )
-            thicknesses = vgrid.dz
+            thicknesses = self.vgrid.dz
 
         if not isinstance(thicknesses, np.ndarray):
             raise ValueError("thicknesses must be a numpy array")
 
         ## Check whether the minimum depth is less than the first three layers
 
-        if len(vgrid.zi) > 2 and self.minimum_depth < vgrid.zi[2]:
+        if len(self.vgrid.zi) > 2 and self.minimum_depth < self.vgrid.zi[2]:
             print(
                 f"Warning: Minimum depth of {self.minimum_depth}m is less than the depth of the third interface ({zi[2]}m)!\n"
                 + "This means that some areas may only have one or two layers between the surface and sea floor. \n"
                 + "For increased stability, consider increasing the minimum depth, or adjusting the vertical coordinate to add more layers near the surface."
             )
-        ds = vgrid.write_z_file(self.mom_input_dir / "vcoord.nc")
+        ds = self.vgrid.write_z_file(self.mom_input_dir / "vcoord.nc")
 
         return ds
 
