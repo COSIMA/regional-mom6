@@ -2819,8 +2819,8 @@ class segment:
                 method=regridding_method,
             )
 
-            regridded_u = regridder_uvelocity(rawseg[[self.u]])
-            regridded_v = regridder_vvelocity(rawseg[[self.v]])
+            regridded_u = regridder_uvelocity(rawseg[self.u])
+            regridded_v = regridder_vvelocity(rawseg[self.v])
 
             # See explanation of the rotational methods in the A grid section
             rotated_u, rotated_v = rotate(
