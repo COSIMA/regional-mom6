@@ -253,7 +253,7 @@ def create_regridder(
         periodic=periodic,
         filename=outfile,
         reuse_weights=weights_exist,
-        unmapped_to_nan = True
+        unmapped_to_nan=True,
     )
 
     return regridder
