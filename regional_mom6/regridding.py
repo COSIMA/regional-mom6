@@ -240,6 +240,11 @@ def create_regridder(
     """
     regridding_logger.info("Creating Regridder")
 
+    weights_exist = bool(outfile) and isfile(outfile)
+    if weights_exist:
+        regridding_logger.warning(
+            f"Using existing weights file at {outfile} to save computing time. Delete weights file to regenerate weights."
+        )
     regridder = xe.Regridder(
         forcing_variables,
         output_grid,
@@ -247,7 +252,8 @@ def create_regridder(
         locstream_out=locstream_out,
         periodic=periodic,
         filename=outfile,
-        reuse_weights=bool(outfile) and isfile(outfile),
+        reuse_weights=weights_exist,
+        unmapped_to_nan = True
     )
 
     return regridder
