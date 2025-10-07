@@ -28,7 +28,7 @@ import dask.array as da
 import numpy as np
 import netCDF4
 from regional_mom6.utils import setup_logger, get_edge
-
+from os.path import isfile
 
 regridding_logger = setup_logger(__name__, set_handler=False)
 
@@ -240,15 +240,11 @@ def create_regridder(
     """
     regridding_logger.info("Creating Regridder")
 
-    # If outfile exists, reuse weights generated from outfile
-    if outfile is not None and Path(outfile).exists():
+    weights_exist = bool(outfile) and isfile(outfile)
+    if weights_exist:
         regridding_logger.warning(
             f"Using existing weights file at {outfile} to save computing time. Delete weights file to regenerate weights."
         )
-        reuse_weights = True
-    else:
-        reuse_weights = False
-
     regridder = xe.Regridder(
         forcing_variables,
         output_grid,
@@ -256,7 +252,8 @@ def create_regridder(
         locstream_out=locstream_out,
         periodic=periodic,
         filename=outfile,
-        reuse_weights=reuse_weights,
+        reuse_weights=weights_exist,
+        unmapped_to_nan=True,
     )
 
     return regridder
