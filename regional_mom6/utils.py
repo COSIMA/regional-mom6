@@ -6,11 +6,6 @@ from regional_mom6 import regridding as rgd
 from pathlib import Path
 
 
-
-
-
-
-
 def ap2ep(uc, vc):
     """Convert complex tidal u and v to tidal ellipse.
 
