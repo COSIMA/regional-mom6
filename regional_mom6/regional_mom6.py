@@ -1366,6 +1366,31 @@ class experiment:
         )
         self.topo.write_topo(self.mom_input_dir / "bathymetry.nc")
 
+    def tidy_bathymetry(
+        self,
+        fill_channels=False,
+        positive_down=False,
+        vertical_coordinate_name="depth",
+        bathymetry=None,
+        write_to_file=True,
+        longitude_coordinate_name="lon",
+        latitude_coordinate_name="lat",
+    ):
+        self.topo.tidy_dataset_bathymetry(
+            fill_channels=fill_channels,
+            positive_down=positive_down,
+            vertical_coordinate_name=vertical_coordinate_name,
+            bathymetry=bathymetry,
+            output_dir=self.mom_input_dir,
+            write_to_file=write_to_file,
+            longitude_coordinate_name=longitude_coordinate_name,
+            latitude_coordinate_name=latitude_coordinate_name,
+        )
+        self.topo.write_topo(
+            self.mom_input_dir / "bathymetry.nc",
+        )
+        return self.topo
+
     def run_FRE_tools(self, layout=None):
         """A wrapper for FRE Tools ``check_mask``, ``make_solo_mosaic``, and ``make_quick_mosaic``.
         User provides processor ``layout`` tuple of processing units.
