@@ -571,10 +571,16 @@ class experiment:
         ), "only even_spacing grid type is implemented"
 
         if self.hgrid_type == "even_spacing":
-
-            self.grid = Grid.even_spacing_grid(
-                self.latitude_extent, self.longitude_extent, self.resolution
+            self.grid = Grid(
+                resolution=self.resolution,  # in degrees
+                xstart=self.longitude_extent[0],  # min longitude in [0, 360]
+                lenx=self.longitude_extent[1] - self.longitude_extent[0],  # longitude extent in degrees
+                ystart=self.latitude_extent[0],  # min latitude in [-90, 90]
+                leny=self.latitude_extent[1] - self.latitude_extent[0],  # latitude extent in degrees
+                name=self.expt_name,
+                type=self.hgrid_type
             )
+
             return self.grid.write_supergrid(self.mom_input_dir / "hgrid.nc")
 
     def _make_vgrid(self, thicknesses=None):
@@ -1376,7 +1382,7 @@ class experiment:
         longitude_coordinate_name="lon",
         latitude_coordinate_name="lat",
     ):
-        self.topo.tidy_dataset_bathymetry(
+        self.topo.tidy_dataset(
             fill_channels=fill_channels,
             positive_down=positive_down,
             vertical_coordinate_name=vertical_coordinate_name,
