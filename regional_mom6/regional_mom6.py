@@ -1294,8 +1294,13 @@ class experiment:
             tracers_out["zl"] = tracers_out["zl"].diff("zl")
             dz = rgd.generate_dz(tracers_out, self.z)
 
-        tracers_out = tracers_out.interp({"zl": self.vgrid.zl.values})
-        vel_out = vel_out.interp({"zl": self.vgrid.zl.values})
+        # The extrapolate arg allows the initial condition to fill beyond the range of the input data.
+        tracers_out = tracers_out.interp(
+            {"zl": self.vgrid.zl.values}, kwargs={"fill_value": "extrapolate"}
+        )
+        vel_out = vel_out.interp(
+            {"zl": self.vgrid.zl.values}, kwargs={"fill_value": "extrapolate"}
+        )
 
         print("Saving outputs... ", end="")
 
