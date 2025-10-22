@@ -2064,7 +2064,7 @@ class experiment:
         ## This preserves the true land/ocean mask.
         bathymetry["depth"] = bathymetry["depth"].where(bathymetry["depth"] > 0, np.nan)
         bathymetry["depth"] = bathymetry["depth"].where(
-            ~(bathymetry.depth <= self.min_depth), self.min_depth + 0.1
+            ~(bathymetry.depth <= self.minimum_depth), self.minimum_depth + 0.1
         )
         bathymetry = bathymetry.fillna(
             0
