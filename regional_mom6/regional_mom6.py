@@ -2062,12 +2062,13 @@ class experiment:
 
         ## Now, any points in the bathymetry that are shallower than minimum depth are set to minimum depth.
         ## This preserves the true land/ocean mask.
-        bathymetry["depth"] = bathymetry["depth"].where(bathymetry["depth"] > 0, 0)
+        bathymetry["depth"] = bathymetry["depth"].where(bathymetry["depth"] > 0, np.nan)
         bathymetry["depth"] = bathymetry["depth"].where(
-            ~(bathymetry.depth <= self.minimum_depth), self.minimum_depth + 0.1
+            ~(bathymetry.depth <= self.min_depth), self.min_depth + 0.1
         )
-
-        bathymetry = bathymetry.fillna(0)
+        bathymetry = bathymetry.fillna(
+            0
+        )  # After min_depth filtering, change the land values to zero
 
         if write_to_file:
             bathymetry.expand_dims({"ntiles": 1}).to_netcdf(
