@@ -574,11 +574,13 @@ class experiment:
             self.grid = Grid(
                 resolution=self.resolution,  # in degrees
                 xstart=self.longitude_extent[0],  # min longitude in [0, 360]
-                lenx=self.longitude_extent[1] - self.longitude_extent[0],  # longitude extent in degrees
+                lenx=self.longitude_extent[1]
+                - self.longitude_extent[0],  # longitude extent in degrees
                 ystart=self.latitude_extent[0],  # min latitude in [-90, 90]
-                leny=self.latitude_extent[1] - self.latitude_extent[0],  # latitude extent in degrees
+                leny=self.latitude_extent[1]
+                - self.latitude_extent[0],  # latitude extent in degrees
                 name=self.expt_name,
-                type=self.hgrid_type
+                type=self.hgrid_type,
             )
 
             return self.grid.write_supergrid(self.mom_input_dir / "hgrid.nc")
@@ -1363,14 +1365,14 @@ class experiment:
         self.topo.set_from_dataset(
             bathymetry_path=bathymetry_path,
             output_dir=self.mom_input_dir,
-            latitude_extent=self.latitude_extent,
-            longitude_extent=self.longitude_extent,
             longitude_coordinate_name="lon",
             latitude_coordinate_name="lat",
             vertical_coordinate_name="elevation",
             regridding_method=regridding_method,
+            write_to_file=True,
         )
         self.topo.write_topo(self.mom_input_dir / "bathymetry.nc")
+        return self.topo.gen_topo_ds()
 
     def tidy_bathymetry(
         self,
