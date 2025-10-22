@@ -599,23 +599,22 @@ class experiment:
         """
 
         if thicknesses is None:
-            self.vgrid = VGrid.hyperbolic(
+            self.vgrid_obj = VGrid.hyperbolic(
                 self.number_vertical_layers, self.depth, self.layer_thickness_ratio
             )
-            thicknesses = self.vgrid.dz
-
-        if not isinstance(thicknesses, np.ndarray):
-            raise ValueError("thicknesses must be a numpy array")
+            thicknesses = self.vgrid_obj.dz
+        else:
+            self.vgrid_obj = VGrid(thicknesses)
 
         ## Check whether the minimum depth is less than the first three layers
 
-        if len(self.vgrid.zi) > 2 and self.minimum_depth < self.vgrid.zi[2]:
+        if len(self.vgrid_obj.zi) > 2 and self.minimum_depth < self.vgrid_obj.zi[2]:
             print(
                 f"Warning: Minimum depth of {self.minimum_depth}m is less than the depth of the third interface ({zi[2]}m)!\n"
                 + "This means that some areas may only have one or two layers between the surface and sea floor. \n"
                 + "For increased stability, consider increasing the minimum depth, or adjusting the vertical coordinate to add more layers near the surface."
             )
-        ds = self.vgrid.write_z_file(self.mom_input_dir / "vcoord.nc")
+        ds = self.vgrid_obj.write_z_file(self.mom_input_dir / "vcoord.nc")
 
         return ds
 
