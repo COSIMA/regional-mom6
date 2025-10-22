@@ -1354,6 +1354,10 @@ class experiment:
             write_to_file (Optional[bool]): Whether to write the bathymetry to a file. Default: ``True``.
             regridding_method (Optional[str]): The type of regridding method to use. Defaults to self.regridding_method
         """
+
+        print(
+            "Setting up bathymetry...if this fails, please follow the printed instructions with your experiment topo object, like this: [experiment_obj].topo "
+        )
         if regridding_method is None:
             regridding_method = self.regridding_method
 
