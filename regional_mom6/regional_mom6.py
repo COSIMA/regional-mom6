@@ -2626,11 +2626,9 @@ class segment:
         orientation,
         startdate,
         bathymetry_path=None,
-        time_units="days",
         repeat_year_forcing=False,
     ):
         self.startdate = startdate
-        self.time_units = time_units
 
         ## Store other data
         orientation = orientation.lower()
@@ -2655,6 +2653,7 @@ class segment:
         arakawa_grid="A",
         rotational_method=rot.RotationMethod.EXPAND_GRID,
         regridding_method="bilinear",
+        time_units="days",
         fill_method=rgd.fill_missing_data,
     ):
         """
@@ -2684,7 +2683,9 @@ class segment:
 
         coords = rgd.coords(self.hgrid, self.orientation, self.segment_name)
 
-        regridders = create_vt_regridders(reprocessed_var_map, rawseg, coords)
+        regridders = create_vt_regridders(
+            reprocessed_var_map, rawseg, coords, self.orientation
+        )
 
         # TODO: Check if regridding 3 times is noticeably slower on A grids (shouldn't be, the regridders are created efficiently in the first place)
         u_regridded = regridders["u"](rawseg[reprocessed_var_map["u"]])
@@ -2692,7 +2693,7 @@ class segment:
         tracers_regridded = regridders["tracers"](
             rawseg[
                 [reprocessed_var_map["eta"]]
-                + list(reprocessed_var_map["tracers"].values())
+                + list(reprocessed_var_map["tracer_var_names"].values())
             ]
         )
 
@@ -2716,23 +2717,32 @@ class segment:
 
         ## Convert temperatures to celsius # use pint
         if (
-            np.nanmin(segment_out[self.tracers["temp"]].isel({self.time: 0, self.z: 0}))
+            np.nanmin(
+                segment_out[reprocessed_var_map["tracer_var_names"]["temp"]].isel(
+                    {
+                        reprocessed_var_map["time"]: 0,
+                        reprocessed_var_map["depth_coord"]: 0,
+                    }
+                )
+            )
             > 100
         ):
-            segment_out[self.tracers["temp"]] -= 273.15
-            segment_out[self.tracers["temp"]].attrs["units"] = "degrees Celsius"
+            segment_out[reprocessed_var_map["tracer_var_names"]["temp"]] -= 273.15
+            segment_out[reprocessed_var_map["tracer_var_names"]["temp"]].attrs[
+                "units"
+            ] = "degrees Celsius"
 
         # fill in NaNs
         segment_out = fill_method(
             segment_out,
             xdim=f"{coords.attrs['parallel']}_{self.segment_name}",
-            zdim=self.z,
+            zdim=reprocessed_var_map["depth_coord"],
         )
 
         times = xr.DataArray(
             np.arange(
                 0,  #! Indexing everything from start of experiment = simple but maybe counterintutive?
-                segment_out[self.time].shape[
+                segment_out[reprocessed_var_map["time"]].shape[
                     0
                 ],  ## Time is indexed from start date of window
                 dtype=float,
@@ -2743,15 +2753,16 @@ class segment:
         segment_out = rgd.add_or_update_time_dim(segment_out, times)
         segment_out.time.attrs = {
             "calendar": "julian",
-            "units": f"{self.time_units} since {self.startdate}",
+            "units": f"{time_units} since {self.startdate}",
         }
         # Here, keep in mind that 'var' keeps track of the mom6 variable names we want, and self.tracers[var]
         # will return the name of the variable from the original data
 
         allfields = {
-            **self.tracers,
-            "u": self.u,
-            "v": self.v,
+            **reprocessed_var_map["tracer_var_names"],
+            "u": reprocessed_var_map["u"],
+            "v": reprocessed_var_map["v"],
+            "eta": reprocessed_var_map["eta"],
         }  ## Combine all fields into one flattened dictionary to iterate over as we fix metadata
 
         for (
@@ -2763,24 +2774,24 @@ class segment:
             ## Rename each variable in dataset
             segment_out = segment_out.rename({allfields[var]: v})
 
-            segment_out = rgd.vertical_coordinate_encoding(
-                segment_out, v, self.segment_name, self.z
-            )
+            if reprocessed_var_map["depth_coord"] in segment_out[v].dims:
+                segment_out = rgd.vertical_coordinate_encoding(
+                    segment_out,
+                    v,
+                    self.segment_name,
+                    reprocessed_var_map["depth_coord"],
+                )
 
             segment_out = rgd.add_secondary_dimension(
                 segment_out, v, coords, self.segment_name
             )
-
-            segment_out = rgd.generate_layer_thickness(
-                segment_out, v, self.segment_name, self.z
-            )
-
-        ## Treat eta separately since it has no vertical coordinate. Do the same things as for the surface variables above
-        segment_out = segment_out.rename({self.eta: f"eta_{self.segment_name}"})
-
-        segment_out = rgd.add_secondary_dimension(
-            segment_out, f"eta_{self.segment_name}", coords, self.segment_name
-        )
+            if reprocessed_var_map["depth_coord"] in segment_out[v].dims:
+                segment_out = rgd.generate_layer_thickness(
+                    segment_out,
+                    v,
+                    self.segment_name,
+                    reprocessed_var_map["depth_coord"],
+                )
 
         # Overwrite the actual lat/lon values in the dimensions, replace with incrementing integers
 
@@ -3214,28 +3225,29 @@ def apply_arakawa_grid_mapping(var_mapping: dict, arakawa_grid: str = None) -> d
         # Validate basic var mapping structure
         validate_var_mapping(var_mapping, is_xhyh=True)
 
-        reprocessed_var_map = {}
+        reprocessed_var_map = {
+            "tracer_x_coord": var_mapping["xh"],
+            "tracer_y_coord": var_mapping["yh"],
+            "u_var_name": var_mapping["u"],
+            "v_var_name": var_mapping["v"],
+            "eta_var_name": var_mapping["eta"],
+            "time": var_mapping["time"],
+            "depth_coord": var_mapping["zl"],
+            "tracer_var_names": {
+                "salt": var_mapping["tracers"]["salt"],
+                "temp": var_mapping["tracers"]["temp"],
+            },
+        }
 
         if arakawa_grid == "A":
             print(
-                "Applying Arakawa A grid variable mapping, which is every variable on the same grid points - xh, yh."
+                "Applying Arakawa A grid variable mapping, which is velocities and tracers on the same grid"
             )
-            reprocessed_var_map = {
-                "u_x_coord": var_mapping["xh"],
-                "u_y_coord": var_mapping["yh"],
-                "v_x_coord": var_mapping["xh"],
-                "v_y_coord": var_mapping["yh"],
-                "tracer_x_coord": var_mapping["xh"],
-                "tracer_y_coord": var_mapping["yh"],
-                "depth_coord": var_mapping["zl"],
-                "u_var_name": var_mapping["u"],
-                "v_var_name": var_mapping["v"],
-                "eta_var_name": var_mapping["eta"],
-                "tracer_var_names": {
-                    "salt": var_mapping["tracers"]["salt"],
-                    "temp": var_mapping["tracers"]["temp"],
-                },
-            }
+            reprocessed_var_map["u_x_coord"] = reprocessed_var_map["tracer_x_coord"]
+            reprocessed_var_map["u_y_coord"] = reprocessed_var_map["tracer_y_coord"]
+            reprocessed_var_map["v_x_coord"] = reprocessed_var_map["tracer_x_coord"]
+            reprocessed_var_map["v_y_coord"] = reprocessed_var_map["tracer_y_coord"]
+
         elif arakawa_grid == "B":
             print(
                 "Applying Arakawa B grid variable mapping, which is velocities on xq, yq and tracers on xh, yh."
@@ -3244,22 +3256,11 @@ def apply_arakawa_grid_mapping(var_mapping: dict, arakawa_grid: str = None) -> d
                 raise ValueError(
                     "For Arakawa B grid, variable mapping must include 'xq' and 'yq' coordinate names."
                 )
-            reprocessed_var_map = {
-                "u_x_coord": var_mapping["xq"],
-                "u_y_coord": var_mapping["yq"],
-                "v_x_coord": var_mapping["xq"],
-                "v_y_coord": var_mapping["yq"],
-                "tracer_x_coord": var_mapping["xh"],
-                "tracer_y_coord": var_mapping["yh"],
-                "depth_coord": var_mapping["zl"],
-                "u_var_name": var_mapping["u"],
-                "v_var_name": var_mapping["v"],
-                "eta_var_name": var_mapping["eta"],
-                "tracer_var_names": {
-                    "salt": var_mapping["tracers"]["salt"],
-                    "temp": var_mapping["tracers"]["temp"],
-                },
-            }
+            reprocessed_var_map["u_x_coord"] = var_mapping["xq"]
+            reprocessed_var_map["u_y_coord"] = var_mapping["yq"]
+            reprocessed_var_map["v_x_coord"] = var_mapping["xq"]
+            reprocessed_var_map["v_y_coord"] = var_mapping["yq"]
+
         elif arakawa_grid == "C":
             print(
                 "Applying Arakawa C grid variable mapping, which is u-velocity on xq, yh; v-velocity on xh, yq; and tracers on xh, yh."
@@ -3268,23 +3269,10 @@ def apply_arakawa_grid_mapping(var_mapping: dict, arakawa_grid: str = None) -> d
                 raise ValueError(
                     "For Arakawa C grid, variable mapping must include 'xq' and 'yq' coordinate names."
                 )
-            reprocessed_var_map = {
-                "u_x_coord": var_mapping["xq"],
-                "u_y_coord": var_mapping["yh"],
-                "v_x_coord": var_mapping["xh"],
-                "v_y_coord": var_mapping["yq"],
-                "tracer_x_coord": var_mapping["xh"],
-                "tracer_y_coord": var_mapping["yh"],
-                "depth_coord": var_mapping["zl"],
-                "u_var_name": var_mapping["u"],
-                "v_var_name": var_mapping["v"],
-                "eta_var_name": var_mapping["eta"],
-                "tracer_var_names": {
-                    "salt": var_mapping["tracers"]["salt"],
-                    "temp": var_mapping["tracers"]["temp"],
-                },
-            }
-
+            reprocessed_var_map["u_x_coord"] = var_mapping["xq"]
+            reprocessed_var_map["u_y_coord"] = var_mapping["yh"]
+            reprocessed_var_map["v_x_coord"] = var_mapping["xh"]
+            reprocessed_var_map["v_y_coord"] = var_mapping["yq"]
         # One last sanity check
         validate_var_mapping(reprocessed_var_map, is_xhyh=False)
         return reprocessed_var_map
@@ -3308,6 +3296,7 @@ def validate_var_mapping(var_mapping: dict, is_xhyh: bool = False) -> None:
     if not is_xhyh:
         print("Validating variable mapping structure for standard output format.")
         required_keys = {
+            "time",
             "u_x_coord",
             "u_y_coord",
             "v_x_coord",
@@ -3321,7 +3310,7 @@ def validate_var_mapping(var_mapping: dict, is_xhyh: bool = False) -> None:
             "tracer_var_names",
         }
     else:
-        required_keys = {"xh", "zl", "u", "v", "tracers", "eta"}
+        required_keys = {"time", "xh", "zl", "u", "v", "tracers", "eta"}
 
     missing = required_keys - var_map.keys()
     if missing:
