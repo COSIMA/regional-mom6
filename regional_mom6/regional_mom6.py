@@ -2677,7 +2677,7 @@ class segment:
         # Create weights directory
         (self.outfolder / "weights").mkdir(exist_ok=True)
 
-        rawseg = xr.open_dataset(infile, decode_times=False, engine="netcdf4")
+        rawseg = xr.open_mfdataset(infile, decode_times=False, engine="netcdf4")
 
         coords = rgd.coords(self.hgrid, self.orientation, self.segment_name)
 
