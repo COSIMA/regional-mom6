@@ -1550,17 +1550,17 @@ class experiment:
         self.segments[orientation] = segment(
             hgrid=self.hgrid,
             bathymetry_path=bathymetry_path,
-            infile=path_to_bc,  # location of raw boundary
             outfolder=self.mom_input_dir,
-            varnames=varnames,
             segment_name="segment_{:03d}".format(segment_number),
             orientation=orientation,  # orienataion
             startdate=self.date_range[0],
-            arakawa_grid=arakawa_grid,
             repeat_year_forcing=self.repeat_year_forcing,
         )
 
         self.segments[orientation].regrid_velocity_tracers(
+            infile=path_to_bc,  # location of raw boundary
+            varnames=varnames,
+            arakawa_grid=arakawa_grid,
             rotational_method=rotational_method,
             regridding_method=regridding_method,
             fill_method=fill_method,
