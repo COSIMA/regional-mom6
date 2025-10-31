@@ -2679,20 +2679,25 @@ class segment:
         # Create weights directory
         (self.outfolder / "weights").mkdir(exist_ok=True)
 
-        rawseg = xr.open_dataset(self.infile, decode_times=False, engine="netcdf4")
+        rawseg = xr.open_dataset(infile, decode_times=False, engine="netcdf4")
 
         coords = rgd.coords(self.hgrid, self.orientation, self.segment_name)
 
         regridders = create_vt_regridders(
-            reprocessed_var_map, rawseg, coords, self.orientation
+            reprocessed_var_map,
+            rawseg,
+            coords,
+            Path(self.outfolder),
+            regridding_method,
+            self.orientation,
         )
 
         # TODO: Check if regridding 3 times is noticeably slower on A grids (shouldn't be, the regridders are created efficiently in the first place)
-        u_regridded = regridders["u"](rawseg[reprocessed_var_map["u"]])
-        v_regridded = regridders["v"](rawseg[reprocessed_var_map["v"]])
+        u_regridded = regridders["u"](rawseg[reprocessed_var_map["u_var_name"]])
+        v_regridded = regridders["v"](rawseg[reprocessed_var_map["v_var_name"]])
         tracers_regridded = regridders["tracers"](
             rawseg[
-                [reprocessed_var_map["eta"]]
+                [reprocessed_var_map["eta_var_name"]]
                 + list(reprocessed_var_map["tracer_var_names"].values())
             ]
         )
@@ -2707,6 +2712,8 @@ class segment:
             ),
         )
 
+        rotated_u.name = reprocessed_var_map["u_var_name"]
+        rotated_v.name = reprocessed_var_map["v_var_name"]
         segment_out = xr.merge([rotated_u, rotated_v, tracers_regridded])
 
         ## segment out now contains our interpolated boundary.
@@ -2760,9 +2767,9 @@ class segment:
 
         allfields = {
             **reprocessed_var_map["tracer_var_names"],
-            "u": reprocessed_var_map["u"],
-            "v": reprocessed_var_map["v"],
-            "eta": reprocessed_var_map["eta"],
+            "u": reprocessed_var_map["u_var_name"],
+            "v": reprocessed_var_map["v_var_name"],
+            "eta": reprocessed_var_map["eta_var_name"],
         }  ## Combine all fields into one flattened dictionary to iterate over as we fix metadata
 
         for (
@@ -2773,8 +2780,10 @@ class segment:
             v = f"{var}_{self.segment_name}"
             ## Rename each variable in dataset
             segment_out = segment_out.rename({allfields[var]: v})
-
-            if reprocessed_var_map["depth_coord"] in segment_out[v].dims:
+            variable_has_depth = (
+                reprocessed_var_map["depth_coord"] in segment_out[v].dims
+            )
+            if variable_has_depth:
                 segment_out = rgd.vertical_coordinate_encoding(
                     segment_out,
                     v,
@@ -2785,14 +2794,13 @@ class segment:
             segment_out = rgd.add_secondary_dimension(
                 segment_out, v, coords, self.segment_name
             )
-            if reprocessed_var_map["depth_coord"] in segment_out[v].dims:
+            if variable_has_depth:
                 segment_out = rgd.generate_layer_thickness(
                     segment_out,
                     v,
                     self.segment_name,
                     reprocessed_var_map["depth_coord"],
                 )
-
         # Overwrite the actual lat/lon values in the dimensions, replace with incrementing integers
 
         segment_out[f"{coords.attrs['perpendicular']}_{self.segment_name}"] = [0]
@@ -3102,7 +3110,12 @@ class segment:
 
 
 def create_vt_regridders(
-    reprocessed_var_map: dict, rawseg: xr.Dataset, coords: xr.Dataset, id: str = ""
+    reprocessed_var_map: dict,
+    rawseg: xr.Dataset,
+    coords: xr.Dataset,
+    outfolder: str,
+    regridding_method: str,
+    id: str = "",
 ) -> dict[str, xe.Regridder]:
     """
     Create regridders for velocity and tracer variables based on the specified Arakawa grid.
@@ -3126,32 +3139,31 @@ def create_vt_regridders(
             - "u"
             - "v"
     """
-
     regridders = {}
     arakawa_grid = identify_arakawa_grid(reprocessed_var_map)
-
+    outfolder = Path(outfolder)
     regridders["tracers"] = rgd.create_regridder(
-        rawseg[reprocessed_var_map["tracers"]["salt"]].rename(
+        rawseg[reprocessed_var_map["tracer_var_names"]["salt"]].rename(
             {
                 reprocessed_var_map["tracer_x_coord"]: "lon",
                 reprocessed_var_map["tracer_y_coord"]: "lat",
             }
         ),
         coords,
-        self.outfolder / f"weights/bilinear_tracer_weights_{id}.nc",
+        outfolder / f"weights/bilinear_tracer_weights_{id}.nc",
         method=regridding_method,
     )
 
     if arakawa_grid == "B" or arakawa_grid == "C":
         regridders["u"] = rgd.create_regridder(
-            rawseg[reprocessed_var_map["u"]].rename(
+            rawseg[reprocessed_var_map["u_var_name"]].rename(
                 {
                     reprocessed_var_map["u_x_coord"]: "lon",
                     reprocessed_var_map["u_y_coord"]: "lat",
                 }
             ),
             coords,
-            self.outfolder / f"weights/bilinear_u_weights_{id}.nc",
+            outfolder / f"weights/bilinear_u_weights_{id}.nc",
             method=regridding_method,
         )
     else:  # Arakawa A
@@ -3159,14 +3171,14 @@ def create_vt_regridders(
 
     if arakawa_grid == "C":
         regridders["v"] = rgd.create_regridder(
-            rawseg[reprocessed_var_map["v"]].rename(
+            rawseg[reprocessed_var_map["v_var_name"]].rename(
                 {
                     reprocessed_var_map["v_x_coord"]: "lon",
                     reprocessed_var_map["v_y_coord"]: "lat",
                 }
             ),
             coords,
-            self.outfolder / f"weights/bilinear_v_weights_{id}.nc",
+            outfolder / f"weights/bilinear_v_weights_{id}.nc",
             method=regridding_method,
         )
     else:  # Arakawa A and B
@@ -3278,7 +3290,7 @@ def apply_arakawa_grid_mapping(var_mapping: dict, arakawa_grid: str = None) -> d
         return reprocessed_var_map
 
 
-def validate_var_mapping(var_mapping: dict, is_xhyh: bool = False) -> None:
+def validate_var_mapping(var_map: dict, is_xhyh: bool = False) -> None:
     """
     Validate the structure and completeness of a variable mapping dictionary.
 
@@ -3294,7 +3306,6 @@ def validate_var_mapping(var_mapping: dict, is_xhyh: bool = False) -> None:
                     structure does not match the expected format.
     """
     if not is_xhyh:
-        print("Validating variable mapping structure for standard output format.")
         required_keys = {
             "time",
             "u_x_coord",
@@ -3309,6 +3320,7 @@ def validate_var_mapping(var_mapping: dict, is_xhyh: bool = False) -> None:
             "eta_var_name",
             "tracer_var_names",
         }
+
     else:
         required_keys = {"time", "xh", "zl", "u", "v", "tracers", "eta"}
 
@@ -3317,11 +3329,14 @@ def validate_var_mapping(var_mapping: dict, is_xhyh: bool = False) -> None:
         raise ValueError(
             f"Missing required keys in var_map: {', '.join(sorted(missing))}"
         )
-
+    if not is_xhyh:
+        tracer_map = var_map.get("tracer_var_names")
+    else:
+        tracer_map = var_map.get("tracers")
     # Validate nested tracer variable names
-    tracer_map = var_map.get("tracer_var_names")
+
     if not isinstance(tracer_map, dict):
-        raise ValueError("Expected 'tracer_var_names' to be a dictionary.")
+        raise ValueError("Expected tracers to be a dictionary.")
 
     required_tracers = {"salt", "temp"}
     missing_tracers = required_tracers - tracer_map.keys()
