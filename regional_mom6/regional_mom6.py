@@ -1668,9 +1668,7 @@ class experiment:
             seg = segment(
                 hgrid=self.hgrid,
                 bathymetry_path=bathymetry_path,
-                infile=None,  # location of raw boundary
                 outfolder=self.mom_input_dir,
-                varnames=None,
                 segment_name="segment_{:03d}".format(
                     self.find_MOM6_rectangular_orientation(b)
                 ),
@@ -2693,13 +2691,32 @@ class segment:
         )
 
         # TODO: Check if regridding 3 times is noticeably slower on A grids (shouldn't be, the regridders are created efficiently in the first place)
-        u_regridded = regridders["u"](rawseg[reprocessed_var_map["u_var_name"]])
-        v_regridded = regridders["v"](rawseg[reprocessed_var_map["v_var_name"]])
+        u_regridded = regridders["u"](
+            rawseg[reprocessed_var_map["u_var_name"]].rename(
+                {
+                    reprocessed_var_map["u_x_coord"]: "lon",
+                    reprocessed_var_map["u_y_coord"]: "lat",
+                }
+            )
+        )
+        v_regridded = regridders["v"](
+            rawseg[reprocessed_var_map["v_var_name"]].rename(
+                {
+                    reprocessed_var_map["v_x_coord"]: "lon",
+                    reprocessed_var_map["v_y_coord"]: "lat",
+                }
+            )
+        )
         tracers_regridded = regridders["tracers"](
             rawseg[
                 [reprocessed_var_map["eta_var_name"]]
                 + list(reprocessed_var_map["tracer_var_names"].values())
-            ]
+            ].rename(
+                {
+                    reprocessed_var_map["tracer_x_coord"]: "lon",
+                    reprocessed_var_map["tracer_y_coord"]: "lat",
+                }
+            )
         )
 
         rotated_u, rotated_v = rotate(

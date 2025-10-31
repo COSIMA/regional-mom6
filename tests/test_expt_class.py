@@ -343,8 +343,8 @@ def test_rectangular_boundaries(
     )
 
     varnames = {
-        "x": "silly_lon",
-        "y": "silly_lat",
+        "xh": "silly_lon",
+        "yh": "silly_lat",
         "time": "time",
         "eta": "eta",
         "zl": "silly_depth",
