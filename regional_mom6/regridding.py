@@ -289,11 +289,14 @@ def fill_missing_data(
     elif fill == "b":
         filled = ds.bfill(dim=xdim, limit=None)
     if zdim is not None:
-        filled = filled.ffill(dim=zdim, limit=None).fillna(0)
+        if type(zdim) != list:
+            zdim = [zdim]
+            for z in zdim:
+                filled = filled.ffill(dim=z, limit=None).fillna(0)
     return filled
 
 
-def add_or_update_time_dim(ds: xr.Dataset, times) -> xr.Dataset:
+def add_or_update_time_dim(ds: xr.Dataset, times, z_dims) -> xr.Dataset:
     """
     Add the time dimension to the dataset, in tides case can be one time step.
 
@@ -320,7 +323,10 @@ def add_or_update_time_dim(ds: xr.Dataset, times) -> xr.Dataset:
 
     # Make sure time is first....
     regridding_logger.debug("Transposing time to first dimension")
-    new_dims = ["time"] + [dim for dim in ds.dims if dim != "time"]
+    if type(z_dims) != list:
+        z_dims = [z_dims]
+    other_dims = [d for d in ds.dims if d not in ["time"] + z_dims]
+    new_dims = ["time"] + z_dims + other_dims
     ds = ds.transpose(*new_dims)
 
     return ds

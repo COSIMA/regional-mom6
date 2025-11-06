@@ -1017,6 +1017,10 @@ class experiment:
         reprocessed_var_map = apply_arakawa_grid_mapping(
             var_mapping=varnames, arakawa_grid=arakawa_grid
         )
+
+        # There is a case where MARBL tracers have multiple zdims, this is not supported for initial conditions:
+        if type(reprocessed_var_map["depth_coord"]) == list:
+            reprocessed_var_map["depth_coord"] = reprocessed_var_map["depth_coord"][0]
         # Remove time dimension if present in the IC.
         # Assume that the first time dim is the intended one if more than one is present
         ic_raw = xr.open_mfdataset(raw_ic_path)
@@ -2705,12 +2709,19 @@ class segment:
         )
 
         ## Convert temperatures to celsius # use pint
+        if type(reprocessed_var_map["depth_coord"]) == list:
+            for dc in reprocessed_var_map["depth_coord"]:
+                if (
+                    dc
+                    in segment_out[reprocessed_var_map["tracer_var_names"]["temp"]].dims
+                ):  # At least one must be true
+                    depth_coord = dc
         if (
             np.nanmin(
                 segment_out[reprocessed_var_map["tracer_var_names"]["temp"]].isel(
                     {
                         reprocessed_var_map["time"]: 0,
-                        reprocessed_var_map["depth_coord"]: 0,
+                        depth_coord: 0,
                     }
                 )
             )
@@ -2739,7 +2750,9 @@ class segment:
             dims=["time"],
         )
         # This to change the time coordinate.
-        segment_out = rgd.add_or_update_time_dim(segment_out, times)
+        segment_out = rgd.add_or_update_time_dim(
+            segment_out, times, reprocessed_var_map["depth_coord"]
+        )
         segment_out.time.attrs = {
             "calendar": "julian",
             "units": f"{time_units} since {self.startdate}",
@@ -2762,15 +2775,27 @@ class segment:
             v = f"{var}_{self.segment_name}"
             ## Rename each variable in dataset
             segment_out = segment_out.rename({allfields[var]: v})
-            variable_has_depth = (
-                reprocessed_var_map["depth_coord"] in segment_out[v].dims
-            )
+
+            # Find out if the tracer has depth, and if so, what is it's z dimension (z dimension being a list is an edge case for MARBL BGC)
+            variable_has_depth = False
+            depth_coord = None
+            if type(reprocessed_var_map["depth_coord"]) != list:
+                dc_list = [reprocessed_var_map["depth_coord"]]
+            else:
+                dc_list = reprocessed_var_map["depth_coord"]
+
+            for dc in dc_list:
+                if dc in segment_out[v].dims:
+                    depth_coord = dc
+                    variable_has_depth = True
+                    break
+
             if variable_has_depth:
                 segment_out = rgd.vertical_coordinate_encoding(
                     segment_out,
                     v,
                     self.segment_name,
-                    reprocessed_var_map["depth_coord"],
+                    depth_coord,
                 )
 
             segment_out = rgd.add_secondary_dimension(
@@ -2781,7 +2806,7 @@ class segment:
                     segment_out,
                     v,
                     self.segment_name,
-                    reprocessed_var_map["depth_coord"],
+                    depth_coord,
                 )
         # Overwrite the actual lat/lon values in the dimensions, replace with incrementing integers
 
