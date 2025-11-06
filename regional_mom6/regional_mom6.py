@@ -1014,33 +1014,39 @@ class experiment:
         if regridding_method is None:
             regridding_method = self.regridding_method
 
+        reprocessed_var_map = apply_arakawa_grid_mapping(
+            var_mapping=varnames, arakawa_grid=arakawa_grid
+        )
         # Remove time dimension if present in the IC.
         # Assume that the first time dim is the intended one if more than one is present
         ic_raw = xr.open_mfdataset(raw_ic_path)
-        if varnames["time"] in ic_raw.dims:
-            ic_raw = ic_raw.isel({varnames["time"]: 0})
-        if varnames["time"] in ic_raw.coords:
-            ic_raw = ic_raw.drop(varnames["time"])
+        if reprocessed_var_map["time"] in ic_raw.dims:
+            ic_raw = ic_raw.isel({reprocessed_var_map["time"]: 0})
+        if reprocessed_var_map["time"] in ic_raw.coords:
+            ic_raw = ic_raw.drop(reprocessed_var_map["time"])
 
         # Separate out tracers from two velocity fields of IC
         try:
             ic_raw_tracers = ic_raw[
-                [varnames["tracers"][i] for i in varnames["tracers"]]
+                [
+                    reprocessed_var_map["tracer_var_names"][i]
+                    for i in reprocessed_var_map["tracer_var_names"]
+                ]
             ]
         except:
             raise ValueError(
                 "Error in reading in initial condition tracers. Terminating!"
             )
         try:
-            ic_raw_u = ic_raw[varnames["u"]]
-            ic_raw_v = ic_raw[varnames["v"]]
+            ic_raw_u = ic_raw[reprocessed_var_map["u_var_name"]]
+            ic_raw_v = ic_raw[reprocessed_var_map["v_var_name"]]
         except:
             raise ValueError(
                 "Error in reading in initial condition tracers. Terminating!"
             )
 
         try:
-            ic_raw_eta = ic_raw[varnames["eta"]]
+            ic_raw_eta = ic_raw[reprocessed_var_map["eta_var_name"]]
         except:
             raise ValueError(
                 "Error in reading in initial condition tracers. Terminating!"
@@ -1048,90 +1054,36 @@ class experiment:
 
         ## if min(temperature) > 100 then assume that units must be degrees K
         ## (otherwise we can't be on Earth) and convert to degrees C
-        if np.nanmin(ic_raw[varnames["tracers"]["temp"]]) > 100:
-            ic_raw[varnames["tracers"]["temp"]] -= 273.15
-            ic_raw[varnames["tracers"]["temp"]].attrs["units"] = "degrees Celsius"
+        if np.nanmin(ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]]) > 100:
+            ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]] -= 273.15
+            ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]].attrs[
+                "units"
+            ] = "degrees Celsius"
 
-        # Rename all coordinates to have 'lon' and 'lat' to work with the xesmf regridder
-        if arakawa_grid == "A":
-            if (
-                "xh" in varnames.keys() and "yh" in varnames.keys()
-            ):  ## Handle case where user has provided xh and yh rather than x & y
-                # Rename xh with x in dictionary
-                varnames["x"] = varnames["xh"]
-                varnames["y"] = varnames["yh"]
-
-            if "x" in varnames.keys() and "y" in varnames.keys():
-                ic_raw_tracers = ic_raw_tracers.rename(
-                    {varnames["x"]: "lon", varnames["y"]: "lat"}
-                )
-                ic_raw_u = ic_raw_u.rename({varnames["x"]: "lon", varnames["y"]: "lat"})
-                ic_raw_v = ic_raw_v.rename({varnames["x"]: "lon", varnames["y"]: "lat"})
-                ic_raw_eta = ic_raw_eta.rename(
-                    {varnames["x"]: "lon", varnames["y"]: "lat"}
-                )
-            else:
-                raise ValueError(
-                    "Can't find required coordinates in initial condition.\n\n"
-                    + "Given that arakawa_grid is 'A' the 'x' and 'y' coordinates should be provided"
-                    + "in the varnames dictionary. For example, {'x': 'lon', 'y': 'lat'}.\n\n"
-                    + "Terminating!"
-                )
-
-        if arakawa_grid == "B":
-            if (
-                "xq" in varnames.keys()
-                and "yq" in varnames.keys()
-                and "xh" in varnames.keys()
-                and "yh" in varnames.keys()
-            ):
-                ic_raw_tracers = ic_raw_tracers.rename(
-                    {varnames["xh"]: "lon", varnames["yh"]: "lat"}
-                )
-                ic_raw_eta = ic_raw_eta.rename(
-                    {varnames["xh"]: "lon", varnames["yh"]: "lat"}
-                )
-                ic_raw_u = ic_raw_u.rename(
-                    {varnames["xq"]: "lon", varnames["yq"]: "lat"}
-                )
-                ic_raw_v = ic_raw_v.rename(
-                    {varnames["xq"]: "lon", varnames["yq"]: "lat"}
-                )
-            else:
-                raise ValueError(
-                    "Can't find coordinates in initial condition.\n\n"
-                    + "Given that arakawa_grid is 'B' the names of the cell centers ('xh' & 'yh')"
-                    + "as well as the cell edges ('xq' & 'yq') coordinates should be provided in "
-                    + "the varnames dictionary. For example, {'xh': 'lonh', 'yh': 'lath', ...}.\n\n"
-                    + "Terminating!"
-                )
-        if arakawa_grid == "C":
-            if (
-                "xq" in varnames.keys()
-                and "yq" in varnames.keys()
-                and "xh" in varnames.keys()
-                and "yh" in varnames.keys()
-            ):
-                ic_raw_tracers = ic_raw_tracers.rename(
-                    {varnames["xh"]: "lon", varnames["yh"]: "lat"}
-                )
-                ic_raw_eta = ic_raw_eta.rename(
-                    {varnames["xh"]: "lon", varnames["yh"]: "lat"}
-                )
-                ic_raw_u = ic_raw_u.rename(
-                    {varnames["xq"]: "lon", varnames["yh"]: "lat"}
-                )
-                ic_raw_v = ic_raw_v.rename(
-                    {varnames["xh"]: "lon", varnames["yq"]: "lat"}
-                )
-            else:
-                raise ValueError(
-                    "Can't find coordinates in initial condition.\n\n"
-                    + "Given that arakawa_grid is 'C' the names of the cell centers ('xh' & 'yh')"
-                    + "as well as the cell edges ('xq' & 'yq') coordinates should be provided in "
-                    + "in the varnames dictionary. For example, {'xh': 'lonh', 'yh': 'lath', ...}.\n\n"
-                    + "Terminating!"
-                )
+        ic_raw_tracers = ic_raw_tracers.rename(
+            {
+                reprocessed_var_map["tracer_x_coord"]: "lon",
+                reprocessed_var_map["tracer_y_coord"]: "lat",
+            }
+        )
+        ic_raw_eta = ic_raw_eta.rename(
+            {
+                reprocessed_var_map["tracer_x_coord"]: "lon",
+                reprocessed_var_map["tracer_y_coord"]: "lat",
+            }
+        )
+        ic_raw_u = ic_raw_u.rename(
+            {
+                reprocessed_var_map["u_x_coord"]: "lon",
+                reprocessed_var_map["u_y_coord"]: "lat",
+            }
+        )
+        ic_raw_v = ic_raw_v.rename(
+            {
+                reprocessed_var_map["v_x_coord"]: "lon",
+                reprocessed_var_map["v_y_coord"]: "lat",
+            }
+        )
 
         # NaNs might be here from the land mask of the model that the IC has come from.
         # If they're not removed then the coastlines from this other grid will be retained!
@@ -1143,7 +1095,7 @@ class experiment:
             .bfill("lon")
             .ffill("lat")
             .bfill("lat")
-            .ffill(varnames["zl"])
+            .ffill(reprocessed_var_map["depth_coord"])
         )
 
         ic_raw_u = (
@@ -1152,7 +1104,7 @@ class experiment:
             .bfill("lon")
             .ffill("lat")
             .bfill("lat")
-            .ffill(varnames["zl"])
+            .ffill(reprocessed_var_map["depth_coord"])
         )
 
         ic_raw_v = (
@@ -1161,7 +1113,7 @@ class experiment:
             .bfill("lon")
             .ffill("lat")
             .bfill("lat")
-            .ffill(varnames["zl"])
+            .ffill(reprocessed_var_map["depth_coord"])
         )
 
         ic_raw_eta = (
@@ -1190,10 +1142,7 @@ class experiment:
         )
         regridder_t = rgd.create_regridder(
             ic_raw_tracers, tgrid, locstream_out=False, method=regridding_method
-        )  # Doesn't need to be rotated, so we can regrid to just tracers
-
-        # ugrid= rgd.get_hgrid_arakawa_c_points(self.hgrid, "u").rename({"ulon": "lon", "ulat": "lat"}).set_coords(["lat", "lon"])
-        # vgrid = rgd.get_hgrid_arakawa_c_points(self.hgrid, "v").rename({"vlon": "lon", "vlat": "lat"}).set_coords(["lat", "lon"])
+        )
 
         ## Construct the cell centre grid for tracers (xh, yh).
         print("Setting up Initial Conditions")
@@ -1225,10 +1174,20 @@ class experiment:
         vel_out = xr.merge(
             [
                 rotated_u.rename(
-                    {"lon": "xq", "lat": "yh", "nyp": "ny", varnames["zl"]: "zl"}
+                    {
+                        "lon": "xq",
+                        "lat": "yh",
+                        "nyp": "ny",
+                        reprocessed_var_map["depth_coord"]: "zl",
+                    }
                 ).rename("u"),
                 rotated_v.rename(
-                    {"lon": "xh", "lat": "yq", "nxp": "nx", varnames["zl"]: "zl"}
+                    {
+                        "lon": "xh",
+                        "lat": "yq",
+                        "nxp": "nx",
+                        reprocessed_var_map["depth_coord"]: "zl",
+                    }
                 ).rename("v"),
             ]
         )
@@ -1238,11 +1197,15 @@ class experiment:
         tracers_out = (
             xr.merge(
                 [
-                    regridder_t(ic_raw_tracers[varnames["tracers"][i]]).rename(i)
-                    for i in varnames["tracers"]
+                    regridder_t(
+                        ic_raw_tracers[reprocessed_var_map["tracer_var_names"][i]]
+                    ).rename(i)
+                    for i in reprocessed_var_map["tracer_var_names"]
                 ]
             )
-            .rename({"lon": "xh", "lat": "yh", varnames["zl"]: "zl"})
+            .rename(
+                {"lon": "xh", "lat": "yh", reprocessed_var_map["depth_coord"]: "zl"}
+            )
             .transpose("zl", "ny", "nx")
         )
 
@@ -1275,13 +1238,15 @@ class experiment:
         vel_out.yq.attrs = ic_raw_v.lat.attrs
         vel_out.yh.attrs = ic_raw_u.lat.attrs
         vel_out.yh.attrs = ic_raw_v.lon.attrs
-        vel_out.zl.attrs = ic_raw_u[varnames["zl"]].attrs
+        vel_out.zl.attrs = ic_raw_u[reprocessed_var_map["depth_coord"]].attrs
 
         tracers_out.xh.attrs = ic_raw_tracers.lon.attrs
         tracers_out.yh.attrs = ic_raw_tracers.lat.attrs
-        tracers_out.zl.attrs = ic_raw_tracers[varnames["zl"]].attrs
-        for i in varnames["tracers"]:
-            tracers_out[i].attrs = ic_raw_tracers[varnames["tracers"][i]].attrs
+        tracers_out.zl.attrs = ic_raw_tracers[reprocessed_var_map["depth_coord"]].attrs
+        for i in reprocessed_var_map["tracer_var_names"]:
+            tracers_out[i].attrs = ic_raw_tracers[
+                reprocessed_var_map["tracer_var_names"][i]
+            ].attrs
 
         eta_out.xh.attrs = ic_raw_tracers.lon.attrs
         eta_out.yh.attrs = ic_raw_tracers.lat.attrs
