@@ -1110,28 +1110,45 @@ class experiment:
 
         # If the input data is on a curvilinear grid, the lat/lon values are a different dimension name then the variable dims (think velocity(depth, time, x,y) and lat(x,y))
         # So check if a lon/lat coord is specified for u, v, & tracers which is different than an x or y coord in each regridding (because regridding needs the lat/lon)
+        # If there isn't a lon/lat coord, use the x/y coord
         if "u_lat_coord" in reprocessed_var_map:
-            ic_raw_u = ic_raw_u.rename(
-                {
-                    reprocessed_var_map["u_lat_coord"]: "lat",
-                    reprocessed_var_map["u_lon_coord"]: "lon",
-                }
-            )
+            lat_coord = reprocessed_var_map["u_lat_coord"]
+            lon_coord = reprocessed_var_map["u_lon_coord"]
+        else:
+            lat_coord = reprocessed_var_map["u_y_coord"]
+            lon_coord = reprocessed_var_map["u_x_coord"]
+        ic_raw_u = ic_raw_u.rename(
+            {
+                lat_coord: "lat",
+                lon_coord: "lon",
+            }
+        )
 
         if "v_lat_coord" in reprocessed_var_map:
-            ic_raw_v = ic_raw_v.rename(
-                {
-                    reprocessed_var_map["v_lat_coord"]: "lat",
-                    reprocessed_var_map["v_lon_coord"]: "lon",
-                }
-            )
+            lat_coord = reprocessed_var_map["v_lat_coord"]
+            lon_coord = reprocessed_var_map["v_lon_coord"]
+        else:
+            lat_coord = reprocessed_var_map["v_y_coord"]
+            lon_coord = reprocessed_var_map["v_x_coord"]
+        ic_raw_v = ic_raw_v.rename(
+            {
+                lat_coord: "lat",
+                lon_coord: "lon",
+            }
+        )
         if "tracer_lat_coord" in reprocessed_var_map:
-            ic_raw_tracers = ic_raw_tracers.rename(
-                {
-                    reprocessed_var_map["tracer_lat_coord"]: "lat",
-                    reprocessed_var_map["tracer_lon_coord"]: "lon",
-                }
-            )
+            lat_coord = reprocessed_var_map["tracer_lat_coord"]
+            lon_coord = reprocessed_var_map["tracer_lon_coord"]
+        else:
+            lat_coord = reprocessed_var_map["tracer_y_coord"]
+            lon_coord = reprocessed_var_map["tracer_x_coord"]
+        ic_raw_tracers = ic_raw_tracers.rename(
+            {
+                lat_coord: "lat",
+                lon_coord: "lon",
+            }
+        )
+
         self.hgrid["lon"] = self.hgrid["x"]
         self.hgrid["lat"] = self.hgrid["y"]
         tgrid = (
