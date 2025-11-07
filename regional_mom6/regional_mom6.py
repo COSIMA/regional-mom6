@@ -1109,43 +1109,26 @@ class experiment:
         )
 
         # If the input data is on a curvilinear grid, the lat/lon values are a different dimension name then the variable dims (think velocity(depth, time, x,y) and lat(x,y))
-        # So check if a lon/lat coord is specified for u, v, & tracers which is different than an x or y coord in each regridding (because regridding needs the lat/lon)
-        # If there isn't a lon/lat coord, use the x/y coord
-        if "u_lat_coord" in reprocessed_var_map:
-            lat_coord = reprocessed_var_map["u_lat_coord"]
-            lon_coord = reprocessed_var_map["u_lon_coord"]
-        else:
-            lat_coord = reprocessed_var_map["u_y_coord"]
-            lon_coord = reprocessed_var_map["u_x_coord"]
+        # So use lon/lat coord is specified for u, v, & tracers which is different than an x or y coord in each regridding (because regridding needs the lat/lon)
+
         ic_raw_u = ic_raw_u.rename(
             {
-                lat_coord: "lat",
-                lon_coord: "lon",
+                reprocessed_var_map["u_lat_coord"]: "lat",
+                reprocessed_var_map["u_lon_coord"]: "lon",
             }
         )
 
-        if "v_lat_coord" in reprocessed_var_map:
-            lat_coord = reprocessed_var_map["v_lat_coord"]
-            lon_coord = reprocessed_var_map["v_lon_coord"]
-        else:
-            lat_coord = reprocessed_var_map["v_y_coord"]
-            lon_coord = reprocessed_var_map["v_x_coord"]
         ic_raw_v = ic_raw_v.rename(
             {
-                lat_coord: "lat",
-                lon_coord: "lon",
+                reprocessed_var_map["v_lat_coord"]: "lat",
+                reprocessed_var_map["v_lon_coord"]: "lon",
             }
         )
-        if "tracer_lat_coord" in reprocessed_var_map:
-            lat_coord = reprocessed_var_map["tracer_lat_coord"]
-            lon_coord = reprocessed_var_map["tracer_lon_coord"]
-        else:
-            lat_coord = reprocessed_var_map["tracer_y_coord"]
-            lon_coord = reprocessed_var_map["tracer_x_coord"]
+
         ic_raw_tracers = ic_raw_tracers.rename(
             {
-                lat_coord: "lat",
-                lon_coord: "lon",
+                reprocessed_var_map["tracer_lat_coord"]: "lat",
+                reprocessed_var_map["tracer_lon_coord"]: "lon",
             }
         )
 
@@ -3174,8 +3157,8 @@ def create_vt_regridders(
     regridders["tracers"] = rgd.create_regridder(
         rawseg[reprocessed_var_map["tracer_var_names"]["salt"]].rename(
             {
-                reprocessed_var_map["tracer_x_coord"]: "lon",
-                reprocessed_var_map["tracer_y_coord"]: "lat",
+                reprocessed_var_map["tracer_lon_coord"]: "lon",
+                reprocessed_var_map["tracer_lat_coord"]: "lat",
             }
         ),
         coords,
@@ -3187,8 +3170,8 @@ def create_vt_regridders(
         regridders["u"] = rgd.create_regridder(
             rawseg[reprocessed_var_map["u_var_name"]].rename(
                 {
-                    reprocessed_var_map["u_x_coord"]: "lon",
-                    reprocessed_var_map["u_y_coord"]: "lat",
+                    reprocessed_var_map["u_lon_coord"]: "lon",
+                    reprocessed_var_map["u_lat_coord"]: "lat",
                 }
             ),
             coords,
@@ -3202,8 +3185,8 @@ def create_vt_regridders(
         regridders["v"] = rgd.create_regridder(
             rawseg[reprocessed_var_map["v_var_name"]].rename(
                 {
-                    reprocessed_var_map["v_x_coord"]: "lon",
-                    reprocessed_var_map["v_y_coord"]: "lat",
+                    reprocessed_var_map["v_lon_coord"]: "lon",
+                    reprocessed_var_map["v_lat_coord"]: "lat",
                 }
             ),
             coords,
@@ -3244,6 +3227,12 @@ def apply_arakawa_grid_mapping(var_mapping: dict, arakawa_grid: str = None) -> d
                 - ``v_y_coord``
                 - ``tracer_x_coord``
                 - ``tracer_y_coord``
+                - ``u_lon_coord``
+                - ``u_lat_coord``
+                - ``v_lon_coord``
+                - ``v_lat_coord``
+                - ``tracer_lon_coord``
+                - ``tracer_lat_coord``
                 - ``depth_coord``
                 - ``u_var_name``
                 - ``v_var_name``
@@ -3314,6 +3303,17 @@ def apply_arakawa_grid_mapping(var_mapping: dict, arakawa_grid: str = None) -> d
             reprocessed_var_map["u_y_coord"] = var_mapping["yh"]
             reprocessed_var_map["v_x_coord"] = var_mapping["xh"]
             reprocessed_var_map["v_y_coord"] = var_mapping["yq"]
+
+        # Because curvilinear grids will have different x.y versus lat/lon but this version of the var_mapping assumes they are rectilinear, we set the
+        # x/y coord to lon/lat
+        # If you did want to use curvilinear in/out data, you would not use this xh/yh version of the var mapping and instead use the reprocessed variable mapping, which is the if part of this if/else statement
+        reprocessed_var_map["u_lon_coord"] = reprocessed_var_map["u_x_coord"]
+        reprocessed_var_map["u_lat_coord"] = reprocessed_var_map["u_y_coord"]
+        reprocessed_var_map["v_lon_coord"] = reprocessed_var_map["v_x_coord"]
+        reprocessed_var_map["v_lat_coord"] = reprocessed_var_map["v_y_coord"]
+        reprocessed_var_map["tracer_lon_coord"] = reprocessed_var_map["tracer_x_coord"]
+        reprocessed_var_map["tracer_lat_coord"] = reprocessed_var_map["tracer_y_coord"]
+
         # One last sanity check
         validate_var_mapping(reprocessed_var_map, is_xhyh=False)
         return reprocessed_var_map
@@ -3341,8 +3341,14 @@ def validate_var_mapping(var_map: dict, is_xhyh: bool = False) -> None:
             "u_y_coord",
             "v_x_coord",
             "v_y_coord",
+            "u_lon_coord",
+            "u_lat_coord",
+            "v_lon_coord",
+            "v_lat_coord",
             "tracer_x_coord",
             "tracer_y_coord",
+            "tracer_lon_coord",
+            "tracer_lat_coord",
             "depth_coord",
             "u_var_name",
             "v_var_name",
