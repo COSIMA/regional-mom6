@@ -2730,6 +2730,7 @@ class segment:
         )
 
         ## Convert temperatures to celsius # use pint
+        depth_coord = reprocessed_var_map["depth_coord"]
         if type(reprocessed_var_map["depth_coord"]) == list:
             for dc in reprocessed_var_map["depth_coord"]:
                 if (
