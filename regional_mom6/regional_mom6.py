@@ -1017,13 +1017,15 @@ class experiment:
         reprocessed_var_map = apply_arakawa_grid_mapping(
             var_mapping=varnames, arakawa_grid=arakawa_grid
         )
+        ic_raw = xr.open_mfdataset(raw_ic_path)
 
         # There is a case where MARBL tracers have multiple zdims, this is not supported for initial conditions:
         if type(reprocessed_var_map["depth_coord"]) == list:
             reprocessed_var_map["depth_coord"] = reprocessed_var_map["depth_coord"][0]
+
         # Remove time dimension if present in the IC.
         # Assume that the first time dim is the intended one if more than one is present
-        ic_raw = xr.open_mfdataset(raw_ic_path)
+
         if reprocessed_var_map["time"] in ic_raw.dims:
             ic_raw = ic_raw.isel({reprocessed_var_map["time"]: 0})
         if reprocessed_var_map["time"] in ic_raw.coords:
@@ -1063,71 +1065,73 @@ class experiment:
             ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]].attrs[
                 "units"
             ] = "degrees Celsius"
-
-        ic_raw_tracers = ic_raw_tracers.rename(
-            {
-                reprocessed_var_map["tracer_x_coord"]: "lon",
-                reprocessed_var_map["tracer_y_coord"]: "lat",
-            }
-        )
-        ic_raw_eta = ic_raw_eta.rename(
-            {
-                reprocessed_var_map["tracer_x_coord"]: "lon",
-                reprocessed_var_map["tracer_y_coord"]: "lat",
-            }
-        )
-        ic_raw_u = ic_raw_u.rename(
-            {
-                reprocessed_var_map["u_x_coord"]: "lon",
-                reprocessed_var_map["u_y_coord"]: "lat",
-            }
-        )
-        ic_raw_v = ic_raw_v.rename(
-            {
-                reprocessed_var_map["v_x_coord"]: "lon",
-                reprocessed_var_map["v_y_coord"]: "lat",
-            }
-        )
-
         # NaNs might be here from the land mask of the model that the IC has come from.
         # If they're not removed then the coastlines from this other grid will be retained!
         # The land mask comes from the bathymetry file, so we don't need NaNs
         # to tell MOM6 where the land is.
         ic_raw_tracers = (
-            ic_raw_tracers.interpolate_na("lon", method="linear")
-            .ffill("lon")
-            .bfill("lon")
-            .ffill("lat")
-            .bfill("lat")
+            ic_raw_tracers.interpolate_na(
+                reprocessed_var_map["tracer_x_coord"], method="linear"
+            )
+            .ffill(reprocessed_var_map["tracer_x_coord"])
+            .bfill(reprocessed_var_map["tracer_x_coord"])
+            .ffill(reprocessed_var_map["tracer_y_coord"])
+            .bfill(reprocessed_var_map["tracer_y_coord"])
             .ffill(reprocessed_var_map["depth_coord"])
         )
 
         ic_raw_u = (
-            ic_raw_u.interpolate_na("lon", method="linear")
-            .ffill("lon")
-            .bfill("lon")
-            .ffill("lat")
-            .bfill("lat")
+            ic_raw_u.interpolate_na(reprocessed_var_map["u_x_coord"], method="linear")
+            .ffill(reprocessed_var_map["u_x_coord"])
+            .bfill(reprocessed_var_map["u_x_coord"])
+            .ffill(reprocessed_var_map["u_y_coord"])
+            .bfill(reprocessed_var_map["u_y_coord"])
             .ffill(reprocessed_var_map["depth_coord"])
         )
 
         ic_raw_v = (
-            ic_raw_v.interpolate_na("lon", method="linear")
-            .ffill("lon")
-            .bfill("lon")
-            .ffill("lat")
-            .bfill("lat")
+            ic_raw_v.interpolate_na(reprocessed_var_map["v_x_coord"], method="linear")
+            .ffill(reprocessed_var_map["v_x_coord"])
+            .bfill(reprocessed_var_map["v_x_coord"])
+            .ffill(reprocessed_var_map["v_y_coord"])
+            .bfill(reprocessed_var_map["v_y_coord"])
             .ffill(reprocessed_var_map["depth_coord"])
         )
 
         ic_raw_eta = (
-            ic_raw_eta.interpolate_na("lon", method="linear")
-            .ffill("lon")
-            .bfill("lon")
-            .ffill("lat")
-            .bfill("lat")
+            ic_raw_eta.interpolate_na(
+                reprocessed_var_map["tracer_x_coord"], method="linear"
+            )
+            .ffill(reprocessed_var_map["tracer_x_coord"])
+            .bfill(reprocessed_var_map["tracer_x_coord"])
+            .ffill(reprocessed_var_map["tracer_y_coord"])
+            .bfill(reprocessed_var_map["tracer_y_coord"])
         )
 
+        # If the input data is on a curvilinear grid, the lat/lon values are a different dimension name then the variable dims (think velocity(depth, time, x,y) and lat(x,y))
+        # So check if a lon/lat coord is specified for u, v, & tracers which is different than an x or y coord in each regridding (because regridding needs the lat/lon)
+        if "u_lat_coord" in reprocessed_var_map:
+            ic_raw_u = ic_raw_u.rename(
+                {
+                    reprocessed_var_map["u_lat_coord"]: "lat",
+                    reprocessed_var_map["u_lon_coord"]: "lon",
+                }
+            )
+
+        if "v_lat_coord" in reprocessed_var_map:
+            ic_raw_v = ic_raw_v.rename(
+                {
+                    reprocessed_var_map["v_lat_coord"]: "lat",
+                    reprocessed_var_map["v_lon_coord"]: "lon",
+                }
+            )
+        if "tracer_lat_coord" in reprocessed_var_map:
+            ic_raw_tracers = ic_raw_tracers.rename(
+                {
+                    reprocessed_var_map["tracer_lat_coord"]: "lat",
+                    reprocessed_var_map["tracer_lon_coord"]: "lon",
+                }
+            )
         self.hgrid["lon"] = self.hgrid["x"]
         self.hgrid["lat"] = self.hgrid["y"]
         tgrid = (
@@ -1210,7 +1214,7 @@ class experiment:
             .rename(
                 {"lon": "xh", "lat": "yh", reprocessed_var_map["depth_coord"]: "zl"}
             )
-            .transpose("zl", "ny", "nx")
+            .transpose("zl", "ny", "nx", ...)
         )
 
         # tracers_out = tracers_out.assign_coords(
@@ -3355,7 +3359,6 @@ def validate_var_mapping(var_map: dict, is_xhyh: bool = False) -> None:
 
 def identify_arakawa_grid(var_mapping):
     """identify the arakawa grid from the variable mapping"""
-
     if (
         var_mapping["v_x_coord"] == var_mapping["u_x_coord"]
         and var_mapping["u_x_coord"] == var_mapping["tracer_x_coord"]
