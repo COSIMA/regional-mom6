@@ -26,7 +26,7 @@ from regional_mom6.utils import (
     rotate,
     find_files_by_pattern,
 )
-
+import pint_xarray
 
 warnings.filterwarnings("ignore")
 
@@ -1060,11 +1060,11 @@ class experiment:
 
         ## if min(temperature) > 100 then assume that units must be degrees K
         ## (otherwise we can't be on Earth) and convert to degrees C
+        breakpoint()
         if np.nanmin(ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]]) > 100:
-            ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]] -= 273.15
-            ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]].attrs[
-                "units"
-            ] = "degrees Celsius"
+            ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]] = ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]].quantify("kelvin")
+            ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]] = ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]].pint.to("celsius")
+            ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]] = ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]].pint.dequantify()
         # NaNs might be here from the land mask of the model that the IC has come from.
         # If they're not removed then the coastlines from this other grid will be retained!
         # The land mask comes from the bathymetry file, so we don't need NaNs
