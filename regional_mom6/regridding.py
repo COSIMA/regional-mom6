@@ -291,8 +291,8 @@ def fill_missing_data(
     if zdim is not None:
         if type(zdim) != list:
             zdim = [zdim]
-            for z in zdim:
-                filled = filled.ffill(dim=z, limit=None).fillna(0)
+        for z in zdim:
+            filled = filled.ffill(dim=z, limit=None).fillna(0)
     return filled
 
 
