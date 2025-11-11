@@ -75,6 +75,8 @@ def try_pint_convert(da, target_units, var_name=None):
                 f"Converted {var_name} from {source_units} to {target_units}"
             )
             return da_converted
+        else:
+            utils_logger.info(f"Units for {var_name} did not need to be converted")
 
     except Exception:
         # If any error occurs (bad units, missing Pint, etc.), fall back gracefully
