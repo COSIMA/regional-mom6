@@ -17,8 +17,14 @@ ureg = pint.UnitRegistry(
     force_ndarray_like=True
 )  # The force option is required for pint_xarray
 
-file_path_1 = Path(importlib.resources.files("regional_mom6")/ "regional_mom6"/ "rm6_unit_defs.txt" )
-file_path_2 = Path(importlib.resources.files("regional_mom6").parent/ "regional_mom6"/ "rm6_unit_defs.txt" )
+file_path_1 = Path(
+    importlib.resources.files("regional_mom6") / "regional_mom6" / "rm6_unit_defs.txt"
+)
+file_path_2 = Path(
+    importlib.resources.files("regional_mom6").parent
+    / "regional_mom6"
+    / "rm6_unit_defs.txt"
+)
 
 # Then we append the new definitions
 try:
