@@ -6,31 +6,17 @@ from regional_mom6 import regridding as rgd
 from pathlib import Path
 import pint
 import pint_xarray
-
+import importlib.resources
 # from pint_xarray.errors import PintExceptionGroup # This is only supported when pint_xarray is 0.6.0, which is not currently supported in the CI
-from pathlib import Path
 
 # Handle Unit Registry (only done once)
-
-# Create Registry
 ureg = pint.UnitRegistry(
     force_ndarray_like=True
 )  # The force option is required for pint_xarray
 
-file_path_1 = Path(
-    importlib.resources.files("regional_mom6") / "regional_mom6" / "rm6_unit_defs.txt"
-)
-file_path_2 = Path(
-    importlib.resources.files("regional_mom6").parent
-    / "regional_mom6"
-    / "rm6_unit_defs.txt"
-)
-
-# Then we append the new definitions
-try:
-    ureg.load_definitions(file_path_1)
-except:
-    ureg.load_definitions(file_path_2)
+# Open the unit definitions file from the package safely
+with importlib.resources.open_text("regional_mom6", "rm6_unit_defs.txt") as f:
+    ureg.load_definitions(f)
 
 
 def try_pint_convert(da, target_units, var_name=None):
