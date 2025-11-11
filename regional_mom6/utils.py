@@ -7,6 +7,17 @@ from pathlib import Path
 import pint
 import pint_xarray
 from pint_xarray.errors import PintExceptionGroup
+from pathlib import Path
+
+# Handle Unit Registry (only done once)
+
+# Create Registry
+ureg = pint.UnitRegistry(
+    force_ndarray_like=True
+)  # The force option is required for pint_xarray
+
+# Then we append the new definitions
+ureg.load_definitions(Path(__file__).parent / "rm6_unit_defs.txt")
 
 
 def try_pint_convert(da, target_units, var_name=None):
@@ -21,8 +32,16 @@ def try_pint_convert(da, target_units, var_name=None):
         if not source_units:
             raise ValueError(f"DataArray 'var_name' has no units; cannot quantify.")
         if not isinstance(da.data, pint.Quantity):
-            da_quantified = da.pint.quantify()
-
+            try:
+                da_quantified = da.pint.quantify(unit_registry=ureg)
+            except PintExceptionGroup as ex_group:
+                # Each exception corresponds to a variable, coord, or dimension that failed
+                print(
+                    f"PintExceptionGroup: could not quantify some elements of {var_name}"
+                )
+                for idx, exc in enumerate(ex_group.exceptions):
+                    print(f"  Sub-exception {idx+1}: {exc}")
+                raise ex_group
         if source_units != target_units:
             da_converted = da_quantified.pint.to(target_units).pint.dequantify()
             utils_logger.warning(
@@ -32,7 +51,7 @@ def try_pint_convert(da, target_units, var_name=None):
     except Exception:
         # If quantification fails (bad units, etc.), just return original
         utils_logger.warning(
-            f"regional_mom6 did not detect pint for data array {var_name}"
+            f"regional_mom6 could not use pint for data array {var_name}"
         )
 
     return da

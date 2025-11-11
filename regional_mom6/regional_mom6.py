@@ -27,8 +27,6 @@ from regional_mom6.utils import (
     find_files_by_pattern,
     try_pint_convert,
 )
-import pint
-import pint_xarray
 
 warnings.filterwarnings("ignore")
 
@@ -1026,6 +1024,23 @@ class experiment:
         # There is a case where MARBL tracers have multiple zdims, this is not supported for initial conditions:
         if type(reprocessed_var_map["depth_coord"]) == list:
             reprocessed_var_map["depth_coord"] = reprocessed_var_map["depth_coord"][0]
+
+        # Convert zdim if possible & needed
+        ic_raw[reprocessed_var_map["depth_coord"]] = try_pint_convert(
+            ic_raw[reprocessed_var_map["depth_coord"]],
+            "m",
+            reprocessed_var_map["depth_coord"],
+        )
+
+        # Convert values
+        for var in main_field_target_units:
+            if var == "temp" or var == "salt":
+                value_name = reprocessed_var_map["tracer_var_names"][var]
+            else:
+                value_name = reprocessed_var_map[var + "_var_name"]
+            ic_raw[value_name] = try_pint_convert(
+                ic_raw[value_name], main_field_target_units[var], var
+            )
 
         # Remove time dimension if present in the IC.
         # Assume that the first time dim is the intended one if more than one is present
