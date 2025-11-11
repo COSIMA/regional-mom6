@@ -35,7 +35,7 @@ def try_pint_convert(da, target_units, var_name=None):
         if not isinstance(da.data, pint.Quantity):
             da_quantified = da.pint.quantify(unit_registry=ureg)
 
-            # This is only supported when pint_xarray is 0.6.0, which is not supported in the CI
+            # This is only supported when pint_xarray is 0.6.0, which is not currently supported in the CI
             # except PintExceptionGroup as ex_group:
             #     # Each exception corresponds to a variable, coord, or dimension that failed
             #     print(
