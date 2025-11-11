@@ -10,6 +10,7 @@ import importlib.resources
 
 # from pint_xarray.errors import PintExceptionGroup # This is only supported when pint_xarray is 0.6.0, which is not currently supported in the CI
 
+
 # Handle Unit Registry (only done once)
 ureg = pint.UnitRegistry(
     force_ndarray_like=True
@@ -21,39 +22,67 @@ ureg.load_definitions(unit_path)
 
 def try_pint_convert(da, target_units, var_name=None):
     """
-    Try to quantify and convert a DataArray using pint.
-    Falls back if it fails or if units are invalid.
-    Returns a plain (non-pint) DataArray.
+    Attempt to quantify and convert an xarray DataArray using Pint.
+
+    Steps:
+    1. Check if the DataArray has a 'units' attribute.
+       - If not, Pint cannot quantify it, so we raise a ValueError.
+    2. Quantify the DataArray using Pint (attach units).
+       - This converts the DataArray into a pint-aware object.
+       - If already a Pint Quantity, skip quantification.
+    3. Convert the DataArray to the target units if necessary.
+       - Uses Pint's `.to()` to perform unit conversion.
+       - Dequantify afterwards to return a plain xarray DataArray.
+    4. If any step fails (missing units, invalid units, etc.),
+       - Log a warning and return the original DataArray unchanged.
+
+    Parameters
+    ----------
+    da : xarray.DataArray
+        The DataArray to quantify and/or convert.
+    target_units : str
+        Units to convert the DataArray to.
+    var_name : str, optional
+        Name of the variable (used for logging messages).
+
+    Returns
+    -------
+    xarray.DataArray
+        A DataArray with units converted if successful; otherwise the original.
     """
     try:
-        # Attempt to pintify the dataarray
+        # Get the units string from the DataArray attributes
         source_units = da.attrs.get("units", None)
         if not source_units:
-            raise ValueError(f"DataArray 'var_name' has no units; cannot quantify.")
+            raise ValueError(f"DataArray '{var_name}' has no units; cannot quantify.")
+
+        # Only quantify if not already a Pint Quantity
         if not isinstance(da.data, pint.Quantity):
             da_quantified = da.pint.quantify(unit_registry=ureg)
 
-            # This is only supported when pint_xarray is 0.6.0, which is not currently supported in the CI
+            # code for PintExceptionGroup (not supported in current CI until we can use pint 0.6.0)
+            # Allows catching multiple quantification errors at once
             # except PintExceptionGroup as ex_group:
-            #     # Each exception corresponds to a variable, coord, or dimension that failed
-            #     print(
-            #         f"PintExceptionGroup: could not quantify some elements of {var_name}"
-            #     )
+            #     print(f"PintExceptionGroup: could not quantify some elements of {var_name}")
             #     for idx, exc in enumerate(ex_group.exceptions):
             #         print(f"  Sub-exception {idx+1}: {exc}")
             #     raise ex_group
+
+        # Convert to the target units if they differ
         if source_units != target_units:
             da_converted = da_quantified.pint.to(target_units).pint.dequantify()
             utils_logger.warning(
                 f"Converted {var_name} from {source_units} to {target_units}"
             )
             return da_converted
+
     except Exception:
-        # If quantification fails (bad units, etc.), just return original
+        # If any error occurs (bad units, missing Pint, etc.), fall back gracefully
         utils_logger.warning(
             f"regional_mom6 could not use pint for data array {var_name}"
         )
 
+    # Return the original DataArray if quantification or conversion failed
     return da
 
 
