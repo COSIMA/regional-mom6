@@ -25,7 +25,9 @@ from regional_mom6.utils import (
     ep2ap,
     rotate,
     find_files_by_pattern,
+    try_pint_convert,
 )
+import pint
 import pint_xarray
 
 warnings.filterwarnings("ignore")
@@ -39,8 +41,13 @@ __all__ = [
     "get_glorys_data",
 ]
 
-
-## Mapping Functions
+# If the array is pint possible, ensure we have the right units for main fields (eta, u, v, temp), salinity and bgc tracers are a bit more abstract and should be already in the correct units, a TODO: would be to add functionality to convert these tracers
+main_field_target_units = {
+    "eta": "m",
+    "u": "m/s",
+    "v": "m/s",
+    "temp": "degC",
+}
 
 
 def convert_to_tpxo_tidal_constituents(tidal_constituents):
@@ -75,9 +82,6 @@ def convert_to_tpxo_tidal_constituents(tidal_constituents):
         raise ValueError(f"Invalid tidal constituent: {e.args[0]}")
 
     return constituent_indices
-
-
-## Auxiliary functions
 
 
 def longitude_slicer(data, longitude_extent, longitude_coords):
@@ -1060,11 +1064,10 @@ class experiment:
 
         ## if min(temperature) > 100 then assume that units must be degrees K
         ## (otherwise we can't be on Earth) and convert to degrees C
-        breakpoint()
+
         if np.nanmin(ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]]) > 100:
-            ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]] = ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]].quantify("kelvin")
-            ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]] = ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]].pint.to("celsius")
-            ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]] = ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]].pint.dequantify()
+            ic_raw[varnames["tracers"]["temp"]] -= 273.15
+            ic_raw[varnames["tracers"]["temp"]].attrs["units"] = "degrees Celsius"
         # NaNs might be here from the land mask of the model that the IC has come from.
         # If they're not removed then the coastlines from this other grid will be retained!
         # The land mask comes from the bathymetry file, so we don't need NaNs
@@ -2653,6 +2656,13 @@ class segment:
         rawseg = xr.open_mfdataset(infile, decode_times=False, engine="netcdf4")
 
         coords = rgd.coords(self.hgrid, self.orientation, self.segment_name)
+        # Convert z coords to m if pint-enabled:
+        if type(reprocessed_var_map["depth_coord"]) != list:
+            dc_list = [reprocessed_var_map["depth_coord"]]
+        else:
+            dc_list = reprocessed_var_map["depth_coord"]
+        for dc in dc_list:
+            rawseg[dc] = try_pint_convert(rawseg[dc], "m", dc)
 
         regridders = create_vt_regridders(
             reprocessed_var_map,
@@ -2780,6 +2790,17 @@ class segment:
             v = f"{var}_{self.segment_name}"
             ## Rename each variable in dataset
             segment_out = segment_out.rename({allfields[var]: v})
+
+            if var in main_field_target_units:
+
+                # Apply raw data units if they exist
+                units = rawseg[allfields[var]].attrs.get("units")
+                if units is not None:
+                    segment_out[v].attrs["units"] = units
+
+                segment_out[v] = try_pint_convert(
+                    segment_out[v], main_field_target_units[var], var
+                )
 
             # Find out if the tracer has depth, and if so, what is it's z dimension (z dimension being a list is an edge case for MARBL BGC)
             variable_has_depth = False

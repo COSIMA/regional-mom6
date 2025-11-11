@@ -4,6 +4,38 @@ import sys
 import xarray as xr
 from regional_mom6 import regridding as rgd
 from pathlib import Path
+import pint
+import pint_xarray
+from pint_xarray.errors import PintExceptionGroup
+
+
+def try_pint_convert(da, target_units, var_name=None):
+    """
+    Try to quantify and convert a DataArray using pint.
+    Falls back if it fails or if units are invalid.
+    Returns a plain (non-pint) DataArray.
+    """
+    try:
+        # Attempt to pintify the dataarray
+        source_units = da.attrs.get("units", None)
+        if not source_units:
+            raise ValueError(f"DataArray 'var_name' has no units; cannot quantify.")
+        if not isinstance(da.data, pint.Quantity):
+            da_quantified = da.pint.quantify()
+
+        if source_units != target_units:
+            da_converted = da_quantified.pint.to(target_units).pint.dequantify()
+            utils_logger.warning(
+                f"Converted {var_name} from {source_units} to {target_units}"
+            )
+            return da_converted
+    except Exception:
+        # If quantification fails (bad units, etc.), just return original
+        utils_logger.warning(
+            f"regional_mom6 did not detect pint for data array {var_name}"
+        )
+
+    return da
 
 
 def vecdot(v1, v2):
@@ -432,3 +464,6 @@ def get_edge(ds, edge, x_name=None, y_name=None):
         return ds.isel({x_name: -1})
     if edge == "west":
         return ds.isel({x_name: 0})
+
+
+utils_logger = setup_logger(__name__, set_handler=False)
