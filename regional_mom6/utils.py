@@ -15,11 +15,8 @@ ureg = pint.UnitRegistry(
     force_ndarray_like=True
 )  # The force option is required for pint_xarray
 
-# Path to file inside package
-file_path = importlib.resources.files("regional_mom6") / "rm6_unit_defs.txt"
-file_path = Path(file_path)
-
-ureg.load_definitions(file_path)
+unit_path = Path(importlib.resources.files("regional_mom6") / "rm6_unit_defs.txt")
+ureg.load_definitions(unit_path)
 
 
 def try_pint_convert(da, target_units, var_name=None):

@@ -32,6 +32,7 @@ packages = ["regional_mom6", "regional_mom6.demos.premade_run_directories"]
 "regional_mom6.demos" = "demos"
 
 [tool.setuptools.package-data]
+"regional_mom6" = ["*.txt"]  # include rm6_unit_defs.txt here
 "regional_mom6.demos.premade_run_directories" = ["**/*"]
 
 [tool.setuptools_scm]
