@@ -6,7 +6,8 @@ from regional_mom6 import regridding as rgd
 from pathlib import Path
 import pint
 import pint_xarray
-from pint_xarray.errors import PintExceptionGroup
+
+# from pint_xarray.errors import PintExceptionGroup # This is only supported when pint_xarray is 0.6.0, which is not currently supported in the CI
 from pathlib import Path
 
 # Handle Unit Registry (only done once)
@@ -32,16 +33,17 @@ def try_pint_convert(da, target_units, var_name=None):
         if not source_units:
             raise ValueError(f"DataArray 'var_name' has no units; cannot quantify.")
         if not isinstance(da.data, pint.Quantity):
-            try:
-                da_quantified = da.pint.quantify(unit_registry=ureg)
-            except PintExceptionGroup as ex_group:
-                # Each exception corresponds to a variable, coord, or dimension that failed
-                print(
-                    f"PintExceptionGroup: could not quantify some elements of {var_name}"
-                )
-                for idx, exc in enumerate(ex_group.exceptions):
-                    print(f"  Sub-exception {idx+1}: {exc}")
-                raise ex_group
+            da_quantified = da.pint.quantify(unit_registry=ureg)
+
+            # This is only supported when pint_xarray is 0.6.0, which is not supported in the CI
+            # except PintExceptionGroup as ex_group:
+            #     # Each exception corresponds to a variable, coord, or dimension that failed
+            #     print(
+            #         f"PintExceptionGroup: could not quantify some elements of {var_name}"
+            #     )
+            #     for idx, exc in enumerate(ex_group.exceptions):
+            #         print(f"  Sub-exception {idx+1}: {exc}")
+            #     raise ex_group
         if source_units != target_units:
             da_converted = da_quantified.pint.to(target_units).pint.dequantify()
             utils_logger.warning(
