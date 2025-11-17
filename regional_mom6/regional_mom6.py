@@ -2643,6 +2643,7 @@ class segment:
         rotational_method=rot.RotationMethod.EXPAND_GRID,
         regridding_method="bilinear",
         time_units="days",
+        calendar="julian",
         fill_method=rgd.fill_missing_data,
     ):
         """
@@ -2768,25 +2769,31 @@ class segment:
             xdim=f"{coords.attrs['parallel']}_{self.segment_name}",
             zdim=reprocessed_var_map["depth_coord"],
         )
+        if "since" not in time_units:
+            times = xr.DataArray(
+                np.arange(
+                    0,  #! Indexing everything from start of experiment = simple but maybe counterintutive?
+                    segment_out[reprocessed_var_map["time"]].shape[
+                        0
+                    ],  ## Time is indexed from start date of window
+                    dtype=float,
+                ),  # Import pandas for this shouldn't be a big deal b/c it's already kinda required somewhere deep in some tree.
+                dims=["time"],
+            )
+            segment_out.time.attrs = {
+                "calendar": calendar,
+                "units": f"{time_units} since {self.startdate}",
+            }
+            # This to change the time coordinate.
+            segment_out = rgd.add_or_update_time_dim(
+                segment_out, times, reprocessed_var_map["depth_coord"]
+            )
+        else:
+            segment_out.time.attrs = {
+                "calendar": calendar,
+                "units": time_units,
+            }
 
-        times = xr.DataArray(
-            np.arange(
-                0,  #! Indexing everything from start of experiment = simple but maybe counterintutive?
-                segment_out[reprocessed_var_map["time"]].shape[
-                    0
-                ],  ## Time is indexed from start date of window
-                dtype=float,
-            ),  # Import pandas for this shouldn't be a big deal b/c it's already kinda required somewhere deep in some tree.
-            dims=["time"],
-        )
-        # This to change the time coordinate.
-        segment_out = rgd.add_or_update_time_dim(
-            segment_out, times, reprocessed_var_map["depth_coord"]
-        )
-        segment_out.time.attrs = {
-            "calendar": "julian",
-            "units": f"{time_units} since {self.startdate}",
-        }
         # Here, keep in mind that 'var' keeps track of the mom6 variable names we want, and self.tracers[var]
         # will return the name of the variable from the original data
 
@@ -2876,7 +2883,6 @@ class segment:
             encoding_dict,
             default_fill_value=1.0e20,
         )
-
         segment_out.load().to_netcdf(
             self.outfolder / f"forcing_obc_{self.segment_name}.nc",
             encoding=encoding_dict,
