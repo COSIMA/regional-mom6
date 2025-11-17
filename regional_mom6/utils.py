@@ -81,7 +81,7 @@ def try_pint_convert(da, target_units, var_name=None):
     except Exception:
         # If any error occurs (bad units, missing Pint, etc.), fall back gracefully
         utils_logger.warning(
-            f"regional_mom6 could not use pint for data array {var_name}"
+            f"regional_mom6 could not use pint for data array {var_name}, assuming it's in the correct units"
         )
 
     # Return the original DataArray if quantification or conversion failed
