@@ -1045,10 +1045,10 @@ class experiment:
         # Remove time dimension if present in the IC.
         # Assume that the first time dim is the intended one if more than one is present
 
-        if reprocessed_var_map["time"] in ic_raw.dims:
-            ic_raw = ic_raw.isel({reprocessed_var_map["time"]: 0})
-        if reprocessed_var_map["time"] in ic_raw.coords:
-            ic_raw = ic_raw.drop(reprocessed_var_map["time"])
+        if reprocessed_var_map["time_var_name"] in ic_raw.dims:
+            ic_raw = ic_raw.isel({reprocessed_var_map["time_var_name"]: 0})
+        if reprocessed_var_map["time_var_name"] in ic_raw.coords:
+            ic_raw = ic_raw.drop(reprocessed_var_map["time_var_name"])
 
         # Separate out tracers from two velocity fields of IC
         try:
@@ -2751,7 +2751,7 @@ class segment:
             np.nanmin(
                 segment_out[reprocessed_var_map["tracer_var_names"]["temp"]].isel(
                     {
-                        reprocessed_var_map["time"]: 0,
+                        reprocessed_var_map["time_var_name"]: 0,
                         depth_coord: 0,
                     }
                 )
@@ -2773,7 +2773,7 @@ class segment:
             times = xr.DataArray(
                 np.arange(
                     0,  #! Indexing everything from start of experiment = simple but maybe counterintutive?
-                    segment_out[reprocessed_var_map["time"]].shape[
+                    segment_out[reprocessed_var_map["time_var_name"]].shape[
                         0
                     ],  ## Time is indexed from start date of window
                     dtype=float,
@@ -3303,7 +3303,7 @@ def apply_arakawa_grid_mapping(var_mapping: dict, arakawa_grid: str = None) -> d
             "u_var_name": var_mapping["u"],
             "v_var_name": var_mapping["v"],
             "eta_var_name": var_mapping["eta"],
-            "time": var_mapping["time"],
+            "time_var_name": var_mapping["time"],
             "depth_coord": var_mapping["zl"],
             "tracer_var_names": {
                 "salt": var_mapping["tracers"]["salt"],
@@ -3378,7 +3378,7 @@ def validate_var_mapping(var_map: dict, is_xhyh: bool = False) -> None:
     """
     if not is_xhyh:
         required_keys = {
-            "time",
+            "time_var_name",
             "u_x_coord",
             "u_y_coord",
             "v_x_coord",
