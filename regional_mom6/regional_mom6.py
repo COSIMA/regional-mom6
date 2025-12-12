@@ -1294,8 +1294,13 @@ class experiment:
             tracers_out["zl"] = tracers_out["zl"].diff("zl")
             dz = rgd.generate_dz(tracers_out, self.z)
 
-        tracers_out = tracers_out.interp({"zl": self.vgrid.zl.values})
-        vel_out = vel_out.interp({"zl": self.vgrid.zl.values})
+        # The extrapolate arg allows the initial condition to fill beyond the range of the input data.
+        tracers_out = tracers_out.interp(
+            {"zl": self.vgrid.zl.values}, kwargs={"fill_value": "extrapolate"}
+        )
+        vel_out = vel_out.interp(
+            {"zl": self.vgrid.zl.values}, kwargs={"fill_value": "extrapolate"}
+        )
 
         print("Saving outputs... ", end="")
 
@@ -2061,6 +2066,9 @@ class experiment:
         bathymetry["depth"] = bathymetry["depth"].where(
             ~(bathymetry.depth <= self.minimum_depth), self.minimum_depth + 0.1
         )
+        bathymetry = bathymetry.fillna(
+            0
+        )  # After min_depth filtering, change the land values to zero
 
         if write_to_file:
             bathymetry.expand_dims({"ntiles": 1}).to_netcdf(
@@ -2812,8 +2820,8 @@ class segment:
                 method=regridding_method,
             )
 
-            regridded_u = regridder_uvelocity(rawseg[[self.u]])
-            regridded_v = regridder_vvelocity(rawseg[[self.v]])
+            regridded_u = regridder_uvelocity(rawseg[self.u])
+            regridded_v = regridder_vvelocity(rawseg[self.v])
 
             # See explanation of the rotational methods in the A grid section
             rotated_u, rotated_v = rotate(
