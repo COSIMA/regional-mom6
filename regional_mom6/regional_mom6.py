@@ -1016,7 +1016,7 @@ class experiment:
 
         # Remove time dimension if present in the IC.
         # Assume that the first time dim is the intended one if more than one is present
-        ic_raw = xr.open_mfdataset(raw_ic_path)
+        ic_raw = xr.open_dataset(raw_ic_path)
         if varnames["time"] in ic_raw.dims:
             ic_raw = ic_raw.isel({varnames["time"]: 0})
         if varnames["time"] in ic_raw.coords:
