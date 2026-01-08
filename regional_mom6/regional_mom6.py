@@ -2768,12 +2768,6 @@ class segment:
                 "units": time_units,
             }
 
-        # This to change the time coordinate.
-        segment_out = rgd.add_or_update_time_dim(segment_out, times)
-        segment_out.time.attrs = {
-            "calendar": calendar,
-            "units": f"{self.time_units} since {self.startdate}",
-        }
         # Here, keep in mind that 'var' keeps track of the mom6 variable names we want, and self.tracers[var]
         # will return the name of the variable from the original data
 
