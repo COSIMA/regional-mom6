@@ -2532,7 +2532,7 @@ class experiment:
             )
 
             rawdata[fname].time.attrs = {
-                "calendar": "julian",
+                "calendar": "gregorian",
                 "units": f"hours since {self.date_range[0].strftime('%Y-%m-%d %H:%M:%S')}",
             }  ## Fix up calendar to match
 
@@ -2586,7 +2586,7 @@ class segment:
 
     Data should be at daily temporal resolution, iterating upwards
     from the provided startdate. Function ignores the time metadata
-    and puts it on Julian calendar.
+    and puts it on gregorian calendar.
 
     Note:
         Only supports z-star (z*) vertical coordinate.
@@ -2643,7 +2643,7 @@ class segment:
         rotational_method=rot.RotationMethod.EXPAND_GRID,
         regridding_method="bilinear",
         time_units="days",
-        calendar="julian",
+        calendar="gregorian",
         fill_method=rgd.fill_missing_data,
     ):
         """
@@ -2689,7 +2689,6 @@ class segment:
             self.orientation,
         )
 
-        # TODO: Check if regridding 3 times is noticeably slower on A grids (shouldn't be, the regridders are created efficiently in the first place)
         u_regridded = regridders["u"](
             rawseg[reprocessed_var_map["u_var_name"]].rename(
                 {
