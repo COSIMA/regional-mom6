@@ -1025,19 +1025,11 @@ class experiment:
 
         # Remove time dimension if present in the IC.
         # Assume that the first time dim is the intended one if more than one is present
-<<<<<<< HEAD
 
         if reprocessed_var_map["time_var_name"] in ic_raw.dims:
             ic_raw = ic_raw.isel({reprocessed_var_map["time_var_name"]: 0})
         if reprocessed_var_map["time_var_name"] in ic_raw.coords:
             ic_raw = ic_raw.drop(reprocessed_var_map["time_var_name"])
-=======
-        ic_raw = xr.open_dataset(raw_ic_path)
-        if varnames["time"] in ic_raw.dims:
-            ic_raw = ic_raw.isel({varnames["time"]: 0})
-        if varnames["time"] in ic_raw.coords:
-            ic_raw = ic_raw.drop(varnames["time"])
->>>>>>> main
 
         # Separate out tracers from two velocity fields of IC
         try:
