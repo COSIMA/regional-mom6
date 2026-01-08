@@ -2543,7 +2543,7 @@ class experiment:
             )
 
             rawdata[fname].time.attrs = {
-                "calendar": "julian",
+                "calendar": "gregorian",
                 "units": f"hours since {self.date_range[0].strftime('%Y-%m-%d %H:%M:%S')}",
             }  ## Fix up calendar to match
 
@@ -2597,7 +2597,7 @@ class segment:
 
     Data should be at daily temporal resolution, iterating upwards
     from the provided startdate. Function ignores the time metadata
-    and puts it on Julian calendar.
+    and puts it on gregorian calendar.
 
     Note:
         Only supports z-star (z*) vertical coordinate.
@@ -2883,7 +2883,7 @@ class segment:
         # This to change the time coordinate.
         segment_out = rgd.add_or_update_time_dim(segment_out, times)
         segment_out.time.attrs = {
-            "calendar": "julian",
+            "calendar": "gregorian",
             "units": f"{self.time_units} since {self.startdate}",
         }
         # Here, keep in mind that 'var' keeps track of the mom6 variable names we want, and self.tracers[var]
