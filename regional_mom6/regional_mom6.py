@@ -2768,16 +2768,6 @@ class segment:
                 "units": time_units,
             }
 
-        times = xr.DataArray(
-            np.arange(
-                0,  #! Indexing everything from start of experiment = simple but maybe counterintutive?
-                segment_out[self.time].shape[
-                    0
-                ],  ## Time is indexed from start date of window
-                dtype=float,
-            ),  # Import pandas for this shouldn't be a big deal b/c it's already kinda required somewhere deep in some tree.
-            dims=["time"],
-        )
         # This to change the time coordinate.
         segment_out = rgd.add_or_update_time_dim(segment_out, times)
         segment_out.time.attrs = {
