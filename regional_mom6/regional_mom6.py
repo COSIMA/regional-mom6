@@ -1025,11 +1025,19 @@ class experiment:
 
         # Remove time dimension if present in the IC.
         # Assume that the first time dim is the intended one if more than one is present
+<<<<<<< HEAD
 
         if reprocessed_var_map["time_var_name"] in ic_raw.dims:
             ic_raw = ic_raw.isel({reprocessed_var_map["time_var_name"]: 0})
         if reprocessed_var_map["time_var_name"] in ic_raw.coords:
             ic_raw = ic_raw.drop(reprocessed_var_map["time_var_name"])
+=======
+        ic_raw = xr.open_dataset(raw_ic_path)
+        if varnames["time"] in ic_raw.dims:
+            ic_raw = ic_raw.isel({varnames["time"]: 0})
+        if varnames["time"] in ic_raw.coords:
+            ic_raw = ic_raw.drop(varnames["time"])
+>>>>>>> main
 
         # Separate out tracers from two velocity fields of IC
         try:
@@ -2514,7 +2522,7 @@ class experiment:
             )
 
             rawdata[fname].time.attrs = {
-                "calendar": "julian",
+                "calendar": "gregorian",
                 "units": f"hours since {self.date_range[0].strftime('%Y-%m-%d %H:%M:%S')}",
             }  ## Fix up calendar to match
 
@@ -2568,7 +2576,7 @@ class segment:
 
     Data should be at daily temporal resolution, iterating upwards
     from the provided startdate. Function ignores the time metadata
-    and puts it on Julian calendar.
+    and puts it on gregorian calendar.
 
     Note:
         Only supports z-star (z*) vertical coordinate.
@@ -2625,7 +2633,7 @@ class segment:
         rotational_method=rot.RotationMethod.EXPAND_GRID,
         regridding_method="bilinear",
         time_units="days",
-        calendar="julian",
+        calendar="gregorian",
         fill_method=rgd.fill_missing_data,
     ):
         """
@@ -2768,6 +2776,22 @@ class segment:
                 "units": time_units,
             }
 
+        times = xr.DataArray(
+            np.arange(
+                0,  #! Indexing everything from start of experiment = simple but maybe counterintutive?
+                segment_out[self.time].shape[
+                    0
+                ],  ## Time is indexed from start date of window
+                dtype=float,
+            ),  # Import pandas for this shouldn't be a big deal b/c it's already kinda required somewhere deep in some tree.
+            dims=["time"],
+        )
+        # This to change the time coordinate.
+        segment_out = rgd.add_or_update_time_dim(segment_out, times)
+        segment_out.time.attrs = {
+            "calendar": calendar,
+            "units": f"{self.time_units} since {self.startdate}",
+        }
         # Here, keep in mind that 'var' keeps track of the mom6 variable names we want, and self.tracers[var]
         # will return the name of the variable from the original data
 
