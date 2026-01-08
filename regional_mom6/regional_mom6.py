@@ -2664,7 +2664,6 @@ class segment:
             self.orientation,
         )
 
-        # TODO: Check if regridding 3 times is noticeably slower on A grids (shouldn't be, the regridders are created efficiently in the first place)
         u_regridded = regridders["u"](
             rawseg[reprocessed_var_map["u_var_name"]].rename(
                 {
