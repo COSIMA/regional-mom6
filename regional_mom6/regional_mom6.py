@@ -2848,6 +2848,9 @@ class segment:
             encoding_dict,
             default_fill_value=1.0e20,
         )
+        # If repeat-year forcing, add modulo coordinate
+        if self.repeat_year_forcing:
+            segment_out["time"] = segment_out["time"].assign_attrs({"modulo": " "})
         segment_out.load().to_netcdf(
             self.outfolder / f"forcing_obc_{self.segment_name}.nc",
             encoding=encoding_dict,
