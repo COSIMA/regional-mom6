@@ -114,6 +114,7 @@ def generate_silly_vt_dataset():
             ),
         }
     )
+    eastern_boundary.time.attrs = {"units":"days"}
     return eastern_boundary
 
 
