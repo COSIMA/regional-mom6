@@ -317,6 +317,7 @@ def add_or_update_time_dim(ds: xr.Dataset, times, z_dims=None) -> xr.Dataset:
 
     if "time" in ds.dims:
         regridding_logger.debug("Time already in dataset, overwriting with new values")
+        times.attrs = ds.time.attrs
         ds["time"] = times
     else:
         regridding_logger.debug("Time not in dataset, xr.Broadcasting time dimension")
