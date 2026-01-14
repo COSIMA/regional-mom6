@@ -2754,14 +2754,16 @@ class segment:
                 ),  # Import pandas for this shouldn't be a big deal b/c it's already kinda required somewhere deep in some tree.
                 dims=["time"],
             )
-            segment_out.time.attrs = {
-                "calendar": calendar,
-                "units": f"{time_units} since {self.startdate}",
-            }
+
             # This to change the time coordinate.
             segment_out = rgd.add_or_update_time_dim(
                 segment_out, times, reprocessed_var_map["depth_coord"]
             )
+
+            segment_out.time.attrs = {
+                "calendar": calendar,
+                "units": f"{time_units} since {self.startdate}",
+            }
         else:
             segment_out.time.attrs = {
                 "calendar": calendar,
