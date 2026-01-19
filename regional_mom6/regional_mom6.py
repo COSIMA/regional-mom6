@@ -144,7 +144,6 @@ def longitude_slicer(data, longitude_extent, longitude_coords):
 
         for i in range(-1, 2, 1):
             if data[lon][0] <= central_longitude + 360 * i <= data[lon][-1]:
-
                 ## Shifted version of target midpoint; e.g., could be -90 vs 270
                 ## integer i keeps track of what how many multiples of 360 we need to shift entire
                 ## grid by to match central_longitude
@@ -616,7 +615,6 @@ class experiment:
         regridding_method="bilinear",
         fill_method=rgd.fill_missing_data,
     ):
-
         # Creates an empty experiment object for testing and experienced user manipulation.
         if create_empty:
             return
@@ -839,7 +837,6 @@ class experiment:
             return "Not Found"
 
     def __getattr__(self, name):
-
         ## First, check whether the attribute is an input file
         if "segment" in name:
             try:
@@ -913,7 +910,6 @@ class experiment:
         ), "only even_spacing grid type is implemented"
 
         if self.hgrid_type == "even_spacing":
-
             # longitudes are evenly spaced based on resolution and bounds
             nx = int(
                 (self.longitude_extent[1] - self.longitude_extent[0])
@@ -1791,9 +1787,9 @@ class experiment:
 
         bathymetry_output.depth.attrs["_FillValue"] = -1e20
         bathymetry_output.depth.attrs["units"] = "meters"
-        bathymetry_output.depth.attrs["standard_name"] = (
-            "height_above_reference_ellipsoid"
-        )
+        bathymetry_output.depth.attrs[
+            "standard_name"
+        ] = "height_above_reference_ellipsoid"
         bathymetry_output.depth.attrs["long_name"] = "Elevation relative to sea level"
         bathymetry_output.depth.attrs["coordinates"] = "lon lat"
         if write_to_file:
@@ -2402,7 +2398,6 @@ class experiment:
             )
         # Tides OBC adjustments
         if with_tides:
-
             # Include internal tide forcing
             MOM_override_dict["TIDES"]["value"] = "True"
 
@@ -2546,7 +2541,9 @@ class experiment:
             if fname == "2d":
                 ## Calculate specific humidity from dewpoint temperature
                 dewpoint = 8.07131 - 1730.63 / (233.426 + rawdata["2d"]["d2m"] - 273.15)
-                humidity = (0.622 / rawdata["sp"]["sp"]) * (10**dewpoint) * 101325 / 760
+                humidity = (
+                    (0.622 / rawdata["sp"]["sp"]) * (10**dewpoint) * 101325 / 760
+                )
                 q = xr.Dataset(data_vars={"q": humidity})
 
                 q.q.attrs = {"long_name": "Specific Humidity", "units": "kg/kg"}
@@ -2824,7 +2821,6 @@ class segment:
 
             # Try Pint Conversion
             if var in main_field_target_units:
-
                 # Apply raw data units if they exist
                 units = rawseg[allfields[var]].attrs.get("units")
                 if units is not None:
@@ -3138,7 +3134,6 @@ class segment:
         ## Expand Tidal Dimensions ##
 
         for var in ds:
-
             ds = rgd.add_secondary_dimension(ds, str(var), coords, self.segment_name)
 
         ## Rename Tidal Dimensions ##
