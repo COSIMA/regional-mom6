@@ -114,6 +114,7 @@ def generate_silly_vt_dataset():
             ),
         }
     )
+    eastern_boundary.time.attrs = {"units": "days"}
     return eastern_boundary
 
 
@@ -198,7 +199,6 @@ def dummy_bathymetry_data():
 def get_temperature_dataarrays(
     longitude_extent, latitude_extent, resolution, number_vertical_layers, depth
 ):
-
     silly_lat, silly_lon, silly_depth = generate_silly_coords(
         longitude_extent, latitude_extent, resolution, depth, number_vertical_layers
     )
@@ -216,9 +216,12 @@ def get_temperature_dataarrays(
 
     nx, ny = number_of_gridpoints(longitude_extent, latitude_extent, resolution)
 
-    temp_in_C, temp_in_C_masked, temp_in_K, temp_in_K_masked = (
-        generate_temperature_arrays(nx, ny, number_vertical_layers)
-    )
+    (
+        temp_in_C,
+        temp_in_C_masked,
+        temp_in_K,
+        temp_in_K_masked,
+    ) = generate_temperature_arrays(nx, ny, number_vertical_layers)
 
     temp_C = xr.DataArray(temp_in_C, dims=dims, coords=coords)
     temp_K = xr.DataArray(temp_in_K, dims=dims, coords=coords)
@@ -259,7 +262,6 @@ def generate_silly_coords(
 
 
 def generate_temperature_arrays(nx, ny, number_vertical_layers):
-
     # temperatures close to 0 ᵒC
     temp_in_C = np.random.randn(ny, nx, number_vertical_layers)
 

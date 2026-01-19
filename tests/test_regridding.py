@@ -23,9 +23,9 @@ def test_fill_missing_data(generate_silly_vt_dataset):
     """
     ds = generate_silly_vt_dataset
     ds["temp"][0, 0, 6:10, 0] = np.nan
-
+    ds.temp.attrs = {"units": "C"}
     ds = rgd.fill_missing_data(ds, "silly_depth", fill="f")
-
+    assert ds.temp.attrs == {"units": "C"}  # Assert that attributes are retained
     assert (
         ds["temp"][0, 0, 6:10, 0] == (ds["temp"][0, 0, 5, 0])
     ).all()  # Assert if we are forward filling in time
@@ -37,15 +37,18 @@ def test_fill_missing_data(generate_silly_vt_dataset):
 
 def test_add_or_update_time_dim(generate_silly_vt_dataset):
     ds = generate_silly_vt_dataset
-    ds = rgd.add_or_update_time_dim(ds, xr.DataArray([0]))
 
+    ds = rgd.add_or_update_time_dim(ds, xr.DataArray([0]))
+    assert ds.time.attrs == {"units": "days"}  # Assert that attributes are retained
     assert ds["time"].values == [0]  # Assert time is added
     assert ds["temp"].dims[0] == "time"  # Check time is first dim
 
 
 def test_generate_dz(generate_silly_vt_dataset):
     ds = generate_silly_vt_dataset
+
     dz = rgd.generate_dz(ds, "silly_depth")
+    assert ds.time.attrs == {"units": "days"}  # Assert that attributes are retained
     z = np.linspace(0, 1000, 10)
     dz_check = np.full(z.shape, z[1] - z[0])
     assert (
@@ -60,6 +63,7 @@ def test_add_secondary_dimension(get_curvilinear_hgrid, generate_silly_vt_datase
     # N/S Boundary
     coords = rgd.coords(hgrid, "north", "segment_002")
     ds = rgd.add_secondary_dimension(ds, "temp", coords, "segment_002")
+    assert ds.time.attrs == {"units": "days"}  # Assert that attributes are retained
     assert ds["temp"].dims == (
         "silly_lat",
         "ny_segment_002",
@@ -102,7 +106,10 @@ def test_add_secondary_dimension(get_curvilinear_hgrid, generate_silly_vt_datase
 
 def test_vertical_coordinate_encoding(generate_silly_vt_dataset):
     ds = generate_silly_vt_dataset
+
     ds = rgd.vertical_coordinate_encoding(ds, "temp", "segment_002", "silly_depth")
+    assert ds.time.attrs == {"units": "days"}  # Assert that attributes are retained
+
     assert "nz_segment_002_temp" in ds["temp"].dims
     assert "nz_segment_002_temp" in ds
     assert (
@@ -114,6 +121,8 @@ def test_generate_layer_thickness(generate_silly_vt_dataset):
     ds = generate_silly_vt_dataset
     ds["temp"] = ds["temp"].transpose("time", "silly_depth", "silly_lat", "silly_lon")
     ds = rgd.generate_layer_thickness(ds, "temp", "segment_002", "silly_depth")
+    assert ds.time.attrs == {"units": "days"}  # Assert that attributes are retained
+
     assert "dz_temp" in ds
     assert ds["dz_temp"].dims == ("time", "nz_temp", "ny_segment_002", "nx_segment_002")
     assert (
@@ -228,6 +237,7 @@ def test_mask_dataset(get_curvilinear_hgrid):
     ds["temp"] = ds["temp"].expand_dims("y", axis=0)
     ds["temp"] = ds["temp"].expand_dims("nz_temp", axis=0)
     ds["temp"] = ds["temp"].expand_dims("time", axis=0)
+    ds.temp.attrs = {"units": "C"}
     fill_value = 36
     ds = rgd.mask_dataset(
         ds,
@@ -237,6 +247,7 @@ def test_mask_dataset(get_curvilinear_hgrid):
         x_dim_name="t_points_x",
         fill_value=fill_value,
     )
+    assert ds.temp.attrs == {"units": "C"}
 
     assert (
         np.isnan(ds["temp"][0, 0, 0][start_ind * 2 + 2]) == False
