@@ -102,9 +102,9 @@ def coords(
         rcoord = rcoord.rename_dims({"nxp": f"nx_{segment_name}"})
         rcoord.attrs["perpendicular"] = "ny"
         rcoord.attrs["parallel"] = "nx"
-        rcoord.attrs[
-            "axis_to_expand"
-        ] = 2  ## Need to keep track of which axis the 'main' coordinate corresponds to when re-adding the 'secondary' axis
+        rcoord.attrs["axis_to_expand"] = (
+            2  ## Need to keep track of which axis the 'main' coordinate corresponds to when re-adding the 'secondary' axis
+        )
     elif orientation == "north":
         rcoord = xr.Dataset(
             {
@@ -200,9 +200,9 @@ def get_hgrid_arakawa_c_points(hgrid: xr.Dataset, point_type="t") -> xr.Dataset:
             "{}_points_x".format(point_type): points[1],
         }
     )
-    point_dataset.attrs[
-        "description"
-    ] = "Arakawa C {}-points of supplied h-grid".format(point_type)
+    point_dataset.attrs["description"] = (
+        "Arakawa C {}-points of supplied h-grid".format(point_type)
+    )
     return point_dataset
 
 

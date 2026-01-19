@@ -28,7 +28,6 @@ from regional_mom6.utils import (
     try_pint_convert,
 )
 
-
 warnings.filterwarnings("ignore")
 
 __all__ = [
@@ -239,11 +238,9 @@ def get_glorys_data(
 
     file = open(Path(path / "get_glorys_data.sh"), "w")
 
-    lines.append(
-        f"""
+    lines.append(f"""
 copernicusmarine subset --dataset-id cmems_mod_glo_phy_my_0.083deg_P1D-m --variable so --variable thetao --variable uo --variable vo --variable zos --start-datetime {str(timerange[0]).replace(" ","T")} --end-datetime {str(timerange[1]).replace(" ","T")} --minimum-longitude {longitude_extent[0] - buffer} --maximum-longitude {longitude_extent[1] + buffer} --minimum-latitude {latitude_extent[0] - buffer} --maximum-latitude {latitude_extent[1] + buffer} --minimum-depth 0 --maximum-depth 6000 -o {str(path)} -f {segment_name}.nc\n
-"""
-    )
+""")
     file.writelines(lines)
     file.close()
     return Path(path / "get_glorys_data.sh")
@@ -1787,9 +1784,9 @@ class experiment:
 
         bathymetry_output.depth.attrs["_FillValue"] = -1e20
         bathymetry_output.depth.attrs["units"] = "meters"
-        bathymetry_output.depth.attrs[
-            "standard_name"
-        ] = "height_above_reference_ellipsoid"
+        bathymetry_output.depth.attrs["standard_name"] = (
+            "height_above_reference_ellipsoid"
+        )
         bathymetry_output.depth.attrs["long_name"] = "Elevation relative to sea level"
         bathymetry_output.depth.attrs["coordinates"] = "lon lat"
         if write_to_file:
@@ -2541,9 +2538,7 @@ class experiment:
             if fname == "2d":
                 ## Calculate specific humidity from dewpoint temperature
                 dewpoint = 8.07131 - 1730.63 / (233.426 + rawdata["2d"]["d2m"] - 273.15)
-                humidity = (
-                    (0.622 / rawdata["sp"]["sp"]) * (10**dewpoint) * 101325 / 760
-                )
+                humidity = (0.622 / rawdata["sp"]["sp"]) * (10**dewpoint) * 101325 / 760
                 q = xr.Dataset(data_vars={"q": humidity})
 
                 q.q.attrs = {"long_name": "Specific Humidity", "units": "kg/kg"}
