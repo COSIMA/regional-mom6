@@ -249,7 +249,6 @@ def test_rectangular_boundaries(
     hgrid_type,
     tmp_path,
 ):
-
     eastern_boundary = xr.Dataset(
         {
             "temp": xr.DataArray(

@@ -121,7 +121,6 @@ def modulo_around_point(x, x0, L):
     if L <= 0:
         return x
     else:
-
         # Find that boundary point x0 + L/2
         edge_indexes = np.where((x == x0 + L / 2))
 
