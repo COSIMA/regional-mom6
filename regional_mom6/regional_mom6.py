@@ -2888,8 +2888,12 @@ class segment:
         if self.repeat_year_forcing:
             segment_out["time"] = segment_out["time"].assign_attrs({"modulo": " "})
         # Add axes to suppress annoying runtime warnings
-        segment_out[f"ny_{self.segment_name}"] = segment_out[f"ny_{self.segment_name}"].assign_attrs({"axis":"Y"})
-        segment_out[f"nx_{self.segment_name}"] = segment_out[f"nx_{self.segment_name}"].assign_attrs({"axis":"X"})
+        segment_out[f"ny_{self.segment_name}"] = segment_out[
+            f"ny_{self.segment_name}"
+        ].assign_attrs({"axis": "Y"})
+        segment_out[f"nx_{self.segment_name}"] = segment_out[
+            f"nx_{self.segment_name}"
+        ].assign_attrs({"axis": "X"})
         segment_out.load().to_netcdf(
             self.outfolder / f"forcing_obc_{self.segment_name}.nc",
             encoding=encoding_dict,
