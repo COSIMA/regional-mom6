@@ -28,7 +28,6 @@ from regional_mom6.utils import (
     try_pint_convert,
 )
 
-
 warnings.filterwarnings("ignore")
 
 __all__ = [
@@ -144,7 +143,6 @@ def longitude_slicer(data, longitude_extent, longitude_coords):
 
         for i in range(-1, 2, 1):
             if data[lon][0] <= central_longitude + 360 * i <= data[lon][-1]:
-
                 ## Shifted version of target midpoint; e.g., could be -90 vs 270
                 ## integer i keeps track of what how many multiples of 360 we need to shift entire
                 ## grid by to match central_longitude
@@ -240,11 +238,9 @@ def get_glorys_data(
 
     file = open(Path(path / "get_glorys_data.sh"), "w")
 
-    lines.append(
-        f"""
+    lines.append(f"""
 copernicusmarine subset --dataset-id cmems_mod_glo_phy_my_0.083deg_P1D-m --variable so --variable thetao --variable uo --variable vo --variable zos --start-datetime {str(timerange[0]).replace(" ","T")} --end-datetime {str(timerange[1]).replace(" ","T")} --minimum-longitude {longitude_extent[0] - buffer} --maximum-longitude {longitude_extent[1] + buffer} --minimum-latitude {latitude_extent[0] - buffer} --maximum-latitude {latitude_extent[1] + buffer} --minimum-depth 0 --maximum-depth 6000 -o {str(path)} -f {segment_name}.nc\n
-"""
-    )
+""")
     file.writelines(lines)
     file.close()
     return Path(path / "get_glorys_data.sh")
@@ -616,7 +612,6 @@ class experiment:
         regridding_method="bilinear",
         fill_method=rgd.fill_missing_data,
     ):
-
         # Creates an empty experiment object for testing and experienced user manipulation.
         if create_empty:
             return
@@ -839,7 +834,6 @@ class experiment:
             return "Not Found"
 
     def __getattr__(self, name):
-
         ## First, check whether the attribute is an input file
         if "segment" in name:
             try:
@@ -913,7 +907,6 @@ class experiment:
         ), "only even_spacing grid type is implemented"
 
         if self.hgrid_type == "even_spacing":
-
             # longitudes are evenly spaced based on resolution and bounds
             nx = int(
                 (self.longitude_extent[1] - self.longitude_extent[0])
@@ -2402,7 +2395,6 @@ class experiment:
             )
         # Tides OBC adjustments
         if with_tides:
-
             # Include internal tide forcing
             MOM_override_dict["TIDES"]["value"] = "True"
 
@@ -2824,7 +2816,6 @@ class segment:
 
             # Try Pint Conversion
             if var in main_field_target_units:
-
                 # Apply raw data units if they exist
                 units = rawseg[allfields[var]].attrs.get("units")
                 if units is not None:
@@ -2893,6 +2884,9 @@ class segment:
             encoding_dict,
             default_fill_value=1.0e20,
         )
+        # If repeat-year forcing, add modulo coordinate
+        if self.repeat_year_forcing:
+            segment_out["time"] = segment_out["time"].assign_attrs({"modulo": " "})
         segment_out.load().to_netcdf(
             self.outfolder / f"forcing_obc_{self.segment_name}.nc",
             encoding=encoding_dict,
@@ -3135,7 +3129,6 @@ class segment:
         ## Expand Tidal Dimensions ##
 
         for var in ds:
-
             ds = rgd.add_secondary_dimension(ds, str(var), coords, self.segment_name)
 
         ## Rename Tidal Dimensions ##

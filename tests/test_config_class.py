@@ -101,7 +101,6 @@ def test_write_config(create_expt, tmp_path):
 
 
 def test_read_config(create_expt, tmp_path):
-
     expt = create_expt
     path = tmp_path / "testing_config.json"
     Config.save_to_json(expt, path)
