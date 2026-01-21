@@ -25,8 +25,8 @@ from regional_mom6.utils import (
     ep2ap,
     rotate,
     find_files_by_pattern,
+    try_pint_convert,
 )
-
 
 warnings.filterwarnings("ignore")
 
@@ -39,6 +39,14 @@ __all__ = [
     "get_glorys_data",
 ]
 
+# If the array is pint possible, ensure we have the right units for main fields (eta, u, v, temp),
+# salinity and bgc tracers are a bit more abstract and should be already in the correct units, a TODO: would be to add functionality to convert these tracers
+main_field_target_units = {
+    "eta": "m",
+    "u": "m/s",
+    "v": "m/s",
+    "temp": "degC",
+}
 
 ## Mapping Functions
 
@@ -135,7 +143,6 @@ def longitude_slicer(data, longitude_extent, longitude_coords):
 
         for i in range(-1, 2, 1):
             if data[lon][0] <= central_longitude + 360 * i <= data[lon][-1]:
-
                 ## Shifted version of target midpoint; e.g., could be -90 vs 270
                 ## integer i keeps track of what how many multiples of 360 we need to shift entire
                 ## grid by to match central_longitude
@@ -231,11 +238,9 @@ def get_glorys_data(
 
     file = open(Path(path / "get_glorys_data.sh"), "w")
 
-    lines.append(
-        f"""
+    lines.append(f"""
 copernicusmarine subset --dataset-id cmems_mod_glo_phy_my_0.083deg_P1D-m --variable so --variable thetao --variable uo --variable vo --variable zos --start-datetime {str(timerange[0]).replace(" ","T")} --end-datetime {str(timerange[1]).replace(" ","T")} --minimum-longitude {longitude_extent[0] - buffer} --maximum-longitude {longitude_extent[1] + buffer} --minimum-latitude {latitude_extent[0] - buffer} --maximum-latitude {latitude_extent[1] + buffer} --minimum-depth 0 --maximum-depth 6000 -o {str(path)} -f {segment_name}.nc\n
-"""
-    )
+""")
     file.writelines(lines)
     file.close()
     return Path(path / "get_glorys_data.sh")
@@ -607,7 +612,6 @@ class experiment:
         regridding_method="bilinear",
         fill_method=rgd.fill_missing_data,
     ):
-
         # Creates an empty experiment object for testing and experienced user manipulation.
         if create_empty:
             return
@@ -830,7 +834,6 @@ class experiment:
             return "Not Found"
 
     def __getattr__(self, name):
-
         ## First, check whether the attribute is an input file
         if "segment" in name:
             try:
@@ -904,7 +907,6 @@ class experiment:
         ), "only even_spacing grid type is implemented"
 
         if self.hgrid_type == "even_spacing":
-
             # longitudes are evenly spaced based on resolution and bounds
             nx = int(
                 (self.longitude_extent[1] - self.longitude_extent[0])
@@ -1023,6 +1025,22 @@ class experiment:
         if type(reprocessed_var_map["depth_coord"]) == list:
             reprocessed_var_map["depth_coord"] = reprocessed_var_map["depth_coord"][0]
 
+        # Convert zdim if possible & needed
+        ic_raw[reprocessed_var_map["depth_coord"]] = try_pint_convert(
+            ic_raw[reprocessed_var_map["depth_coord"]],
+            "m",
+            reprocessed_var_map["depth_coord"],
+        )
+
+        # Convert values
+        for var in main_field_target_units:
+            if var == "temp" or var == "salt":
+                value_name = reprocessed_var_map["tracer_var_names"][var]
+            else:
+                value_name = reprocessed_var_map[var + "_var_name"]
+            ic_raw[value_name] = try_pint_convert(
+                ic_raw[value_name], main_field_target_units[var], var
+            )
         # Remove time dimension if present in the IC.
         # Assume that the first time dim is the intended one if more than one is present
 
@@ -1060,6 +1078,8 @@ class experiment:
 
         ## if min(temperature) > 100 then assume that units must be degrees K
         ## (otherwise we can't be on Earth) and convert to degrees C
+        ## Although we now attempt a pint convert, we're leaving this manual conversion in for now
+        ## just in case, as K->C is absolutely necessary, and for some inputs pint may fail where this won't.
         if np.nanmin(ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]]) > 100:
             ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]] -= 273.15
             ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]].attrs[
@@ -2377,7 +2397,6 @@ class experiment:
             )
         # Tides OBC adjustments
         if with_tides:
-
             # Include internal tide forcing
             MOM_override_dict["TIDES"]["value"] = "True"
 
@@ -2655,6 +2674,14 @@ class segment:
 
         coords = rgd.coords(self.hgrid, self.orientation, self.segment_name)
 
+        # Convert z coordinates to meters if pint-enabled
+        if type(reprocessed_var_map["depth_coord"]) != list:
+            dc_list = [reprocessed_var_map["depth_coord"]]
+        else:
+            dc_list = reprocessed_var_map["depth_coord"]
+        for dc in dc_list:
+            rawseg[dc] = try_pint_convert(rawseg[dc], "m", dc)
+
         regridders = create_vt_regridders(
             reprocessed_var_map,
             rawseg,
@@ -2788,6 +2815,17 @@ class segment:
             v = f"{var}_{self.segment_name}"
             ## Rename each variable in dataset
             segment_out = segment_out.rename({allfields[var]: v})
+
+            # Try Pint Conversion
+            if var in main_field_target_units:
+                # Apply raw data units if they exist
+                units = rawseg[allfields[var]].attrs.get("units")
+                if units is not None:
+                    segment_out[v].attrs["units"] = units
+
+                segment_out[v] = try_pint_convert(
+                    segment_out[v], main_field_target_units[var], var
+                )
 
             # Find out if the tracer has depth, and if so, what is it's z dimension (z dimension being a list is an edge case for MARBL BGC)
             variable_has_depth = False
@@ -3093,7 +3131,6 @@ class segment:
         ## Expand Tidal Dimensions ##
 
         for var in ds:
-
             ds = rgd.add_secondary_dimension(ds, str(var), coords, self.segment_name)
 
         ## Rename Tidal Dimensions ##

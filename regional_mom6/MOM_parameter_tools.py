@@ -35,7 +35,6 @@ def change_MOM_parameter(
     MOM_override_dict = read_MOM_file_as_dict("MOM_override", directory)
     original_val = "No original val"
     if not delete:
-
         if param_name in MOM_override_dict:
             original_val = MOM_override_dict[param_name]["value"]
             print(
