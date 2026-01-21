@@ -2866,7 +2866,8 @@ class segment:
         segment_out[f"{coords.attrs['parallel']}_{self.segment_name}"] = np.arange(
             segment_out[f"{coords.attrs['parallel']}_{self.segment_name}"].size
         )
-
+        segment_out[f"ny_{self.segment_name}"].attrs["axis"] = "Y"
+        segment_out[f"nx_{self.segment_name}"].attrs["axis"] = "X"
         encoding_dict = {
             "time": {"dtype": "double"},
             f"nx_{self.segment_name}": {
