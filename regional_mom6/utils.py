@@ -20,7 +20,7 @@ unit_path = Path(importlib.resources.files("regional_mom6") / "rm6_unit_defs.txt
 ureg.load_definitions(unit_path)
 
 
-def try_pint_convert(da, target_units, var_name=None, debug = False):
+def try_pint_convert(da, target_units, var_name=None, debug=False):
     """
     Attempt to quantify and convert an xarray DataArray using Pint.
 
@@ -44,7 +44,7 @@ def try_pint_convert(da, target_units, var_name=None, debug = False):
         Units to convert the DataArray to.
     var_name : str, optional
         Name of the variable (used for logging messages).
-    debug : bool, optional 
+    debug : bool, optional
         If True, print debug information about the error with subexceptions.
 
     Returns
