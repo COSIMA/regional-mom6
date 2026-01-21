@@ -1078,6 +1078,8 @@ class experiment:
 
         ## if min(temperature) > 100 then assume that units must be degrees K
         ## (otherwise we can't be on Earth) and convert to degrees C
+        ## Although we now attempt a pint convert, we're leaving this manual conversion in for now
+        ## just in case, as K->C is absolutely necessary, and for some inputs pint may fail where this won't.
         if np.nanmin(ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]]) > 100:
             ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]] -= 273.15
             ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]].attrs[
