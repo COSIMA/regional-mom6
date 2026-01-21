@@ -3,3 +3,4 @@
 # Units defs for CESM output (degrees are dimensionless, so 1)
 degrees_east = 1 
 degrees_north = 1
+degrees_N = 1

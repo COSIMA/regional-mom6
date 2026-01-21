@@ -20,7 +20,7 @@ unit_path = Path(importlib.resources.files("regional_mom6") / "rm6_unit_defs.txt
 ureg.load_definitions(unit_path)
 
 
-def try_pint_convert(da, target_units, var_name=None):
+def try_pint_convert(da, target_units, var_name=None, debug = False):
     """
     Attempt to quantify and convert an xarray DataArray using Pint.
 
@@ -44,6 +44,8 @@ def try_pint_convert(da, target_units, var_name=None):
         Units to convert the DataArray to.
     var_name : str, optional
         Name of the variable (used for logging messages).
+    debug : bool, optional 
+        If True, print debug information about the error with subexceptions.
 
     Returns
     -------
@@ -78,11 +80,18 @@ def try_pint_convert(da, target_units, var_name=None):
         else:
             utils_logger.info(f"Units for {var_name} did not need to be converted")
 
-    except Exception:
+    except Exception as e:
         # If any error occurs (bad units, missing Pint, etc.), fall back gracefully
         utils_logger.warning(
             f"regional_mom6 could not use pint for data array {var_name}, assuming it's in the correct units"
         )
+        if debug:
+            if hasattr(e, "exceptions"):
+                for i, exc in enumerate(e.exceptions):
+                    print(f"\n--- Sub-exception {i} ---")
+                    print(type(exc).__name__, exc)
+            else:
+                print(e)
 
     # Return the original DataArray if quantification or conversion failed
     return da
