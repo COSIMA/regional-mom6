@@ -28,7 +28,7 @@ import dask.array as da
 import numpy as np
 import netCDF4
 from regional_mom6.utils import setup_logger, get_edge
-from os.path import isfile
+
 
 regridding_logger = setup_logger(__name__, set_handler=False)
 
@@ -240,11 +240,15 @@ def create_regridder(
     """
     regridding_logger.info("Creating Regridder")
 
-    weights_exist = bool(outfile) and isfile(outfile)
-    if weights_exist:
+    # If outfile exists, reuse weights generated from outfile
+    if outfile is not None and Path(outfile).exists():
         regridding_logger.warning(
             f"Using existing weights file at {outfile} to save computing time. Delete weights file to regenerate weights."
         )
+        reuse_weights = True
+    else:
+        reuse_weights = False
+
     regridder = xe.Regridder(
         forcing_variables,
         output_grid,
@@ -252,8 +256,7 @@ def create_regridder(
         locstream_out=locstream_out,
         periodic=periodic,
         filename=outfile,
-        reuse_weights=weights_exist,
-        unmapped_to_nan=True,
+        reuse_weights=reuse_weights,
     )
 
     return regridder
@@ -289,21 +292,17 @@ def fill_missing_data(
     elif fill == "b":
         filled = ds.bfill(dim=xdim, limit=None)
     if zdim is not None:
-        if type(zdim) != list:
-            zdim = [zdim]
-        for z in zdim:
-            filled = filled.ffill(dim=z, limit=None).fillna(0)
+        filled = filled.ffill(dim=zdim, limit=None).fillna(0)
     return filled
 
 
-def add_or_update_time_dim(ds: xr.Dataset, times, z_dims=None) -> xr.Dataset:
+def add_or_update_time_dim(ds: xr.Dataset, times) -> xr.Dataset:
     """
     Add the time dimension to the dataset, in tides case can be one time step.
 
     Parameters:
         ds (xr.Dataset): The dataset to add the time dimension to
         times (list, np.Array, xr.DataArray): The list of times
-        z_dims (list): z dimensions must go first, if they are provided that is enforced
 
     Returns:
         (xr.Dataset): The dataset with the time dimension added
@@ -317,7 +316,6 @@ def add_or_update_time_dim(ds: xr.Dataset, times, z_dims=None) -> xr.Dataset:
 
     if "time" in ds.dims:
         regridding_logger.debug("Time already in dataset, overwriting with new values")
-        times.attrs = ds.time.attrs
         ds["time"] = times
     else:
         regridding_logger.debug("Time not in dataset, xr.Broadcasting time dimension")
@@ -325,13 +323,7 @@ def add_or_update_time_dim(ds: xr.Dataset, times, z_dims=None) -> xr.Dataset:
 
     # Make sure time is first....
     regridding_logger.debug("Transposing time to first dimension")
-    if z_dims is not None:
-        if type(z_dims) != list:
-            z_dims = [z_dims]
-        other_dims = [d for d in ds.dims if d not in ["time"] + z_dims]
-        new_dims = ["time"] + z_dims + other_dims
-    else:
-        new_dims = ["time"] + [dim for dim in ds.dims if dim != "time"]
+    new_dims = ["time"] + [dim for dim in ds.dims if dim != "time"]
     ds = ds.transpose(*new_dims)
 
     return ds

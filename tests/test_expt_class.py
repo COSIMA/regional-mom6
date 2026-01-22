@@ -187,8 +187,8 @@ def test_ocean_forcing(
     initial_cond.to_netcdf(tmp_path / "ic_unprocessed")
     initial_cond.close()
     varnames = {
-        "xh": "silly_lon",
-        "yh": "silly_lat",
+        "x": "silly_lon",
+        "y": "silly_lat",
         "time": "time",
         "eta": "eta",
         "zl": "silly_depth",
@@ -343,8 +343,8 @@ def test_rectangular_boundaries(
     )
 
     varnames = {
-        "xh": "silly_lon",
-        "yh": "silly_lat",
+        "x": "silly_lon",
+        "y": "silly_lat",
         "time": "time",
         "eta": "eta",
         "zl": "silly_depth",

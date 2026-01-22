@@ -645,45 +645,33 @@ class experiment:
         if regridding_method is None:
             regridding_method = self.regridding_method
 
-        reprocessed_var_map = apply_arakawa_grid_mapping(
-            var_mapping=varnames, arakawa_grid=arakawa_grid
-        )
-        ic_raw = xr.open_mfdataset(raw_ic_path)
-
-        # There is a case where MARBL tracers have multiple zdims, this is not supported for initial conditions:
-        if type(reprocessed_var_map["depth_coord"]) == list:
-            reprocessed_var_map["depth_coord"] = reprocessed_var_map["depth_coord"][0]
-
         # Remove time dimension if present in the IC.
         # Assume that the first time dim is the intended one if more than one is present
-
-        if reprocessed_var_map["time_var_name"] in ic_raw.dims:
-            ic_raw = ic_raw.isel({reprocessed_var_map["time_var_name"]: 0})
-        if reprocessed_var_map["time_var_name"] in ic_raw.coords:
-            ic_raw = ic_raw.drop(reprocessed_var_map["time_var_name"])
+        ic_raw = xr.open_mfdataset(raw_ic_path)
+        if varnames["time"] in ic_raw.dims:
+            ic_raw = ic_raw.isel({varnames["time"]: 0})
+        if varnames["time"] in ic_raw.coords:
+            ic_raw = ic_raw.drop(varnames["time"])
 
         # Separate out tracers from two velocity fields of IC
         try:
             ic_raw_tracers = ic_raw[
-                [
-                    reprocessed_var_map["tracer_var_names"][i]
-                    for i in reprocessed_var_map["tracer_var_names"]
-                ]
+                [varnames["tracers"][i] for i in varnames["tracers"]]
             ]
         except:
             raise ValueError(
                 "Error in reading in initial condition tracers. Terminating!"
             )
         try:
-            ic_raw_u = ic_raw[reprocessed_var_map["u_var_name"]]
-            ic_raw_v = ic_raw[reprocessed_var_map["v_var_name"]]
+            ic_raw_u = ic_raw[varnames["u"]]
+            ic_raw_v = ic_raw[varnames["v"]]
         except:
             raise ValueError(
                 "Error in reading in initial condition tracers. Terminating!"
             )
 
         try:
-            ic_raw_eta = ic_raw[reprocessed_var_map["eta_var_name"]]
+            ic_raw_eta = ic_raw[varnames["eta"]]
         except:
             raise ValueError(
                 "Error in reading in initial condition tracers. Terminating!"
@@ -691,76 +679,128 @@ class experiment:
 
         ## if min(temperature) > 100 then assume that units must be degrees K
         ## (otherwise we can't be on Earth) and convert to degrees C
-        if np.nanmin(ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]]) > 100:
-            ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]] -= 273.15
-            ic_raw[reprocessed_var_map["tracer_var_names"]["temp"]].attrs[
-                "units"
-            ] = "degrees Celsius"
+        if np.nanmin(ic_raw[varnames["tracers"]["temp"]]) > 100:
+            ic_raw[varnames["tracers"]["temp"]] -= 273.15
+            ic_raw[varnames["tracers"]["temp"]].attrs["units"] = "degrees Celsius"
+
+        # Rename all coordinates to have 'lon' and 'lat' to work with the xesmf regridder
+        if arakawa_grid == "A":
+            if (
+                "xh" in varnames.keys() and "yh" in varnames.keys()
+            ):  ## Handle case where user has provided xh and yh rather than x & y
+                # Rename xh with x in dictionary
+                varnames["x"] = varnames["xh"]
+                varnames["y"] = varnames["yh"]
+
+            if "x" in varnames.keys() and "y" in varnames.keys():
+                ic_raw_tracers = ic_raw_tracers.rename(
+                    {varnames["x"]: "lon", varnames["y"]: "lat"}
+                )
+                ic_raw_u = ic_raw_u.rename({varnames["x"]: "lon", varnames["y"]: "lat"})
+                ic_raw_v = ic_raw_v.rename({varnames["x"]: "lon", varnames["y"]: "lat"})
+                ic_raw_eta = ic_raw_eta.rename(
+                    {varnames["x"]: "lon", varnames["y"]: "lat"}
+                )
+            else:
+                raise ValueError(
+                    "Can't find required coordinates in initial condition.\n\n"
+                    + "Given that arakawa_grid is 'A' the 'x' and 'y' coordinates should be provided"
+                    + "in the varnames dictionary. For example, {'x': 'lon', 'y': 'lat'}.\n\n"
+                    + "Terminating!"
+                )
+
+        if arakawa_grid == "B":
+            if (
+                "xq" in varnames.keys()
+                and "yq" in varnames.keys()
+                and "xh" in varnames.keys()
+                and "yh" in varnames.keys()
+            ):
+                ic_raw_tracers = ic_raw_tracers.rename(
+                    {varnames["xh"]: "lon", varnames["yh"]: "lat"}
+                )
+                ic_raw_eta = ic_raw_eta.rename(
+                    {varnames["xh"]: "lon", varnames["yh"]: "lat"}
+                )
+                ic_raw_u = ic_raw_u.rename(
+                    {varnames["xq"]: "lon", varnames["yq"]: "lat"}
+                )
+                ic_raw_v = ic_raw_v.rename(
+                    {varnames["xq"]: "lon", varnames["yq"]: "lat"}
+                )
+            else:
+                raise ValueError(
+                    "Can't find coordinates in initial condition.\n\n"
+                    + "Given that arakawa_grid is 'B' the names of the cell centers ('xh' & 'yh')"
+                    + "as well as the cell edges ('xq' & 'yq') coordinates should be provided in "
+                    + "the varnames dictionary. For example, {'xh': 'lonh', 'yh': 'lath', ...}.\n\n"
+                    + "Terminating!"
+                )
+        if arakawa_grid == "C":
+            if (
+                "xq" in varnames.keys()
+                and "yq" in varnames.keys()
+                and "xh" in varnames.keys()
+                and "yh" in varnames.keys()
+            ):
+                ic_raw_tracers = ic_raw_tracers.rename(
+                    {varnames["xh"]: "lon", varnames["yh"]: "lat"}
+                )
+                ic_raw_eta = ic_raw_eta.rename(
+                    {varnames["xh"]: "lon", varnames["yh"]: "lat"}
+                )
+                ic_raw_u = ic_raw_u.rename(
+                    {varnames["xq"]: "lon", varnames["yh"]: "lat"}
+                )
+                ic_raw_v = ic_raw_v.rename(
+                    {varnames["xh"]: "lon", varnames["yq"]: "lat"}
+                )
+            else:
+                raise ValueError(
+                    "Can't find coordinates in initial condition.\n\n"
+                    + "Given that arakawa_grid is 'C' the names of the cell centers ('xh' & 'yh')"
+                    + "as well as the cell edges ('xq' & 'yq') coordinates should be provided in "
+                    + "in the varnames dictionary. For example, {'xh': 'lonh', 'yh': 'lath', ...}.\n\n"
+                    + "Terminating!"
+                )
+
         # NaNs might be here from the land mask of the model that the IC has come from.
         # If they're not removed then the coastlines from this other grid will be retained!
         # The land mask comes from the bathymetry file, so we don't need NaNs
         # to tell MOM6 where the land is.
         ic_raw_tracers = (
-            ic_raw_tracers.interpolate_na(
-                reprocessed_var_map["tracer_x_coord"], method="linear"
-            )
-            .ffill(reprocessed_var_map["tracer_x_coord"])
-            .bfill(reprocessed_var_map["tracer_x_coord"])
-            .ffill(reprocessed_var_map["tracer_y_coord"])
-            .bfill(reprocessed_var_map["tracer_y_coord"])
-            .ffill(reprocessed_var_map["depth_coord"])
+            ic_raw_tracers.interpolate_na("lon", method="linear")
+            .ffill("lon")
+            .bfill("lon")
+            .ffill("lat")
+            .bfill("lat")
+            .ffill(varnames["zl"])
         )
 
         ic_raw_u = (
-            ic_raw_u.interpolate_na(reprocessed_var_map["u_x_coord"], method="linear")
-            .ffill(reprocessed_var_map["u_x_coord"])
-            .bfill(reprocessed_var_map["u_x_coord"])
-            .ffill(reprocessed_var_map["u_y_coord"])
-            .bfill(reprocessed_var_map["u_y_coord"])
-            .ffill(reprocessed_var_map["depth_coord"])
+            ic_raw_u.interpolate_na("lon", method="linear")
+            .ffill("lon")
+            .bfill("lon")
+            .ffill("lat")
+            .bfill("lat")
+            .ffill(varnames["zl"])
         )
 
         ic_raw_v = (
-            ic_raw_v.interpolate_na(reprocessed_var_map["v_x_coord"], method="linear")
-            .ffill(reprocessed_var_map["v_x_coord"])
-            .bfill(reprocessed_var_map["v_x_coord"])
-            .ffill(reprocessed_var_map["v_y_coord"])
-            .bfill(reprocessed_var_map["v_y_coord"])
-            .ffill(reprocessed_var_map["depth_coord"])
+            ic_raw_v.interpolate_na("lon", method="linear")
+            .ffill("lon")
+            .bfill("lon")
+            .ffill("lat")
+            .bfill("lat")
+            .ffill(varnames["zl"])
         )
 
         ic_raw_eta = (
-            ic_raw_eta.interpolate_na(
-                reprocessed_var_map["tracer_x_coord"], method="linear"
-            )
-            .ffill(reprocessed_var_map["tracer_x_coord"])
-            .bfill(reprocessed_var_map["tracer_x_coord"])
-            .ffill(reprocessed_var_map["tracer_y_coord"])
-            .bfill(reprocessed_var_map["tracer_y_coord"])
-        )
-
-        # If the input data is on a curvilinear grid, the lat/lon values are a different dimension name then the variable dims (think velocity(depth, time, x,y) and lat(x,y))
-        # So use lon/lat coord is specified for u, v, & tracers which is different than an x or y coord in each regridding (because regridding needs the lat/lon)
-
-        ic_raw_u = ic_raw_u.rename(
-            {
-                reprocessed_var_map["u_lat_coord"]: "lat",
-                reprocessed_var_map["u_lon_coord"]: "lon",
-            }
-        )
-
-        ic_raw_v = ic_raw_v.rename(
-            {
-                reprocessed_var_map["v_lat_coord"]: "lat",
-                reprocessed_var_map["v_lon_coord"]: "lon",
-            }
-        )
-
-        ic_raw_tracers = ic_raw_tracers.rename(
-            {
-                reprocessed_var_map["tracer_lat_coord"]: "lat",
-                reprocessed_var_map["tracer_lon_coord"]: "lon",
-            }
+            ic_raw_eta.interpolate_na("lon", method="linear")
+            .ffill("lon")
+            .bfill("lon")
+            .ffill("lat")
+            .bfill("lat")
         )
 
         self.hgrid["lon"] = self.hgrid["x"]
@@ -781,7 +821,10 @@ class experiment:
         )
         regridder_t = rgd.create_regridder(
             ic_raw_tracers, tgrid, locstream_out=False, method=regridding_method
-        )
+        )  # Doesn't need to be rotated, so we can regrid to just tracers
+
+        # ugrid= rgd.get_hgrid_arakawa_c_points(self.hgrid, "u").rename({"ulon": "lon", "ulat": "lat"}).set_coords(["lat", "lon"])
+        # vgrid = rgd.get_hgrid_arakawa_c_points(self.hgrid, "v").rename({"vlon": "lon", "vlat": "lat"}).set_coords(["lat", "lon"])
 
         ## Construct the cell centre grid for tracers (xh, yh).
         print("Setting up Initial Conditions")
@@ -813,20 +856,10 @@ class experiment:
         vel_out = xr.merge(
             [
                 rotated_u.rename(
-                    {
-                        "lon": "xq",
-                        "lat": "yh",
-                        "nyp": "ny",
-                        reprocessed_var_map["depth_coord"]: "zl",
-                    }
+                    {"lon": "xq", "lat": "yh", "nyp": "ny", varnames["zl"]: "zl"}
                 ).rename("u"),
                 rotated_v.rename(
-                    {
-                        "lon": "xh",
-                        "lat": "yq",
-                        "nxp": "nx",
-                        reprocessed_var_map["depth_coord"]: "zl",
-                    }
+                    {"lon": "xh", "lat": "yq", "nxp": "nx", varnames["zl"]: "zl"}
                 ).rename("v"),
             ]
         )
@@ -836,16 +869,12 @@ class experiment:
         tracers_out = (
             xr.merge(
                 [
-                    regridder_t(
-                        ic_raw_tracers[reprocessed_var_map["tracer_var_names"][i]]
-                    ).rename(i)
-                    for i in reprocessed_var_map["tracer_var_names"]
+                    regridder_t(ic_raw_tracers[varnames["tracers"][i]]).rename(i)
+                    for i in varnames["tracers"]
                 ]
             )
-            .rename(
-                {"lon": "xh", "lat": "yh", reprocessed_var_map["depth_coord"]: "zl"}
-            )
-            .transpose("zl", "ny", "nx", ...)
+            .rename({"lon": "xh", "lat": "yh", varnames["zl"]: "zl"})
+            .transpose("zl", "ny", "nx")
         )
 
         # tracers_out = tracers_out.assign_coords(
@@ -877,15 +906,13 @@ class experiment:
         vel_out.yq.attrs = ic_raw_v.lat.attrs
         vel_out.yh.attrs = ic_raw_u.lat.attrs
         vel_out.yh.attrs = ic_raw_v.lon.attrs
-        vel_out.zl.attrs = ic_raw_u[reprocessed_var_map["depth_coord"]].attrs
+        vel_out.zl.attrs = ic_raw_u[varnames["zl"]].attrs
 
         tracers_out.xh.attrs = ic_raw_tracers.lon.attrs
         tracers_out.yh.attrs = ic_raw_tracers.lat.attrs
-        tracers_out.zl.attrs = ic_raw_tracers[reprocessed_var_map["depth_coord"]].attrs
-        for i in reprocessed_var_map["tracer_var_names"]:
-            tracers_out[i].attrs = ic_raw_tracers[
-                reprocessed_var_map["tracer_var_names"][i]
-            ].attrs
+        tracers_out.zl.attrs = ic_raw_tracers[varnames["zl"]].attrs
+        for i in varnames["tracers"]:
+            tracers_out[i].attrs = ic_raw_tracers[varnames["tracers"][i]].attrs
 
         eta_out.xh.attrs = ic_raw_tracers.lon.attrs
         eta_out.yh.attrs = ic_raw_tracers.lat.attrs
@@ -898,13 +925,8 @@ class experiment:
             tracers_out["zl"] = tracers_out["zl"].diff("zl")
             dz = rgd.generate_dz(tracers_out, self.z)
 
-        # The extrapolate arg allows the initial condition to fill beyond the range of the input data.
-        tracers_out = tracers_out.interp(
-            {"zl": self.vgrid.zl.values}, kwargs={"fill_value": "extrapolate"}
-        )
-        vel_out = vel_out.interp(
-            {"zl": self.vgrid.zl.values}, kwargs={"fill_value": "extrapolate"}
-        )
+        tracers_out = tracers_out.interp({"zl": self.vgrid.zl.values})
+        vel_out = vel_out.interp({"zl": self.vgrid.zl.values})
 
         print("Saving outputs... ", end="")
 
@@ -1154,17 +1176,17 @@ class experiment:
         self.segments[orientation] = segment(
             hgrid=self.hgrid,
             bathymetry_path=bathymetry_path,
+            infile=path_to_bc,  # location of raw boundary
             outfolder=self.mom_input_dir,
+            varnames=varnames,
             segment_name="segment_{:03d}".format(segment_number),
             orientation=orientation,  # orienataion
             startdate=self.date_range[0],
+            arakawa_grid=arakawa_grid,
             repeat_year_forcing=self.repeat_year_forcing,
         )
 
         self.segments[orientation].regrid_velocity_tracers(
-            infile=path_to_bc,  # location of raw boundary
-            varnames=varnames,
-            arakawa_grid=arakawa_grid,
             rotational_method=rotational_method,
             regridding_method=regridding_method,
             fill_method=fill_method,
@@ -1272,7 +1294,9 @@ class experiment:
             seg = segment(
                 hgrid=self.hgrid,
                 bathymetry_path=bathymetry_path,
+                infile=None,  # location of raw boundary
                 outfolder=self.mom_input_dir,
+                varnames=None,
                 segment_name="segment_{:03d}".format(
                     self.find_MOM6_rectangular_orientation(b)
                 ),
@@ -1843,7 +1867,7 @@ class experiment:
             )
 
             rawdata[fname].time.attrs = {
-                "calendar": "gregorian",
+                "calendar": "julian",
                 "units": f"hours since {self.date_range[0].strftime('%Y-%m-%d %H:%M:%S')}",
             }  ## Fix up calendar to match
 
@@ -1897,20 +1921,26 @@ class segment:
 
     Data should be at daily temporal resolution, iterating upwards
     from the provided startdate. Function ignores the time metadata
-    and puts it on gregorian calendar.
+    and puts it on Julian calendar.
 
     Note:
         Only supports z-star (z*) vertical coordinate.
 
     Arguments:
         hgrid (xarray.Dataset): The horizontal grid used for domain.
-
+        infile (Union[str, Path]): Path to the raw, unprocessed boundary segment.
         outfolder (Union[str, Path]): Path to folder where the model inputs will
             be stored.
+        varnames (Dict[str, str]): Mapping between the variable/dimension names and
+            standard naming convention of this pipeline, e.g., ``{"xq": "longitude,
+            "yh": "latitude", "salt": "salinity", ...}``. Key "tracers" points to nested
+            dictionary of tracers to include in boundary.
         segment_name (str): Name of the segment, e.g., ``'segment_001'``.
         orientation (str): Cardinal direction (lowercase) of the boundary segment,
             i.e., ``'east'``, ``'west'``, ``'north'``, or ``'south'``.
         startdate (str): The starting date to use in the segment calendar.
+        arakawa_grid (Optional[str]): Arakawa grid staggering type of the boundary forcing.
+                Either ``'A'`` (default), ``'B'``, or ``'C'``.
         time_units (str): The units used by the raw forcing files, e.g., ``hours``,
             ``days`` (default).
         repeat_year_forcing (Optional[bool]): When ``True`` the experiment runs with repeat-year
@@ -1921,22 +1951,61 @@ class segment:
         self,
         *,
         hgrid,
+        infile,
         outfolder,
+        varnames,
         segment_name,
         orientation,
         startdate,
         bathymetry_path=None,
+        arakawa_grid="A",
+        time_units="days",
         repeat_year_forcing=False,
     ):
+
+        ## Store coordinate names
+        if arakawa_grid == "A" and infile is not None:
+            try:
+                self.x = varnames["x"]
+                self.y = varnames["y"]
+            ## In case user continues using T point names for A grid
+            except:
+                self.x = varnames["xh"]
+                self.y = varnames["yh"]
+
+        elif arakawa_grid in ("B", "C"):
+            self.xq = varnames["xq"]
+            self.xh = varnames["xh"]
+            self.yq = varnames["yq"]
+            self.yh = varnames["yh"]
+
+        ## Store velocity names
+        if infile is not None:
+            self.u = varnames["u"]
+            self.v = varnames["v"]
+            self.z = varnames["zl"]
+            self.eta = varnames["eta"]
+            self.time = varnames["time"]
         self.startdate = startdate
+
+        ## Store tracer names
+        if infile is not None:
+            self.tracers = varnames["tracers"]
+        self.time_units = time_units
 
         ## Store other data
         orientation = orientation.lower()
         if orientation not in ("north", "south", "east", "west"):
             raise ValueError(
-                "orientation only supported for one of: 'north', 'south', 'east', or 'west'. If you are using a non-rectangular grid, please modify the code accordingly."
+                "orientation must be one of: 'north', 'south', 'east', or 'west'"
             )
         self.orientation = orientation
+
+        if arakawa_grid not in ("A", "B", "C"):
+            raise ValueError("arakawa_grid must be one of: 'A', 'B', or 'C'")
+        self.arakawa_grid = arakawa_grid
+
+        self.infile = infile
         self.outfolder = outfolder
         self.hgrid = hgrid
         try:
@@ -1948,13 +2017,8 @@ class segment:
 
     def regrid_velocity_tracers(
         self,
-        infile,
-        varnames: dict,
-        arakawa_grid="A",
         rotational_method=rot.RotationMethod.EXPAND_GRID,
         regridding_method="bilinear",
-        time_units="days",
-        calendar="gregorian",
         fill_method=rgd.fill_missing_data,
     ):
         """
@@ -1962,78 +2026,152 @@ class segment:
 
         Arguments:
             rotational_method (rot.RotationMethod): The method to use for rotation of the velocities. Currently, the default method, ``EXPAND_GRID``, works even with non-rotated grids.
-            infile (Union[str, Path]): Path to the raw, unprocessed boundary segment.
-            varnames (Dict[str, str]): Mapping between the variable/dimension names and
-            standard naming convention of this pipeline, e.g., ``{"xq": "longitude,
-            "yh": "latitude", "salt": "salinity", ...}``. Key "tracers" points to nested
-            dictionary of tracers to include in boundary.
-            arakawa_grid (Optional[str]): Arakawa grid staggering type of the boundary forcing.
-                Either ``'A'`` (default), ``'B'``, or ``'C'``.
             regridding_method (str): regridding method to use throughout the function. Default is ``'bilinear'``
             fill_method (Function): Fill method to use throughout the function. Default is ``rgd.fill_missing_data``
 
         """
-        reprocessed_var_map = apply_arakawa_grid_mapping(
-            var_mapping=varnames, arakawa_grid=arakawa_grid
-        )
 
         # Create weights directory
         (self.outfolder / "weights").mkdir(exist_ok=True)
 
-        rawseg = xr.open_mfdataset(infile, decode_times=False, engine="netcdf4")
+        rawseg = xr.open_dataset(self.infile, decode_times=False, engine="netcdf4")
 
         coords = rgd.coords(self.hgrid, self.orientation, self.segment_name)
 
-        regridders = create_vt_regridders(
-            reprocessed_var_map,
-            rawseg,
-            coords,
-            Path(self.outfolder),
-            regridding_method,
-            self.orientation,
-        )
+        if self.arakawa_grid == "A":
 
-        u_regridded = regridders["u"](
-            rawseg[reprocessed_var_map["u_var_name"]].rename(
+            rawseg = rawseg.rename({self.x: "lon", self.y: "lat"})
+            # In this case velocities and tracers all on same points
+            regridder = rgd.create_regridder(
+                rawseg[self.u],
+                coords,
+                self.outfolder
+                / f"weights/bilinear_velocity_weights_{self.orientation}.nc",
+                method=regridding_method,
+            )
+
+            regridded = regridder(
+                rawseg[
+                    [self.u, self.v, self.eta] + [self.tracers[i] for i in self.tracers]
+                ]
+            )
+
+            ## Angle Calculation & Rotation
+            rotated_u, rotated_v = rotate(
+                regridded[self.u],
+                regridded[self.v],
+                radian_angle=np.radians(
+                    rot.get_rotation_angle(
+                        rotational_method, self.hgrid, orientation=self.orientation
+                    ).values
+                ),
+            )
+
+            rotated_ds = xr.Dataset(
                 {
-                    reprocessed_var_map["u_x_coord"]: "lon",
-                    reprocessed_var_map["u_y_coord"]: "lat",
+                    self.u: rotated_u,
+                    self.v: rotated_v,
                 }
             )
-        )
-        v_regridded = regridders["v"](
-            rawseg[reprocessed_var_map["v_var_name"]].rename(
+            segment_out = xr.merge([rotated_ds, regridded.drop_vars([self.u, self.v])])
+
+        if self.arakawa_grid == "B":
+            ## All tracers on one grid, all velocities on another
+            regridder_velocity = rgd.create_regridder(
+                rawseg[self.u].rename({self.xq: "lon", self.yq: "lat"}),
+                coords,
+                self.outfolder
+                / f"weights/bilinear_velocity_weights_{self.orientation}.nc",
+                method=regridding_method,
+            )
+            regridder_tracer = rgd.create_regridder(
+                rawseg[self.tracers["salt"]].rename({self.xh: "lon", self.yh: "lat"}),
+                coords,
+                self.outfolder
+                / f"weights/bilinear_tracer_weights_{self.orientation}.nc",
+                method=regridding_method,
+            )
+
+            velocities_out = regridder_velocity(
+                rawseg[[self.u, self.v]].rename({self.xq: "lon", self.yq: "lat"})
+            )
+
+            # See explanation of the rotational methods in the A grid section
+            velocities_out["u"], velocities_out["v"] = rotate(
+                velocities_out["u"],
+                velocities_out["v"],
+                radian_angle=np.radians(
+                    rot.get_rotation_angle(
+                        rotational_method, self.hgrid, orientation=self.orientation
+                    ).values
+                ),
+            )
+
+            segment_out = xr.merge(
+                [
+                    velocities_out,
+                    regridder_tracer(
+                        rawseg[
+                            [self.eta] + [self.tracers[i] for i in self.tracers]
+                        ].rename({self.xh: "lon", self.yh: "lat"})
+                    ),
+                ]
+            )
+
+        if self.arakawa_grid == "C":
+            ## All tracers on one grid, all velocities on another
+            regridder_uvelocity = rgd.create_regridder(
+                rawseg[self.u].rename({self.xq: "lon", self.yh: "lat"}),
+                coords,
+                self.outfolder
+                / f"weights/bilinear_uvelocity_weights_{self.orientation}.nc",
+                method=regridding_method,
+            )
+
+            regridder_vvelocity = rgd.create_regridder(
+                rawseg[self.v].rename({self.xh: "lon", self.yq: "lat"}),
+                coords,
+                self.outfolder
+                / f"weights/bilinear_vvelocity_weights_{self.orientation}.nc",
+                method=regridding_method,
+            )
+
+            regridder_tracer = rgd.create_regridder(
+                rawseg[self.tracers["salt"]].rename({self.xh: "lon", self.yh: "lat"}),
+                coords,
+                self.outfolder
+                / f"weights/bilinear_tracer_weights_{self.orientation}.nc",
+                method=regridding_method,
+            )
+
+            regridded_u = regridder_uvelocity(rawseg[[self.u]])
+            regridded_v = regridder_vvelocity(rawseg[[self.v]])
+
+            # See explanation of the rotational methods in the A grid section
+            rotated_u, rotated_v = rotate(
+                regridded_u,
+                regridded_v,
+                radian_angle=np.radians(
+                    rot.get_rotation_angle(
+                        rotational_method, self.hgrid, orientation=self.orientation
+                    ).values
+                ),
+            )
+
+            rotated_ds = xr.Dataset(
                 {
-                    reprocessed_var_map["v_x_coord"]: "lon",
-                    reprocessed_var_map["v_y_coord"]: "lat",
+                    self.u: rotated_u,
+                    self.v: rotated_v,
                 }
             )
-        )
-        tracers_regridded = regridders["tracers"](
-            rawseg[
-                [reprocessed_var_map["eta_var_name"]]
-                + list(reprocessed_var_map["tracer_var_names"].values())
-            ].rename(
-                {
-                    reprocessed_var_map["tracer_x_coord"]: "lon",
-                    reprocessed_var_map["tracer_y_coord"]: "lat",
-                }
+            segment_out = xr.merge(
+                [
+                    rotated_ds,
+                    regridder_tracer(
+                        rawseg[[self.eta] + [self.tracers[i] for i in self.tracers]]
+                    ),
+                ]
             )
-        )
-
-        rotated_u, rotated_v = rotate(
-            u_regridded,
-            v_regridded,
-            radian_angle=np.radians(
-                rot.get_rotation_angle(
-                    rotational_method, self.hgrid, orientation=self.orientation
-                ).values
-            ),
-        )
-
-        rotated_u.name = reprocessed_var_map["u_var_name"]
-        rotated_v.name = reprocessed_var_map["v_var_name"]
-        segment_out = xr.merge([rotated_u, rotated_v, tracers_regridded])
 
         ## segment out now contains our interpolated boundary.
         ## Now, we need to fix up all the metadata and save
@@ -2042,71 +2180,43 @@ class segment:
         )
 
         ## Convert temperatures to celsius # use pint
-        depth_coord = reprocessed_var_map["depth_coord"]
-        if type(reprocessed_var_map["depth_coord"]) == list:
-            for dc in reprocessed_var_map["depth_coord"]:
-                if (
-                    dc
-                    in segment_out[reprocessed_var_map["tracer_var_names"]["temp"]].dims
-                ):  # At least one must be true
-                    depth_coord = dc
         if (
-            np.nanmin(
-                segment_out[reprocessed_var_map["tracer_var_names"]["temp"]].isel(
-                    {
-                        reprocessed_var_map["time_var_name"]: 0,
-                        depth_coord: 0,
-                    }
-                )
-            )
+            np.nanmin(segment_out[self.tracers["temp"]].isel({self.time: 0, self.z: 0}))
             > 100
         ):
-            segment_out[reprocessed_var_map["tracer_var_names"]["temp"]] -= 273.15
-            segment_out[reprocessed_var_map["tracer_var_names"]["temp"]].attrs[
-                "units"
-            ] = "degrees Celsius"
+            segment_out[self.tracers["temp"]] -= 273.15
+            segment_out[self.tracers["temp"]].attrs["units"] = "degrees Celsius"
 
         # fill in NaNs
         segment_out = fill_method(
             segment_out,
             xdim=f"{coords.attrs['parallel']}_{self.segment_name}",
-            zdim=reprocessed_var_map["depth_coord"],
+            zdim=self.z,
         )
-        if "since" not in time_units:
-            times = xr.DataArray(
-                np.arange(
-                    0,  #! Indexing everything from start of experiment = simple but maybe counterintutive?
-                    segment_out[reprocessed_var_map["time_var_name"]].shape[
-                        0
-                    ],  ## Time is indexed from start date of window
-                    dtype=float,
-                ),  # Import pandas for this shouldn't be a big deal b/c it's already kinda required somewhere deep in some tree.
-                dims=["time"],
-            )
 
-            # This to change the time coordinate.
-            segment_out = rgd.add_or_update_time_dim(
-                segment_out, times, reprocessed_var_map["depth_coord"]
-            )
-
-            segment_out.time.attrs = {
-                "calendar": calendar,
-                "units": f"{time_units} since {self.startdate}",
-            }
-        else:
-            segment_out.time.attrs = {
-                "calendar": calendar,
-                "units": time_units,
-            }
-
+        times = xr.DataArray(
+            np.arange(
+                0,  #! Indexing everything from start of experiment = simple but maybe counterintutive?
+                segment_out[self.time].shape[
+                    0
+                ],  ## Time is indexed from start date of window
+                dtype=float,
+            ),  # Import pandas for this shouldn't be a big deal b/c it's already kinda required somewhere deep in some tree.
+            dims=["time"],
+        )
+        # This to change the time coordinate.
+        segment_out = rgd.add_or_update_time_dim(segment_out, times)
+        segment_out.time.attrs = {
+            "calendar": "julian",
+            "units": f"{self.time_units} since {self.startdate}",
+        }
         # Here, keep in mind that 'var' keeps track of the mom6 variable names we want, and self.tracers[var]
         # will return the name of the variable from the original data
 
         allfields = {
-            **reprocessed_var_map["tracer_var_names"],
-            "u": reprocessed_var_map["u_var_name"],
-            "v": reprocessed_var_map["v_var_name"],
-            "eta": reprocessed_var_map["eta_var_name"],
+            **self.tracers,
+            "u": self.u,
+            "v": self.v,
         }  ## Combine all fields into one flattened dictionary to iterate over as we fix metadata
 
         for (
@@ -2118,38 +2228,25 @@ class segment:
             ## Rename each variable in dataset
             segment_out = segment_out.rename({allfields[var]: v})
 
-            # Find out if the tracer has depth, and if so, what is it's z dimension (z dimension being a list is an edge case for MARBL BGC)
-            variable_has_depth = False
-            depth_coord = None
-            if type(reprocessed_var_map["depth_coord"]) != list:
-                dc_list = [reprocessed_var_map["depth_coord"]]
-            else:
-                dc_list = reprocessed_var_map["depth_coord"]
-
-            for dc in dc_list:
-                if dc in segment_out[v].dims:
-                    depth_coord = dc
-                    variable_has_depth = True
-                    break
-
-            if variable_has_depth:
-                segment_out = rgd.vertical_coordinate_encoding(
-                    segment_out,
-                    v,
-                    self.segment_name,
-                    depth_coord,
-                )
+            segment_out = rgd.vertical_coordinate_encoding(
+                segment_out, v, self.segment_name, self.z
+            )
 
             segment_out = rgd.add_secondary_dimension(
                 segment_out, v, coords, self.segment_name
             )
-            if variable_has_depth:
-                segment_out = rgd.generate_layer_thickness(
-                    segment_out,
-                    v,
-                    self.segment_name,
-                    depth_coord,
-                )
+
+            segment_out = rgd.generate_layer_thickness(
+                segment_out, v, self.segment_name, self.z
+            )
+
+        ## Treat eta separately since it has no vertical coordinate. Do the same things as for the surface variables above
+        segment_out = segment_out.rename({self.eta: f"eta_{self.segment_name}"})
+
+        segment_out = rgd.add_secondary_dimension(
+            segment_out, f"eta_{self.segment_name}", coords, self.segment_name
+        )
+
         # Overwrite the actual lat/lon values in the dimensions, replace with incrementing integers
 
         segment_out[f"{coords.attrs['perpendicular']}_{self.segment_name}"] = [0]
@@ -2177,9 +2274,7 @@ class segment:
             encoding_dict,
             default_fill_value=1.0e20,
         )
-        # If repeat-year forcing, add modulo coordinate
-        if self.repeat_year_forcing:
-            segment_out["time"] = segment_out["time"].assign_attrs({"modulo": " "})
+
         segment_out.load().to_netcdf(
             self.outfolder / f"forcing_obc_{self.segment_name}.nc",
             encoding=encoding_dict,
@@ -2458,287 +2553,3 @@ class segment:
             unlimited_dims="time",
         )
         return ds
-
-
-def create_vt_regridders(
-    reprocessed_var_map: dict,
-    rawseg: xr.Dataset,
-    coords: xr.Dataset,
-    outfolder: str,
-    regridding_method: str,
-    id: str = "",
-) -> dict[str, xe.Regridder]:
-    """
-    Create regridders for velocity and tracer variables based on the specified Arakawa grid.
-
-    This function uses a validated variable mapping to create one or more
-    `xesmf.Regridder` objects for velocity (`u`, `v`) and tracer fields,
-    depending on the detected Arakawa grid type.
-
-    Args:
-        reprocessed_var_map: Mapping of variable and coordinate names, including nested
-            tracer variable names (e.g., {"tracers": {"salt": "salt", "temp": "temp"}}).
-        raw_seg: The source dataset containing the original variables.
-        coords: The target grid coordinates dataset.
-        outfolder: Path to the output folder where regridding weights are saved.
-        regridding_method: The interpolation method (default: "bilinear").
-        id: Optional string identifier appended to output weight filenames.
-
-    Returns:
-        dict[str, xe.Regridder]: A dictionary containing the created regridders with keys:
-            - "tracers"
-            - "u"
-            - "v"
-    """
-    regridders = {}
-    arakawa_grid = identify_arakawa_grid(reprocessed_var_map)
-    outfolder = Path(outfolder)
-    regridders["tracers"] = rgd.create_regridder(
-        rawseg[reprocessed_var_map["tracer_var_names"]["salt"]].rename(
-            {
-                reprocessed_var_map["tracer_lon_coord"]: "lon",
-                reprocessed_var_map["tracer_lat_coord"]: "lat",
-            }
-        ),
-        coords,
-        outfolder / f"weights/bilinear_tracer_weights_{id}.nc",
-        method=regridding_method,
-    )
-
-    if arakawa_grid == "B" or arakawa_grid == "C":
-        regridders["u"] = rgd.create_regridder(
-            rawseg[reprocessed_var_map["u_var_name"]].rename(
-                {
-                    reprocessed_var_map["u_lon_coord"]: "lon",
-                    reprocessed_var_map["u_lat_coord"]: "lat",
-                }
-            ),
-            coords,
-            outfolder / f"weights/bilinear_u_weights_{id}.nc",
-            method=regridding_method,
-        )
-    else:  # Arakawa A
-        regridders["u"] = regridders["tracers"]
-
-    if arakawa_grid == "C":
-        regridders["v"] = rgd.create_regridder(
-            rawseg[reprocessed_var_map["v_var_name"]].rename(
-                {
-                    reprocessed_var_map["v_lon_coord"]: "lon",
-                    reprocessed_var_map["v_lat_coord"]: "lat",
-                }
-            ),
-            coords,
-            outfolder / f"weights/bilinear_v_weights_{id}.nc",
-            method=regridding_method,
-        )
-    else:  # Arakawa A and B
-        regridders["v"] = regridders["u"]
-
-    return regridders
-
-
-def apply_arakawa_grid_mapping(var_mapping: dict, arakawa_grid: str = None) -> dict:
-    """
-    Map variable and coordinate names according to the specified Arakawa grid type.
-
-    This function checks the provided Arakawa grid type and constructs a consistent
-    mapping between standard variable keys (e.g., tracer, velocity components) and
-    their corresponding actual names. It raises an error if any required variable
-    names are missing for the specified grid type.
-
-    Args:
-        var_mappings (Dict[str, str]):
-            A dictionary mapping standardized variable/dimension names to their actual
-            names. Input names can use either the ``xh/xq`` convention with a specific arakawa grid or the exact output
-            format produced by this function without the arakawa_grid specified (which it will only then do the sanity checks).
-        arakawa_grid (str):
-            The Arakawa grid staggering type of the boundary forcing. Must be one of:
-            ``'A'``, ``'B'``, or ``'C'``.
-
-    Returns:
-        Dict[str, Any]:
-            A dictionary containing variable names mapped according to the specified
-            Arakawa grid type. The returned dictionary includes the following keys:
-                - ``u_x_coord``
-                - ``u_y_coord``
-                - ``v_x_coord``
-                - ``v_y_coord``
-                - ``tracer_x_coord``
-                - ``tracer_y_coord``
-                - ``u_lon_coord``
-                - ``u_lat_coord``
-                - ``v_lon_coord``
-                - ``v_lat_coord``
-                - ``tracer_lon_coord``
-                - ``tracer_lat_coord``
-                - ``depth_coord``
-                - ``u_var_name``
-                - ``v_var_name``
-                - ``tracer_var_names`` (a nested dict with keys ``"salt"`` and ``"temp"``)
-    """
-
-    if arakawa_grid is None:
-        # If no arakawa_grid is provided, assume the mapping is already in the correct format
-        print(
-            "No arakawa_grid provided, assuming the variable mapping for your data product is already in correct format."
-        )
-        validate_var_mapping(var_mapping, is_xhyh=False)
-        arakawa_grid = identify_arakawa_grid(var_mapping)
-        print("Arakawa {} grid detected in variable mapping".format(arakawa_grid))
-        return var_mapping
-    else:
-        if arakawa_grid not in ("A", "B", "C"):
-            raise ValueError("arakawa_grid must be one of: 'A', 'B', or 'C'")
-
-        # Validate basic var mapping structure
-        validate_var_mapping(var_mapping, is_xhyh=True)
-
-        reprocessed_var_map = {
-            "tracer_x_coord": var_mapping["xh"],
-            "tracer_y_coord": var_mapping["yh"],
-            "u_var_name": var_mapping["u"],
-            "v_var_name": var_mapping["v"],
-            "eta_var_name": var_mapping["eta"],
-            "time_var_name": var_mapping["time"],
-            "depth_coord": var_mapping["zl"],
-            "tracer_var_names": {
-                "salt": var_mapping["tracers"]["salt"],
-                "temp": var_mapping["tracers"]["temp"],
-            },
-        }
-
-        if arakawa_grid == "A":
-            print(
-                "Applying Arakawa A grid variable mapping, which is velocities and tracers on the same grid"
-            )
-            reprocessed_var_map["u_x_coord"] = reprocessed_var_map["tracer_x_coord"]
-            reprocessed_var_map["u_y_coord"] = reprocessed_var_map["tracer_y_coord"]
-            reprocessed_var_map["v_x_coord"] = reprocessed_var_map["tracer_x_coord"]
-            reprocessed_var_map["v_y_coord"] = reprocessed_var_map["tracer_y_coord"]
-
-        elif arakawa_grid == "B":
-            print(
-                "Applying Arakawa B grid variable mapping, which is velocities on xq, yq and tracers on xh, yh."
-            )
-            if var_mapping["xq"] is None or var_mapping["yq"] is None:
-                raise ValueError(
-                    "For Arakawa B grid, variable mapping must include 'xq' and 'yq' coordinate names."
-                )
-            reprocessed_var_map["u_x_coord"] = var_mapping["xq"]
-            reprocessed_var_map["u_y_coord"] = var_mapping["yq"]
-            reprocessed_var_map["v_x_coord"] = var_mapping["xq"]
-            reprocessed_var_map["v_y_coord"] = var_mapping["yq"]
-
-        elif arakawa_grid == "C":
-            print(
-                "Applying Arakawa C grid variable mapping, which is u-velocity on xq, yh; v-velocity on xh, yq; and tracers on xh, yh."
-            )
-            if var_mapping["xq"] is None or var_mapping["yq"] is None:
-                raise ValueError(
-                    "For Arakawa C grid, variable mapping must include 'xq' and 'yq' coordinate names."
-                )
-            reprocessed_var_map["u_x_coord"] = var_mapping["xq"]
-            reprocessed_var_map["u_y_coord"] = var_mapping["yh"]
-            reprocessed_var_map["v_x_coord"] = var_mapping["xh"]
-            reprocessed_var_map["v_y_coord"] = var_mapping["yq"]
-
-        # Because curvilinear grids will have different x.y versus lat/lon but this version of the var_mapping assumes they are rectilinear, we set the
-        # x/y coord to lon/lat
-        # If you did want to use curvilinear in/out data, you would not use this xh/yh version of the var mapping and instead use the reprocessed variable mapping, which is the if part of this if/else statement
-        reprocessed_var_map["u_lon_coord"] = reprocessed_var_map["u_x_coord"]
-        reprocessed_var_map["u_lat_coord"] = reprocessed_var_map["u_y_coord"]
-        reprocessed_var_map["v_lon_coord"] = reprocessed_var_map["v_x_coord"]
-        reprocessed_var_map["v_lat_coord"] = reprocessed_var_map["v_y_coord"]
-        reprocessed_var_map["tracer_lon_coord"] = reprocessed_var_map["tracer_x_coord"]
-        reprocessed_var_map["tracer_lat_coord"] = reprocessed_var_map["tracer_y_coord"]
-
-        # One last sanity check
-        validate_var_mapping(reprocessed_var_map, is_xhyh=False)
-        return reprocessed_var_map
-
-
-def validate_var_mapping(var_map: dict, is_xhyh: bool = False) -> None:
-    """
-    Validate the structure and completeness of a variable mapping dictionary.
-
-    This function checks that all expected keys and subkeys are present in the
-    dictionary returned by the Arakawa grid variable mapping function.
-
-    Args:
-        var_map (Dict[str, Any]): The dictionary to validate.
-        is_xhyh (bool): If True, expects the input dictionary to use the ``xh/xq`` regional_mom6 format
-
-    Raises:
-        ValueError: If any required keys or subkeys are missing, or if the dictionary
-                    structure does not match the expected format.
-    """
-    if not is_xhyh:
-        required_keys = {
-            "time_var_name",
-            "u_x_coord",
-            "u_y_coord",
-            "v_x_coord",
-            "v_y_coord",
-            "u_lon_coord",
-            "u_lat_coord",
-            "v_lon_coord",
-            "v_lat_coord",
-            "tracer_x_coord",
-            "tracer_y_coord",
-            "tracer_lon_coord",
-            "tracer_lat_coord",
-            "depth_coord",
-            "u_var_name",
-            "v_var_name",
-            "eta_var_name",
-            "tracer_var_names",
-        }
-
-    else:
-        required_keys = {"time", "xh", "zl", "u", "v", "tracers", "eta"}
-
-    missing = required_keys - var_map.keys()
-    if missing:
-        raise ValueError(
-            f"Missing required keys in var_map: {', '.join(sorted(missing))}"
-        )
-    if not is_xhyh:
-        tracer_map = var_map.get("tracer_var_names")
-    else:
-        tracer_map = var_map.get("tracers")
-    # Validate nested tracer variable names
-
-    if not isinstance(tracer_map, dict):
-        raise ValueError("Expected tracers to be a dictionary.")
-
-    required_tracers = {"salt", "temp"}
-    missing_tracers = required_tracers - tracer_map.keys()
-    if missing_tracers:
-        raise ValueError(
-            f"Missing required tracer variable names: {', '.join(sorted(missing_tracers))}"
-        )
-
-
-def identify_arakawa_grid(var_mapping):
-    """identify the arakawa grid from the variable mapping"""
-    if (
-        var_mapping["v_x_coord"] == var_mapping["u_x_coord"]
-        and var_mapping["u_x_coord"] == var_mapping["tracer_x_coord"]
-    ):
-        return "A"
-    elif (
-        var_mapping["v_x_coord"] == var_mapping["u_x_coord"]
-        and var_mapping["u_x_coord"] != var_mapping["tracer_x_coord"]
-    ):
-        return "B"
-    elif (
-        var_mapping["v_x_coord"] != var_mapping["u_x_coord"]
-        and var_mapping["u_x_coord"] != var_mapping["tracer_x_coord"]
-        and var_mapping["v_x_coord"] != var_mapping["tracer_x_coord"]
-    ):
-        return "C"
-    else:
-        raise ValueError(
-            "Could not determine Arakawa grid type from provided variable mapping. Something's wrong! Please specify variable mapping correctly"
-        )
