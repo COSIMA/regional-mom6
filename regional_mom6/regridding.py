@@ -381,7 +381,6 @@ def add_secondary_dimension(
     )
     insert_behind_by = 0
     if not to_beginning:
-
         if any(
             coord.startswith("nz") or coord == "constituent" for coord in ds[var].dims
         ):
@@ -579,7 +578,6 @@ def mask_dataset(
             mask = mask[np.newaxis, :]
 
         for var in ds.data_vars.keys():
-
             # Drop to just the Boundary Dim
             da = ds[var].isel({dim: 0 for dim in list(ds[var].dims)[:-2]}).squeeze()
 

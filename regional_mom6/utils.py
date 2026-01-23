@@ -4,6 +4,97 @@ import sys
 import xarray as xr
 from regional_mom6 import regridding as rgd
 from pathlib import Path
+import pint
+import pint_xarray
+import importlib.resources
+
+# from pint_xarray.errors import PintExceptionGroup # This is only supported when pint_xarray is 0.6.0, which is not currently supported in the CI
+
+
+# Handle Unit Registry (only done once)
+ureg = pint.UnitRegistry(
+    force_ndarray_like=True
+)  # The force option is required for pint_xarray
+
+unit_path = Path(importlib.resources.files("regional_mom6") / "rm6_unit_defs.txt")
+ureg.load_definitions(unit_path)
+
+
+def try_pint_convert(da, target_units, var_name=None, debug=False):
+    """
+    Attempt to quantify and convert an xarray DataArray using Pint.
+
+    Steps:
+    1. Check if the DataArray has a 'units' attribute.
+       - If not, Pint cannot quantify it, so we raise a ValueError.
+    2. Quantify the DataArray using Pint (attach units).
+       - This converts the DataArray into a pint-aware object.
+       - If already a Pint Quantity, skip quantification.
+    3. Convert the DataArray to the target units if necessary.
+       - Uses Pint's `.to()` to perform unit conversion.
+       - Dequantify afterwards to return a plain xarray DataArray.
+    4. If any step fails (missing units, invalid units, etc.),
+       - Log a warning and return the original DataArray unchanged.
+
+    Parameters
+    ----------
+    da : xarray.DataArray
+        The DataArray to quantify and/or convert.
+    target_units : str
+        Units to convert the DataArray to.
+    var_name : str, optional
+        Name of the variable (used for logging messages).
+    debug : bool, optional
+        If True, print debug information about the error with subexceptions.
+
+    Returns
+    -------
+    xarray.DataArray
+        A DataArray with units converted if successful; otherwise the original.
+    """
+    try:
+        # Get the units string from the DataArray attributes
+        source_units = da.attrs.get("units", None)
+        if not source_units:
+            raise ValueError(f"DataArray '{var_name}' has no units; cannot quantify.")
+
+        # Only quantify if not already a Pint Quantity
+        if not isinstance(da.data, pint.Quantity):
+            da_quantified = da.pint.quantify(unit_registry=ureg)
+
+            # code for PintExceptionGroup (not supported in current CI until we can use pint 0.6.0)
+            # Allows catching multiple quantification errors at once
+            # except PintExceptionGroup as ex_group:
+            #     print(f"PintExceptionGroup: could not quantify some elements of {var_name}")
+            #     for idx, exc in enumerate(ex_group.exceptions):
+            #         print(f"  Sub-exception {idx+1}: {exc}")
+            #     raise ex_group
+
+        # Convert to the target units if they differ
+        if source_units != target_units:
+            da_converted = da_quantified.pint.to(target_units).pint.dequantify()
+            utils_logger.warning(
+                f"Converted {var_name} from {source_units} to {target_units}"
+            )
+            return da_converted
+        else:
+            utils_logger.info(f"Units for {var_name} did not need to be converted")
+
+    except Exception as e:
+        # If any error occurs (bad units, missing Pint, etc.), fall back gracefully
+        utils_logger.warning(
+            f"regional_mom6 could not use pint for data array {var_name}, assuming it's in the correct units"
+        )
+        if debug:
+            if hasattr(e, "exceptions"):
+                for i, exc in enumerate(e.exceptions):
+                    print(f"\n--- Sub-exception {i} ---")
+                    print(type(exc).__name__, exc)
+            else:
+                print(e)
+
+    # Return the original DataArray if quantification or conversion failed
+    return da
 
 
 def vecdot(v1, v2):
@@ -432,3 +523,6 @@ def get_edge(ds, edge, x_name=None, y_name=None):
         return ds.isel({x_name: -1})
     if edge == "west":
         return ds.isel({x_name: 0})
+
+
+utils_logger = setup_logger(__name__, set_handler=False)
