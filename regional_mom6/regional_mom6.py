@@ -1785,7 +1785,7 @@ class experiment:
             {coordinate_names["xh"]: "lon", coordinate_names["yh"]: "lat"}
         )
 
-        bathymetry_output.depth.attrs["_FillValue"] = -1e20
+        bathymetry_output.depth.attrs["_FillValue"] = 0
         bathymetry_output.depth.attrs["units"] = "meters"
         bathymetry_output.depth.attrs["standard_name"] = (
             "height_above_reference_ellipsoid"
