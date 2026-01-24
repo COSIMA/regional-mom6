@@ -27,13 +27,14 @@ from regional_mom6.utils import (
     find_files_by_pattern,
     try_pint_convert,
 )
+from mom6_bathy.vgrid import *
+from mom6_bathy.grid import *
+from mom6_bathy.topo import *
 
 warnings.filterwarnings("ignore")
 
 __all__ = [
     "longitude_slicer",
-    "hyperbolictan_thickness_profile",
-    "generate_rectangular_hgrid",
     "experiment",
     "segment",
     "get_glorys_data",
@@ -88,118 +89,6 @@ def convert_to_tpxo_tidal_constituents(tidal_constituents):
 ## Auxiliary functions
 
 
-def longitude_slicer(data, longitude_extent, longitude_coords):
-    """
-    Slices longitudes while handling periodicity and the 'seams', that is the
-    longitude values where the data wraps around in a global domain (for example,
-    longitudes are defined, usually, within domain [0, 360] or [-180, 180]).
-
-    The algorithm works in five steps:
-
-    - Determine whether we need to add or subtract 360 to get the middle of the
-      ``longitude_extent`` to lie within ``data``'s longitude range (hereby ``old_lon``).
-
-    - Shift the dataset so that its midpoint matches the midpoint of
-      ``longitude_extent`` (up to a multiple of 360). Now, the modified ``old_lon``
-      does not increase monotonically from West to East since the 'seam'
-      has moved.
-
-    - Fix ``old_lon`` to make it monotonically increasing again. This uses
-      the information we have about the way the dataset was shifted/rolled.
-
-    - Slice the ``data`` index-wise. We know that ``|longitude_extent[1] - longitude_extent[0]| / 360``
-      multiplied by the number of discrete longitude points in the global input data gives
-      the number of longitude points in our slice, and we've already set the midpoint
-      to be the middle of the target domain.
-
-    - Add back the correct multiple of 360 so the whole domain matches the target.
-
-    Arguments:
-        data (xarray.Dataset): The global data you want to slice in longitude.
-        longitude_extent (Tuple[float, float]): The target longitudes (in degrees)
-            we want to slice to. Must be in increasing order.
-        longitude_coords (Union[str, list[str]): The name or list of names of the
-            longitude coordinates(s) in ``data``.
-
-    Returns:
-        xarray.Dataset: The sliced ``data``.
-    """
-
-    if isinstance(longitude_coords, str):
-        longitude_coords = [longitude_coords]
-
-    for lon in longitude_coords:
-        central_longitude = np.mean(longitude_extent)  ## Midpoint of target domain
-
-        ## Find a corresponding value for the intended domain midpoint in our data.
-        ## It's assumed that data has equally-spaced longitude values.
-
-        lons = data[lon].data
-        dlons = lons[1] - lons[0]
-
-        assert np.allclose(
-            np.diff(lons), dlons * np.ones(np.size(lons) - 1)
-        ), "provided longitude coordinate must be uniformly spaced"
-
-        for i in range(-1, 2, 1):
-            if data[lon][0] <= central_longitude + 360 * i <= data[lon][-1]:
-                ## Shifted version of target midpoint; e.g., could be -90 vs 270
-                ## integer i keeps track of what how many multiples of 360 we need to shift entire
-                ## grid by to match central_longitude
-                _central_longitude = central_longitude + 360 * i
-
-                ## Midpoint of the data
-                central_data = data[lon][data[lon].shape[0] // 2].values
-
-                ## Number of indices between the data midpoint and the target midpoint.
-                ## Sign indicates direction needed to shift.
-                shift = int(
-                    -(data[lon].shape[0] * (_central_longitude - central_data)) // 360
-                )
-
-                ## Shift data so that the midpoint of the target domain is the middle of
-                ## the data for easy slicing.
-                new_data = data.roll({lon: 1 * shift}, roll_coords=True)
-
-                ## Create a new longitude coordinate.
-                ## We'll modify this to remove any seams (i.e., jumps like -270 -> 90)
-                new_lon = new_data[lon].values
-
-                ## Take the 'seam' of the data, and either backfill or forward fill based on
-                ## whether the data was shifted F or west
-                if shift > 0:
-                    new_seam_index = shift
-
-                    new_lon[0:new_seam_index] -= 360
-
-                if shift < 0:
-                    new_seam_index = data[lon].shape[0] + shift
-
-                    new_lon[new_seam_index:] += 360
-
-                ## new_lon is used to re-centre the midpoint to match that of target domain
-                new_lon -= i * 360
-
-                new_data = new_data.assign_coords({lon: new_lon})
-
-                ## Choose the number of lon points to take from the middle, including a buffer.
-                ## Use this to index the new global dataset
-                num_lonpoints = (
-                    int(data[lon].shape[0] * (central_longitude - longitude_extent[0]))
-                    // 360
-                )
-
-        data = new_data.isel(
-            {
-                lon: slice(
-                    data[lon].shape[0] // 2 - num_lonpoints,
-                    data[lon].shape[0] // 2 + num_lonpoints,
-                )
-            }
-        )
-
-    return data
-
 
 def get_glorys_data(
     longitude_extent,
@@ -244,224 +133,6 @@ copernicusmarine subset --dataset-id cmems_mod_glo_phy_my_0.083deg_P1D-m --varia
     file.writelines(lines)
     file.close()
     return Path(path / "get_glorys_data.sh")
-
-
-def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
-    """Generate a hyperbolic tangent thickness profile with ``nlayers`` vertical
-    layers and total depth of ``total_depth`` whose bottom layer is (about) ``ratio``
-    times larger than the top layer.
-
-    The thickness profile transitions from the top-layer thickness to
-    the bottom-layer thickness via a hyperbolic tangent proportional to
-    ``tanh(2π * (k / (nlayers - 1) - 1 / 2))``, where ``k = 0, 1, ..., nlayers - 1``
-    is the layer index with ``k = 0`` corresponding to the top-most layer.
-
-    The sum of all layer thicknesses is ``total_depth``.
-
-    Positive parameter ``ratio`` prescribes (approximately) the ratio of the thickness
-    of the bottom-most layer to the top-most layer. The final ratio of the bottom-most
-    layer to the top-most layer ends up a bit different from the prescribed ``ratio``.
-    In particular, the final ratio of the bottom over the top-most layer thickness is
-    ``(1 + ratio * exp(2π)) / (ratio + exp(2π))``. This slight departure comes about
-    because of the value of the hyperbolic tangent profile at the end-points ``tanh(π)``,
-    which is approximately 0.9963 and not 1. Note that because ``exp(2π)`` is much greater
-    than 1, the value of the actual ratio is not that different from the prescribed value
-    ``ratio``, e.g., for ``ratio`` values between 1/100 and 100 the final ratio of the
-    bottom-most layer to the top-most layer only departs from the prescribed ``ratio``
-    by ±20%.
-
-    Arguments:
-        nlayers (int): Number of vertical layers.
-        ratio (float): The desired value of the ratio of bottom-most to
-            the top-most layer thickness. Note that the final value of
-            the ratio of bottom-most to the top-most layer thickness
-            ends up ``(1 + ratio * exp(2π)) / (ratio + exp(2π))``. Must
-            be positive.
-        total_depth (float): The total depth of grid, i.e., the sum
-            of all thicknesses.
-
-    Returns:
-        numpy.array: An array containing the layer thicknesses.
-
-    Examples:
-
-        The spacings for a vertical grid with 20 layers, with maximum depth 1000 meters,
-        and for which the top-most layer is about 4 times thinner than the bottom-most
-        one.
-
-        >>> from regional_mom6 import hyperbolictan_thickness_profile
-        >>> nlayers, total_depth = 20, 1000
-        >>> ratio = 4
-        >>> dz = hyperbolictan_thickness_profile(nlayers, ratio, total_depth)
-        >>> dz
-        array([20.11183771, 20.2163053 , 20.41767549, 20.80399084, 21.53839043,
-               22.91063751, 25.3939941 , 29.6384327 , 36.23006369, 45.08430684,
-               54.91569316, 63.76993631, 70.3615673 , 74.6060059 , 77.08936249,
-               78.46160957, 79.19600916, 79.58232451, 79.7836947 , 79.88816229])
-        >>> dz.sum()
-        1000.0
-        >>> dz[-1] / dz[0]
-        3.9721960481753706
-
-        If we want the top layer to be thicker then we need to prescribe ``ratio < 1``.
-
-        >>> from regional_mom6 import hyperbolictan_thickness_profile
-        >>> nlayers, total_depth = 20, 1000
-        >>> ratio = 1/4
-        >>> dz = hyperbolictan_thickness_profile(nlayers, ratio, total_depth)
-        >>> dz
-        array([79.88816229, 79.7836947 , 79.58232451, 79.19600916, 78.46160957,
-               77.08936249, 74.6060059 , 70.3615673 , 63.76993631, 54.91569316,
-               45.08430684, 36.23006369, 29.6384327 , 25.3939941 , 22.91063751,
-               21.53839043, 20.80399084, 20.41767549, 20.2163053 , 20.11183771])
-        >>> dz.sum()
-        1000.0
-        >>> dz[-1] / dz[0]
-        0.25174991059652
-
-        Now how about a grid with the same total depth as above but with equally-spaced
-        layers.
-
-        >>> from regional_mom6 import hyperbolictan_thickness_profile
-        >>> nlayers, total_depth = 20, 1000
-        >>> ratio = 1
-        >>> dz = hyperbolictan_thickness_profile(nlayers, ratio, total_depth)
-        >>> dz
-        array([50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50.,
-               50., 50., 50., 50., 50., 50., 50.])
-    """
-
-    assert isinstance(nlayers, int), "nlayers must be an integer"
-
-    if nlayers == 1:
-        return np.array([float(total_depth)])
-
-    assert ratio > 0, "ratio must be > 0"
-
-    # The hyberbolic tangent profile below implies that the sum of
-    # all layer thicknesses is:
-    #
-    # nlayers * (top_layer_thickness + bottom_layer_thickness) / 2
-    #
-    # By choosing the top_layer_thickness appropriately we ensure that
-    # the sum of all layer thicknesses is the prescribed total_depth.
-    top_layer_thickness = 2 * total_depth / (nlayers * (1 + ratio))
-
-    bottom_layer_thickness = ratio * top_layer_thickness
-
-    layer_thicknesses = top_layer_thickness + 0.5 * (
-        bottom_layer_thickness - top_layer_thickness
-    ) * (1 + np.tanh(2 * np.pi * (np.arange(nlayers) / (nlayers - 1) - 1 / 2)))
-
-    sum_of_thicknesses = np.sum(layer_thicknesses)
-
-    atol = np.finfo(type(sum_of_thicknesses)).eps
-
-    assert np.isclose(total_depth, sum_of_thicknesses, atol=atol)  # just checking ;)
-
-    return layer_thicknesses
-
-
-def generate_rectangular_hgrid(lons, lats):
-    """
-    Construct a horizontal grid with all the metadata required by MOM6, based on
-    arrays of longitudes (``lons``) and latitudes (``lats``) on the supergrid.
-    Here, 'supergrid' refers to both cell edges and centres, meaning that there
-    are twice as many points along each axis than for any individual field.
-
-    Caution:
-        It is assumed the grid's boundaries are lines of constant latitude and
-        longitude. Rotated grids need to be handled differently.
-
-        It is also assumed here that the longitude array values are uniformly spaced.
-
-        Ensure both ``lons`` and ``lats`` are monotonically increasing.
-
-    Arguments:
-        lons (numpy.array): All longitude points on the supergrid. Must be uniformly spaced.
-        lats (numpy.array): All latitude points on the supergrid.
-
-    Returns:
-        xarray.Dataset: An FMS-compatible horizontal grid (``hgrid``) that includes all required attributes.
-    """
-
-    assert np.all(
-        np.diff(lons) > 0
-    ), "longitudes array lons must be monotonically increasing"
-    assert np.all(
-        np.diff(lats) > 0
-    ), "latitudes array lats must be monotonically increasing"
-
-    R = 6371e3  # mean radius of the Earth; https://en.wikipedia.org/wiki/Earth_radius
-
-    # compute longitude spacing and ensure that longitudes are uniformly spaced
-    dlons = lons[1] - lons[0]
-
-    assert np.allclose(
-        np.diff(lons), dlons * np.ones(np.size(lons) - 1)
-    ), "provided array of longitudes must be uniformly spaced"
-
-    # dx = R * cos(np.deg2rad(lats)) * np.deg2rad(dlons) / 2
-    # Note: division by 2 because we're on the supergrid
-    dx = np.broadcast_to(
-        R * np.cos(np.deg2rad(lats)) * np.deg2rad(dlons) / 2,
-        (lons.shape[0] - 1, lats.shape[0]),
-    ).T
-
-    # dy = R * np.deg2rad(dlats) / 2
-    # Note: division by 2 because we're on the supergrid
-    dy = np.broadcast_to(
-        R * np.deg2rad(np.diff(lats)) / 2, (lons.shape[0], lats.shape[0] - 1)
-    ).T
-
-    lon, lat = np.meshgrid(lons, lats)
-
-    area = quadrilateral_areas(lat, lon, R)
-
-    attrs = {
-        "tile": {
-            "standard_name": "grid_tile_spec",
-            "geometry": "spherical",
-            "north_pole": "0.0 90.0",
-            "discretization": "logically_rectangular",
-            "conformal": "true",
-        },
-        "x": {"standard_name": "geographic_longitude", "units": "degree_east"},
-        "y": {"standard_name": "geographic_latitude", "units": "degree_north"},
-        "dx": {
-            "standard_name": "grid_edge_x_distance",
-            "units": "meters",
-        },
-        "dy": {
-            "standard_name": "grid_edge_y_distance",
-            "units": "meters",
-        },
-        "area": {
-            "standard_name": "grid_cell_area",
-            "units": "m**2",
-        },
-        "angle_dx": {
-            "standard_name": "grid_vertex_x_angle_WRT_geographic_east",
-            "units": "degrees_east",
-        },
-        "arcx": {
-            "standard_name": "grid_edge_x_arc_type",
-            "north_pole": "0.0 90.0",
-        },
-    }
-
-    return xr.Dataset(
-        {
-            "tile": ((), np.array(b"tile1", dtype="|S255"), attrs["tile"]),
-            "x": (["nyp", "nxp"], lon, attrs["x"]),
-            "y": (["nyp", "nxp"], lat, attrs["y"]),
-            "dx": (["nyp", "nx"], dx, attrs["dx"]),
-            "dy": (["ny", "nxp"], dy, attrs["dy"]),
-            "area": (["ny", "nx"], area, attrs["area"]),
-            "angle_dx": (["nyp", "nxp"], lon * 0, attrs["angle_dx"]),
-            "arcx": ((), np.array(b"small_circle", dtype="|S255"), attrs["arcx"]),
-        }
-    )
 
 
 class experiment:
@@ -907,43 +578,19 @@ class experiment:
         ), "only even_spacing grid type is implemented"
 
         if self.hgrid_type == "even_spacing":
-            # longitudes are evenly spaced based on resolution and bounds
-            nx = int(
-                (self.longitude_extent[1] - self.longitude_extent[0])
-                / (self.resolution / 2)
-            )
-            if nx % 2 != 1:
-                nx += 1
-
-            lons = np.linspace(
-                self.longitude_extent[0], self.longitude_extent[1], nx
-            )  # longitudes in degrees
-
-            # Latitudes evenly spaced by dx * cos(central_latitude)
-            central_latitude = np.mean(self.latitude_extent)  # degrees
-            latitudinal_resolution = self.resolution * np.cos(
-                np.deg2rad(central_latitude)
+            self.grid = Grid(
+                resolution=self.resolution,  # in degrees
+                xstart=self.longitude_extent[0],  # min longitude in [0, 360]
+                lenx=self.longitude_extent[1]
+                - self.longitude_extent[0],  # longitude extent in degrees
+                ystart=self.latitude_extent[0],  # min latitude in [-90, 90]
+                leny=self.latitude_extent[1]
+                - self.latitude_extent[0],  # latitude extent in degrees
+                name=self.expt_name,
+                type="rectilinear_cartesian", # m6b name for even_spacing
             )
 
-            ny = (
-                int(
-                    (self.latitude_extent[1] - self.latitude_extent[0])
-                    / (latitudinal_resolution / 2)
-                )
-                + 1
-            )
-
-            if ny % 2 != 1:
-                ny += 1
-
-            lats = np.linspace(
-                self.latitude_extent[0], self.latitude_extent[1], ny
-            )  # latitudes in degrees
-
-            hgrid = generate_rectangular_hgrid(lons, lats)
-            hgrid.to_netcdf(self.mom_input_dir / "hgrid.nc")
-
-            return hgrid
+            return self.grid.write_supergrid(self.mom_input_dir / "hgrid.nc")
 
     def _make_vgrid(self, thicknesses=None):
         """
@@ -959,35 +606,24 @@ class experiment:
         """
 
         if thicknesses is None:
-            thicknesses = hyperbolictan_thickness_profile(
-                self.number_vertical_layers, self.layer_thickness_ratio, self.depth
+            self.vgrid_obj = VGrid.hyperbolic(
+                self.number_vertical_layers, self.depth, self.layer_thickness_ratio
             )
-
-        if not isinstance(thicknesses, np.ndarray):
-            raise ValueError("thicknesses must be a numpy array")
-
-        zi = np.cumsum(thicknesses)
-        zi = np.insert(zi, 0, 0.0)  # add zi = 0.0 as first interface
-
-        zl = zi[0:-1] + thicknesses / 2  # the mid-points between interfaces zi
-
-        vcoord = xr.Dataset({"zi": ("zi", zi), "zl": ("zl", zl)})
+            thicknesses = self.vgrid_obj.dz
+        else:
+            self.vgrid_obj = VGrid(thicknesses)
 
         ## Check whether the minimum depth is less than the first three layers
 
-        if len(zi) > 2 and self.minimum_depth < zi[2]:
+        if len(self.vgrid_obj.zi) > 2 and self.minimum_depth < self.vgrid_obj.zi[2]:
             print(
-                f"Warning: Minimum depth of {self.minimum_depth}m is less than the depth of the third interface ({zi[2]}m)!\n"
+                f"Warning: Minimum depth of {self.minimum_depth}m is less than the depth of the third interface ({self.vgrid_obj.zi[2]}m)!\n"
                 + "This means that some areas may only have one or two layers between the surface and sea floor. \n"
                 + "For increased stability, consider increasing the minimum depth, or adjusting the vertical coordinate to add more layers near the surface."
             )
+        ds = self.vgrid_obj.write_z_file(self.mom_input_dir / "vcoord.nc")
 
-        vcoord["zi"].attrs = {"units": "meters"}
-        vcoord["zl"].attrs = {"units": "meters"}
-
-        vcoord.to_netcdf(self.mom_input_dir / "vcoord.nc")
-
-        return vcoord
+        return ds
 
     def setup_initial_condition(
         self,
@@ -1718,140 +1354,29 @@ class experiment:
             write_to_file (Optional[bool]): Whether to write the bathymetry to a file. Default: ``True``.
             regridding_method (Optional[str]): The type of regridding method to use. Defaults to self.regridding_method
         """
+
+        print(
+            "Setting up bathymetry...if this fails, please follow the printed instructions with your experiment topo object, like this: [experiment_obj].topo "
+        )
         if regridding_method is None:
             regridding_method = self.regridding_method
 
-        ## Convert the provided coordinate names into a dictionary mapping to the
-        ## coordinate names that MOM6 expects.
-        coordinate_names = {
-            "xh": longitude_coordinate_name,
-            "yh": latitude_coordinate_name,
-            "depth": vertical_coordinate_name,
-        }
-
-        bathymetry = xr.open_dataset(bathymetry_path, chunks="auto")[
-            coordinate_names["depth"]
-        ]
-
-        bathymetry = bathymetry.sel(
-            {
-                coordinate_names["yh"]: slice(
-                    self.latitude_extent[0] - 0.5, self.latitude_extent[1] + 0.5
-                )
-            }  # 0.5 degree latitude buffer (hardcoded) for regridding
-        ).astype("float")
-
-        ## Check if the original bathymetry provided has a longitude extent that goes around the globe
-        ## to take care of the longitude seam when we slice out the regional domain.
-
-        horizontal_resolution = (
-            bathymetry[coordinate_names["xh"]][1]
-            - bathymetry[coordinate_names["xh"]][0]
+        self.topo = Topo(
+            grid=self.grid,
+            min_depth=self.minimum_depth,
         )
 
-        horizontal_extent = (
-            bathymetry[coordinate_names["xh"]][-1]
-            - bathymetry[coordinate_names["xh"]][0]
-            + horizontal_resolution
+        self.topo.set_from_dataset(
+            bathymetry_path=bathymetry_path,
+            output_dir=self.mom_input_dir,
+            longitude_coordinate_name="lon",
+            latitude_coordinate_name="lat",
+            vertical_coordinate_name="elevation",
+            regridding_method=regridding_method,
+            write_to_file=True,
         )
-
-        longitude_buffer = 0.5  # 0.5 degree longitude buffer (hardcoded) for regridding
-
-        if np.isclose(horizontal_extent, 360):
-            ## longitude extent that goes around the globe -- use longitude_slicer
-            bathymetry = longitude_slicer(
-                bathymetry,
-                np.array(self.longitude_extent)
-                + np.array([-longitude_buffer, longitude_buffer]),
-                coordinate_names["xh"],
-            )
-        else:
-            ## otherwise, slice normally
-            bathymetry = bathymetry.sel(
-                {
-                    coordinate_names["xh"]: slice(
-                        self.longitude_extent[0] - longitude_buffer,
-                        self.longitude_extent[1] + longitude_buffer,
-                    )
-                }
-            )
-
-        bathymetry.attrs["missing_value"] = -1e20  # missing value expected by FRE tools
-        bathymetry_output = xr.Dataset({"depth": bathymetry})
-        bathymetry.close()
-
-        bathymetry_output = bathymetry_output.rename(
-            {coordinate_names["xh"]: "lon", coordinate_names["yh"]: "lat"}
-        )
-
-        bathymetry_output.depth.attrs["_FillValue"] = -1e20
-        bathymetry_output.depth.attrs["units"] = "meters"
-        bathymetry_output.depth.attrs["standard_name"] = (
-            "height_above_reference_ellipsoid"
-        )
-        bathymetry_output.depth.attrs["long_name"] = "Elevation relative to sea level"
-        bathymetry_output.depth.attrs["coordinates"] = "lon lat"
-        if write_to_file:
-            bathymetry_output.to_netcdf(
-                self.mom_input_dir / "bathymetry_original.nc",
-                mode="w",
-                engine="netcdf4",
-            )
-
-        empty_bathy = rgd.get_hgrid_arakawa_c_points(self.hgrid, "t")
-        empty_bathy = empty_bathy.rename(
-            {"tlon": "lon", "tlat": "lat", "nyp": "ny", "nxp": "nx"}
-        )
-        empty_bathy = empty_bathy.set_coords(("lon", "lat"))
-        empty_bathy["depth"] = xr.zeros_like(empty_bathy["lon"])
-        empty_bathy.lon.attrs["units"] = "degrees_east"
-        empty_bathy.lon.attrs["_FillValue"] = 1e20
-        empty_bathy.lat.attrs["units"] = "degrees_north"
-        empty_bathy.lat.attrs["_FillValue"] = 1e20
-        empty_bathy.depth.attrs["units"] = "meters"
-        empty_bathy.depth.attrs["coordinates"] = "lon lat"
-        if write_to_file:
-            empty_bathy.to_netcdf(
-                self.mom_input_dir / "bathymetry_unfinished.nc",
-                mode="w",
-                engine="netcdf4",
-            )
-            empty_bathy.close()
-
-        bathymetry_output = bathymetry_output.load()
-        print(
-            "Begin regridding bathymetry...\n\n"
-            + f"Original bathymetry size: {bathymetry_output.nbytes/1e6:.2f} Mb\n"
-            + f"Regridded size: {empty_bathy.nbytes/1e6:.2f} Mb\n"
-            + "Automatic regridding may fail if your domain is too big! If this process hangs or crashes,"
-            + "make sure function argument write_to_file = True and,"
-            + "open a terminal with appropriate computational and resources try calling ESMF "
-            + f"directly in the input directory {self.mom_input_dir} via\n\n"
-            + "`mpirun -np NUMBER_OF_CPUS ESMF_Regrid -s bathymetry_original.nc -d bathymetry_unfinished.nc -m bilinear --src_var depth --dst_var depth --netcdf4 --src_regional --dst_regional`\n\n"
-            + "For details see https://xesmf.readthedocs.io/en/latest/large_problems_on_HPC.html\n\n"
-            + "Afterwards, we run the 'expt.tidy_bathymetry' method to skip the expensive interpolation step, and finishing metadata, encoding and cleanup.\n\n\n"
-        )
-        regridder = rgd.create_regridder(
-            bathymetry_output, empty_bathy, locstream_out=False
-        )
-        bathymetry = regridder(bathymetry_output)
-        if write_to_file:
-            bathymetry.to_netcdf(
-                self.mom_input_dir / "bathymetry_unfinished.nc",
-                mode="w",
-                engine="netcdf4",
-            )
-        print(
-            "Regridding successful! Now calling `tidy_bathymetry` method for some finishing touches..."
-        )
-
-        print("setup bathymetry has finished successfully.")
-        return self.tidy_bathymetry(
-            fill_channels,
-            positive_down,
-            bathymetry=bathymetry,
-            write_to_file=write_to_file,
-        )
+        self.topo.write_topo(self.mom_input_dir / "bathymetry.nc")
+        return self.topo.gen_topo_ds()
 
     def tidy_bathymetry(
         self,
@@ -1863,212 +1388,21 @@ class experiment:
         longitude_coordinate_name="lon",
         latitude_coordinate_name="lat",
     ):
-        """
-        An auxiliary method for bathymetry used to fix up the metadata and remove inland
-        lakes after regridding the bathymetry. Having :func:`~tidy_bathymetry` as a separate
-        method from :func:`~setup_bathymetry` allows for the regridding to be done separately,
-        since regridding can be really expensive for large domains.
-
-        If the bathymetry is already regridded and what is left to be done is fixing the metadata
-        or fill in some channels, then :func:`~tidy_bathymetry` directly can read the existing
-        ``bathymetry_unfinished.nc`` file that should be in the input directory.
-
-        Arguments:
-            fill_channels (Optional[bool]): Whether to fill in diagonal channels.
-                This removes more narrow inlets, but can also connect extra islands to land.
-                Default: ``False``.
-            positive_down (Optional[bool]): If ``False`` (default), assume that
-                bathymetry vertical coordinate is positive down, as is the case in GEBCO for example.
-            bathymetry (Optional[xr.Dataset]): The bathymetry dataset to tidy up. If not provided,
-                it will read the bathymetry from the file ``bathymetry_unfinished.nc`` in the input directory
-                that was created by :func:`~setup_bathymetry`.
-        """
-
-        ## reopen bathymetry to modify
-        print(
-            "Tidy bathymetry: Reading in regridded bathymetry to fix up metadata...",
-            end="",
+        self.topo.tidy_dataset(
+            fill_channels=fill_channels,
+            positive_down=positive_down,
+            vertical_coordinate_name=vertical_coordinate_name,
+            bathymetry=bathymetry,
+            output_dir=self.mom_input_dir,
+            write_to_file=write_to_file,
+            longitude_coordinate_name=longitude_coordinate_name,
+            latitude_coordinate_name=latitude_coordinate_name,
         )
-        if read_bathy_from_file := bathymetry is None:
-            bathymetry = xr.open_dataset(
-                self.mom_input_dir / "bathymetry_unfinished.nc", engine="netcdf4"
-            )
-
-        ## Ensure correct encoding
-        bathymetry = xr.Dataset(
-            {"depth": (["ny", "nx"], bathymetry[vertical_coordinate_name].values)},
-            coords={
-                "lon": (["ny", "nx"], bathymetry[longitude_coordinate_name].values),
-                "lat": (["ny", "nx"], bathymetry[latitude_coordinate_name].values),
-            },
+        self.topo.write_topo(
+            self.mom_input_dir / "bathymetry.nc",
         )
-        bathymetry.attrs["depth"] = "meters"
-        bathymetry.attrs["standard_name"] = "bathymetric depth at T-cell centers"
-        bathymetry.attrs["coordinates"] = "zi"
-
-        bathymetry.expand_dims("tiles", 0)
-
-        if not positive_down:
-            ## Ensure that coordinate is positive down!
-            bathymetry["depth"] *= -1
-
-        ## Make a land mask based on the bathymetry
-        ocean_mask = xr.where(bathymetry.depth <= 0, 0, 1)
-        land_mask = np.abs(ocean_mask - 1)
-
-        ## REMOVE INLAND LAKES
-        print("done. Filling in inland lakes and channels... ", end="")
-
-        changed = True  ## keeps track of whether solution has converged or not
-
-        forward = True  ## only useful for iterating through diagonal channel removal. Means iteration goes SW -> NE
-
-        while changed == True:
-            ## First fill in all lakes.
-            ## scipy.ndimage.binary_fill_holes fills holes made of 0's within a field of 1's
-            land_mask[:, :] = binary_fill_holes(land_mask.data)
-            ## Get the ocean mask instead of land- easier to remove channels this way
-            ocean_mask = np.abs(land_mask - 1)
-
-            ## Now fill in all one-cell-wide channels
-            newmask = xr.where(
-                ocean_mask * (land_mask.shift(nx=1) + land_mask.shift(nx=-1)) == 2, 1, 0
-            )
-            newmask += xr.where(
-                ocean_mask * (land_mask.shift(ny=1) + land_mask.shift(ny=-1)) == 2, 1, 0
-            )
-
-            if fill_channels == True:
-                ## fill in all one-cell-wide horizontal channels
-                newmask = xr.where(
-                    ocean_mask * (land_mask.shift(nx=1) + land_mask.shift(nx=-1)) == 2,
-                    1,
-                    0,
-                )
-                newmask += xr.where(
-                    ocean_mask * (land_mask.shift(ny=1) + land_mask.shift(ny=-1)) == 2,
-                    1,
-                    0,
-                )
-                ## Diagonal channels
-                if forward == True:
-                    ## horizontal channels
-                    newmask += xr.where(
-                        (ocean_mask * ocean_mask.shift(nx=1))
-                        * (
-                            land_mask.shift({"nx": 1, "ny": 1})
-                            + land_mask.shift({"ny": -1})
-                        )
-                        == 2,
-                        1,
-                        0,
-                    )  ## up right & below
-                    newmask += xr.where(
-                        (ocean_mask * ocean_mask.shift(nx=1))
-                        * (
-                            land_mask.shift({"nx": 1, "ny": -1})
-                            + land_mask.shift({"ny": 1})
-                        )
-                        == 2,
-                        1,
-                        0,
-                    )  ## down right & above
-                    ## Vertical channels
-                    newmask += xr.where(
-                        (ocean_mask * ocean_mask.shift(ny=1))
-                        * (
-                            land_mask.shift({"nx": 1, "ny": 1})
-                            + land_mask.shift({"nx": -1})
-                        )
-                        == 2,
-                        1,
-                        0,
-                    )  ## up right & left
-                    newmask += xr.where(
-                        (ocean_mask * ocean_mask.shift(ny=1))
-                        * (
-                            land_mask.shift({"nx": -1, "ny": 1})
-                            + land_mask.shift({"nx": 1})
-                        )
-                        == 2,
-                        1,
-                        0,
-                    )  ## up left & right
-
-                    forward = False
-
-                if forward == False:
-                    ## Horizontal channels
-                    newmask += xr.where(
-                        (ocean_mask * ocean_mask.shift(nx=-1))
-                        * (
-                            land_mask.shift({"nx": -1, "ny": 1})
-                            + land_mask.shift({"ny": -1})
-                        )
-                        == 2,
-                        1,
-                        0,
-                    )  ## up left & below
-                    newmask += xr.where(
-                        (ocean_mask * ocean_mask.shift(nx=-1))
-                        * (
-                            land_mask.shift({"nx": -1, "ny": -1})
-                            + land_mask.shift({"ny": 1})
-                        )
-                        == 2,
-                        1,
-                        0,
-                    )  ## down left & above
-                    ## Vertical channels
-                    newmask += xr.where(
-                        (ocean_mask * ocean_mask.shift(ny=-1))
-                        * (
-                            land_mask.shift({"nx": 1, "ny": -1})
-                            + land_mask.shift({"nx": -1})
-                        )
-                        == 2,
-                        1,
-                        0,
-                    )  ## down right & left
-                    newmask += xr.where(
-                        (ocean_mask * ocean_mask.shift(ny=-1))
-                        * (
-                            land_mask.shift({"nx": -1, "ny": -1})
-                            + land_mask.shift({"nx": 1})
-                        )
-                        == 2,
-                        1,
-                        0,
-                    )  ## down left & right
-
-                    forward = True
-
-            newmask = xr.where(newmask > 0, 1, 0)
-            changed = np.max(newmask) == 1
-            land_mask += newmask
-
-        self.ocean_mask = np.abs(land_mask - 1)
-
-        bathymetry["depth"] *= self.ocean_mask
-
-        ## Now, any points in the bathymetry that are shallower than minimum depth are set to minimum depth.
-        ## This preserves the true land/ocean mask.
-        bathymetry["depth"] = bathymetry["depth"].where(bathymetry["depth"] > 0, np.nan)
-        bathymetry["depth"] = bathymetry["depth"].where(
-            ~(bathymetry.depth <= self.minimum_depth), self.minimum_depth + 0.1
-        )
-        bathymetry = bathymetry.fillna(
-            0
-        )  # After min_depth filtering, change the land values to zero
-
-        if write_to_file:
-            bathymetry.expand_dims({"ntiles": 1}).to_netcdf(
-                self.mom_input_dir / "bathymetry.nc",
-                mode="w",
-                encoding={"depth": {"_FillValue": None}},
-            )
-        return bathymetry
-
+        return self.topo.gen_topo_ds()
+    
     def run_FRE_tools(self, layout=None):
         """A wrapper for FRE Tools ``check_mask``, ``make_solo_mosaic``, and ``make_quick_mosaic``.
         User provides processor ``layout`` tuple of processing units.
