@@ -89,7 +89,6 @@ def convert_to_tpxo_tidal_constituents(tidal_constituents):
 ## Auxiliary functions
 
 
-
 def get_glorys_data(
     longitude_extent,
     latitude_extent,
@@ -587,7 +586,7 @@ class experiment:
                 leny=self.latitude_extent[1]
                 - self.latitude_extent[0],  # latitude extent in degrees
                 name=self.expt_name,
-                type="rectilinear_cartesian", # m6b name for even_spacing
+                type="rectilinear_cartesian",  # m6b name for even_spacing
             )
 
             return self.grid.write_supergrid(self.mom_input_dir / "hgrid.nc")
@@ -1402,7 +1401,7 @@ class experiment:
             self.mom_input_dir / "bathymetry.nc",
         )
         return self.topo.gen_topo_ds()
-    
+
     def run_FRE_tools(self, layout=None):
         """A wrapper for FRE Tools ``check_mask``, ``make_solo_mosaic``, and ``make_quick_mosaic``.
         User provides processor ``layout`` tuple of processing units.
