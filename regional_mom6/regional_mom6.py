@@ -20,7 +20,6 @@ from regional_mom6 import regridding as rgd
 from regional_mom6 import rotation as rot
 from regional_mom6.config import Config
 from regional_mom6.utils import (
-    quadrilateral_areas,
     ap2ep,
     ep2ap,
     rotate,
@@ -126,9 +125,11 @@ def get_glorys_data(
 
     file = open(Path(path / "get_glorys_data.sh"), "w")
 
-    lines.append(f"""
+    lines.append(
+        f"""
 copernicusmarine subset --dataset-id cmems_mod_glo_phy_my_0.083deg_P1D-m --variable so --variable thetao --variable uo --variable vo --variable zos --start-datetime {str(timerange[0]).replace(" ","T")} --end-datetime {str(timerange[1]).replace(" ","T")} --minimum-longitude {longitude_extent[0] - buffer} --maximum-longitude {longitude_extent[1] + buffer} --minimum-latitude {latitude_extent[0] - buffer} --maximum-latitude {latitude_extent[1] + buffer} --minimum-depth 0 --maximum-depth 6000 -o {str(path)} -f {segment_name}.nc\n
-""")
+"""
+    )
     file.writelines(lines)
     file.close()
     return Path(path / "get_glorys_data.sh")
@@ -1368,9 +1369,9 @@ class experiment:
         self.topo.set_from_dataset(
             bathymetry_path=bathymetry_path,
             output_dir=self.mom_input_dir,
-            longitude_coordinate_name="lon",
-            latitude_coordinate_name="lat",
-            vertical_coordinate_name="elevation",
+            longitude_coordinate_name=longitude_coordinate_name,
+            latitude_coordinate_name=latitude_coordinate_name,
+            vertical_coordinate_name=vertical_coordinate_name,
             regridding_method=regridding_method,
             write_to_file=True,
         )

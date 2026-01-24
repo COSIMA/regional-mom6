@@ -2,7 +2,7 @@ import pytest
 import os
 import xarray as xr
 import numpy as np
-import regional_mom6 as rmom6
+from mom6_bathy.grid import *
 
 # Define the path where the curvilinear hgrid file is expected in the Docker container
 DOCKER_FILE_PATH = "/data/small_curvilinear_hgrid.nc"
@@ -31,10 +31,15 @@ def get_curvilinear_hgrid():
 
 @pytest.fixture
 def get_rectilinear_hgrid():
-    lat = np.linspace(0, 10, 7)
-    lon = np.linspace(0, 10, 13)
-    rect_hgrid = rmom6.generate_rectangular_hgrid(lat, lon)
-    return rect_hgrid
+    grid = Grid(
+        resolution=0.1,
+        xstart=278.0,
+        lenx=4.0,
+        ystart=7.0,
+        leny=3.0,
+        name="panama1",
+    )
+    return grid.supergrid.to_ds()
 
 
 @pytest.fixture()
