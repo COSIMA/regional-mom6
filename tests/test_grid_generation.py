@@ -34,7 +34,7 @@ def test_hyperbolictan_thickness_profile_symmetric(nlayers, ratio, total_depth):
     assert np.isclose(
         hyperbolictan_thickness_profile(nlayers, ratio, total_depth),
         np.flip(hyperbolictan_thickness_profile(nlayers, 1 / ratio, total_depth)),
-    ).all()
+    ).all().item()
 
 
 @pytest.mark.parametrize(
@@ -62,7 +62,7 @@ def test_hyperbolictan_thickness_profile_equispaced(nlayers, total_depth):
     ],
 )
 def test_latlon_to_cartesian(lat, lon, true_xyz):
-    assert np.isclose(latlon_to_cartesian(lat, lon), true_xyz).all()
+    assert np.isclose(latlon_to_cartesian(lat, lon), true_xyz).all().item()
 
 
 @pytest.mark.parametrize(
@@ -85,7 +85,7 @@ def test_latlon_to_cartesian(lat, lon, true_xyz):
     ],
 )
 def test_quadrilateral_area(v1, v2, v3, v4, true_area):
-    assert np.isclose(quadrilateral_area(v1, v2, v3, v4), true_area)
+    assert np.isclose(quadrilateral_area(v1, v2, v3, v4).item(), true_area)
 
 
 v1 = np.dstack(latlon_to_cartesian(0, 0, R=2))
@@ -118,7 +118,7 @@ area2 = 1 / 4 * (4 * np.pi)
     ],
 )
 def test_quadrilateral_areas(lat, lon, true_area):
-    assert np.isclose(np.sum(quadrilateral_areas(lat, lon)), true_area)
+    assert np.isclose(np.sum(quadrilateral_areas(lat, lon)).item(), true_area)
 
 
 # a simple test that rectangular_hgrid runs without erroring
