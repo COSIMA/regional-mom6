@@ -2080,28 +2080,7 @@ class segment:
                     in segment_out[reprocessed_var_map["tracer_var_names"]["temp"]].dims
                 ):  # At least one must be true
                     depth_coord = dc
-        if (
-            np.nanmin(
-                segment_out[reprocessed_var_map["tracer_var_names"]["temp"]].isel(
-                    {
-                        reprocessed_var_map["time_var_name"]: 0,
-                        depth_coord: 0,
-                    }
-                )
-            )
-            > 100
-        ):
-            segment_out[reprocessed_var_map["tracer_var_names"]["temp"]] -= 273.15
-            segment_out[reprocessed_var_map["tracer_var_names"]["temp"]].attrs[
-                "units"
-            ] = "degrees Celsius"
 
-        # fill in NaNs
-        segment_out = fill_method(
-            segment_out,
-            xdim=f"{coords.attrs['parallel']}_{self.segment_name}",
-            zdim=reprocessed_var_map["depth_coord"],
-        )
         if "since" not in time_units:
             times = xr.DataArray(
                 np.arange(
@@ -2191,8 +2170,34 @@ class segment:
                     self.segment_name,
                     depth_coord,
                 )
-        # Overwrite the actual lat/lon values in the dimensions, replace with incrementing integers
 
+        # Here, do a foolproof (hopefully) manual conversion from K -> C just in case 
+        # pint doesn't manage to do so. Pint is finicky, but required for BGC fields. However,
+        # we're making sure that temp will always be in C not K as this is a big problem!
+        if (
+            np.nanmin(
+                segment_out[f"temp_{self.segment_name}"].isel(
+                    {
+                        reprocessed_var_map["time_var_name"]: 0,
+                        f"nz_{self.segment_name}_temp": 0,
+                    }
+                )
+            )
+            > 100
+        ):
+            segment_out[f"temp_{self.segment_name}"] -= 273.15
+            segment_out[f"temp_{self.segment_name}"].attrs[
+                "units"
+            ] = "degrees Celsius"
+
+        # fill in NaNs
+        segment_out = fill_method(
+            segment_out,
+            xdim=f"{coords.attrs['parallel']}_{self.segment_name}",
+            zdim=reprocessed_var_map["depth_coord"],
+        )
+
+        # Overwrite the actual lat/lon values in the dimensions, replace with incrementing integers
         segment_out[f"{coords.attrs['perpendicular']}_{self.segment_name}"] = [0]
 
         segment_out[f"{coords.attrs['parallel']}_{self.segment_name}"] = np.arange(
