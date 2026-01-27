@@ -31,10 +31,14 @@ import xarray as xr
     ],
 )
 def test_hyperbolictan_thickness_profile_symmetric(nlayers, ratio, total_depth):
-    assert np.isclose(
-        hyperbolictan_thickness_profile(nlayers, ratio, total_depth),
-        np.flip(hyperbolictan_thickness_profile(nlayers, 1 / ratio, total_depth)),
-    ).all().item()
+    assert (
+        np.isclose(
+            hyperbolictan_thickness_profile(nlayers, ratio, total_depth),
+            np.flip(hyperbolictan_thickness_profile(nlayers, 1 / ratio, total_depth)),
+        )
+        .all()
+        .item()
+    )
 
 
 @pytest.mark.parametrize(
