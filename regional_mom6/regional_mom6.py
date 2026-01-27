@@ -1354,7 +1354,7 @@ class experiment:
         """
 
         print(
-            "Setting up bathymetry...if this fails, please follow the printed instructions with your experiment topo object, like this: [experiment_obj].topo "
+            "Setting up bathymetry...if this fails, please follow the printed instructions with your experiment topo object, like this: [experiment_obj].topo. For example, if the output tells you to run mpi_set_from_dataset instead of set_from_dataset. You would do: [experiment_obj].topo.mpi_set_from_dataset(...)"
         )
         if regridding_method is None:
             regridding_method = self.regridding_method
