@@ -2171,7 +2171,7 @@ class segment:
                     depth_coord,
                 )
 
-        # Here, do a foolproof (hopefully) manual conversion from K -> C just in case 
+        # Here, do a foolproof (hopefully) manual conversion from K -> C just in case
         # pint doesn't manage to do so. Pint is finicky, but required for BGC fields. However,
         # we're making sure that temp will always be in C not K as this is a big problem!
         if (
@@ -2186,9 +2186,7 @@ class segment:
             > 100
         ):
             segment_out[f"temp_{self.segment_name}"] -= 273.15
-            segment_out[f"temp_{self.segment_name}"].attrs[
-                "units"
-            ] = "degrees Celsius"
+            segment_out[f"temp_{self.segment_name}"].attrs["units"] = "degrees Celsius"
 
         # fill in NaNs
         segment_out = fill_method(
