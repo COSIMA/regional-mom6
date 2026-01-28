@@ -15,7 +15,7 @@ dependencies = [
   "numpy >= 2.0.0",
   "scipy >= 1.2.0",
   "xarray",
-  "xesmf >= 0.8.4",
+  "xesmf >= 0.8.7",
   "f90nml >= 1.4.1",
   "copernicusmarine >= 2.0.0,<2.1.0",
   "pint_xarray"
