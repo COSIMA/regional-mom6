@@ -91,7 +91,7 @@ def test_latlon_to_cartesian(lat, lon, true_xyz):
     ],
 )
 def test_quadrilateral_area(v1, v2, v3, v4, true_area):
-    rhs = float(quadrilateral_area(v1, v2, v3, v4))
+    rhs = float(quadrilateral_area(v1, v2, v3, v4).item())
     lhs = float(true_area)
     assert np.isclose(rhs, lhs)
 
