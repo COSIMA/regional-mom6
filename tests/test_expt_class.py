@@ -352,3 +352,8 @@ def test_rectangular_boundaries(
         "tracers": {"temp": "temp", "salt": "salt"},
     }
     expt.setup_ocean_state_boundaries(tmp_path, varnames)
+
+
+def test_experiment_get_glorys(simple_experiment, tmp_path):
+    expt = simple_experiment
+    expt.get_glorys(tmp_path)

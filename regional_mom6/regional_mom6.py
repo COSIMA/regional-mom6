@@ -11,7 +11,6 @@ import warnings
 import shutil
 import os
 import importlib.resources
-import datetime
 import pandas as pd
 from pathlib import Path
 import json
@@ -984,7 +983,7 @@ class experiment:
             latitude_extent=[float(self.hgrid.y.min()), float(self.hgrid.y.max())],
             timerange=[
                 self.date_range[0],
-                self.date_range[0] + datetime.timedelta(days=1),
+                self.date_range[0] + dt.timedelta(days=1),
             ],
             segment_name="ic_unprocessed",
             download_path=raw_boundaries_path,

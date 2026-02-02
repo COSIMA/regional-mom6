@@ -3,6 +3,7 @@ import os
 import xarray as xr
 import numpy as np
 from mom6_bathy.grid import *
+from regional_mom6 import experiment
 
 # Define the path where the curvilinear hgrid file is expected in the Docker container
 DOCKER_FILE_PATH = "/data/small_curvilinear_hgrid.nc"
@@ -286,3 +287,25 @@ def generate_temperature_arrays(nx, ny, number_vertical_layers):
         return temp_in_C, temp_in_C_masked, temp_in_K, temp_in_K_masked
     else:
         return generate_temperature_arrays(nx, ny, number_vertical_layers)
+
+
+@pytest.fixture
+def simple_experiment(tmp_path):
+
+    mom_run_dir = tmp_path / "rundir"
+    mom_input_dir = tmp_path / "inputdir"
+    expt = experiment(
+        longitude_extent=[-5, 5],
+        latitude_extent=[0, 10],
+        date_range=["2003-01-01 00:00:00", "2003-01-01 00:00:00"],
+        resolution=0.1,
+        number_vertical_layers=5,
+        layer_thickness_ratio=1,
+        depth=1000,
+        mom_run_dir=mom_run_dir,
+        mom_input_dir=mom_input_dir,
+        fre_tools_dir="dummy",
+        hgrid_type="even_spacing",
+        boundaries=["east"],
+    )
+    return expt
