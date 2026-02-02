@@ -2,6 +2,5 @@ name: mom6-regional-dev
 channels:
   - conda-forge
 dependencies:
-  - python<3.12,>=3.11.10 # This requirement won't be needed once mom6_bathy is released
   - esmpy
   - numpy<2.0.0
