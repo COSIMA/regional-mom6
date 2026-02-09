@@ -3138,9 +3138,10 @@ class segment:
         coords = rgd.coords(self.hgrid, self.orientation, self.segment_name)
 
         ## Expand Tidal Dimensions ##
-
+        output_var_list = []
         for var in ds:
             ds = rgd.add_secondary_dimension(ds, str(var), coords, self.segment_name)
+            output_var_list.append(var)
 
         ## Rename Tidal Dimensions ##
         ds = ds.rename(
@@ -3166,6 +3167,13 @@ class segment:
             f"lat_{self.segment_name}": dict(dtype="float64", _FillValue=1.0e20),
         }
         encoding = rgd.generate_encoding(ds, encoding, default_fill_value=1.0e20)
+
+        validate_obc_file(
+            ds,
+            output_var_list,
+            encoding,
+            surface_var="",
+        )
 
         ## Export Files ##
         ds.to_netcdf(

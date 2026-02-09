@@ -13,7 +13,7 @@ from .utils import setup_logger
 logger = setup_logger(__name__)
 
 
-def get_file(file: Path | xr.Dataset):
+def get_file(file):
     """accept a filepath or xarray dataset and return the xarray dataset"""
     if isinstance(file, xr.Dataset):
         return file
@@ -69,7 +69,7 @@ def _check_required_dimensions(da: xr.DataArray, surface=False):
 
 
 def validate_obc_file(
-    file: Path | xr.Dataset, variable_names: list, encoding_dict=None, surface_var="eta"
+    file, variable_names: list, encoding_dict=None, surface_var="eta"
 ):
     """Validate boundary condition file specifically (requires additional segment number validation)"""
     if encoding_dict is None:
