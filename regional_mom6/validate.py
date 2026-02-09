@@ -82,10 +82,11 @@ def validate_obc_file(
         )
 
         # Add encodings
+        encodings_added = []
         if var in encoding_dict:
             for key, value in encoding_dict[var].items():
-                if key not in ds[var].attrs:
-                    ds[var].attrs[key] = value
+                ds[var].attrs[key] = value
+                encodings_added.append(key)
 
         # Check if there is a fill value
         _check_fill_value(ds[var])
@@ -102,6 +103,10 @@ def validate_obc_file(
                 f"dz_{var}" in ds,
                 f"Cannot find thickness variable for var {var}, it should be of the form dz_{var}",
             )
+
+        # Remove encodings
+        for encoding in encodings_added:
+            ds[var].attrs.pop(encoding)
 
 
 def validate_general_file(
