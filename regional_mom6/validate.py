@@ -6,6 +6,8 @@ If you can, leave proof in the form of the exact lines of Fortran code where thi
 
 from pathlib import Path
 import xarray as xr
+import numpy as np
+import re
 from .utils import setup_logger
 
 logger = setup_logger(__name__)
@@ -13,40 +15,47 @@ logger = setup_logger(__name__)
 
 def get_file(file: Path | xr.Dataset):
     """accept a filepath or xarray dataset and return the xarray dataset"""
-    if type(file) == xr.Dataset:
+    if isinstance(file, xr.Dataset):
         return file
     else:
         return xr.open_dataset(file)
 
 
 def check(condition, warning):
-    condition or logger.warn(warning)
+    if not condition:
+        logger.warning(warning)
+    return condition
 
 
 # Individual validation rule functions
 def _check_fill_value(da: xr.DataArray):
     """Check that fill values are set correctly"""
-    check("_FillValue" in da.attrs, f"{var_name} does not have a FillValue attribute")
-
-    check(
-        not np.isnan(da.attrs["_FillValue"]),
-        f"Fill Value for variable {var_name} is NaN (normally not wanted)",
+    condition = check(
+        "_FillValue" in da.attrs, f"{da.name} does not have a FillValue attribute"
     )
+
+    if condition:
+        check(
+            not np.isnan(da.attrs["_FillValue"]),
+            f"Fill Value for variable {da.name} is NaN (normally not wanted)",
+        )
 
 
 def _check_coordinates(ds: xr.Dataset, var_name: str):
-    """Check that missing values are set correctly"""
+    """Check that coordinates attribute exists and all listed coordinates are present in the dataset"""
 
     assert var_name in ds
-    check(
+    condition = check(
         "coordinates" in ds[var_name].attrs,
         f"{var_name} does not have a coordinates attribute",
     )
-
-    coordinates = ds[var_name].attrs["coordinates"]
-    coordinates = coordinates.strip(" ")
-    for coord in coordinates:
-        check(coord in ds, f"Coordinate {coord} for variable {var_name} does not exist")
+    if condition:
+        coordinates = ds[var_name].attrs["coordinates"].strip()
+        for coord in coordinates.split():
+            check(
+                coord in ds,
+                f"Coordinate {coord} for variable {var_name} does not exist",
+            )
 
 
 def _check_required_dimensions(da: xr.DataArray, surface=False):
@@ -60,12 +69,13 @@ def _check_required_dimensions(da: xr.DataArray, surface=False):
 
 
 def validate_obc_file(
-    file: Path | xr.Dataset, variable_names: list, encoding_dict={}, surface_var="eta"
+    file: Path | xr.Dataset, variable_names: list, encoding_dict=None, surface_var="eta"
 ):
     """Validate boundary condition file specifically (requires additional segment number validation)"""
+    if encoding_dict is None:
+        encoding_dict = {}
     ds = get_file(file)
 
-    # Check individual data variable specifications (nothing that starts with dz)
     print(
         "This function identifies variables by if they have the word 'segment' in the name and don't start with nz,dz,lon,lat."
     )
@@ -79,12 +89,12 @@ def validate_obc_file(
         )
         check(
             "segment" in var,
-            f"Variable {var} does not end with a 3 digit number. OBC file variables must end with a number",
+            f"Variable {var} does not contain 'segment'. OBC file variables must include 'segment'",
         )
 
         # Add encodings
         if var in encoding_dict:
-            for key, value in encoding_dict[var].item():
+            for key, value in encoding_dict[var].items():
                 ds[var].attrs[key] = value
 
         # Check if there is a non-NaN fill value
@@ -94,7 +104,7 @@ def validate_obc_file(
         _check_coordinates(ds, var_name=var)
 
         # Check the correct number of dimensions
-        _check_required_dimensions(ds[var], surface=(var == surface_var))  # just two
+        _check_required_dimensions(ds[var], surface=(var == surface_var))
 
         # Check for thickness variable
         if var != surface_var:
@@ -105,4 +115,4 @@ def validate_obc_file(
 
 
 def ends_with_3_digits(s: str) -> bool:
-    return bool(re.search(r"\d{3}$", s))
+    return bool(re.search(r"_\d{3}$", s))
