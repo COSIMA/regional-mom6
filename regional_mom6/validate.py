@@ -1,6 +1,6 @@
 """
 MOM6 requires NetCDF files to be in a very specific format to pass validation, including fill value and missing value attributes. This module is designed to accept input files and warn users of potential issues with their files
-If you can, leave proof in the form of the exact lines of Fortran code where this is required!
+If you can, leave proof in the form of the exact lines of Fortran code where the validation step is required!
 
 """
 

@@ -2799,7 +2799,7 @@ class segment:
 
         # Here, keep in mind that 'var' keeps track of the mom6 variable names we want, and self.tracers[var]
         # will return the name of the variable from the original data
-
+        output_var_list = []
         allfields = {
             **reprocessed_var_map["tracer_var_names"],
             "u": reprocessed_var_map["u_var_name"],
@@ -2815,6 +2815,7 @@ class segment:
             v = f"{var}_{self.segment_name}"
             ## Rename each variable in dataset
             segment_out = segment_out.rename({allfields[var]: v})
+            output_var_list.append(v)
 
             # Try Pint Conversion
             if var in main_field_target_units:
@@ -2894,6 +2895,13 @@ class segment:
             self.outfolder / f"forcing_obc_{self.segment_name}.nc",
             encoding=encoding_dict,
             unlimited_dims="time",
+        )
+
+        validate_obc_file(
+            segment_out,
+            output_var_list,
+            encoding_dict,
+            surface_var=f"eta_{self.segment_name}",
         )
 
         return segment_out, encoding_dict
