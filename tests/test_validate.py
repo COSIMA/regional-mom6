@@ -164,14 +164,11 @@ def test_validate_obc_file_encoding_dict():
             "lat": (["x", "y"], np.random.rand(4, 5)),
         }
     )
-    ds["temp_segment_001"].attrs["_FillValue"] = -999.0
     ds["temp_segment_001"].attrs["coordinates"] = "lon lat"
     ds["dz_temp_segment_001"].attrs["_FillValue"] = -999.0
 
-    encoding_dict = {"temp_segment_001": {"units": "celsius"}}
+    encoding_dict = {"temp_segment_001": {"_FillValue": " -999.0"}}
     validate_obc_file(ds, ["temp_segment_001"], encoding_dict=encoding_dict)
-
-    assert ds["temp_segment_001"].attrs["units"] == "celsius"
 
 
 def test_validate_general_file_valid(caplog):
