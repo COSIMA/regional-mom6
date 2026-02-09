@@ -138,7 +138,9 @@ def test_validate_obc_file_valid(caplog):
         ds[var].attrs["_FillValue"] = -999.0
         ds[var].attrs["coordinates"] = "lon lat"
 
-    validate_obc_file(ds, ["temp_segment_001"], surface_var="eta_segment_001")
+    validate_obc_file(
+        ds, ["temp_segment_001", "eta_segment_001"], surface_var="eta_segment_001"
+    )
 
 
 def test_validate_obc_file_issues(caplog):
@@ -179,3 +181,25 @@ def test_validate_obc_file_encoding_dict():
     validate_obc_file(ds, ["temp_segment_001"], encoding_dict=encoding_dict)
 
     assert ds["temp_segment_001"].attrs["units"] == "celsius"
+
+
+def test_validate_general_file_valid(caplog):
+    """Valid general file with all required attributes passes"""
+    ds = xr.Dataset(
+        {
+            "temp": (["time", "z", "x", "y"], np.random.rand(2, 3, 4, 5)),
+            "dz_temp": (
+                ["time", "z", "x", "y"],
+                np.random.rand(2, 3, 4, 5),
+            ),
+            "eta": (["time", "x", "y"], np.random.rand(2, 4, 5)),
+            "lon": (["x", "y"], np.random.rand(4, 5)),
+            "lat": (["x", "y"], np.random.rand(4, 5)),
+        }
+    )
+
+    for var in ds.data_vars:
+        ds[var].attrs["_FillValue"] = -999.0
+        ds[var].attrs["coordinates"] = "lon lat"
+
+    validate_obc_file(ds, ["temp", "eta"], surface_var="eta")

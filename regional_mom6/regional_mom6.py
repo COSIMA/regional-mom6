@@ -27,6 +27,7 @@ from regional_mom6.utils import (
     find_files_by_pattern,
     try_pint_convert,
 )
+from regional_mom6.validate import validate_obc_file, validate_general_file
 
 warnings.filterwarnings("ignore")
 
@@ -1326,8 +1327,29 @@ class experiment:
         self.ic_tracers = tracers_out
         self.ic_vels = vel_out
 
-        print("done setting up initial condition.")
-
+        validate_general_file(
+            eta_out,
+            ["eta"],
+            {
+                "eta_t": {"_FillValue": None},
+            },
+        )
+        validate_general_file(
+            tracers_out,
+            ["temp", "salt"],
+            encoding={
+                "temp": {"_FillValue": -1e20, "missing_value": -1e20},
+                "salt": {"_FillValue": -1e20, "missing_value": -1e20},
+            },
+        )
+        validate_general_file(
+            vel_out,
+            ["u", "v"],
+            {
+                "u": {"_FillValue": netCDF4.default_fillvals["f4"]},
+                "v": {"_FillValue": netCDF4.default_fillvals["f4"]},
+            },
+        )
         return
 
     def get_glorys(self, raw_boundaries_path):

@@ -75,11 +75,6 @@ def validate_obc_file(
     if encoding_dict is None:
         encoding_dict = {}
     ds = get_file(file)
-
-    print(
-        "This function identifies variables by if they have the word 'segment' in the name and don't start with nz,dz,lon,lat."
-    )
-
     for var in variable_names:
 
         # check variable name format
@@ -112,6 +107,31 @@ def validate_obc_file(
                 f"dz_{var}" in ds,
                 f"Cannot find thickness variable for var {var}, it should be of the form dz_{var}",
             )
+
+
+def validate_general_file(
+    file, variable_names: list, encoding_dict=None, surface_var="eta"
+):
+    """Validate initial condition file and other domain spanning files"""
+    if encoding_dict is None:
+        encoding_dict = {}
+    ds = get_file(file)
+
+    for var in variable_names:
+
+        # Add encodings
+        if var in encoding_dict:
+            for key, value in encoding_dict[var].items():
+                ds[var].attrs[key] = value
+
+        # Check if there is a non-NaN fill value
+        _check_fill_value(ds[var])
+
+        # check coordinates
+        _check_coordinates(ds, var_name=var)
+
+        # Check the correct number of dimensions
+        _check_required_dimensions(ds[var], surface=(var == surface_var))
 
 
 def ends_with_3_digits(s: str) -> bool:
