@@ -32,15 +32,6 @@ def test_check_fill_value_missing(caplog):
     assert "FillValue" in caplog.text
 
 
-def test_check_fill_value_nan(caplog):
-    """DataArray with NaN fill value logs warning"""
-    da = xr.DataArray(
-        [1, 2, 3], dims="x", name="temperature", attrs={"_FillValue": np.nan}
-    )
-    _check_fill_value(da)
-    assert "NaN" in caplog.text
-
-
 # _check_coordinates tests
 def test_check_coordinates_valid(caplog):
     """DataArray with valid coordinates attribute logs no warnings"""

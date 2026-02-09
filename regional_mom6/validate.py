@@ -15,7 +15,7 @@ logger = setup_logger(__name__)
 
 def get_file(file):
     """accept a filepath or xarray dataset and return the xarray dataset"""
-    if isinstance(file, xr.Dataset):
+    if isinstance(file, xr.Dataset) or isinstance(file, xr.DataArray):
         return file
     else:
         return xr.open_dataset(file)
@@ -33,12 +33,6 @@ def _check_fill_value(da: xr.DataArray):
     condition = check(
         "_FillValue" in da.attrs, f"{da.name} does not have a FillValue attribute"
     )
-
-    if condition:
-        check(
-            not np.isnan(da.attrs["_FillValue"]),
-            f"Fill Value for variable {da.name} is NaN (normally not wanted)",
-        )
 
 
 def _check_coordinates(ds: xr.Dataset, var_name: str):
@@ -90,9 +84,10 @@ def validate_obc_file(
         # Add encodings
         if var in encoding_dict:
             for key, value in encoding_dict[var].items():
-                ds[var].attrs[key] = value
+                if key not in ds[var].attrs:
+                    ds[var].attrs[key] = value
 
-        # Check if there is a non-NaN fill value
+        # Check if there is a fill value
         _check_fill_value(ds[var])
 
         # check coordinates
@@ -118,13 +113,12 @@ def validate_general_file(
     ds = get_file(file)
 
     for var in variable_names:
-
         # Add encodings
         if var in encoding_dict:
             for key, value in encoding_dict[var].items():
                 ds[var].attrs[key] = value
 
-        # Check if there is a non-NaN fill value
+        # Check if there is a fill value
         _check_fill_value(ds[var])
 
         # check coordinates

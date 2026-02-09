@@ -1328,8 +1328,8 @@ class experiment:
         self.ic_vels = vel_out
 
         validate_general_file(
-            eta_out,
-            ["eta"],
+            xr.Dataset({"eta_t": eta_out}),
+            ["eta_t"],
             {
                 "eta_t": {"_FillValue": None},
             },
@@ -1337,7 +1337,7 @@ class experiment:
         validate_general_file(
             tracers_out,
             ["temp", "salt"],
-            encoding={
+            {
                 "temp": {"_FillValue": -1e20, "missing_value": -1e20},
                 "salt": {"_FillValue": -1e20, "missing_value": -1e20},
             },
