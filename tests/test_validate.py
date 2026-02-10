@@ -10,7 +10,7 @@ from regional_mom6.validate import (
     _check_fill_value,
     _check_coordinates,
     _check_required_dimensions,
-    ends_with_3_digits,
+    _check_ends_with_3_digits,
     validate_obc_file,
 )
 
@@ -95,16 +95,16 @@ def test_check_required_dimensions_invalid_4d_for_surface(caplog):
     assert "dimension" in caplog.text.lower()
 
 
-# ends_with_3_digits tests
-def test_ends_with_3_digits_valid_cases():
+# _check_ends_with_3_digits tests
+def test_check_ends_with_3_digits_valid_cases():
     """String ending with 3 digits returns True"""
-    assert ends_with_3_digits("temp_001") is True
-    assert ends_with_3_digits("var_999") is True
-    assert ends_with_3_digits("_000") is True
-    assert ends_with_3_digits("temp_01") is False
-    assert ends_with_3_digits("temp_0001") is False
-    assert ends_with_3_digits("temp_abc") is False
-    assert ends_with_3_digits("temp") is False
+    assert _check_ends_with_3_digits("temp_001") is True
+    assert _check_ends_with_3_digits("var_999") is True
+    assert _check_ends_with_3_digits("_000") is True
+    assert _check_ends_with_3_digits("temp_01") is False
+    assert _check_ends_with_3_digits("temp_0001") is False
+    assert _check_ends_with_3_digits("temp_abc") is False
+    assert _check_ends_with_3_digits("temp") is False
 
 
 # validate_obc_file tests
