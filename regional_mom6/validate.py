@@ -1,5 +1,5 @@
 """
-MOM6 requires NetCDF files to be in a very specific format to pass validation, including fill value and missing value attributes. This module is designed to accept input files and warn users of potential issues with their files
+MOM6 requires NetCDF files to be in a very specific format to pass validation, including fill value and coordinate attributes. This module is designed to accept input files and warn users of potential issues with their files
 If you can, leave proof in the form of the exact lines of Fortran code where the validation step is required!
 
 """
@@ -29,14 +29,19 @@ def check(condition, warning):
 
 # Individual validation rule functions
 def _check_fill_value(da: xr.DataArray):
-    """Check that fill values are set correctly"""
+    """Check that fill values are set correctly
+    Can't really find where this is needed, though the run will fail if you don't have this attribute.
+    One place it is required is in src/framework/MOM_horizontal_regridding.F90:horiz_interp_and_extrap_tracer_record, which is called in a few places for tracer initialization.
+    """
     condition = check(
         "_FillValue" in da.attrs, f"{da.name} does not have a FillValue attribute"
     )
 
 
 def _check_coordinates(ds: xr.Dataset, var_name: str):
-    """Check that coordinates attribute exists and all listed coordinates are present in the dataset"""
+    """Check that coordinates attribute exists and all listed coordinates are present in the dataset
+    This is needed for a warning we get from FMS2/MOM_io_infra.F90:categorize_axes. One way of identifying the axes is with the coordinates attribute (but there are other options)
+    """
 
     assert var_name in ds
     condition = check(
@@ -53,13 +58,33 @@ def _check_coordinates(ds: xr.Dataset, var_name: str):
 
 
 def _check_required_dimensions(da: xr.DataArray, surface=False):
-    """Check that required dimensions exist"""
+    """Check that required dimensions exist
+
+    There's no direct Fortran proof for this when I wrote this, more common sense (but there's "siz" variables in MOM_open_boundary.F90 if anyone wants to find it.)
+    """
     if not surface:
         check(len(da.dims) == 4, f"Variable {da.name} does not have 4 dimensions")
     else:
         check(
             len(da.dims) == 3, f"Surface Variable {da.name} does not have 3 dimensions"
         )
+
+
+def _check_ends_with_3_digits(s: str) -> bool:
+    """Check that OBC fields end with 3 digits
+    This is all over src/core/MOM_open_boundary.F90::initialize_segment_data:  'write(suffix,"('_segment_',i3.3)") n' which means exactly 3 digits
+    """
+    return bool(re.search(r"_\d{3}$", s))
+
+
+def _check_dz_var_in_ds(ds, var_name):
+    """
+    This check comes from src/core/MOM_open_boundary.F90::initialize_segment_data 'fieldname = 'dz_'//trim(fieldname)'. Only needed for OBC file inputs
+    """
+    check(
+        f"dz_{var_name}" in ds,
+        f"Cannot find thickness variable for var {var_name}, it should be of the form dz_{var_name}",
+    )
 
 
 def validate_obc_file(
@@ -73,7 +98,7 @@ def validate_obc_file(
 
         # check variable name format
         check(
-            ends_with_3_digits(var),
+            _check_ends_with_3_digits(var),
             f"Variable {var} does not end with a 3 digit number. OBC file variables must end with a number",
         )
         check(
@@ -97,12 +122,10 @@ def validate_obc_file(
         # Check the correct number of dimensions
         _check_required_dimensions(ds[var], surface=(var == surface_var))
 
-        # Check for thickness variable
         if var != surface_var:
-            check(
-                f"dz_{var}" in ds,
-                f"Cannot find thickness variable for var {var}, it should be of the form dz_{var}",
-            )
+            _check_dz_var_in_ds(ds, var_name=var)
+
+        # Check for thickness variable
 
         # Remove encodings
         for encoding in encodings_added:
@@ -131,7 +154,3 @@ def validate_general_file(
 
         # Check the correct number of dimensions
         _check_required_dimensions(ds[var], surface=(var == surface_var))
-
-
-def ends_with_3_digits(s: str) -> bool:
-    return bool(re.search(r"_\d{3}$", s))
