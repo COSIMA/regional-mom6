@@ -18,7 +18,8 @@ dependencies = [
   "xesmf >= 0.8.4",
   "f90nml >= 1.4.1",
   "copernicusmarine >= 2.0.0,<2.1.0",
-  "pint_xarray"
+  "pint_xarray",
+  "mom6_bathy @ git+https://github.com/NCAR/mom6_bathy.git@regional_mom6_package_branch"
 ]
 
 [build-system]
