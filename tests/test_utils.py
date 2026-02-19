@@ -38,7 +38,7 @@ def test_vecdot(v1, v2, true_v1dotv2):
     ],
 )
 def test_angle_between(v1, v2, v3, true_angle):
-    assert np.isclose(angle_between(v1, v2, v3), true_angle)
+    assert np.isclose(angle_between(v1, v2, v3).item(), true_angle)
 
 
 def test_get_edge(get_rectilinear_hgrid):
