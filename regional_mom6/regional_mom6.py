@@ -27,6 +27,7 @@ from regional_mom6.utils import (
     find_files_by_pattern,
     try_pint_convert,
 )
+from regional_mom6.validate import validate_obc_file, validate_general_file
 
 warnings.filterwarnings("ignore")
 
@@ -1326,8 +1327,29 @@ class experiment:
         self.ic_tracers = tracers_out
         self.ic_vels = vel_out
 
-        print("done setting up initial condition.")
-
+        validate_general_file(
+            xr.Dataset({"eta_t": eta_out}),
+            ["eta_t"],
+            {
+                "eta_t": {"_FillValue": None},
+            },
+        )
+        validate_general_file(
+            tracers_out,
+            ["temp", "salt"],
+            {
+                "temp": {"_FillValue": -1e20, "missing_value": -1e20},
+                "salt": {"_FillValue": -1e20, "missing_value": -1e20},
+            },
+        )
+        validate_general_file(
+            vel_out,
+            ["u", "v"],
+            {
+                "u": {"_FillValue": netCDF4.default_fillvals["f4"]},
+                "v": {"_FillValue": netCDF4.default_fillvals["f4"]},
+            },
+        )
         return
 
     def get_glorys(self, raw_boundaries_path):
@@ -2799,7 +2821,7 @@ class segment:
 
         # Here, keep in mind that 'var' keeps track of the mom6 variable names we want, and self.tracers[var]
         # will return the name of the variable from the original data
-
+        output_var_list = []
         allfields = {
             **reprocessed_var_map["tracer_var_names"],
             "u": reprocessed_var_map["u_var_name"],
@@ -2815,6 +2837,7 @@ class segment:
             v = f"{var}_{self.segment_name}"
             ## Rename each variable in dataset
             segment_out = segment_out.rename({allfields[var]: v})
+            output_var_list.append(v)
 
             # Try Pint Conversion
             if var in main_field_target_units:
@@ -2894,6 +2917,13 @@ class segment:
             self.outfolder / f"forcing_obc_{self.segment_name}.nc",
             encoding=encoding_dict,
             unlimited_dims="time",
+        )
+
+        validate_obc_file(
+            segment_out,
+            output_var_list,
+            encoding_dict,
+            surface_var=f"eta_{self.segment_name}",
         )
 
         return segment_out, encoding_dict
@@ -3130,9 +3160,10 @@ class segment:
         coords = rgd.coords(self.hgrid, self.orientation, self.segment_name)
 
         ## Expand Tidal Dimensions ##
-
+        output_var_list = []
         for var in ds:
             ds = rgd.add_secondary_dimension(ds, str(var), coords, self.segment_name)
+            output_var_list.append(var)
 
         ## Rename Tidal Dimensions ##
         ds = ds.rename(
@@ -3158,6 +3189,13 @@ class segment:
             f"lat_{self.segment_name}": dict(dtype="float64", _FillValue=1.0e20),
         }
         encoding = rgd.generate_encoding(ds, encoding, default_fill_value=1.0e20)
+
+        validate_obc_file(
+            ds,
+            output_var_list,
+            encoding,
+            surface_var="",
+        )
 
         ## Export Files ##
         ds.to_netcdf(
