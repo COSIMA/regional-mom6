@@ -14,6 +14,7 @@ import importlib.resources
 import datetime
 import pandas as pd
 from pathlib import Path
+from ruamel.yaml import YAML
 import json
 from regional_mom6 import MOM_parameter_tools as mpt
 from regional_mom6 import regridding as rgd
@@ -1806,7 +1807,7 @@ class experiment:
             {coordinate_names["xh"]: "lon", coordinate_names["yh"]: "lat"}
         )
 
-        bathymetry_output.depth.attrs["_FillValue"] = -1e20
+        bathymetry_output.depth.attrs["_FillValue"] = 0
         bathymetry_output.depth.attrs["units"] = "meters"
         bathymetry_output.depth.attrs["standard_name"] = (
             "height_above_reference_ellipsoid"
@@ -2490,6 +2491,222 @@ class experiment:
         # Write the file
         with open(self.mom_run_dir / "diag_table", "w") as file:
             file.writelines(lines)
+
+        return
+
+    def setup_generic(self, ncpus, auto_mask_table=False, layout=None):
+        # Check if we need tides
+        with_tides = len(self.tidal_constituents) > 0
+        if with_tides:
+            tidal_files_exist = any(Path(self.mom_input_dir).rglob("tu*"))
+
+            if not tidal_files_exist:
+                raise ValueError(
+                    "No files with 'tu' in their names found in the forcing or input directory. If you meant to use tides, please run the setup_boundary_tides method first to create tidal files. If you didn't, set ``tidal_constituants = []`` when defining experiment."
+                )
+
+        ### Make symlinks between run and input directories ###
+        inputdir_in_rundir = self.mom_run_dir / "inputdir"
+        rundir_in_inputdir = self.mom_input_dir / "rundir"
+
+        inputdir_in_rundir.unlink(missing_ok=True)
+        inputdir_in_rundir.symlink_to(self.mom_input_dir)
+
+        rundir_in_inputdir.unlink(missing_ok=True)
+        rundir_in_inputdir.symlink_to(self.mom_run_dir)
+
+        ### Write to the MOM_override file ###
+
+        MOM_override_dict = mpt.read_MOM_file_as_dict("MOM_override", self.mom_run_dir)
+
+        MOM_override_dict["MINIMUM_DEPTH"]["value"] = float(self.minimum_depth)
+
+        # Define spatial dimensions
+        nx = self.hgrid.nx.shape[0] // 2
+        ny = self.hgrid.ny.shape[0] // 2
+        MOM_override_dict["NK"]["value"] = len(self.vgrid.zl.values)
+        MOM_override_dict["NIGLOBAL"]["value"] = nx
+        MOM_override_dict["NJGLOBAL"]["value"] = ny
+
+        # If we're not using the Auto Mask Table feature, need a mask table:
+        if auto_mask_table == False:
+            if layout == None:
+                raise ValueError(
+                    "If not using MOM6's auto mask table feature, a layout must be specified. e.g. layout = [10,12] means a grid of 10x12 PEs."
+                )
+
+            ncpus, layout, mask_table = self.configure_cpu_layout(layout)
+            # Get mask table information
+            if mask_table != None:
+                MOM_override_dict["MASKTABLE"][
+                    "value"
+                ] = self.mask_table  # Don't write mask table if there isn't one!
+            MOM_override_dict["IO_Layout"]["value"] = (
+                str(self.layout[1]) + "," + str(self.layout[0])
+            )
+        elif auto_mask_table == True:
+            MOM_override_dict["AUTO_MASKTABLE"]["value"] = True
+
+        # Define number of OBC segments
+        MOM_override_dict["OBC_NUMBER_OF_SEGMENTS"]["value"] = len(
+            self.boundaries
+        )  # This means that each SEGMENT_00{num} has to be configured to point to the right file, which based on our other functions needs to be specified.
+
+        # More OBC Consts
+        MOM_override_dict["OBC_FREESLIP_VORTICITY"]["value"] = "False"
+        MOM_override_dict["OBC_FREESLIP_STRAIN"]["value"] = "False"
+        MOM_override_dict["OBC_COMPUTED_VORTICITY"]["value"] = "True"
+        MOM_override_dict["OBC_COMPUTED_STRAIN"]["value"] = "True"
+        MOM_override_dict["OBC_ZERO_BIHARMONIC"]["value"] = "True"
+        MOM_override_dict["OBC_TRACER_RESERVOIR_LENGTH_SCALE_OUT"]["value"] = "3.0E+04"
+        MOM_override_dict["OBC_TRACER_RESERVOIR_LENGTH_SCALE_IN"]["value"] = "3000.0"
+        MOM_override_dict["BRUSHCUTTER_MODE"]["value"] = "True"
+
+        # Define Specific Segments
+        for seg in self.boundaries:
+            ind_seg = self.find_MOM6_rectangular_orientation(seg)
+            key_start = f"OBC_SEGMENT_00{ind_seg}"
+            ## Position and Config
+            key_POSITION = key_start
+
+            rect_MOM6_index_dir = {
+                "south": '"J=0,I=0:N',
+                "north": '"J=N,I=N:0',
+                "east": '"I=N,J=0:N',
+                "west": '"I=0,J=N:0',
+            }
+            index_str = rect_MOM6_index_dir[seg]
+
+            MOM_override_dict[key_POSITION]["value"] = (
+                index_str + ',FLATHER,ORLANSKI,NUDGED,ORLANSKI_TAN,NUDGED_TAN"'
+            )
+
+            # Nudging Key
+            key_NUDGING = key_start + "_VELOCITY_NUDGING_TIMESCALES"
+            MOM_override_dict[key_NUDGING]["value"] = "0.3, 360.0"
+
+            # Data Key
+            key_DATA = key_start + "_DATA"
+            file_num_obc = str(
+                self.find_MOM6_rectangular_orientation(seg)
+            )  # 1,2,3,4 for rectangular boundaries, BUT if we have less than 4 segments we use the index to specific the number, but keep filenames as if we had four boundaries
+
+            obc_string = (
+                f'"U=file:forcing_obc_segment_00{file_num_obc}.nc(u),'
+                f"V=file:forcing_obc_segment_00{file_num_obc}.nc(v),"
+                f"SSH=file:forcing_obc_segment_00{file_num_obc}.nc(eta),"
+                f"TEMP=file:forcing_obc_segment_00{file_num_obc}.nc(temp),"
+                f"SALT=file:forcing_obc_segment_00{file_num_obc}.nc(salt)"
+            )
+            MOM_override_dict[key_DATA]["value"] = obc_string
+            if with_tides:
+                tides_addition = (
+                    f",Uamp=file:tu_segment_00{file_num_obc}.nc(uamp),"
+                    f"Uphase=file:tu_segment_00{file_num_obc}.nc(uphase),"
+                    f"Vamp=file:tu_segment_00{file_num_obc}.nc(vamp),"
+                    f"Vphase=file:tu_segment_00{file_num_obc}.nc(vphase),"
+                    f"SSHamp=file:tz_segment_00{file_num_obc}.nc(zamp),"
+                    f'SSHphase=file:tz_segment_00{file_num_obc}.nc(zphase)"'
+                )
+                MOM_override_dict[key_DATA]["value"] = (
+                    MOM_override_dict[key_DATA]["value"] + tides_addition
+                )
+            else:
+                MOM_override_dict[key_DATA]["value"] = (
+                    MOM_override_dict[key_DATA]["value"] + '"'
+                )
+        if type(self.date_range[0]) == str:
+            self.date_range[0] = dt.datetime.strptime(
+                self.date_range[0], "%Y-%m-%d %H:%M:%S"
+            )
+            self.date_range[1] = dt.datetime.strptime(
+                self.date_range[1], "%Y-%m-%d %H:%M:%S"
+            )
+        # Tides OBC adjustments
+        if with_tides:
+
+            # Include internal tide forcing
+            MOM_override_dict["TIDES"]["value"] = "True"
+            MOM_override_dict["TIDES"][
+                "comment"
+            ] = "This turns on body tidal forcing in the interior of domain."
+            for constituent in self.tidal_constituents:
+                MOM_override_dict[f"TIDE_{constituent.upper()}"]["value"] = "True"
+
+            # OBC tides
+            MOM_override_dict["OBC_TIDE_CONSTITUENTS"]["value"] = (
+                '"' + ", ".join(self.tidal_constituents) + '"'
+            )
+            MOM_override_dict["OBC_TIDE_CONSTITUENTS"][
+                "comment"
+            ] = "OBC_TIDE constituent settings define the tidal forcing at boundaries"
+            MOM_override_dict["OBC_TIDE_ADD_EQ_PHASE"]["value"] = "True"
+            MOM_override_dict["OBC_TIDE_N_CONSTITUENTS"]["value"] = len(
+                self.tidal_constituents
+            )
+            MOM_override_dict["OBC_TIDE_REF_DATE"]["value"] = self.date_range[
+                0
+            ].strftime("%Y, %m, %d")
+
+        for key, val in MOM_override_dict.items():
+            if isinstance(val, dict) and key != "original":
+                MOM_override_dict[key]["override"] = True
+        mpt.write_MOM_file(MOM_override_dict, self.mom_run_dir)
+
+        # Modify the config.yaml file. This is the same whether NUOPC or FMS
+        yaml = YAML()
+        yaml.preserve_quotes = True
+        yaml.default_flow_style = False
+        yaml.indent(
+            mapping=4, sequence=4, offset=4
+        )  # Preserve the 4 space indent formatting
+        yaml.width = 4096  # Prevent line wrapping
+        with open(self.mom_run_dir / "config.yaml", "r") as file:
+            config = yaml.load(file)
+        config["ncpus"] = ncpus
+        config["jobname"] = self.mom_run_dir.name
+        config["input"][0] = str(self.mom_input_dir)
+        with open(self.mom_run_dir / "config.yaml", "w") as file:
+            yaml.dump(config, file)
+
+        return
+
+    def setup_rOM3(self, ncpus=208, auto_mask_table=True):
+        shutil.rmtree(self.mom_run_dir)
+        #! PLACEHOLDER
+        #! need to implement something like:
+        #! payu clone stencil_name self.mom_run_dir
+        #!
+        shutil.copytree("/g/data/ol01/ab8992/access-om3-configs", self.mom_run_dir)
+        #!
+        #! END PLACEHOLDER
+
+        self.setup_generic(ncpus, auto_mask_table=auto_mask_table)
+        nx = self.hgrid.nx.shape[0] // 2
+        ny = self.hgrid.ny.shape[0] // 2
+        with open(f"{self.mom_run_dir}/nuopc.runconfig", "r") as file:
+            lines = file.readlines()
+            for i in range(len(lines)):
+                if "     start_ymd" in lines[i]:
+                    lines[i] = (
+                        f"     start_ymd = {self.date_range[0].strftime('%Y%m%d')}\n"
+                    )
+                if "ocn_nx" in lines[i]:
+                    lines[i] = f"     ocn_nx = {nx}\n"
+                if "ocn_ny" in lines[i]:
+                    lines[i] = f"     ocn_ny = {ny}\n"
+        with open(f"{self.mom_run_dir}/nuopc.runconfig", "w") as file:
+            file.writelines(lines)
+
+        #! Here need to modify the drof / datm files to all have the right number of x and y points
+        datm = f90nml.read(self.mom_run_dir / "datm_in")
+        datm["datm_nml"]["nx_global"]
+
+        for i in ["drof", "datm"]:
+            file = f90nml.read(self.mom_run_dir / f"{i}_in")
+            file[f"{i}_nml"]["nx_global"] = nx
+            file[f"{i}_nml"]["ny_global"] = ny
+            file.write(self.mom_run_dir / f"{i}_in", force=True)
 
         return
 
