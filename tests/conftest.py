@@ -3,6 +3,7 @@ import os
 import xarray as xr
 import numpy as np
 import regional_mom6 as rmom6
+from regional_mom6 import experiment
 
 # Define the path where the curvilinear hgrid file is expected in the Docker container
 DOCKER_FILE_PATH = "/data/small_curvilinear_hgrid.nc"
@@ -10,6 +11,23 @@ DOCKER_FILE_PATH = "/data/small_curvilinear_hgrid.nc"
 
 # Define the local directory where the user might have added the curvilinear hgrid file
 LOCAL_FILE_PATH = str(os.getenv("local_curvilinear_hgrid"))
+
+
+@pytest.fixture
+def simple_experiment(tmp_path):
+    return experiment(
+        longitude_extent=[-5, 5],
+        latitude_extent=[0, 10],
+        date_range=["2003-01-01 00:00:00", "2003-01-01 00:00:00"],
+        resolution=0.1,
+        number_vertical_layers=5,
+        layer_thickness_ratio=1,
+        depth=1000,
+        mom_run_dir=tmp_path / "rundir",
+        mom_input_dir=tmp_path / "inputdir",
+        fre_tools_dir="toolpath",
+        hgrid_type="even_spacing",
+    )
 
 
 @pytest.fixture
