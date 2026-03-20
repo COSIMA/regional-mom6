@@ -402,7 +402,7 @@ def generate_rectangular_hgrid(lons, lats):
         np.diff(lons), dlons * np.ones(np.size(lons) - 1)
     ), "provided array of longitudes must be uniformly spaced"
 
-    # Calculate delta x in km given lats & lons
+    # Calculate delta x in m given lats & lons
     dx = np.broadcast_to(
         R * np.cos(np.deg2rad(lats)) * np.deg2rad(dlons),
         (lons.shape[0] - 1, lats.shape[0]),
