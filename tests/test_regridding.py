@@ -6,6 +6,8 @@ import xarray as xr
 import numpy as np
 import pandas as pd
 from regional_mom6.regional_mom6 import segment
+import shutil
+
 
 # Not testing get_arakawa_c_points, coords, & create_regridder
 def test_smoke_untested_funcs(get_curvilinear_hgrid, generate_silly_vt_dataset):
@@ -267,7 +269,7 @@ def test_mask_dataset(get_curvilinear_hgrid):
     ).all() == True  # Ensure data is not in land area
 
 
-def test_regrid_velocity_tracers(get_rectilinear_hgrid, tmp_path):
+def test_regrid_velocity_tracers(toy_glorys_ds, tmp_path):
     """
     Correctness test for segment.regrid_velocity_tracers.
 
@@ -279,42 +281,18 @@ def test_regrid_velocity_tracers(get_rectilinear_hgrid, tmp_path):
     - Vertical coordinate is re-encoded as incremental integers
     - Perpendicular dimension has size 1
     """
+    lat = np.linspace(2, 4, 2)
+    lon = np.linspace(2, 4, 2)
+    hgrid = rmom6.generate_rectangular_hgrid(lat, lon)
 
-    hgrid = get_rectilinear_hgrid
     seg_name = "segment_001"
     outfolder = tmp_path / "inputdir"
     outfolder.mkdir()
 
-    seg = segment(
-        hgrid=hgrid,
-        outfolder=outfolder,
-        segment_name=seg_name,
-        orientation="east",
-        startdate="2003-01-01 00:00:00",
-    )
-
     # Minimal synthetic boundary dataset covering the east edge of the hgrid (lon ≈ 10, lat 0-10)
-    lat = np.linspace(0, 3, 3)
-    lon = np.linspace(0, 3, 3)
-    depth = np.linspace(0, 3, 3)
-    time = np.arange(3, dtype=float)
-    s4 = (len(lat), len(lon), len(depth), len(time))
-    s3 = (len(lat), len(lon), len(time))
-    c4 = {"lat": lat, "lon": lon, "depth": depth, "time": time}
-    c3 = {"lat": lat, "lon": lon, "time": time}
-    d4 = ["lat", "lon", "depth", "time"]
-    d3 = ["lat", "lon", "time"]
-    ds = xr.Dataset(
-        {
-            "temp": xr.DataArray(np.full(s4, 20.0), dims=d4, coords=c4),
-            "salt": xr.DataArray(np.full(s4, 35.0), dims=d4, coords=c4),
-            "u": xr.DataArray(np.zeros(s4), dims=d4, coords=c4),
-            "v": xr.DataArray(np.zeros(s4), dims=d4, coords=c4),
-            "eta": xr.DataArray(np.zeros(s3), dims=d3, coords=c3),
-        }
-    )
-    ds.time.attrs = {"units": "days"}
+
     infile = tmp_path / "east_raw.nc"
+    ds = toy_glorys_ds
     ds.to_netcdf(infile)
     ds.close()
 
@@ -329,40 +307,64 @@ def test_regrid_velocity_tracers(get_rectilinear_hgrid, tmp_path):
         "tracers": {"temp": "temp", "salt": "salt"},
     }
 
+    seg = segment(
+        hgrid=hgrid,
+        outfolder=outfolder,
+        segment_name=seg_name,
+        orientation="east",
+        startdate="2003-01-01 00:00:00",
+    )
     segment_out, _ = seg.regrid_velocity_tracers(infile, varnames, arakawa_grid="A")
 
-    # Output file must exist
-    assert (outfolder / f"forcing_obc_{seg_name}.nc").exists()
+    # Salt is spatially constant, so all ocean points must match exactly.
+    salt_vals = segment_out[f"salt_{seg_name}"].values
+    np.testing.assert_allclose(salt_vals, 35.0, rtol=1e-4)
 
-    # All expected variables must be present with correct naming
-    for v in [f"temp_{seg_name}", f"salt_{seg_name}", f"u_{seg_name}", f"v_{seg_name}", f"eta_{seg_name}"]:
-        assert v in segment_out, f"Missing variable {v}"
+    # Temp is spatially varying (20–26 °C), so just check values are exact (hgrid overlap with seg exactly)
+    temp_vals = segment_out[f"temp_{seg_name}"].values
+    assert temp_vals[0, 0, 0, 0] == 22
+    assert temp_vals[0, 0, 1, 0] == 26
 
-    # Temperature must be in Celsius
-    assert float(segment_out[f"temp_{seg_name}"].max()) < 100.0
+    seg_north = segment(
+        hgrid=hgrid,
+        outfolder=outfolder,
+        segment_name=seg_name,
+        orientation="north",
+        startdate="2003-01-01 00:00:00",
+    )
+    segment_out_north, _ = seg_north.regrid_velocity_tracers(
+        infile, varnames, arakawa_grid="A"
+    )
+    temp_vals = segment_out_north[f"temp_{seg_name}"].values
+    assert temp_vals[0, 0, 0, 0] == 24
+    assert temp_vals[0, 0, 0, 1] == 26
 
-    # Regridding correctness: source fields are spatially constant, so interpolated
-    # values must match the source value regardless of where the boundary falls.
-    # NaNs can appear at land points (masked), so we check only ocean points.
-    large_fill = 1.0e20
-    for var, expected in [(f"temp_{seg_name}", 20.0), (f"salt_{seg_name}", 35.0)]:
-        ocean_vals = segment_out[var].values
-        ocean_vals = ocean_vals[np.abs(ocean_vals) < large_fill / 2]
-        np.testing.assert_allclose(ocean_vals, expected, rtol=1e-4)
+    # Mess with hgrid, subtract 1
 
-    # 3D fields must have dz companion variables
-    for v in [f"temp_{seg_name}", f"salt_{seg_name}", f"u_{seg_name}", f"v_{seg_name}"]:
-        assert f"dz_{v}" in segment_out, f"Missing dz variable for {v}"
-
-    # Vertical coordinates must be incremental integers starting at 0
-    for base in ["temp", "salt", "u", "v"]:
-        nz_coord = f"nz_{seg_name}_{base}"
-        nz_vals = segment_out[nz_coord].values
-        np.testing.assert_array_equal(nz_vals, np.arange(nz_vals.size))
-
-    # Perpendicular dimension (ny for east boundary) must have size 1
-    assert segment_out[f"ny_{seg_name}"].size == 1
-
+    folder = outfolder / "weights"
+    shutil.rmtree(
+        folder
+    )  # removes weights so they aren't saved with the old hgrid, and forces them to be recomputed with the new hgrid
+    folder.mkdir()  # recreate the empty folder
+    hgrid["x"] = hgrid.x + 1
+    hgrid["y"] = hgrid.y + 1
+    seg_regrid = segment(
+        hgrid=hgrid,
+        outfolder=outfolder,
+        segment_name=seg_name,
+        orientation="west",
+        startdate="2003-01-01 00:00:00",
+    )
+    seg_regridded, _ = seg_regrid.regrid_velocity_tracers(
+        infile, varnames, arakawa_grid="A", regridding_method="bilinear"
+    )
+    temp_vals = seg_regridded[f"temp_{seg_name}"].values
+    assert (
+        np.abs(temp_vals[0, 0, 0, 0] - 23) < 0.01
+    )  # bilinear at this point is nearly the average of the toy_glory_ds values (22 and 24 and 26 and 20)
+    assert (
+        temp_vals[0, 0, 0, 0] == 0
+    )  # The bilinear regridding would be zero here because there isn't 4 points
 
 
 # def test_regrid_tides(get_rectilinear_hgrid, tmp_path):

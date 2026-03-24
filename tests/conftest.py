@@ -14,6 +14,39 @@ LOCAL_FILE_PATH = str(os.getenv("local_curvilinear_hgrid"))
 
 
 @pytest.fixture
+def toy_glorys_ds():
+    lat = np.linspace(2, 4, 2)
+    lon = np.linspace(2, 4, 2)
+    depth = np.linspace(0, 1, 2)
+    time = np.arange(1, dtype=float)
+    s4 = (len(time), len(depth), len(lat), len(lon))
+    s3 = (len(time), len(lat), len(lon))
+    c4 = {
+        "time": time,
+        "depth": depth,
+        "lat": lat,
+        "lon": lon,
+    }
+    c3 = {"time": time, "lat": lat, "lon": lon}
+    d4 = ["time", "depth", "lat", "lon"]
+    d3 = ["time", "lat", "lon"]
+    # Define 2D spatial pattern
+    temp_2d = np.array([[20.0, 22.0], [24.0, 26.0]])  # shape (lat, lon)
+    temp_4d = np.broadcast_to(temp_2d[np.newaxis, np.newaxis, :, :], s4).copy()
+    ds = xr.Dataset(
+        {
+            "temp": xr.DataArray(temp_4d, dims=d4, coords=c4),
+            "salt": xr.DataArray(np.full(s4, 35.0), dims=d4, coords=c4),
+            "u": xr.DataArray(np.zeros(s4), dims=d4, coords=c4),
+            "v": xr.DataArray(np.zeros(s4), dims=d4, coords=c4),
+            "eta": xr.DataArray(np.zeros(s3), dims=d3, coords=c3),
+        }
+    )
+    ds.time.attrs = {"units": "days"}
+    return ds
+
+
+@pytest.fixture
 def simple_experiment(tmp_path):
     return experiment(
         longitude_extent=[-5, 5],
