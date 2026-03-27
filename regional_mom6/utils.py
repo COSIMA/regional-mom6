@@ -283,7 +283,7 @@ def is_rectilinear_hgrid(hgrid: xr.Dataset, rtol: float = 1e-3) -> bool:
     """
     Check if the ``hgrid`` is a rectilinear grid by comparing the first and last rows and columns of the tlon and tlat arrays.
 
-    From ``mom6_bathy.grid.is_rectangular`` by Alper (Altuntas).
+    From ``mom6_forge.grid.is_rectangular`` by Alper (Altuntas).
 
     Arguments:
         hgrid (xarray.Dataset): The horizontal grid dataset.

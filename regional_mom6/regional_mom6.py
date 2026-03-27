@@ -25,9 +25,9 @@ from regional_mom6.utils import (
     find_files_by_pattern,
     try_pint_convert,
 )
-from mom6_bathy.vgrid import *
-from mom6_bathy.grid import *
-from mom6_bathy.topo import *
+from mom6_forge.vgrid import *
+from mom6_forge.grid import *
+from mom6_forge.topo import *
 from regional_mom6.validate import validate_obc_file, validate_general_file
 
 warnings.filterwarnings("ignore")
