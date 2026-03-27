@@ -2,7 +2,7 @@ import pytest
 import os
 import xarray as xr
 import numpy as np
-from mom6_bathy.grid import *
+from mom6_forge.grid import *
 from regional_mom6 import experiment
 
 # Define the path where the curvilinear hgrid file is expected in the Docker container
