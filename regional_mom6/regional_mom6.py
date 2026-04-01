@@ -1535,7 +1535,7 @@ class experiment:
                 input dataset, can also be specified in the varnames dict but this is here so we can reformat the output into seperate files. For example, ``{'oxygen': 'o2', 'phosphate': 'po4', ...}``.
         """
 
-        if bgc_tracer_names is None:
+        if bgc_tracer_names is None or bgc_tracer_names == {}:
             return
 
         # Read in the forcing datasets
