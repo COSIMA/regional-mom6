@@ -211,6 +211,57 @@ def test_ocean_forcing(
     dask.config.set(scheduler=None)
 
 
+def test_bgc_tracers_carried_through_initial_condition(tmp_path, generate_silly_ic_dataset):
+    """BGC tracers beyond temp/salt must appear in ic_tracers after setup_initial_condition."""
+    dask.config.set(scheduler="single-threaded")
+    lon_ext = [-5, 3]
+    lat_ext = [0, 10]
+    nz = 5
+
+    initial_cond = generate_silly_ic_dataset(
+        lon_ext, lat_ext, resolution, nz, depth,
+        get_temperature_dataarrays(lon_ext, lat_ext, resolution, nz, depth)[0],
+    )
+    # Add a BGC tracer
+    nx, ny = number_of_gridpoints(lon_ext, lat_ext, resolution)
+    silly_lat, silly_lon, silly_depth = initial_cond.silly_lat, initial_cond.silly_lon, initial_cond.silly_depth
+    initial_cond["no3"] = xr.DataArray(
+        np.random.random((ny, nx, nz)),
+        dims=["silly_lat", "silly_lon", "silly_depth"],
+        coords={"silly_lat": silly_lat, "silly_lon": silly_lon, "silly_depth": silly_depth},
+    )
+    initial_cond.to_netcdf(tmp_path / "ic_bgc")
+    initial_cond.close()
+
+    expt = experiment(
+        longitude_extent=lon_ext,
+        latitude_extent=lat_ext,
+        date_range=date_range,
+        resolution=resolution,
+        number_vertical_layers=nz,
+        layer_thickness_ratio=layer_thickness_ratio,
+        depth=depth,
+        mom_run_dir=tmp_path / "rundir",
+        mom_input_dir=tmp_path / "inputdir",
+        fre_tools_dir="toolpath",
+        hgrid_type="even_spacing",
+    )
+    varnames = {
+        "xh": "silly_lon",
+        "yh": "silly_lat",
+        "time": "time",
+        "eta": "eta",
+        "zl": "silly_depth",
+        "u": "u",
+        "v": "v",
+        "tracers": {"temp": "temp", "salt": "salt", "no3": "no3"},
+    }
+    expt.setup_initial_condition(tmp_path / "ic_bgc", varnames, arakawa_grid="A")
+
+    assert "no3" in expt.ic_tracers
+    dask.config.set(scheduler=None)
+
+
 @pytest.mark.parametrize(
     (
         "longitude_extent",

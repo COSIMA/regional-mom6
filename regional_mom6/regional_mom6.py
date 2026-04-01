@@ -1305,13 +1305,12 @@ class experiment:
             },
         )
 
+        encoding = {var: {"_FillValue": -1e20, "missing_value": -1e20} for var in reprocessed_var_map["tracer_var_names"].keys()}
+        breakpoint()
         tracers_out.to_netcdf(
             self.mom_input_dir / "init_tracers.nc",
             mode="w",
-            encoding={
-                "temp": {"_FillValue": -1e20, "missing_value": -1e20},
-                "salt": {"_FillValue": -1e20, "missing_value": -1e20},
-            },
+            encoding=encoding,
         )
         eta_out.to_netcdf(
             self.mom_input_dir / "init_eta.nc",
@@ -1334,11 +1333,8 @@ class experiment:
         )
         validate_general_file(
             tracers_out,
-            ["temp", "salt"],
-            {
-                "temp": {"_FillValue": -1e20, "missing_value": -1e20},
-                "salt": {"_FillValue": -1e20, "missing_value": -1e20},
-            },
+            list(reprocessed_var_map["tracer_var_names"].keys()),
+            encoding,
         )
         validate_general_file(
             vel_out,
