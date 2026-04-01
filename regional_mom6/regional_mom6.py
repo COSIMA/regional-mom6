@@ -1305,7 +1305,10 @@ class experiment:
             },
         )
 
-        encoding = {var: {"_FillValue": -1e20, "missing_value": -1e20} for var in reprocessed_var_map["tracer_var_names"].keys()}
+        encoding = {
+            var: {"_FillValue": -1e20, "missing_value": -1e20}
+            for var in reprocessed_var_map["tracer_var_names"].keys()
+        }
         breakpoint()
         tracers_out.to_netcdf(
             self.mom_input_dir / "init_tracers.nc",
@@ -3343,7 +3346,9 @@ def apply_arakawa_grid_mapping(var_mapping: dict, arakawa_grid: str = None) -> d
             "eta_var_name": var_mapping["eta"],
             "time_var_name": var_mapping["time"],
             "depth_coord": var_mapping["zl"],
-            "tracer_var_names": var_mapping["tracers"] # validate_var_mapping will ensure this is a nested dict with "salt" and "temp" keys
+            "tracer_var_names": var_mapping[
+                "tracers"
+            ],  # validate_var_mapping will ensure this is a nested dict with "salt" and "temp" keys
         }
 
         if arakawa_grid == "A":

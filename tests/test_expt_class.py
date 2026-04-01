@@ -211,7 +211,9 @@ def test_ocean_forcing(
     dask.config.set(scheduler=None)
 
 
-def test_bgc_tracers_carried_through_initial_condition(tmp_path, generate_silly_ic_dataset):
+def test_bgc_tracers_carried_through_initial_condition(
+    tmp_path, generate_silly_ic_dataset
+):
     """BGC tracers beyond temp/salt must appear in ic_tracers after setup_initial_condition."""
     dask.config.set(scheduler="single-threaded")
     lon_ext = [-5, 3]
@@ -219,16 +221,28 @@ def test_bgc_tracers_carried_through_initial_condition(tmp_path, generate_silly_
     nz = 5
 
     initial_cond = generate_silly_ic_dataset(
-        lon_ext, lat_ext, resolution, nz, depth,
+        lon_ext,
+        lat_ext,
+        resolution,
+        nz,
+        depth,
         get_temperature_dataarrays(lon_ext, lat_ext, resolution, nz, depth)[0],
     )
     # Add a BGC tracer
     nx, ny = number_of_gridpoints(lon_ext, lat_ext, resolution)
-    silly_lat, silly_lon, silly_depth = initial_cond.silly_lat, initial_cond.silly_lon, initial_cond.silly_depth
+    silly_lat, silly_lon, silly_depth = (
+        initial_cond.silly_lat,
+        initial_cond.silly_lon,
+        initial_cond.silly_depth,
+    )
     initial_cond["no3"] = xr.DataArray(
         np.random.random((ny, nx, nz)),
         dims=["silly_lat", "silly_lon", "silly_depth"],
-        coords={"silly_lat": silly_lat, "silly_lon": silly_lon, "silly_depth": silly_depth},
+        coords={
+            "silly_lat": silly_lat,
+            "silly_lon": silly_lon,
+            "silly_depth": silly_depth,
+        },
     )
     initial_cond.to_netcdf(tmp_path / "ic_bgc")
     initial_cond.close()
