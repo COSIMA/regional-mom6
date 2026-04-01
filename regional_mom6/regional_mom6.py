@@ -3480,7 +3480,7 @@ def identify_arakawa_grid(var_mapping):
     elif (
         var_mapping["v_x_coord"] != var_mapping["u_x_coord"]
         and var_mapping["u_x_coord"] != var_mapping["tracer_x_coord"]
-        and var_mapping["v_x_coord"] != var_mapping["tracer_x_coord"]
+        and var_mapping["v_y_coord"] != var_mapping["tracer_y_coord"]
     ):
         return "C"
     else:
