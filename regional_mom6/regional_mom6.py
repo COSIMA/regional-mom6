@@ -1536,7 +1536,7 @@ class experiment:
         """
 
         if bgc_tracer_names is None:
-            bgc_tracer_names = {}
+            return
 
         # Read in the forcing datasets
         datasets = {}
