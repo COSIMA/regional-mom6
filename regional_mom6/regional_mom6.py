@@ -1,3 +1,5 @@
+import re
+
 import numpy as np
 import dask.array as da
 import xarray as xr
@@ -1450,6 +1452,7 @@ class experiment:
         self,
         raw_boundaries_path,
         varnames,
+        bgc_tracer_names: dict = None,
         arakawa_grid="A",
         bathymetry_path=None,
         rotational_method=rot.RotationMethod.EXPAND_GRID,
@@ -1465,6 +1468,8 @@ class experiment:
             raw_boundaries_path (str): Path to the directory containing the raw boundary forcing files.
             varnames (Dict[str, str]): Mapping from MOM6 variable/coordinate names to the name in the
                 input dataset.
+            bgc_tracer_names (Dict[str, str]): Specify the BGC tracer names to the name in the
+                input dataset, can also be specified in the varnames dict but this is here so we can reformat the output into seperate files. For example, ``{'oxygen': 'o2', 'phosphate': 'po4', ...}``.
             boundaries (List[str]): List of cardinal directions for which to create boundary forcing files.
                 Default is ``["south", "north", "west", "east"]``.
             arakawa_grid (Optional[str]): Arakawa grid staggering type of the boundary forcing.
@@ -1496,6 +1501,14 @@ class experiment:
                 "This method only supports up to four boundaries. To set up more complex boundary shapes you can manually call the 'simple_boundary' method for each boundary."
             )
 
+        if bgc_tracer_names is None:
+            bgc_tracer_names = {}
+
+        # Merge the bgc tracer names into the varnames
+        if bgc_tracer_names:
+            key = "tracers" if "tracers" in varnames else "tracer_var_names"
+            varnames[key] = {**varnames[key], **bgc_tracer_names}
+
         # Now iterate through our four boundaries
         for orientation in self.boundaries:
             self.setup_single_boundary(
@@ -1511,6 +1524,43 @@ class experiment:
                 regridding_method=regridding_method,
                 fill_method=fill_method,
             )
+
+        # Scrape the bgc var names into their own files for the boundary conditions (required for generic tracers at the moment, Apr 2026)
+        self.reformat_bgc_tracers_into_files(bgc_tracer_names)
+
+    def reformat_bgc_tracers_into_files(self, bgc_tracer_names: dict = None):
+        """
+        Reformat the boundary condition files so that the BGC tracers are in separate files from the physical tracers. This is required for generic tracers at the moment (Apr 2026) but may not be in the future as we add more flexibility to the code.
+
+        Arguments:
+            bgc_tracer_names (Dict[str, str]): Specify the BGC tracer names to the name in the
+                input dataset, can also be specified in the varnames dict but this is here so we can reformat the output into seperate files. For example, ``{'oxygen': 'o2', 'phosphate': 'po4', ...}``.
+        """
+
+        if bgc_tracer_names is None:
+            bgc_tracer_names = {}
+
+        # Read in the forcing datasets
+        datasets = {}
+        for boundary in self.boundaries:
+            num = str(self.find_MOM6_rectangular_orientation(boundary)).zfill(3)
+            datasets[num] = xr.open_mfdataset(
+                self.mom_input_dir / f"forcing_obc_segment_{num}.nc"
+            )
+
+        # Get base variable names
+        base_vars = list(bgc_tracer_names.keys())
+        for var in base_vars:
+            ds_var = xr.Dataset()
+            for key, ds in datasets.items():
+                var_name = f"{var}_segment_{key}"  # 001, 002, 003, 004
+                ds_var[var_name] = ds[var_name]
+                dz_var_name = f"dz_{var_name}"
+                if dz_var_name in ds:
+                    ds_var[dz_var_name] = ds[dz_var_name]
+            output_file = self.mom_input_dir / f"{var}_obc_segment.nc"
+            ds_var.to_netcdf(output_file, unlimited_dims="time")
+            print("Saved BGC tracer {} to file {}".format(var, output_file))
 
     def setup_single_boundary(
         self,

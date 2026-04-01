@@ -352,3 +352,56 @@ def test_rectangular_boundaries(
         "tracers": {"temp": "temp", "salt": "salt"},
     }
     expt.setup_ocean_state_boundaries(tmp_path, varnames)
+
+
+def test_reformat_bgc_tracers_into_files(tmp_path):
+    """reformat_bgc_tracers_into_files writes one file per BGC tracer containing the tracer and its dz variable."""
+    expt = experiment(
+        longitude_extent=[-5, 5],
+        latitude_extent=[0, 10],
+        date_range=["2003-01-01 00:00:00", "2003-01-01 00:00:00"],
+        resolution=0.1,
+        number_vertical_layers=5,
+        layer_thickness_ratio=1,
+        depth=1000,
+        mom_run_dir=tmp_path / "rundir",
+        mom_input_dir=tmp_path / "inputdir",
+        fre_tools_dir="toolpath",
+        hgrid_type="even_spacing",
+        boundaries=["east", "west"],
+    )
+
+    # Write a fake forcing_obc_segment_001.nc with BGC tracer vars
+    segs = ["001", "002"]
+    for seg in segs:
+        ds = xr.Dataset(
+            {
+                f"o2_segment_{seg}": xr.DataArray(
+                    np.random.random((3, 5, 4)),
+                    dims=["time", "nz", f"nx_segment_{seg}"],
+                ),
+                f"dz_o2_segment_{seg}": xr.DataArray(
+                    np.random.random((3, 5, 4)),
+                    dims=["time", "nz", f"nx_segment_{seg}"],
+                ),
+                f"temp_segment_{seg}": xr.DataArray(
+                    np.random.random((3, 5, 4)),
+                    dims=["time", "nz", f"nx_segment_{seg}"],
+                ),
+            }
+        )
+        ds.to_netcdf(expt.mom_input_dir / f"forcing_obc_segment_{seg}.nc")
+
+    expt.reformat_bgc_tracers_into_files({"o2": "o2"})
+
+    out_file = expt.mom_input_dir / "o2_obc_segment.nc"
+    assert out_file.exists(), "output file for BGC tracer not created"
+    result = xr.open_dataset(out_file)
+    for seg in segs:
+        assert f"o2_segment_{seg}" in result, "tracer variable missing from output"
+        assert (
+            f"dz_o2_segment_{seg}" in result
+        ), "dz thickness variable missing from output"
+        assert (
+            f"temp_segment_{seg}" not in result
+        ), "physical tracer should not be in BGC file"
