@@ -1,5 +1,3 @@
-import re
-
 import numpy as np
 import dask.array as da
 import xarray as xr
