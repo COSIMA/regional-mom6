@@ -1,5 +1,5 @@
 import pytest
-from regional_mom6.regional_mom6 import identify_arakawa_grid
+from regional_mom6.regional_mom6 import apply_arakawa_grid_mapping, identify_arakawa_grid
 
 
 def _make_var_map(u_x, v_x, tracer_x, u_y="lat_u", v_y="lat_v", tracer_y="lat_t"):
@@ -65,3 +65,17 @@ def test_arakawa_c_grid_requires_distinct_v_y():
     )
     with pytest.raises(ValueError, match="Could not determine Arakawa grid type"):
         identify_arakawa_grid(var_map)
+
+
+# apply_arakawa_grid_mapping tests
+
+def test_extra_tracers_carried_through():
+    """Extra tracers beyond salt/temp must appear in tracer_var_names after mapping."""
+    tracers = {"salt": "so", "temp": "thetao", "no3": "no3", "o2": "o2"}
+    var_map = {
+        "xh": "lon", "yh": "lat", "xq": None, "yq": None,
+        "u": "uo", "v": "vo", "eta": "zos", "time": "time",
+        "zl": "lev", "tracers": tracers,
+    }
+    result = apply_arakawa_grid_mapping(var_map, arakawa_grid="A")
+    assert result["tracer_var_names"] == tracers

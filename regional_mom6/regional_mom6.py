@@ -3347,10 +3347,7 @@ def apply_arakawa_grid_mapping(var_mapping: dict, arakawa_grid: str = None) -> d
             "eta_var_name": var_mapping["eta"],
             "time_var_name": var_mapping["time"],
             "depth_coord": var_mapping["zl"],
-            "tracer_var_names": {
-                "salt": var_mapping["tracers"]["salt"],
-                "temp": var_mapping["tracers"]["temp"],
-            },
+            "tracer_var_names": var_mapping["tracers"] # validate_var_mapping will ensure this is a nested dict with "salt" and "temp" keys
         }
 
         if arakawa_grid == "A":
