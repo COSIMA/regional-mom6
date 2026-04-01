@@ -215,7 +215,6 @@ def test_bgc_tracers_carried_through_initial_condition(
     tmp_path, generate_silly_ic_dataset
 ):
     """BGC tracers beyond temp/salt must appear in ic_tracers after setup_initial_condition."""
-    dask.config.set(scheduler="single-threaded")
     lon_ext = [-5, 3]
     lat_ext = [0, 10]
     nz = 5
