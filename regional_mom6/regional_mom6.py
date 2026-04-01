@@ -1309,7 +1309,6 @@ class experiment:
             var: {"_FillValue": -1e20, "missing_value": -1e20}
             for var in reprocessed_var_map["tracer_var_names"].keys()
         }
-        breakpoint()
         tracers_out.to_netcdf(
             self.mom_input_dir / "init_tracers.nc",
             mode="w",
