@@ -27,7 +27,7 @@ jobs:
         python-version: ["3.11", "3.12"]
 
     steps:
-      - name: Set git stuff
+      - name: Set git config
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
