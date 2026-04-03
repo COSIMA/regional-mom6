@@ -409,7 +409,7 @@ class experiment:
                 f"Error on trying to read the hgrid in as a mom6_forge Grid object: {e}"
             )
             return None
-            
+
     @property
     def TOPO(self):
         try:
@@ -1511,14 +1511,11 @@ class experiment:
             sep="\n\n",
         )
 
-
-
-
     def setup_generic(self, ncpus, mask_land_PEs=True):
         """
-        Set up the run directory for the model run. This is a multi step process - given that NUOPC vs FMS based runs are quite different, this function handles all of the setup steps that they share in common, with more specific steps performed in setup_rOM3 and setup_FMS_version respectively. 
-        
-        The main thing this function does is manage the MOM_override file, as this is common to both use cases. 
+        Set up the run directory for the model run. This is a multi step process - given that NUOPC vs FMS based runs are quite different, this function handles all of the setup steps that they share in common, with more specific steps performed in setup_rOM3 and setup_FMS_version respectively.
+
+        The main thing this function does is manage the MOM_override file, as this is common to both use cases.
 
         Arguments:
             ncpus (Optional[int]): The number of PEs to use
@@ -1564,7 +1561,6 @@ class experiment:
             # No mask table at all
             MOM_override_dict["AUTO_MASKTABLE"]["value"] = False
             MOM_override_dict["MASKTABLE"]["value"] = "None"
-
 
         # Define number of OBC segments
         MOM_override_dict["OBC_NUMBER_OF_SEGMENTS"]["value"] = len(
@@ -1690,10 +1686,10 @@ class experiment:
 
         return
 
-    def setup_rOM3(self, ncpus=208, mask_land_PEs = True):
+    def setup_rOM3(self, ncpus=208, mask_land_PEs=True):
         """
         Set up the run directory for an ACCESS-regional-ocean-model-3 experiment. This function copies existing configuration files (MOM_input,config.yaml etc.) from an ACCESS-NRI supported source to ensure that users have access to the latest executable and fixes.
-       
+
 
         Arguments:
             ncpus (Optional[int]): The number of PEs to use
@@ -1702,7 +1698,6 @@ class experiment:
         if os.path.exists(self.mom_run_dir):
             shutil.rmtree(self.mom_run_dir)
 
-
         # First, make the ESMF mesh file required for all NUOPC based runs, like rom3
         self.TOPO.write_esmf_mesh(expt.mom_input_dir / "access-rom3-ESMFmesh.nc")
         # Now modify to make a mask free version
@@ -1710,12 +1705,15 @@ class experiment:
         maskmesh.elementMask[:] = 1
         maskmesh.to_netcdf(expt.mom_input_dir / "access-rom3-nomask-ESMFmesh.nc")
 
-
         #! PLACEHOLDER
         #! need to implement something like:
-        #! payu clone stencil_name self.mom_run_dir. 
+        #! payu clone stencil_name self.mom_run_dir.
         #!
-        shutil.copytree("/g/data/ol01/ab8992/access-om3-configs", self.mom_run_dir,dirs_exist_ok = True)
+        shutil.copytree(
+            "/g/data/ol01/ab8992/access-om3-configs",
+            self.mom_run_dir,
+            dirs_exist_ok=True,
+        )
         #!
         #! END PLACEHOLDER
 
@@ -1724,7 +1722,7 @@ class experiment:
             mask_table = "auto"
         else:
             mask_table = "none"
-        self.setup_generic(ncpus, mask_table = mask_table)
+        self.setup_generic(ncpus, mask_table=mask_table)
 
         nx = self.hgrid.nx.shape[0] // 2
         ny = self.hgrid.ny.shape[0] // 2
@@ -1754,12 +1752,8 @@ class experiment:
 
         return
 
-
     def setup_fms_version(
-        self,
-        surface_forcing=None,
-        using_payu=False,
-        mask_land_PEs = True
+        self, surface_forcing=None, using_payu=False, mask_land_PEs=True
     ):
         """
         Set up the run directory for MOM6. Either copy a pre-made set of files, or modify
@@ -1772,7 +1766,7 @@ class experiment:
                 to run the model. If ``True``, a payu configuration file will be created.
                 Default: ``False``.
             mask_land_PEs (Optional[bool]): If your domain has enough land in it that some processors would only have land to deal with, set to True. If a mostly water domain, set to False otherwise the automatic mask table throws a fatal (see issue: https://github.com/issues/created?issue=mom-ocean%7CMOM6%7C1686)
-            """
+        """
 
         ## Get the path to the regional_mom package on this computer
         premade_rundir_path = Path(
@@ -1820,7 +1814,6 @@ class experiment:
             ## In case there is additional forcing (e.g., tides) then we need to modify the run dir to include the additional forcing.
             overwrite_run_dir = False
 
-
         shutil.copytree(base_run_dir, self.mom_run_dir, dirs_exist_ok=True)
         if overwrite_run_dir != False:
             shutil.copytree(overwrite_run_dir, self.mom_run_dir, dirs_exist_ok=True)
@@ -1847,8 +1840,7 @@ class experiment:
             with open(f"{self.mom_run_dir}/config.yaml", "w") as file:
                 file.writelines(lines)
 
-        self.setup_generic(ncpus,mask_land_PEs)
-
+        self.setup_generic(ncpus, mask_land_PEs)
 
         # Modify input.nml
         nml = f90nml.read(self.mom_run_dir / "input.nml")
