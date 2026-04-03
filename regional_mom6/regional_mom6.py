@@ -1511,7 +1511,7 @@ class experiment:
             sep="\n\n",
         )
 
-    def setup_generic(self, ncpus = 100, mask_land_PEs=True):
+    def setup_generic(self, ncpus=100, mask_land_PEs=True):
         """
         Set up the run directory for the model run. This is a multi step process - given that NUOPC vs FMS based runs are quite different, this function handles all of the setup steps that they share in common, with more specific steps performed in setup_rOM3 and setup_FMS_version respectively.
 
@@ -1722,7 +1722,7 @@ class experiment:
             mask_table = "auto"
         else:
             mask_table = "none"
-        self.setup_generic(ncpus = ncpus, mask_table=mask_table)
+        self.setup_generic(ncpus=ncpus, mask_table=mask_table)
 
         nx = self.hgrid.nx.shape[0] // 2
         ny = self.hgrid.ny.shape[0] // 2
@@ -1753,7 +1753,7 @@ class experiment:
         return
 
     def setup_fms_version(
-        self, ncpus = 100,surface_forcing=None, using_payu=False, mask_land_PEs=True
+        self, ncpus=100, surface_forcing=None, using_payu=False, mask_land_PEs=True
     ):
         """
         Set up the run directory for MOM6. Either copy a pre-made set of files, or modify
@@ -1840,7 +1840,7 @@ class experiment:
             with open(f"{self.mom_run_dir}/config.yaml", "w") as file:
                 file.writelines(lines)
 
-        self.setup_generic(ncpus = ncpus, mask_land_PEs = mask_land_PEs)
+        self.setup_generic(ncpus=ncpus, mask_land_PEs=mask_land_PEs)
 
         # Modify input.nml
         nml = f90nml.read(self.mom_run_dir / "input.nml")
