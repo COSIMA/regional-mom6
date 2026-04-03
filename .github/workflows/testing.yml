@@ -33,6 +33,11 @@ jobs:
           git config --global user.email "github-actions@github.com"
           git config --global --add safe.directory '*'
       - uses: actions/checkout@v3
+      - name: Fix git stuff
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git config --global --add safe.directory '*'
       - name: Set up Python ${{ matrix.python-version }}
         uses: conda-incubator/setup-miniconda@v2
         with:
@@ -61,7 +66,7 @@ jobs:
           ln -s /build/FRE-NCtools/tools demos/PATH_TO_FRE_TOOLS
           ln -s /data demos/PATH_TO_YOUR_HORIZONTAL_GRID
           ln -s /data demos/PATH_TO_ERA5_DATA
-          python -m pytest --nbval demos/reanalysis-forced.ipynb demos/BYO-domain.ipynb --nbval-current-env --cov=regional_mom6 --cov-report=xml tests/
+          python -m pytest --nbval demos/machine-agnostic-demo.ipynb demos/BYO-domain.ipynb --nbval-current-env --cov=regional_mom6 --cov-report=xml tests/
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3

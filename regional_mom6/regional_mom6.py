@@ -11,7 +11,6 @@ import warnings
 import shutil
 import os
 import importlib.resources
-import datetime
 import pandas as pd
 from pathlib import Path
 import json
@@ -20,21 +19,22 @@ from regional_mom6 import regridding as rgd
 from regional_mom6 import rotation as rot
 from regional_mom6.config import Config
 from regional_mom6.utils import (
-    quadrilateral_areas,
     ap2ep,
     ep2ap,
     rotate,
     find_files_by_pattern,
     try_pint_convert,
 )
+from mom6_forge.vgrid import *
+from mom6_forge.grid import *
+from mom6_forge.topo import *
 from regional_mom6.validate import validate_obc_file, validate_general_file
+from ruamel.yaml import YAML
 
 warnings.filterwarnings("ignore")
 
 __all__ = [
     "longitude_slicer",
-    "hyperbolictan_thickness_profile",
-    "generate_rectangular_hgrid",
     "experiment",
     "segment",
     "get_glorys_data",
@@ -89,119 +89,6 @@ def convert_to_tpxo_tidal_constituents(tidal_constituents):
 ## Auxiliary functions
 
 
-def longitude_slicer(data, longitude_extent, longitude_coords):
-    """
-    Slices longitudes while handling periodicity and the 'seams', that is the
-    longitude values where the data wraps around in a global domain (for example,
-    longitudes are defined, usually, within domain [0, 360] or [-180, 180]).
-
-    The algorithm works in five steps:
-
-    - Determine whether we need to add or subtract 360 to get the middle of the
-      ``longitude_extent`` to lie within ``data``'s longitude range (hereby ``old_lon``).
-
-    - Shift the dataset so that its midpoint matches the midpoint of
-      ``longitude_extent`` (up to a multiple of 360). Now, the modified ``old_lon``
-      does not increase monotonically from West to East since the 'seam'
-      has moved.
-
-    - Fix ``old_lon`` to make it monotonically increasing again. This uses
-      the information we have about the way the dataset was shifted/rolled.
-
-    - Slice the ``data`` index-wise. We know that ``|longitude_extent[1] - longitude_extent[0]| / 360``
-      multiplied by the number of discrete longitude points in the global input data gives
-      the number of longitude points in our slice, and we've already set the midpoint
-      to be the middle of the target domain.
-
-    - Add back the correct multiple of 360 so the whole domain matches the target.
-
-    Arguments:
-        data (xarray.Dataset): The global data you want to slice in longitude.
-        longitude_extent (Tuple[float, float]): The target longitudes (in degrees)
-            we want to slice to. Must be in increasing order.
-        longitude_coords (Union[str, list[str]): The name or list of names of the
-            longitude coordinates(s) in ``data``.
-
-    Returns:
-        xarray.Dataset: The sliced ``data``.
-    """
-
-    if isinstance(longitude_coords, str):
-        longitude_coords = [longitude_coords]
-
-    for lon in longitude_coords:
-        central_longitude = np.mean(longitude_extent)  ## Midpoint of target domain
-
-        ## Find a corresponding value for the intended domain midpoint in our data.
-        ## It's assumed that data has equally-spaced longitude values.
-
-        lons = data[lon].data
-        dlons = lons[1] - lons[0]
-
-        assert np.allclose(
-            np.diff(lons), dlons * np.ones(np.size(lons) - 1)
-        ), "provided longitude coordinate must be uniformly spaced"
-
-        for i in range(-1, 2, 1):
-            if data[lon][0] <= central_longitude + 360 * i <= data[lon][-1]:
-                ## Shifted version of target midpoint; e.g., could be -90 vs 270
-                ## integer i keeps track of what how many multiples of 360 we need to shift entire
-                ## grid by to match central_longitude
-                _central_longitude = central_longitude + 360 * i
-
-                ## Midpoint of the data
-                central_data = data[lon][data[lon].shape[0] // 2].values
-
-                ## Number of indices between the data midpoint and the target midpoint.
-                ## Sign indicates direction needed to shift.
-                shift = int(
-                    -(data[lon].shape[0] * (_central_longitude - central_data)) // 360
-                )
-
-                ## Shift data so that the midpoint of the target domain is the middle of
-                ## the data for easy slicing.
-                new_data = data.roll({lon: 1 * shift}, roll_coords=True)
-
-                ## Create a new longitude coordinate.
-                ## We'll modify this to remove any seams (i.e., jumps like -270 -> 90)
-                new_lon = new_data[lon].values
-
-                ## Take the 'seam' of the data, and either backfill or forward fill based on
-                ## whether the data was shifted F or west
-                if shift > 0:
-                    new_seam_index = shift
-
-                    new_lon[0:new_seam_index] -= 360
-
-                if shift < 0:
-                    new_seam_index = data[lon].shape[0] + shift
-
-                    new_lon[new_seam_index:] += 360
-
-                ## new_lon is used to re-centre the midpoint to match that of target domain
-                new_lon -= i * 360
-
-                new_data = new_data.assign_coords({lon: new_lon})
-
-                ## Choose the number of lon points to take from the middle, including a buffer.
-                ## Use this to index the new global dataset
-                num_lonpoints = (
-                    int(data[lon].shape[0] * (central_longitude - longitude_extent[0]))
-                    // 360
-                )
-
-        data = new_data.isel(
-            {
-                lon: slice(
-                    data[lon].shape[0] // 2 - num_lonpoints,
-                    data[lon].shape[0] // 2 + num_lonpoints,
-                )
-            }
-        )
-
-    return data
-
-
 def get_glorys_data(
     longitude_extent,
     latitude_extent,
@@ -245,222 +132,6 @@ copernicusmarine subset --dataset-id cmems_mod_glo_phy_my_0.083deg_P1D-m --varia
     file.writelines(lines)
     file.close()
     return Path(path / "get_glorys_data.sh")
-
-
-def hyperbolictan_thickness_profile(nlayers, ratio, total_depth):
-    """Generate a hyperbolic tangent thickness profile with ``nlayers`` vertical
-    layers and total depth of ``total_depth`` whose bottom layer is (about) ``ratio``
-    times larger than the top layer.
-
-    The thickness profile transitions from the top-layer thickness to
-    the bottom-layer thickness via a hyperbolic tangent proportional to
-    ``tanh(2π * (k / (nlayers - 1) - 1 / 2))``, where ``k = 0, 1, ..., nlayers - 1``
-    is the layer index with ``k = 0`` corresponding to the top-most layer.
-
-    The sum of all layer thicknesses is ``total_depth``.
-
-    Positive parameter ``ratio`` prescribes (approximately) the ratio of the thickness
-    of the bottom-most layer to the top-most layer. The final ratio of the bottom-most
-    layer to the top-most layer ends up a bit different from the prescribed ``ratio``.
-    In particular, the final ratio of the bottom over the top-most layer thickness is
-    ``(1 + ratio * exp(2π)) / (ratio + exp(2π))``. This slight departure comes about
-    because of the value of the hyperbolic tangent profile at the end-points ``tanh(π)``,
-    which is approximately 0.9963 and not 1. Note that because ``exp(2π)`` is much greater
-    than 1, the value of the actual ratio is not that different from the prescribed value
-    ``ratio``, e.g., for ``ratio`` values between 1/100 and 100 the final ratio of the
-    bottom-most layer to the top-most layer only departs from the prescribed ``ratio``
-    by ±20%.
-
-    Arguments:
-        nlayers (int): Number of vertical layers.
-        ratio (float): The desired value of the ratio of bottom-most to
-            the top-most layer thickness. Note that the final value of
-            the ratio of bottom-most to the top-most layer thickness
-            ends up ``(1 + ratio * exp(2π)) / (ratio + exp(2π))``. Must
-            be positive.
-        total_depth (float): The total depth of grid, i.e., the sum
-            of all thicknesses.
-
-    Returns:
-        numpy.array: An array containing the layer thicknesses.
-
-    Examples:
-
-        The spacings for a vertical grid with 20 layers, with maximum depth 1000 meters,
-        and for which the top-most layer is about 4 times thinner than the bottom-most
-        one.
-
-        >>> from regional_mom6 import hyperbolictan_thickness_profile
-        >>> nlayers, total_depth = 20, 1000
-        >>> ratio = 4
-        >>> dz = hyperbolictan_thickness_profile(nlayers, ratio, total_depth)
-        >>> dz
-        array([20.11183771, 20.2163053 , 20.41767549, 20.80399084, 21.53839043,
-               22.91063751, 25.3939941 , 29.6384327 , 36.23006369, 45.08430684,
-               54.91569316, 63.76993631, 70.3615673 , 74.6060059 , 77.08936249,
-               78.46160957, 79.19600916, 79.58232451, 79.7836947 , 79.88816229])
-        >>> dz.sum()
-        1000.0
-        >>> dz[-1] / dz[0]
-        3.9721960481753706
-
-        If we want the top layer to be thicker then we need to prescribe ``ratio < 1``.
-
-        >>> from regional_mom6 import hyperbolictan_thickness_profile
-        >>> nlayers, total_depth = 20, 1000
-        >>> ratio = 1/4
-        >>> dz = hyperbolictan_thickness_profile(nlayers, ratio, total_depth)
-        >>> dz
-        array([79.88816229, 79.7836947 , 79.58232451, 79.19600916, 78.46160957,
-               77.08936249, 74.6060059 , 70.3615673 , 63.76993631, 54.91569316,
-               45.08430684, 36.23006369, 29.6384327 , 25.3939941 , 22.91063751,
-               21.53839043, 20.80399084, 20.41767549, 20.2163053 , 20.11183771])
-        >>> dz.sum()
-        1000.0
-        >>> dz[-1] / dz[0]
-        0.25174991059652
-
-        Now how about a grid with the same total depth as above but with equally-spaced
-        layers.
-
-        >>> from regional_mom6 import hyperbolictan_thickness_profile
-        >>> nlayers, total_depth = 20, 1000
-        >>> ratio = 1
-        >>> dz = hyperbolictan_thickness_profile(nlayers, ratio, total_depth)
-        >>> dz
-        array([50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50., 50.,
-               50., 50., 50., 50., 50., 50., 50.])
-    """
-
-    assert isinstance(nlayers, int), "nlayers must be an integer"
-
-    if nlayers == 1:
-        return np.array([float(total_depth)])
-
-    assert ratio > 0, "ratio must be > 0"
-
-    # The hyberbolic tangent profile below implies that the sum of
-    # all layer thicknesses is:
-    #
-    # nlayers * (top_layer_thickness + bottom_layer_thickness) / 2
-    #
-    # By choosing the top_layer_thickness appropriately we ensure that
-    # the sum of all layer thicknesses is the prescribed total_depth.
-    top_layer_thickness = 2 * total_depth / (nlayers * (1 + ratio))
-
-    bottom_layer_thickness = ratio * top_layer_thickness
-
-    layer_thicknesses = top_layer_thickness + 0.5 * (
-        bottom_layer_thickness - top_layer_thickness
-    ) * (1 + np.tanh(2 * np.pi * (np.arange(nlayers) / (nlayers - 1) - 1 / 2)))
-
-    sum_of_thicknesses = np.sum(layer_thicknesses)
-
-    atol = np.finfo(type(sum_of_thicknesses)).eps
-
-    assert np.isclose(total_depth, sum_of_thicknesses, atol=atol)  # just checking ;)
-
-    return layer_thicknesses
-
-
-def generate_rectangular_hgrid(lons, lats):
-    """
-    Construct a horizontal grid with all the metadata required by MOM6, based on
-    arrays of longitudes (``lons``) and latitudes (``lats``) on the supergrid.
-    Here, 'supergrid' refers to both cell edges and centres, meaning that there
-    are twice as many points along each axis than for any individual field.
-
-    Caution:
-        It is assumed the grid's boundaries are lines of constant latitude and
-        longitude. Rotated grids need to be handled differently.
-
-        It is also assumed here that the longitude array values are uniformly spaced.
-
-        Ensure both ``lons`` and ``lats`` are monotonically increasing.
-
-    Arguments:
-        lons (numpy.array): All longitude points on the supergrid. Must be uniformly spaced.
-        lats (numpy.array): All latitude points on the supergrid.
-
-    Returns:
-        xarray.Dataset: An FMS-compatible horizontal grid (``hgrid``) that includes all required attributes.
-    """
-
-    assert np.all(
-        np.diff(lons) > 0
-    ), "longitudes array lons must be monotonically increasing"
-    assert np.all(
-        np.diff(lats) > 0
-    ), "latitudes array lats must be monotonically increasing"
-
-    R = 6371e3  # mean radius of the Earth; https://en.wikipedia.org/wiki/Earth_radius
-
-    # compute longitude spacing and ensure that longitudes are uniformly spaced
-    dlons = lons[1] - lons[0]
-
-    assert np.allclose(
-        np.diff(lons), dlons * np.ones(np.size(lons) - 1)
-    ), "provided array of longitudes must be uniformly spaced"
-
-    # Calculate delta x in m given lats & lons
-    dx = np.broadcast_to(
-        R * np.cos(np.deg2rad(lats)) * np.deg2rad(dlons),
-        (lons.shape[0] - 1, lats.shape[0]),
-    ).T
-
-    # Ditto for delta y
-    dy = np.broadcast_to(
-        R * np.deg2rad(np.diff(lats)), (lons.shape[0], lats.shape[0] - 1)
-    ).T
-
-    lon, lat = np.meshgrid(lons, lats)
-
-    area = quadrilateral_areas(lat, lon, R)
-
-    attrs = {
-        "tile": {
-            "standard_name": "grid_tile_spec",
-            "geometry": "spherical",
-            "north_pole": "0.0 90.0",
-            "discretization": "logically_rectangular",
-            "conformal": "true",
-        },
-        "x": {"standard_name": "geographic_longitude", "units": "degree_east"},
-        "y": {"standard_name": "geographic_latitude", "units": "degree_north"},
-        "dx": {
-            "standard_name": "grid_edge_x_distance",
-            "units": "meters",
-        },
-        "dy": {
-            "standard_name": "grid_edge_y_distance",
-            "units": "meters",
-        },
-        "area": {
-            "standard_name": "grid_cell_area",
-            "units": "m**2",
-        },
-        "angle_dx": {
-            "standard_name": "grid_vertex_x_angle_WRT_geographic_east",
-            "units": "degrees_east",
-        },
-        "arcx": {
-            "standard_name": "grid_edge_x_arc_type",
-            "north_pole": "0.0 90.0",
-        },
-    }
-
-    return xr.Dataset(
-        {
-            "tile": ((), np.array(b"tile1", dtype="|S255"), attrs["tile"]),
-            "x": (["nyp", "nxp"], lon, attrs["x"]),
-            "y": (["nyp", "nxp"], lat, attrs["y"]),
-            "dx": (["nyp", "nx"], dx, attrs["dx"]),
-            "dy": (["ny", "nxp"], dy, attrs["dy"]),
-            "area": (["ny", "nx"], area, attrs["area"]),
-            "angle_dx": (["nyp", "nxp"], lon * 0, attrs["angle_dx"]),
-            "arcx": ((), np.array(b"small_circle", dtype="|S255"), attrs["arcx"]),
-        }
-    )
 
 
 class experiment:
@@ -578,7 +249,6 @@ class experiment:
         expt.latitude_extent = latitude_extent
         expt.longitude_extent = longitude_extent
         expt.ocean_mask = None
-        expt.layout = None
         expt.segments = {}
         expt.boundaries = boundaries
         expt.regridding_method = regridding_method
@@ -639,7 +309,6 @@ class experiment:
         self.vgrid_type = vgrid_type
         self.repeat_year_forcing = repeat_year_forcing
         self.ocean_mask = None
-        self.layout = None  # This should be a tuple. Leaving it as 'None' makes it easy to remind the user to provide a value later.
         self.minimum_depth = minimum_depth  # Minimum depth allowed in the bathymetry
         self.tidal_constituents = tidal_constituents
         self.regridding_method = regridding_method
@@ -729,6 +398,26 @@ class experiment:
         except Exception as e:
             print(
                 f"Error: {e}. Opening bathymetry threw an error! Make sure you've successfully run the setup_bathymetry method, or copied a bathymetry.nc file into {self.mom_input_dir}."
+            )
+            return None
+
+    @property
+    def GRID(self):
+        try:
+            return Grid.from_supergrid(expt.mom_input_dir / "hgrid.nc")
+        except Exception as e:
+            print(
+                f"Error on trying to read the hgrid in as a mom6_forge Grid object: {e}"
+            )
+            return None
+
+    @property
+    def TOPO(self):
+        try:
+            return Topo.from_topo_file(self.GRID, self.mom_input_dir / "bathymetry.nc")
+        except Exception as e:
+            print(
+                f"Error on trying to read the bathymetry in as a mom6_forge Topo object: {e}"
             )
             return None
 
@@ -906,43 +595,19 @@ class experiment:
         ), "only even_spacing grid type is implemented"
 
         if self.hgrid_type == "even_spacing":
-            # longitudes are evenly spaced based on resolution and bounds
-            nx = int(
-                (self.longitude_extent[1] - self.longitude_extent[0])
-                / (self.resolution / 2)
-            )
-            if nx % 2 != 1:
-                nx += 1
-
-            lons = np.linspace(
-                self.longitude_extent[0], self.longitude_extent[1], nx
-            )  # longitudes in degrees
-
-            # Latitudes evenly spaced by dx * cos(central_latitude)
-            central_latitude = np.mean(self.latitude_extent)  # degrees
-            latitudinal_resolution = self.resolution * np.cos(
-                np.deg2rad(central_latitude)
+            self.grid = Grid(
+                resolution=self.resolution,  # in degrees
+                xstart=self.longitude_extent[0],  # min longitude in [0, 360]
+                lenx=self.longitude_extent[1]
+                - self.longitude_extent[0],  # longitude extent in degrees
+                ystart=self.latitude_extent[0],  # min latitude in [-90, 90]
+                leny=self.latitude_extent[1]
+                - self.latitude_extent[0],  # latitude extent in degrees
+                name=self.expt_name,
+                type="rectilinear_cartesian",  # m6b name for even_spacing
             )
 
-            ny = (
-                int(
-                    (self.latitude_extent[1] - self.latitude_extent[0])
-                    / (latitudinal_resolution / 2)
-                )
-                + 1
-            )
-
-            if ny % 2 != 1:
-                ny += 1
-
-            lats = np.linspace(
-                self.latitude_extent[0], self.latitude_extent[1], ny
-            )  # latitudes in degrees
-
-            hgrid = generate_rectangular_hgrid(lons, lats)
-            hgrid.to_netcdf(self.mom_input_dir / "hgrid.nc")
-
-            return hgrid
+            return self.grid.write_supergrid(self.mom_input_dir / "hgrid.nc")
 
     def _make_vgrid(self, thicknesses=None):
         """
@@ -958,35 +623,24 @@ class experiment:
         """
 
         if thicknesses is None:
-            thicknesses = hyperbolictan_thickness_profile(
-                self.number_vertical_layers, self.layer_thickness_ratio, self.depth
+            self.vgrid_obj = VGrid.hyperbolic(
+                self.number_vertical_layers, self.depth, self.layer_thickness_ratio
             )
-
-        if not isinstance(thicknesses, np.ndarray):
-            raise ValueError("thicknesses must be a numpy array")
-
-        zi = np.cumsum(thicknesses)
-        zi = np.insert(zi, 0, 0.0)  # add zi = 0.0 as first interface
-
-        zl = zi[0:-1] + thicknesses / 2  # the mid-points between interfaces zi
-
-        vcoord = xr.Dataset({"zi": ("zi", zi), "zl": ("zl", zl)})
+            thicknesses = self.vgrid_obj.dz
+        else:
+            self.vgrid_obj = VGrid(thicknesses)
 
         ## Check whether the minimum depth is less than the first three layers
 
-        if len(zi) > 2 and self.minimum_depth < zi[2]:
+        if len(self.vgrid_obj.zi) > 2 and self.minimum_depth < self.vgrid_obj.zi[2]:
             print(
-                f"Warning: Minimum depth of {self.minimum_depth}m is less than the depth of the third interface ({zi[2]}m)!\n"
+                f"Warning: Minimum depth of {self.minimum_depth}m is less than the depth of the third interface ({self.vgrid_obj.zi[2]}m)!\n"
                 + "This means that some areas may only have one or two layers between the surface and sea floor. \n"
                 + "For increased stability, consider increasing the minimum depth, or adjusting the vertical coordinate to add more layers near the surface."
             )
+        ds = self.vgrid_obj.write_z_file(self.mom_input_dir / "vcoord.nc")
 
-        vcoord["zi"].attrs = {"units": "meters"}
-        vcoord["zl"].attrs = {"units": "meters"}
-
-        vcoord.to_netcdf(self.mom_input_dir / "vcoord.nc")
-
-        return vcoord
+        return ds
 
     def setup_initial_condition(
         self,
@@ -1370,7 +1024,7 @@ class experiment:
             latitude_extent=[float(self.hgrid.y.min()), float(self.hgrid.y.max())],
             timerange=[
                 self.date_range[0],
-                self.date_range[0] + datetime.timedelta(days=1),
+                self.date_range[0] + dt.timedelta(days=1),
             ],
             segment_name="ic_unprocessed",
             download_path=raw_boundaries_path,
@@ -1488,7 +1142,7 @@ class experiment:
 
         if len(self.boundaries) < 4:
             print(
-                "NOTE: the 'setup_run_directories' method does understand the less than four boundaries but be careful. Please check the MOM_input/override file carefully to reflect the number of boundaries you have, and their orientations. You should be able to find the relevant section in the MOM_input/override file by searching for 'segment_'. Ensure that the segment names match those in your inputdir/forcing folder"
+                "NOTE: the 'setup_generic' method does understand the less than four boundaries but be careful. Please check the MOM_input/override file carefully to reflect the number of boundaries you have, and their orientations. You should be able to find the relevant section in the MOM_input/override file by searching for 'segment_'. Ensure that the segment names match those in your inputdir/forcing folder"
             )
 
         if len(self.boundaries) > 4:
@@ -1738,140 +1392,29 @@ class experiment:
             write_to_file (Optional[bool]): Whether to write the bathymetry to a file. Default: ``True``.
             regridding_method (Optional[str]): The type of regridding method to use. Defaults to self.regridding_method
         """
+
+        print(
+            "Setting up bathymetry...if this fails, please follow the printed instructions with your experiment topo object, like this: [experiment_obj].topo. For example, if the output tells you to run mpi_set_from_dataset instead of set_from_dataset. You would do: [experiment_obj].topo.mpi_set_from_dataset(...)"
+        )
         if regridding_method is None:
             regridding_method = self.regridding_method
 
-        ## Convert the provided coordinate names into a dictionary mapping to the
-        ## coordinate names that MOM6 expects.
-        coordinate_names = {
-            "xh": longitude_coordinate_name,
-            "yh": latitude_coordinate_name,
-            "depth": vertical_coordinate_name,
-        }
-
-        bathymetry = xr.open_dataset(bathymetry_path, chunks="auto")[
-            coordinate_names["depth"]
-        ]
-
-        bathymetry = bathymetry.sel(
-            {
-                coordinate_names["yh"]: slice(
-                    self.latitude_extent[0] - 0.5, self.latitude_extent[1] + 0.5
-                )
-            }  # 0.5 degree latitude buffer (hardcoded) for regridding
-        ).astype("float")
-
-        ## Check if the original bathymetry provided has a longitude extent that goes around the globe
-        ## to take care of the longitude seam when we slice out the regional domain.
-
-        horizontal_resolution = (
-            bathymetry[coordinate_names["xh"]][1]
-            - bathymetry[coordinate_names["xh"]][0]
+        self.topo = Topo(
+            grid=self.grid,
+            min_depth=self.minimum_depth,
         )
 
-        horizontal_extent = (
-            bathymetry[coordinate_names["xh"]][-1]
-            - bathymetry[coordinate_names["xh"]][0]
-            + horizontal_resolution
+        self.topo.set_from_dataset(
+            bathymetry_path=bathymetry_path,
+            output_dir=self.mom_input_dir,
+            longitude_coordinate_name=longitude_coordinate_name,
+            latitude_coordinate_name=latitude_coordinate_name,
+            vertical_coordinate_name=vertical_coordinate_name,
+            regridding_method=regridding_method,
+            write_to_file=True,
         )
-
-        longitude_buffer = 0.5  # 0.5 degree longitude buffer (hardcoded) for regridding
-
-        if np.isclose(horizontal_extent, 360):
-            ## longitude extent that goes around the globe -- use longitude_slicer
-            bathymetry = longitude_slicer(
-                bathymetry,
-                np.array(self.longitude_extent)
-                + np.array([-longitude_buffer, longitude_buffer]),
-                coordinate_names["xh"],
-            )
-        else:
-            ## otherwise, slice normally
-            bathymetry = bathymetry.sel(
-                {
-                    coordinate_names["xh"]: slice(
-                        self.longitude_extent[0] - longitude_buffer,
-                        self.longitude_extent[1] + longitude_buffer,
-                    )
-                }
-            )
-
-        bathymetry.attrs["missing_value"] = -1e20  # missing value expected by FRE tools
-        bathymetry_output = xr.Dataset({"depth": bathymetry})
-        bathymetry.close()
-
-        bathymetry_output = bathymetry_output.rename(
-            {coordinate_names["xh"]: "lon", coordinate_names["yh"]: "lat"}
-        )
-
-        bathymetry_output.depth.attrs["_FillValue"] = -1e20
-        bathymetry_output.depth.attrs["units"] = "meters"
-        bathymetry_output.depth.attrs["standard_name"] = (
-            "height_above_reference_ellipsoid"
-        )
-        bathymetry_output.depth.attrs["long_name"] = "Elevation relative to sea level"
-        bathymetry_output.depth.attrs["coordinates"] = "lon lat"
-        if write_to_file:
-            bathymetry_output.to_netcdf(
-                self.mom_input_dir / "bathymetry_original.nc",
-                mode="w",
-                engine="netcdf4",
-            )
-
-        empty_bathy = rgd.get_hgrid_arakawa_c_points(self.hgrid, "t")
-        empty_bathy = empty_bathy.rename(
-            {"tlon": "lon", "tlat": "lat", "nyp": "ny", "nxp": "nx"}
-        )
-        empty_bathy = empty_bathy.set_coords(("lon", "lat"))
-        empty_bathy["depth"] = xr.zeros_like(empty_bathy["lon"])
-        empty_bathy.lon.attrs["units"] = "degrees_east"
-        empty_bathy.lon.attrs["_FillValue"] = 1e20
-        empty_bathy.lat.attrs["units"] = "degrees_north"
-        empty_bathy.lat.attrs["_FillValue"] = 1e20
-        empty_bathy.depth.attrs["units"] = "meters"
-        empty_bathy.depth.attrs["coordinates"] = "lon lat"
-        if write_to_file:
-            empty_bathy.to_netcdf(
-                self.mom_input_dir / "bathymetry_unfinished.nc",
-                mode="w",
-                engine="netcdf4",
-            )
-            empty_bathy.close()
-
-        bathymetry_output = bathymetry_output.load()
-        print(
-            "Begin regridding bathymetry...\n\n"
-            + f"Original bathymetry size: {bathymetry_output.nbytes/1e6:.2f} Mb\n"
-            + f"Regridded size: {empty_bathy.nbytes/1e6:.2f} Mb\n"
-            + "Automatic regridding may fail if your domain is too big! If this process hangs or crashes,"
-            + "make sure function argument write_to_file = True and,"
-            + "open a terminal with appropriate computational and resources try calling ESMF "
-            + f"directly in the input directory {self.mom_input_dir} via\n\n"
-            + "`mpirun -np NUMBER_OF_CPUS ESMF_Regrid -s bathymetry_original.nc -d bathymetry_unfinished.nc -m bilinear --src_var depth --dst_var depth --netcdf4 --src_regional --dst_regional`\n\n"
-            + "For details see https://xesmf.readthedocs.io/en/latest/large_problems_on_HPC.html\n\n"
-            + "Afterwards, we run the 'expt.tidy_bathymetry' method to skip the expensive interpolation step, and finishing metadata, encoding and cleanup.\n\n\n"
-        )
-        regridder = rgd.create_regridder(
-            bathymetry_output, empty_bathy, locstream_out=False
-        )
-        bathymetry = regridder(bathymetry_output)
-        if write_to_file:
-            bathymetry.to_netcdf(
-                self.mom_input_dir / "bathymetry_unfinished.nc",
-                mode="w",
-                engine="netcdf4",
-            )
-        print(
-            "Regridding successful! Now calling `tidy_bathymetry` method for some finishing touches..."
-        )
-
-        print("setup bathymetry has finished successfully.")
-        return self.tidy_bathymetry(
-            fill_channels,
-            positive_down,
-            bathymetry=bathymetry,
-            write_to_file=write_to_file,
-        )
+        self.topo.write_topo(self.mom_input_dir / "bathymetry.nc")
+        return self.topo.gen_topo_ds()
 
     def tidy_bathymetry(
         self,
@@ -1883,220 +1426,31 @@ class experiment:
         longitude_coordinate_name="lon",
         latitude_coordinate_name="lat",
     ):
+        self.topo.tidy_dataset(
+            fill_channels=fill_channels,
+            positive_down=positive_down,
+            vertical_coordinate_name=vertical_coordinate_name,
+            bathymetry=bathymetry,
+            output_dir=self.mom_input_dir,
+            write_to_file=write_to_file,
+            longitude_coordinate_name=longitude_coordinate_name,
+            latitude_coordinate_name=latitude_coordinate_name,
+        )
+        self.topo.write_topo(
+            self.mom_input_dir / "bathymetry.nc",
+        )
+        return self.topo.gen_topo_ds()
+
+    def run_FRE_tools(self):
         """
-        An auxiliary method for bathymetry used to fix up the metadata and remove inland
-        lakes after regridding the bathymetry. Having :func:`~tidy_bathymetry` as a separate
-        method from :func:`~setup_bathymetry` allows for the regridding to be done separately,
-        since regridding can be really expensive for large domains.
+        A wrapper for FRE Tools ``check_mask``, ``make_solo_mosaic``, and ``make_quick_mosaic``.
 
-        If the bathymetry is already regridded and what is left to be done is fixing the metadata
-        or fill in some channels, then :func:`~tidy_bathymetry` directly can read the existing
-        ``bathymetry_unfinished.nc`` file that should be in the input directory.
+        This method is not needed if you're running under NUOPC (e.g., NCAR/CROCODILE or most ACCESS/COSIMA people). However, if you're not using the auto-mask table, then this is the only way within the regional-mom6 package to generate a cpu mask file.
 
-        Arguments:
-            fill_channels (Optional[bool]): Whether to fill in diagonal channels.
-                This removes more narrow inlets, but can also connect extra islands to land.
-                Default: ``False``.
-            positive_down (Optional[bool]): If ``False`` (default), assume that
-                bathymetry vertical coordinate is positive down, as is the case in GEBCO for example.
-            bathymetry (Optional[xr.Dataset]): The bathymetry dataset to tidy up. If not provided,
-                it will read the bathymetry from the file ``bathymetry_unfinished.nc`` in the input directory
-                that was created by :func:`~setup_bathymetry`.
-        """
+        The FRE tools require some additional attributes and dimensions on the bathymetry and hgrid files, which are added here before calling the tools.
 
-        ## reopen bathymetry to modify
-        print(
-            "Tidy bathymetry: Reading in regridded bathymetry to fix up metadata...",
-            end="",
-        )
-        if read_bathy_from_file := bathymetry is None:
-            bathymetry = xr.open_dataset(
-                self.mom_input_dir / "bathymetry_unfinished.nc", engine="netcdf4"
-            )
-
-        ## Ensure correct encoding
-        bathymetry = xr.Dataset(
-            {"depth": (["ny", "nx"], bathymetry[vertical_coordinate_name].values)},
-            coords={
-                "lon": (["ny", "nx"], bathymetry[longitude_coordinate_name].values),
-                "lat": (["ny", "nx"], bathymetry[latitude_coordinate_name].values),
-            },
-        )
-        bathymetry.attrs["depth"] = "meters"
-        bathymetry.attrs["standard_name"] = "bathymetric depth at T-cell centers"
-        bathymetry.attrs["coordinates"] = "zi"
-
-        bathymetry.expand_dims("tiles", 0)
-
-        if not positive_down:
-            ## Ensure that coordinate is positive down!
-            bathymetry["depth"] *= -1
-
-        ## Make a land mask based on the bathymetry
-        ocean_mask = xr.where(bathymetry.depth <= 0, 0, 1)
-        land_mask = np.abs(ocean_mask - 1)
-
-        ## REMOVE INLAND LAKES
-        print("done. Filling in inland lakes and channels... ", end="")
-
-        changed = True  ## keeps track of whether solution has converged or not
-
-        forward = True  ## only useful for iterating through diagonal channel removal. Means iteration goes SW -> NE
-
-        while changed == True:
-            ## First fill in all lakes.
-            ## scipy.ndimage.binary_fill_holes fills holes made of 0's within a field of 1's
-            land_mask[:, :] = binary_fill_holes(land_mask.data)
-            ## Get the ocean mask instead of land- easier to remove channels this way
-            ocean_mask = np.abs(land_mask - 1)
-
-            ## Now fill in all one-cell-wide channels
-            newmask = xr.where(
-                ocean_mask * (land_mask.shift(nx=1) + land_mask.shift(nx=-1)) == 2, 1, 0
-            )
-            newmask += xr.where(
-                ocean_mask * (land_mask.shift(ny=1) + land_mask.shift(ny=-1)) == 2, 1, 0
-            )
-
-            if fill_channels == True:
-                ## fill in all one-cell-wide horizontal channels
-                newmask = xr.where(
-                    ocean_mask * (land_mask.shift(nx=1) + land_mask.shift(nx=-1)) == 2,
-                    1,
-                    0,
-                )
-                newmask += xr.where(
-                    ocean_mask * (land_mask.shift(ny=1) + land_mask.shift(ny=-1)) == 2,
-                    1,
-                    0,
-                )
-                ## Diagonal channels
-                if forward == True:
-                    ## horizontal channels
-                    newmask += xr.where(
-                        (ocean_mask * ocean_mask.shift(nx=1))
-                        * (
-                            land_mask.shift({"nx": 1, "ny": 1})
-                            + land_mask.shift({"ny": -1})
-                        )
-                        == 2,
-                        1,
-                        0,
-                    )  ## up right & below
-                    newmask += xr.where(
-                        (ocean_mask * ocean_mask.shift(nx=1))
-                        * (
-                            land_mask.shift({"nx": 1, "ny": -1})
-                            + land_mask.shift({"ny": 1})
-                        )
-                        == 2,
-                        1,
-                        0,
-                    )  ## down right & above
-                    ## Vertical channels
-                    newmask += xr.where(
-                        (ocean_mask * ocean_mask.shift(ny=1))
-                        * (
-                            land_mask.shift({"nx": 1, "ny": 1})
-                            + land_mask.shift({"nx": -1})
-                        )
-                        == 2,
-                        1,
-                        0,
-                    )  ## up right & left
-                    newmask += xr.where(
-                        (ocean_mask * ocean_mask.shift(ny=1))
-                        * (
-                            land_mask.shift({"nx": -1, "ny": 1})
-                            + land_mask.shift({"nx": 1})
-                        )
-                        == 2,
-                        1,
-                        0,
-                    )  ## up left & right
-
-                    forward = False
-
-                if forward == False:
-                    ## Horizontal channels
-                    newmask += xr.where(
-                        (ocean_mask * ocean_mask.shift(nx=-1))
-                        * (
-                            land_mask.shift({"nx": -1, "ny": 1})
-                            + land_mask.shift({"ny": -1})
-                        )
-                        == 2,
-                        1,
-                        0,
-                    )  ## up left & below
-                    newmask += xr.where(
-                        (ocean_mask * ocean_mask.shift(nx=-1))
-                        * (
-                            land_mask.shift({"nx": -1, "ny": -1})
-                            + land_mask.shift({"ny": 1})
-                        )
-                        == 2,
-                        1,
-                        0,
-                    )  ## down left & above
-                    ## Vertical channels
-                    newmask += xr.where(
-                        (ocean_mask * ocean_mask.shift(ny=-1))
-                        * (
-                            land_mask.shift({"nx": 1, "ny": -1})
-                            + land_mask.shift({"nx": -1})
-                        )
-                        == 2,
-                        1,
-                        0,
-                    )  ## down right & left
-                    newmask += xr.where(
-                        (ocean_mask * ocean_mask.shift(ny=-1))
-                        * (
-                            land_mask.shift({"nx": -1, "ny": -1})
-                            + land_mask.shift({"nx": 1})
-                        )
-                        == 2,
-                        1,
-                        0,
-                    )  ## down left & right
-
-                    forward = True
-
-            newmask = xr.where(newmask > 0, 1, 0)
-            changed = np.max(newmask) == 1
-            land_mask += newmask
-
-        self.ocean_mask = np.abs(land_mask - 1)
-
-        bathymetry["depth"] *= self.ocean_mask
-
-        ## Now, any points in the bathymetry that are shallower than minimum depth are set to minimum depth.
-        ## This preserves the true land/ocean mask.
-        bathymetry["depth"] = bathymetry["depth"].where(bathymetry["depth"] > 0, np.nan)
-        bathymetry["depth"] = bathymetry["depth"].where(
-            ~(bathymetry.depth <= self.minimum_depth), self.minimum_depth + 0.1
-        )
-        bathymetry = bathymetry.fillna(
-            0
-        )  # After min_depth filtering, change the land values to zero
-
-        if write_to_file:
-            bathymetry.expand_dims({"ntiles": 1}).to_netcdf(
-                self.mom_input_dir / "bathymetry.nc",
-                mode="w",
-                encoding={"depth": {"_FillValue": None}},
-            )
-        return bathymetry
-
-    def run_FRE_tools(self, layout=None):
-        """A wrapper for FRE Tools ``check_mask``, ``make_solo_mosaic``, and ``make_quick_mosaic``.
-        User provides processor ``layout`` tuple of processing units.
         """
 
-        print(
-            "Running GFDL's FRE Tools. The following information is all printed by the FRE tools themselves"
-        )
         if not (self.mom_input_dir / "bathymetry.nc").exists():
             print("No bathymetry file! Need to run setup_bathymetry method first")
             return
@@ -2104,6 +1458,37 @@ class experiment:
         for p in self.mom_input_dir.glob("mask_table*"):
             p.unlink()
 
+        # If ntiles not present in hgrid & topography, add them
+        if "ntiles" not in self.bathymetry.dims:
+            self.bathymetry.expand_dims({"ntiles": 1}).to_netcdf(
+                self.mom_input_dir / "bathymetry.nc",
+                mode="w",
+            )
+
+        if "tile" not in self.hgrid:
+            self.hgrid = self.hgrid.assign(
+                {
+                    "tile": (
+                        (),
+                        np.array(b"tile1", dtype="|S255"),
+                        {
+                            "standard_name": "grid_tile_spec",
+                            "geometry": "spherical",
+                            "north_pole": "0.0 90.0",
+                            "discretization": "logically_rectangular",
+                            "conformal": "true",
+                        },
+                    )
+                }
+            )
+            self.hgrid.to_netcdf(
+                self.mom_input_dir / "hgrid.nc", format="NETCDF3_64BIT", mode="w"
+            )
+
+        print(
+            "Running GFDL's FRE Tools. The following information is all printed by the FRE tools themselves"
+        )
+        # First run the make solo mosaic. This reads hgrid and outputs the ocean_mosaic.nc file
         print(
             "OUTPUT FROM MAKE SOLO MOSAIC:",
             subprocess.run(
@@ -2115,6 +1500,7 @@ class experiment:
             sep="\n\n",
         )
 
+        # Next the quick mosaic function takes the mosaic we just made and the bathymetry to make the grid_spec file
         print(
             "OUTPUT FROM QUICK MOSAIC:",
             subprocess.run(
@@ -2126,131 +1512,27 @@ class experiment:
             sep="\n\n",
         )
 
-        if layout != None:
-            self.configure_cpu_layout(layout)
-
-    def configure_cpu_layout(self, layout):
+    def setup_generic(self, ncpus=100, mask_land_PEs=True):
         """
-        Wrapper for the ``check_mask`` function of GFDL's FRE Tools. User provides processor
-        ``layout`` tuple of processing units.
-        """
+        Set up the run directory for the model run. This is a multi step process - given that NUOPC vs FMS based runs are quite different, this function handles all of the setup steps that they share in common, with more specific steps performed in setup_rOM3 and setup_FMS_version respectively.
 
-        print(
-            "OUTPUT FROM CHECK MASK:\n\n",
-            subprocess.run(
-                str(self.fre_tools_dir / "check_mask")
-                + f" --grid_file ocean_mosaic.nc --ocean_topog bathymetry.nc --layout {layout[0]},{layout[1]} --halo 4",
-                shell=True,
-                cwd=self.mom_input_dir,
-            ),
-        )
-        self.layout = layout
-        return
-
-    def setup_run_directory(
-        self,
-        surface_forcing=None,
-        using_payu=False,
-        overwrite=False,
-        with_tides=False,
-    ):
-        """
-        Set up the run directory for MOM6. Either copy a pre-made set of files, or modify
-        existing files in the 'rundir' directory for the experiment.
+        The main thing this function does is manage the MOM_override file, as this is common to both use cases.
 
         Arguments:
-            surface_forcing (Optional[str]): Specify the choice of surface forcing, one
-                of: ``'jra'`` or ``'era5'``. If not prescribed then constant fluxes are used.
-            using_payu (Optional[bool]): Whether or not to use payu (https://github.com/payu-org/payu)
-                to run the model. If ``True``, a payu configuration file will be created.
-                Default: ``False``.
-            overwrite (Optional[bool]): Whether or not to overwrite existing files in the
-                run directory. If ``False`` (default), will only modify the ``MOM_layout`` file and will
-                not re-copy across the rest of the default files.
+            ncpus (Optional[int]): The number of PEs to use
+            mask_land_PEs (Optional[bool]): If your domain has enough land in it that some processors would only have land to deal with, set to True. If a mostly water domain, set to False otherwise the automatic mask table throws a fatal (see issue: https://github.com/issues/created?issue=mom-ocean%7CMOM6%7C1686)
         """
-
-        ## Get the path to the regional_mom package on this computer
-        premade_rundir_path = Path(
-            importlib.resources.files("regional_mom6")
-            / "demos"
-            / "premade_run_directories"
-        )
-
-        if not premade_rundir_path.exists():
-            print("Could not find premade run directories at ", premade_rundir_path)
-            print(
-                "Perhaps the package was imported directly rather than installed with conda. Checking if this is the case... ",
-                end="",
-            )
-
-            premade_rundir_path = Path(
-                importlib.resources.files("regional_mom6").parent
-                / "demos"
-                / "premade_run_directories"
-            )
-            if not premade_rundir_path.exists():
-                raise ValueError(
-                    f"Cannot find the premade run directory files at {premade_rundir_path} either.\n\n"
-                    + "There may be an issue with package installation. Check that the `premade_run_directory` folder is present in one of these two locations"
-                )
-            else:
-                print("Found run files. Continuing...")
-
-        # Define the locations of the directories we'll copy files across from. Base contains most of the files, and overwrite replaces files in the base directory.
-        base_run_dir = Path(premade_rundir_path / "common_files")
-        if not premade_rundir_path.exists():
-            raise ValueError(
-                f"Cannot find the premade run directory files at {premade_rundir_path}.\n\n"
-                + "These files missing might be indicating an error during the package installation!"
-            )
-        if surface_forcing:
-            overwrite_run_dir = Path(premade_rundir_path / f"{surface_forcing}_surface")
-
-            if not overwrite_run_dir.exists():
-                available = [x for x in premade_rundir_path.iterdir() if x.is_dir()]
-                raise ValueError(
-                    f"Surface forcing {surface_forcing} not available. Please choose from {str(available)}"  ##Here print all available run directories
-                )
-        else:
-            ## In case there is additional forcing (e.g., tides) then we need to modify the run dir to include the additional forcing.
-            overwrite_run_dir = False
-
-        # Check if we can implement tides
+        # Check if we need tides
+        with_tides = len(self.tidal_constituents) > 0
         if with_tides:
             tidal_files_exist = any(Path(self.mom_input_dir).rglob("tu*"))
 
             if not tidal_files_exist:
                 raise ValueError(
-                    "No files with 'tu' in their names found in the forcing or input directory. If you meant to use tides, please run the setup_boundary_tides method first. That does output some tidal files."
+                    "No files with 'tu' in their names found in the forcing or input directory. If you meant to use tides, please run the setup_boundary_tides method first to create tidal files. If you didn't, set ``tidal_constituants = []`` when defining experiment."
                 )
 
-        # Set local var
-        ncpus = None
-
-        # 3 different cases to handle:
-        #   1. User is creating a new run directory from scratch. Here we copy across all files and modify.
-        #   2. User has already created a run directory, and wants to modify it. Here we only modify the MOM_layout file.
-        #   3. User has already created a run directory, and wants to overwrite it. Here we copy across all files and modify. This requires overwrite = True
-
-        if not overwrite:
-            for file in base_run_dir.glob(
-                "*"
-            ):  ## copy each file individually if it doesn't already exist
-                if not (self.mom_run_dir / file.name).exists():
-                    ## Check whether this file exists in an override directory or not
-                    if (
-                        overwrite_run_dir != False
-                        and (overwrite_run_dir / file.name).exists()
-                    ):
-                        shutil.copy(overwrite_run_dir / file.name, self.mom_run_dir)
-                    else:
-                        shutil.copy(base_run_dir / file.name, self.mom_run_dir)
-        else:
-            shutil.copytree(base_run_dir, self.mom_run_dir, dirs_exist_ok=True)
-            if overwrite_run_dir != False:
-                shutil.copytree(base_run_dir, self.mom_run_dir, dirs_exist_ok=True)
-
-        ## Make symlinks between run and input directories
+        ### Make symlinks between run and input directories ###
         inputdir_in_rundir = self.mom_run_dir / "inputdir"
         rundir_in_inputdir = self.mom_input_dir / "rundir"
 
@@ -2260,85 +1542,26 @@ class experiment:
         rundir_in_inputdir.unlink(missing_ok=True)
         rundir_in_inputdir.symlink_to(self.mom_run_dir)
 
-        ## Get mask table information
-        mask_table = None
-        for p in self.mom_input_dir.glob("mask_table.*"):
-            if mask_table != None:
-                print(
-                    f"WARNING: Multiple mask tables found. Defaulting to {mask_table}. If this is not what you want, remove it from the run directory and try again."
-                )
-                break
+        ### Write to the MOM_override file ###
 
-            _, masked, layout = p.name.split(".")
-            mask_table = p.name
-            x, y = (int(v) for v in layout.split("x"))
-            ncpus = (x * y) - int(masked)
-            layout = (
-                x,
-                y,
-            )  # This is a local variable keeping track of the layout as read from the mask table. Not to be confused with self.layout which is unchanged and may differ.
-
-            print(
-                f"Mask table {p.name} read. Using this to infer the cpu layout {layout}, total masked out cells {masked}, and total number of CPUs {ncpus}."
-            )
-        # Case where there's no mask table. Either because user hasn't run FRE tools, or because the domain is mostly water.
-        if mask_table == None:
-            # Here we define a local copy of the layout just for use within this function.
-            # This prevents the layout from being overwritten in the main class in case
-            # in case the user accidentally loads in the wrong mask table.
-            layout = self.layout
-            if layout == None:
-                print(
-                    "WARNING: No mask table found, and the cpu layout has not been set. \nAt least one of these is requiret to set up the experiment if you're running MOM6 standalone with the FMS coupler. \nIf you're running within CESM, ignore this message."
-                )
-            else:
-                print(
-                    f"No mask table found, but the cpu layout has been set to {self.layout} This suggests the domain is mostly water, so there are "
-                    + "no `non compute` cells that are entirely land. If this doesn't seem right, "
-                    + "ensure you've already run the `FRE_tools` method which sets up the cpu mask table. Keep an eye on any errors that might print while"
-                    + "the FRE tools (which run C++ in the background) are running."
-                )
-
-                ncpus = layout[0] * layout[1]
-                print("Number of CPUs required: ", ncpus)
-
-        ## Modify the MOM_layout file to have correct horizontal dimensions and CPU layout
-        # TODO Re-implement with package that works for this file type? or at least tidy up code
-        MOM_layout_dict = mpt.read_MOM_file_as_dict("MOM_layout", self.mom_run_dir)
-        if "MASKTABLE" in MOM_layout_dict:
-            MOM_layout_dict["MASKTABLE"]["value"] = (
-                mask_table or " # MASKTABLE = no mask table"
-            )
-        if (
-            "LAYOUT" in MOM_layout_dict
-            and "IO_Layout" not in MOM_layout_dict
-            and layout != None
-        ):
-            MOM_layout_dict["LAYOUT"]["value"] = str(layout[1]) + "," + str(layout[0])
-        if "NIGLOBAL" in MOM_layout_dict:
-            MOM_layout_dict["NIGLOBAL"]["value"] = self.hgrid.nx.shape[0] // 2
-        if "NJGLOBAL" in MOM_layout_dict:
-            MOM_layout_dict["NJGLOBAL"]["value"] = self.hgrid.ny.shape[0] // 2
-
-        MOM_input_dict = mpt.read_MOM_file_as_dict("MOM_input", self.mom_run_dir)
         MOM_override_dict = mpt.read_MOM_file_as_dict("MOM_override", self.mom_run_dir)
-        # The number of boundaries is reflected in the number of segments setup in setup_ocean_state_boundary under expt.segments.
-        # The setup_boundary_tides function currently only works with rectangular grids amd sets up 4 segments, but DOESN"T save them to expt.segments.
-        # Therefore, we can use expt.segments to determine how many segments we need for MOM_input. We can fill the empty segments with a empty string to make sure it is overriden correctly.
 
-        # Others
         MOM_override_dict["MINIMUM_DEPTH"]["value"] = float(self.minimum_depth)
+
+        # Define spatial dimensions
+        nx = self.hgrid.nx.shape[0] // 2
+        ny = self.hgrid.ny.shape[0] // 2
         MOM_override_dict["NK"]["value"] = len(self.vgrid.zl.values)
+        MOM_override_dict["NIGLOBAL"]["value"] = nx
+        MOM_override_dict["NJGLOBAL"]["value"] = ny
 
-        # OBC Adjustments
-
-        # Delete MOM_input OBC stuff that is indexed because we want them only in MOM_override.
-        print(
-            "Deleting indexed OBC keys from MOM_input_dict in case we have a different number of segments"
-        )
-        keys_to_delete = [key for key in MOM_input_dict if "_SEGMENT_00" in key]
-        for key in keys_to_delete:
-            del MOM_input_dict[key]
+        # If we're not using the Auto Mask Table feature, need a mask table:
+        if mask_land_PEs == True:
+            MOM_override_dict["AUTO_MASKTABLE"]["value"] = True
+        else:
+            # No mask table at all
+            MOM_override_dict["AUTO_MASKTABLE"]["value"] = False
+            MOM_override_dict["MASKTABLE"]["value"] = "None"
 
         # Define number of OBC segments
         MOM_override_dict["OBC_NUMBER_OF_SEGMENTS"]["value"] = len(
@@ -2417,16 +1640,25 @@ class experiment:
             )
         # Tides OBC adjustments
         if with_tides:
+
             # Include internal tide forcing
             MOM_override_dict["TIDES"]["value"] = "True"
+            MOM_override_dict["TIDES"][
+                "comment"
+            ] = "This turns on body tidal forcing in the interior of domain."
+            for constituent in self.tidal_constituents:
+                MOM_override_dict[f"TIDE_{constituent.upper()}"]["value"] = "True"
 
             # OBC tides
+            MOM_override_dict["OBC_TIDE_CONSTITUENTS"]["value"] = (
+                '"' + ", ".join(self.tidal_constituents) + '"'
+            )
+            MOM_override_dict["OBC_TIDE_CONSTITUENTS"][
+                "comment"
+            ] = "OBC_TIDE constituent settings define the tidal forcing at boundaries"
             MOM_override_dict["OBC_TIDE_ADD_EQ_PHASE"]["value"] = "True"
             MOM_override_dict["OBC_TIDE_N_CONSTITUENTS"]["value"] = len(
                 self.tidal_constituents
-            )
-            MOM_override_dict["OBC_TIDE_CONSTITUENTS"]["value"] = (
-                '"' + ", ".join(self.tidal_constituents) + '"'
             )
             MOM_override_dict["OBC_TIDE_REF_DATE"]["value"] = self.date_range[
                 0
@@ -2435,17 +1667,153 @@ class experiment:
         for key, val in MOM_override_dict.items():
             if isinstance(val, dict) and key != "original":
                 MOM_override_dict[key]["override"] = True
-        mpt.write_MOM_file(MOM_input_dict, self.mom_run_dir)
         mpt.write_MOM_file(MOM_override_dict, self.mom_run_dir)
-        mpt.write_MOM_file(MOM_layout_dict, self.mom_run_dir)
 
-        ## If using payu to run the model, create a payu configuration file
-        if not using_payu and os.path.exists(f"{self.mom_run_dir}/config.yaml"):
-            os.remove(f"{self.mom_run_dir}/config.yaml")
-        elif ncpus == None:
+        # Modify the config.yaml file. This is the same whether NUOPC or FMS
+        yaml = YAML()
+        yaml.preserve_quotes = True
+        yaml.default_flow_style = False
+        yaml.indent(
+            mapping=4, sequence=4, offset=4
+        )  # Preserve the 4 space indent formatting
+        yaml.width = 4096  # Prevent line wrapping
+        with open(self.mom_run_dir / "config.yaml", "r") as file:
+            config = yaml.load(file)
+        config["ncpus"] = ncpus
+        config["jobname"] = self.mom_run_dir.name
+        config["input"][0] = str(self.mom_input_dir)
+        with open(self.mom_run_dir / "config.yaml", "w") as file:
+            yaml.dump(config, file)
+
+        return
+
+    def setup_rOM3(self, ncpus=208, mask_land_PEs=True):
+        """
+        Set up the run directory for an ACCESS-regional-ocean-model-3 experiment. This function copies existing configuration files (MOM_input,config.yaml etc.) from an ACCESS-NRI supported source to ensure that users have access to the latest executable and fixes.
+
+
+        Arguments:
+            ncpus (Optional[int]): The number of PEs to use
+            mask_land_PEs (Optional[bool]): If your domain has enough land in it that some processors would only have land to deal with, set to True. If a mostly water domain, set to False otherwise the automatic mask table throws a fatal (see issue: https://github.com/issues/created?issue=mom-ocean%7CMOM6%7C1686)
+        """
+        if os.path.exists(self.mom_run_dir):
+            shutil.rmtree(self.mom_run_dir)
+
+        # First, make the ESMF mesh file required for all NUOPC based runs, like rom3
+        self.TOPO.write_esmf_mesh(expt.mom_input_dir / "access-rom3-ESMFmesh.nc")
+        # Now modify to make a mask free version
+        maskmesh = xr.open_dataset(expt.mom_input_dir / "access-rom3-ESMFmesh.nc")
+        maskmesh.elementMask[:] = 1
+        maskmesh.to_netcdf(expt.mom_input_dir / "access-rom3-nomask-ESMFmesh.nc")
+
+        #! PLACEHOLDER
+        #! need to implement something like:
+        #! payu clone stencil_name self.mom_run_dir.
+        #!
+        shutil.copytree(
+            "/g/data/ol01/ab8992/access-om3-configs",
+            self.mom_run_dir,
+            dirs_exist_ok=True,
+        )
+        #!
+        #! END PLACEHOLDER
+
+        # Run the generic setup that's required for all rmom6 runs
+        if mask_land_PEs:
+            mask_table = "auto"
+        else:
+            mask_table = "none"
+        self.setup_generic(ncpus=ncpus, mask_table=mask_table)
+
+        nx = self.hgrid.nx.shape[0] // 2
+        ny = self.hgrid.ny.shape[0] // 2
+        with open(f"{self.mom_run_dir}/nuopc.runconfig", "r") as file:
+            lines = file.readlines()
+            for i in range(len(lines)):
+                if "     start_ymd" in lines[i]:
+                    lines[i] = (
+                        f"     start_ymd = {self.date_range[0].strftime('%Y%m%d')}\n"
+                    )
+                if "ocn_nx" in lines[i]:
+                    lines[i] = f"     ocn_nx = {nx}\n"
+                if "ocn_ny" in lines[i]:
+                    lines[i] = f"     ocn_ny = {ny}\n"
+        with open(f"{self.mom_run_dir}/nuopc.runconfig", "w") as file:
+            file.writelines(lines)
+
+        # Modify the drof / datm files to all have the right number of x and y points
+        datm = f90nml.read(self.mom_run_dir / "datm_in")
+        datm["datm_nml"]["nx_global"]
+
+        for i in ["drof", "datm"]:
+            file = f90nml.read(self.mom_run_dir / f"{i}_in")
+            file[f"{i}_nml"]["nx_global"] = nx
+            file[f"{i}_nml"]["ny_global"] = ny
+            file.write(self.mom_run_dir / f"{i}_in", force=True)
+
+        return
+
+    def setup_fms_version(self, ncpus=100, surface_forcing=None, mask_land_PEs=True):
+        """
+        Set up the run directory for MOM6. Either copy a pre-made set of files, or modify
+        existing files in the 'rundir' directory for the experiment.
+
+        Arguments:
+            surface_forcing (Optional[str]): Specify the choice of surface forcing, one
+                of: ``'jra'`` or ``'era5'``. If not prescribed then constant fluxes are used.
+            mask_land_PEs (Optional[bool]): If your domain has enough land in it that some processors would only have land to deal with, set to True. If a mostly water domain, set to False otherwise the automatic mask table throws a fatal (see issue: https://github.com/issues/created?issue=mom-ocean%7CMOM6%7C1686)
+        """
+
+        ## Get the path to the regional_mom package on this computer
+        premade_rundir_path = Path(
+            importlib.resources.files("regional_mom6")
+            / "demos"
+            / "premade_run_directories"
+        )
+
+        if not premade_rundir_path.exists():
+            print("Could not find premade run directories at ", premade_rundir_path)
             print(
-                "WARNING: Layout has not been set! Cannot create payu configuration file. Run the FRE_tools first."
+                "Perhaps the package was imported directly rather than installed with conda. Checking if this is the case... ",
+                end="",
             )
+
+            premade_rundir_path = Path(
+                importlib.resources.files("regional_mom6").parent
+                / "demos"
+                / "premade_run_directories"
+            )
+            if not premade_rundir_path.exists():
+                raise ValueError(
+                    f"Cannot find the premade run directory files at {premade_rundir_path} either.\n\n"
+                    + "There may be an issue with package installation. Check that the `premade_run_directory` folder is present in one of these two locations"
+                )
+            else:
+                print("Found run files. Continuing...")
+
+        # Define the locations of the directories we'll copy files across from. Base contains most of the files, and overwrite replaces files in the base directory.
+        base_run_dir = Path(premade_rundir_path / "common_files")
+        if not premade_rundir_path.exists():
+            raise ValueError(
+                f"Cannot find the premade run directory files at {premade_rundir_path}.\n\n"
+                + "These files missing might be indicating an error during the package installation!"
+            )
+        if surface_forcing:
+            overwrite_run_dir = Path(premade_rundir_path / f"{surface_forcing}_surface")
+
+            if not overwrite_run_dir.exists():
+                available = [x for x in premade_rundir_path.iterdir() if x.is_dir()]
+                raise ValueError(
+                    f"Surface forcing {surface_forcing} not available. Please choose from {str(available)}"  ##Here print all available run directories
+                )
+        else:
+            ## In case there is additional forcing (e.g., tides) then we need to modify the run dir to include the additional forcing.
+            overwrite_run_dir = False
+
+        shutil.copytree(base_run_dir, self.mom_run_dir, dirs_exist_ok=True)
+        if overwrite_run_dir != False:
+            shutil.copytree(overwrite_run_dir, self.mom_run_dir, dirs_exist_ok=True)
+
         else:
             with open(f"{self.mom_run_dir}/config.yaml", "r") as file:
                 lines = file.readlines()
@@ -2464,6 +1832,8 @@ class experiment:
 
             with open(f"{self.mom_run_dir}/config.yaml", "w") as file:
                 file.writelines(lines)
+
+        self.setup_generic(ncpus=ncpus, mask_land_PEs=mask_land_PEs)
 
         # Modify input.nml
         nml = f90nml.read(self.mom_run_dir / "input.nml")
@@ -2768,28 +2138,7 @@ class segment:
                     in segment_out[reprocessed_var_map["tracer_var_names"]["temp"]].dims
                 ):  # At least one must be true
                     depth_coord = dc
-        if (
-            np.nanmin(
-                segment_out[reprocessed_var_map["tracer_var_names"]["temp"]].isel(
-                    {
-                        reprocessed_var_map["time_var_name"]: 0,
-                        depth_coord: 0,
-                    }
-                )
-            )
-            > 100
-        ):
-            segment_out[reprocessed_var_map["tracer_var_names"]["temp"]] -= 273.15
-            segment_out[reprocessed_var_map["tracer_var_names"]["temp"]].attrs[
-                "units"
-            ] = "degrees Celsius"
 
-        # fill in NaNs
-        segment_out = fill_method(
-            segment_out,
-            xdim=f"{coords.attrs['parallel']}_{self.segment_name}",
-            zdim=reprocessed_var_map["depth_coord"],
-        )
         if "since" not in time_units:
             times = xr.DataArray(
                 np.arange(
@@ -2880,8 +2229,32 @@ class segment:
                     self.segment_name,
                     depth_coord,
                 )
-        # Overwrite the actual lat/lon values in the dimensions, replace with incrementing integers
 
+        # Here, do a foolproof (hopefully) manual conversion from K -> C just in case
+        # pint doesn't manage to do so. Pint is finicky, but required for BGC fields. However,
+        # we're making sure that temp will always be in C not K as this is a big problem!
+        if (
+            np.nanmin(
+                segment_out[f"temp_{self.segment_name}"].isel(
+                    {
+                        reprocessed_var_map["time_var_name"]: 0,
+                        f"nz_{self.segment_name}_temp": 0,
+                    }
+                )
+            )
+            > 100
+        ):
+            segment_out[f"temp_{self.segment_name}"] -= 273.15
+            segment_out[f"temp_{self.segment_name}"].attrs["units"] = "degrees Celsius"
+
+        # fill in NaNs
+        segment_out = fill_method(
+            segment_out,
+            xdim=f"{coords.attrs['parallel']}_{self.segment_name}",
+            zdim=reprocessed_var_map["depth_coord"],
+        )
+
+        # Overwrite the actual lat/lon values in the dimensions, replace with incrementing integers
         segment_out[f"{coords.attrs['perpendicular']}_{self.segment_name}"] = [0]
 
         segment_out[f"{coords.attrs['parallel']}_{self.segment_name}"] = np.arange(
