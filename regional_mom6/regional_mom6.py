@@ -29,7 +29,7 @@ from mom6_forge.vgrid import *
 from mom6_forge.grid import *
 from mom6_forge.topo import *
 from regional_mom6.validate import validate_obc_file, validate_general_file
-
+from ruamel.yaml import YAML
 warnings.filterwarnings("ignore")
 
 __all__ = [
@@ -1523,13 +1523,13 @@ class experiment:
         """
         # Check if we need tides
         with_tides = len(self.tidal_constituents) > 0
-        # if with_tides:
-        #     tidal_files_exist = any(Path(self.mom_input_dir).rglob("tu*"))
+        if with_tides:
+            tidal_files_exist = any(Path(self.mom_input_dir).rglob("tu*"))
 
-        #     if not tidal_files_exist:
-        #         raise ValueError(
-        #             "No files with 'tu' in their names found in the forcing or input directory. If you meant to use tides, please run the setup_boundary_tides method first to create tidal files. If you didn't, set ``tidal_constituants = []`` when defining experiment."
-        #         )
+            if not tidal_files_exist:
+                raise ValueError(
+                    "No files with 'tu' in their names found in the forcing or input directory. If you meant to use tides, please run the setup_boundary_tides method first to create tidal files. If you didn't, set ``tidal_constituants = []`` when defining experiment."
+                )
 
         ### Make symlinks between run and input directories ###
         inputdir_in_rundir = self.mom_run_dir / "inputdir"
