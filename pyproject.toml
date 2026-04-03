@@ -20,7 +20,6 @@ dependencies = [
   "copernicusmarine >= 2.0.0,<2.1.0",
   "pint_xarray",
   "mom6_forge @ git+https://github.com/NCAR/mom6_forge.git@main"
-  "ruamel.yaml"
 ]
 
 [build-system]
