@@ -1423,13 +1423,16 @@ class experiment:
         return self.topo.gen_topo_ds()
 
     def run_FRE_tools(self, layout=None):
-        """A wrapper for FRE Tools ``check_mask``, ``make_solo_mosaic``, and ``make_quick_mosaic``.
+        """
+        A wrapper for FRE Tools ``check_mask``, ``make_solo_mosaic``, and ``make_quick_mosaic``.
         User provides processor ``layout`` tuple of processing units.
+
+        This method is not needed if you're running under NUOPC (e.g., NCAR/CROCODILE or most ACCESS/COSIMA people). However, if you're not using the auto-mask table, then this is the only way within the regional-mom6 package to generate a cpu mask file.
+
+        The FRE tools require some additional attributes and dimensions on the bathymetry and hgrid files, which are added here before calling the tools.
+
         """
 
-        print(
-            "Running GFDL's FRE Tools. The following information is all printed by the FRE tools themselves"
-        )
         if not (self.mom_input_dir / "bathymetry.nc").exists():
             print("No bathymetry file! Need to run setup_bathymetry method first")
             return
@@ -1437,6 +1440,37 @@ class experiment:
         for p in self.mom_input_dir.glob("mask_table*"):
             p.unlink()
 
+        # If ntiles not present in hgrid & topography, add them
+        if "ntiles" not in self.bathymetry.dims:
+            self.bathymetry.expand_dims({"ntiles": 1}).to_netcdf(
+                self.mom_input_dir / "bathymetry.nc",
+                mode="w",
+            )
+
+        if "tile" not in self.hgrid:
+            self.hgrid = self.hgrid.assign(
+                {
+                    "tile": (
+                        (),
+                        np.array(b"tile1", dtype="|S255"),
+                        {
+                            "standard_name": "grid_tile_spec",
+                            "geometry": "spherical",
+                            "north_pole": "0.0 90.0",
+                            "discretization": "logically_rectangular",
+                            "conformal": "true",
+                        },
+                    )
+                }
+            )
+            self.hgrid.to_netcdf(
+                self.mom_input_dir / "hgrid.nc", format="NETCDF3_64BIT", mode="w"
+            )
+
+        print(
+            "Running GFDL's FRE Tools. The following information is all printed by the FRE tools themselves"
+        )
+        # First run the make solo mosaic. This reads hgrid and outputs the ocean_mosaic.nc file
         print(
             "OUTPUT FROM MAKE SOLO MOSAIC:",
             subprocess.run(
@@ -1448,6 +1482,7 @@ class experiment:
             sep="\n\n",
         )
 
+        # Next the quick mosaic function takes the mosaic we just made and the bathymetry to make the grid_spec file
         print(
             "OUTPUT FROM QUICK MOSAIC:",
             subprocess.run(
@@ -1459,6 +1494,8 @@ class experiment:
             sep="\n\n",
         )
 
+        # Finally, run the check mask function (kept separate in case people want to update their layout)
+        # to make the cpu mask file. This is not used if auto_masktable is set to true in MOM_input
         if layout != None:
             self.configure_cpu_layout(layout)
 
