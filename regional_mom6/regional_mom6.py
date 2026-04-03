@@ -1753,9 +1753,7 @@ class experiment:
 
         return
 
-    def setup_fms_version(
-        self, ncpus=100, surface_forcing=None, using_payu=False, mask_land_PEs=True
-    ):
+    def setup_fms_version(self, ncpus=100, surface_forcing=None, mask_land_PEs=True):
         """
         Set up the run directory for MOM6. Either copy a pre-made set of files, or modify
         existing files in the 'rundir' directory for the experiment.
@@ -1763,9 +1761,6 @@ class experiment:
         Arguments:
             surface_forcing (Optional[str]): Specify the choice of surface forcing, one
                 of: ``'jra'`` or ``'era5'``. If not prescribed then constant fluxes are used.
-            using_payu (Optional[bool]): Whether or not to use payu (https://github.com/payu-org/payu)
-                to run the model. If ``True``, a payu configuration file will be created.
-                Default: ``False``.
             mask_land_PEs (Optional[bool]): If your domain has enough land in it that some processors would only have land to deal with, set to True. If a mostly water domain, set to False otherwise the automatic mask table throws a fatal (see issue: https://github.com/issues/created?issue=mom-ocean%7CMOM6%7C1686)
         """
 
@@ -1819,9 +1814,6 @@ class experiment:
         if overwrite_run_dir != False:
             shutil.copytree(overwrite_run_dir, self.mom_run_dir, dirs_exist_ok=True)
 
-        ## If using payu to run the model, create a payu configuration file
-        if not using_payu and os.path.exists(f"{self.mom_run_dir}/config.yaml"):
-            os.remove(f"{self.mom_run_dir}/config.yaml")
         else:
             with open(f"{self.mom_run_dir}/config.yaml", "r") as file:
                 lines = file.readlines()
