@@ -19,7 +19,8 @@ dependencies = [
   "f90nml >= 1.4.1",
   "copernicusmarine >= 2.0.0,<2.1.0",
   "pint_xarray",
-  "mom6_forge @ git+https://github.com/NCAR/mom6_forge.git@main"
+  "mom6_forge @ git+https://github.com/NCAR/mom6_forge.git@main",
+  "ruamel"
 ]
 
 [build-system]
