@@ -33,6 +33,11 @@ jobs:
           git config --global user.email "github-actions@github.com"
           git config --global --add safe.directory '*'
       - uses: actions/checkout@v3
+      - name: Fix git stuff
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git config --global --add safe.directory '*'
       - name: Set up Python ${{ matrix.python-version }}
         uses: conda-incubator/setup-miniconda@v2
         with:
