@@ -9,6 +9,7 @@ from regional_mom6.regional_mom6 import segment
 import shutil
 from mom6_forge.grid import *
 
+
 # Not testing get_arakawa_c_points, coords, & create_regridder
 def test_smoke_untested_funcs(get_curvilinear_hgrid, generate_silly_vt_dataset):
     hgrid = get_curvilinear_hgrid
@@ -289,9 +290,9 @@ def test_regrid_velocity_tracers(toy_glorys_ds, tmp_path):
         ystart=2,
         leny=2,
         name="test",
-        type = "rectilinear_cartesian"
+        type="rectilinear_cartesian",
     )
-    hgrid = grid._supergrid.to_ds(name = grid.name, author="pytest")
+    hgrid = grid._supergrid.to_ds(name=grid.name, author="pytest")
     seg_name = "segment_001"
     outfolder = tmp_path / "inputdir"
     outfolder.mkdir()
