@@ -2,6 +2,7 @@ import pytest
 import os
 import xarray as xr
 import numpy as np
+from mom6_forge.grid import *
 import regional_mom6 as rmom6
 from regional_mom6 import experiment
 
@@ -82,10 +83,15 @@ def get_curvilinear_hgrid():
 
 @pytest.fixture
 def get_rectilinear_hgrid():
-    lat = np.linspace(0, 10, 7)
-    lon = np.linspace(0, 10, 13)
-    rect_hgrid = rmom6.generate_rectangular_hgrid(lat, lon)
-    return rect_hgrid
+    grid = Grid(
+        resolution=0.1,
+        xstart=278.0,
+        lenx=4.0,
+        ystart=7.0,
+        leny=3.0,
+        name="panama1",
+    )
+    return grid.supergrid.to_ds()
 
 
 @pytest.fixture()
@@ -332,3 +338,25 @@ def generate_temperature_arrays(nx, ny, number_vertical_layers):
         return temp_in_C, temp_in_C_masked, temp_in_K, temp_in_K_masked
     else:
         return generate_temperature_arrays(nx, ny, number_vertical_layers)
+
+
+@pytest.fixture
+def simple_experiment(tmp_path):
+
+    mom_run_dir = tmp_path / "rundir"
+    mom_input_dir = tmp_path / "inputdir"
+    expt = experiment(
+        longitude_extent=[-5, 5],
+        latitude_extent=[0, 10],
+        date_range=["2003-01-01 00:00:00", "2003-01-01 00:00:00"],
+        resolution=0.1,
+        number_vertical_layers=5,
+        layer_thickness_ratio=1,
+        depth=1000,
+        mom_run_dir=mom_run_dir,
+        mom_input_dir=mom_input_dir,
+        fre_tools_dir="dummy",
+        hgrid_type="even_spacing",
+        boundaries=["east"],
+    )
+    return expt

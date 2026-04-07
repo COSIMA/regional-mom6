@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from regional_mom6.regional_mom6 import segment
 import shutil
+from mom6_forge.grid import *
 
 
 # Not testing get_arakawa_c_points, coords, & create_regridder
@@ -281,10 +282,17 @@ def test_regrid_velocity_tracers(toy_glorys_ds, tmp_path):
     - Vertical coordinate is re-encoded as incremental integers
     - Perpendicular dimension has size 1
     """
-    lat = np.linspace(2, 4, 2)
-    lon = np.linspace(2, 4, 2)
-    hgrid = rmom6.generate_rectangular_hgrid(lat, lon)
 
+    grid = Grid(
+        resolution=2,
+        xstart=2,
+        lenx=2,
+        ystart=2,
+        leny=2,
+        name="test",
+        type="rectilinear_cartesian",
+    )
+    hgrid = grid._supergrid.to_ds(name=grid.name, author="pytest")
     seg_name = "segment_001"
     outfolder = tmp_path / "inputdir"
     outfolder.mkdir()
@@ -323,7 +331,7 @@ def test_regrid_velocity_tracers(toy_glorys_ds, tmp_path):
     # Temp is spatially varying (20–26 °C), so just check values are exact (hgrid overlap with seg exactly)
     temp_vals = segment_out[f"temp_{seg_name}"].values
     assert temp_vals[0, 0, 0, 0] == 22
-    assert temp_vals[0, 0, 1, 0] == 26
+    assert temp_vals[0, 0, 2, 0] == 26
 
     seg_north = segment(
         hgrid=hgrid,
@@ -337,7 +345,7 @@ def test_regrid_velocity_tracers(toy_glorys_ds, tmp_path):
     )
     temp_vals = segment_out_north[f"temp_{seg_name}"].values
     assert temp_vals[0, 0, 0, 0] == 24
-    assert temp_vals[0, 0, 0, 1] == 26
+    assert temp_vals[0, 0, 0, 2] == 26
 
     # Mess with hgrid, subtract 1
 
@@ -363,5 +371,5 @@ def test_regrid_velocity_tracers(toy_glorys_ds, tmp_path):
         np.abs(temp_vals[0, 0, 0, 0] - 23) < 0.01
     )  # bilinear at this point is nearly the average of the toy_glory_ds values (22 and 24 and 26 and 20)
     assert (
-        temp_vals[0, 0, 1, 0] == 0
+        temp_vals[0, 0, 2, 0] == 0
     )  # The bilinear regridding would be zero here because there isn't 4 points
