@@ -1,7 +1,7 @@
-name: mom6-regional-dev
+name: mom6-regional-dev-new-numpy
 channels:
   - conda-forge
 dependencies:
   - esmpy
-  - numpy>2.0.0
-  - xesmf>0.8.7
+  - numpy
+  - xesmf
