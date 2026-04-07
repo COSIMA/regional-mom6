@@ -1,4 +1,4 @@
-name: mom6-regional-dev-new-numpy
+name: mom6-regional-dev
 channels:
   - conda-forge
 dependencies:
