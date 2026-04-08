@@ -1305,13 +1305,14 @@ class experiment:
             },
         )
 
+        encoding = {
+            var: {"_FillValue": -1e20, "missing_value": -1e20}
+            for var in reprocessed_var_map["tracer_var_names"].keys()
+        }
         tracers_out.to_netcdf(
             self.mom_input_dir / "init_tracers.nc",
             mode="w",
-            encoding={
-                "temp": {"_FillValue": -1e20, "missing_value": -1e20},
-                "salt": {"_FillValue": -1e20, "missing_value": -1e20},
-            },
+            encoding=encoding,
         )
         eta_out.to_netcdf(
             self.mom_input_dir / "init_eta.nc",
@@ -1334,11 +1335,8 @@ class experiment:
         )
         validate_general_file(
             tracers_out,
-            ["temp", "salt"],
-            {
-                "temp": {"_FillValue": -1e20, "missing_value": -1e20},
-                "salt": {"_FillValue": -1e20, "missing_value": -1e20},
-            },
+            list(reprocessed_var_map["tracer_var_names"].keys()),
+            encoding,
         )
         validate_general_file(
             vel_out,
@@ -3399,10 +3397,9 @@ def apply_arakawa_grid_mapping(var_mapping: dict, arakawa_grid: str = None) -> d
             "eta_var_name": var_mapping["eta"],
             "time_var_name": var_mapping["time"],
             "depth_coord": var_mapping["zl"],
-            "tracer_var_names": {
-                "salt": var_mapping["tracers"]["salt"],
-                "temp": var_mapping["tracers"]["temp"],
-            },
+            "tracer_var_names": var_mapping[
+                "tracers"
+            ],  # validate_var_mapping will ensure this is a nested dict with "salt" and "temp" keys
         }
 
         if arakawa_grid == "A":
@@ -3532,7 +3529,7 @@ def identify_arakawa_grid(var_mapping):
     elif (
         var_mapping["v_x_coord"] != var_mapping["u_x_coord"]
         and var_mapping["u_x_coord"] != var_mapping["tracer_x_coord"]
-        and var_mapping["v_x_coord"] != var_mapping["tracer_x_coord"]
+        and var_mapping["v_y_coord"] != var_mapping["tracer_y_coord"]
     ):
         return "C"
     else:
