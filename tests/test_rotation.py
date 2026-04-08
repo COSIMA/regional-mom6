@@ -204,7 +204,7 @@ def test_mom6_angle_calculation_method_simple_square_grids(angle):
     computed_angle = rot.mom6_angle_calculation_method(
         len_lon, top_left, top_right, bottom_left, bottom_right, point
     )
-    assert math.isclose(computed_angle, angle)
+    assert math.isclose(computed_angle[0, 0].values, angle)
 
 
 def test_mom6_angle_calculation_method(get_curvilinear_hgrid):
