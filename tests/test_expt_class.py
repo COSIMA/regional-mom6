@@ -292,6 +292,20 @@ def test_rectangular_boundaries(
                     "time": np.linspace(0, 1000, 10),
                 },
             ),
+            "o2": xr.DataArray(
+                np.random.random((100, 5, 10, 10)),
+                dims=["silly_lat", "silly_lon", "silly_depth", "time"],
+                coords={
+                    "silly_lat": np.linspace(
+                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
+                    ),
+                    "silly_lon": np.linspace(
+                        longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5
+                    ),
+                    "silly_depth": np.linspace(0, 1000, 10),
+                    "time": np.linspace(0, 1000, 10),
+                },
+            ),
             "u": xr.DataArray(
                 np.random.random((100, 5, 10, 10)),
                 dims=["silly_lat", "silly_lon", "silly_depth", "time"],
@@ -351,7 +365,13 @@ def test_rectangular_boundaries(
         "v": "v",
         "tracers": {"temp": "temp", "salt": "salt"},
     }
-    expt.setup_ocean_state_boundaries(tmp_path, varnames)
+
+    # Add test for bgc_tracer_names
+    bgc_tracer_names = {"o2": "o2"}
+    expt.setup_ocean_state_boundaries(tmp_path, varnames, bgc_tracer_names = bgc_tracer_names)
+    assert (expt.inputdir/"o2_obc_segment.nc").exists(), "BGC tracer file not created"
+
+
 
 
 def test_reformat_bgc_tracers_into_files(tmp_path):

@@ -1502,16 +1502,20 @@ class experiment:
         if bgc_tracer_names is None:
             bgc_tracer_names = {}
 
+        # In the future, we should change varnames to physical_varnames
+        physical_varnames = varnames
+        all_varnames = physical_varnames.copy()
+
         # Merge the bgc tracer names into the varnames
         if bgc_tracer_names:
-            key = "tracers" if "tracers" in varnames else "tracer_var_names"
-            varnames[key] = {**varnames[key], **bgc_tracer_names}
+            key = "tracers" if "tracers" in physical_varnames else "tracer_var_names"
+            all_varnames[key] = {**physical_varnames[key], **bgc_tracer_names}
 
         # Now iterate through our four boundaries
         for orientation in self.boundaries:
             self.setup_single_boundary(
                 Path(raw_boundaries_path / (orientation + "_unprocessed.nc")),
-                varnames,
+                all_varnames,
                 orientation,  # The cardinal direction of the boundary
                 self.find_MOM6_rectangular_orientation(
                     orientation
