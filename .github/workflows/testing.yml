@@ -27,6 +27,11 @@ jobs:
         python-version: ["3.11", "3.12"]
 
     steps:
+      - name: Set git config
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git config --global --add safe.directory '*'
       - uses: actions/checkout@v3
       - name: Fix git stuff
         run: |
