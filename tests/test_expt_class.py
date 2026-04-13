@@ -432,10 +432,12 @@ def test_rectangular_boundaries(
 
     # Add test for bgc_tracer_names
     bgc_tracer_names = {"o2": "o2"}
-    expt.setup_ocean_state_boundaries(tmp_path, varnames, bgc_tracer_names = bgc_tracer_names)
-    assert (expt.mom_input_dir/"o2_obc_segment.nc").exists(), "BGC tracer file not created"
-
-
+    expt.setup_ocean_state_boundaries(
+        tmp_path, varnames, bgc_tracer_names=bgc_tracer_names
+    )
+    assert (
+        expt.mom_input_dir / "o2_obc_segment.nc"
+    ).exists(), "BGC tracer file not created"
 
 
 def test_reformat_bgc_tracers_into_files(tmp_path):
