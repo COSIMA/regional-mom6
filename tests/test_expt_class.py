@@ -211,6 +211,70 @@ def test_ocean_forcing(
     dask.config.set(scheduler=None)
 
 
+def test_bgc_tracers_carried_through_initial_condition(
+    tmp_path, generate_silly_ic_dataset
+):
+    """BGC tracers beyond temp/salt must appear in ic_tracers after setup_initial_condition."""
+    lon_ext = [-5, 3]
+    lat_ext = [0, 10]
+    nz = 5
+
+    initial_cond = generate_silly_ic_dataset(
+        lon_ext,
+        lat_ext,
+        resolution,
+        nz,
+        depth,
+        get_temperature_dataarrays(lon_ext, lat_ext, resolution, nz, depth)[0],
+    )
+    # Add a BGC tracer
+    nx, ny = number_of_gridpoints(lon_ext, lat_ext, resolution)
+    silly_lat, silly_lon, silly_depth = (
+        initial_cond.silly_lat,
+        initial_cond.silly_lon,
+        initial_cond.silly_depth,
+    )
+    initial_cond["no3"] = xr.DataArray(
+        np.random.random((ny, nx, nz)),
+        dims=["silly_lat", "silly_lon", "silly_depth"],
+        coords={
+            "silly_lat": silly_lat,
+            "silly_lon": silly_lon,
+            "silly_depth": silly_depth,
+        },
+    )
+    initial_cond.to_netcdf(tmp_path / "ic_bgc")
+    initial_cond.close()
+
+    expt = experiment(
+        longitude_extent=lon_ext,
+        latitude_extent=lat_ext,
+        date_range=date_range,
+        resolution=resolution,
+        number_vertical_layers=nz,
+        layer_thickness_ratio=layer_thickness_ratio,
+        depth=depth,
+        mom_run_dir=tmp_path / "rundir",
+        mom_input_dir=tmp_path / "inputdir",
+        fre_tools_dir="toolpath",
+        hgrid_type="even_spacing",
+    )
+    varnames = {
+        "xh": "silly_lon",
+        "yh": "silly_lat",
+        "time": "time",
+        "eta": "eta",
+        "zl": "silly_depth",
+        "u": "u",
+        "v": "v",
+        "tracers": {"temp": "temp", "salt": "salt", "no3": "no3"},
+    }
+    expt.setup_initial_condition(tmp_path / "ic_bgc", varnames, arakawa_grid="A")
+
+    assert "no3" in expt.ic_tracers
+    dask.config.set(scheduler=None)
+
+
 @pytest.mark.parametrize(
     (
         "longitude_extent",
@@ -292,6 +356,20 @@ def test_rectangular_boundaries(
                     "time": np.linspace(0, 1000, 10),
                 },
             ),
+            "o2": xr.DataArray(
+                np.random.random((100, 5, 10, 10)),
+                dims=["silly_lat", "silly_lon", "silly_depth", "time"],
+                coords={
+                    "silly_lat": np.linspace(
+                        latitude_extent[0] - 5, latitude_extent[1] + 5, 100
+                    ),
+                    "silly_lon": np.linspace(
+                        longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5
+                    ),
+                    "silly_depth": np.linspace(0, 1000, 10),
+                    "time": np.linspace(0, 1000, 10),
+                },
+            ),
             "u": xr.DataArray(
                 np.random.random((100, 5, 10, 10)),
                 dims=["silly_lat", "silly_lon", "silly_depth", "time"],
@@ -351,9 +429,65 @@ def test_rectangular_boundaries(
         "v": "v",
         "tracers": {"temp": "temp", "salt": "salt"},
     }
-    expt.setup_ocean_state_boundaries(tmp_path, varnames)
+
+    # Add test for bgc_tracer_names
+    bgc_tracer_names = {"o2": "o2"}
+    expt.setup_ocean_state_boundaries(
+        tmp_path, varnames, bgc_tracer_names=bgc_tracer_names
+    )
+    assert (
+        expt.mom_input_dir / "o2_obc_segment.nc"
+    ).exists(), "BGC tracer file not created"
 
 
-def test_experiment_get_glorys(simple_experiment, tmp_path):
-    expt = simple_experiment
-    expt.get_glorys(tmp_path)
+def test_reformat_bgc_tracers_into_files(tmp_path):
+    """reformat_bgc_tracers_into_files writes one file per BGC tracer containing the tracer and its dz variable."""
+    expt = experiment(
+        longitude_extent=[-5, 5],
+        latitude_extent=[0, 10],
+        date_range=["2003-01-01 00:00:00", "2003-01-01 00:00:00"],
+        resolution=0.1,
+        number_vertical_layers=5,
+        layer_thickness_ratio=1,
+        depth=1000,
+        mom_run_dir=tmp_path / "rundir",
+        mom_input_dir=tmp_path / "inputdir",
+        fre_tools_dir="toolpath",
+        hgrid_type="even_spacing",
+        boundaries=["east", "west"],
+    )
+
+    # Write a fake forcing_obc_segment_001.nc with BGC tracer vars
+    segs = ["001", "002"]
+    for seg in segs:
+        ds = xr.Dataset(
+            {
+                f"o2_segment_{seg}": xr.DataArray(
+                    np.random.random((3, 5, 4)),
+                    dims=["time", "nz", f"nx_segment_{seg}"],
+                ),
+                f"dz_o2_segment_{seg}": xr.DataArray(
+                    np.random.random((3, 5, 4)),
+                    dims=["time", "nz", f"nx_segment_{seg}"],
+                ),
+                f"temp_segment_{seg}": xr.DataArray(
+                    np.random.random((3, 5, 4)),
+                    dims=["time", "nz", f"nx_segment_{seg}"],
+                ),
+            }
+        )
+        ds.to_netcdf(expt.mom_input_dir / f"forcing_obc_segment_{seg}.nc")
+
+    expt.reformat_bgc_tracers_into_files({"o2": "o2"})
+
+    out_file = expt.mom_input_dir / "o2_obc_segment.nc"
+    assert out_file.exists(), "output file for BGC tracer not created"
+    result = xr.open_dataset(out_file)
+    for seg in segs:
+        assert f"o2_segment_{seg}" in result, "tracer variable missing from output"
+        assert (
+            f"dz_o2_segment_{seg}" in result
+        ), "dz thickness variable missing from output"
+        assert (
+            f"temp_segment_{seg}" not in result
+        ), "physical tracer should not be in BGC file"
