@@ -19,7 +19,7 @@ dependencies = [
   "f90nml >= 1.4.1",
   "copernicusmarine >= 2.0.0,<2.1.0",
   "pint_xarray",
-  "ruamel.yaml"
+  "ruamel.yaml",
   "mom6_forge"
 ]
 
