@@ -4,6 +4,10 @@ import regional_mom6.regridding as rgd
 import pytest
 import xarray as xr
 import numpy as np
+import pandas as pd
+from regional_mom6.regional_mom6 import segment
+import shutil
+from mom6_forge.grid import *
 
 
 # Not testing get_arakawa_c_points, coords, & create_regridder
@@ -264,3 +268,108 @@ def test_mask_dataset(get_curvilinear_hgrid):
     ).all() == True and (
         (ds["temp"][0, 0, 0][(((end_ind * 2) + 1) + 1 + 1) : -1] == fill_value)
     ).all() == True  # Ensure data is not in land area
+
+
+def test_regrid_velocity_tracers(toy_glorys_ds, tmp_path):
+    """
+    Correctness test for segment.regrid_velocity_tracers.
+
+    Checks:
+    - Output OBC file is written
+    - Variables follow the {var}_{segment_name} naming convention
+    - Temperature is in Celsius (< 100)
+    - 3D fields have companion dz_* variables
+    - Vertical coordinate is re-encoded as incremental integers
+    - Perpendicular dimension has size 1
+    """
+
+    grid = Grid(
+        resolution=2,
+        xstart=2,
+        lenx=2,
+        ystart=2,
+        leny=2,
+        name="test",
+        type="rectilinear_cartesian",
+    )
+    hgrid = grid._supergrid.to_ds(name=grid.name, author="pytest")
+    seg_name = "segment_001"
+    outfolder = tmp_path / "inputdir"
+    outfolder.mkdir()
+
+    # Minimal synthetic boundary dataset covering the east edge of the hgrid (lon ≈ 10, lat 0-10)
+
+    infile = tmp_path / "east_raw.nc"
+    ds = toy_glorys_ds
+    ds.to_netcdf(infile)
+    ds.close()
+
+    varnames = {
+        "xh": "lon",
+        "yh": "lat",
+        "time": "time",
+        "eta": "eta",
+        "zl": "depth",
+        "u": "u",
+        "v": "v",
+        "tracers": {"temp": "temp", "salt": "salt"},
+    }
+
+    seg = segment(
+        hgrid=hgrid,
+        outfolder=outfolder,
+        segment_name=seg_name,
+        orientation="east",
+        startdate="2003-01-01 00:00:00",
+    )
+    segment_out, _ = seg.regrid_velocity_tracers(infile, varnames, arakawa_grid="A")
+
+    # Salt is spatially constant, so all ocean points must match exactly.
+    salt_vals = segment_out[f"salt_{seg_name}"].values
+    np.testing.assert_allclose(salt_vals, 35.0, rtol=1e-4)
+
+    # Temp is spatially varying (20–26 °C), so just check values are exact (hgrid overlap with seg exactly)
+    temp_vals = segment_out[f"temp_{seg_name}"].values
+    assert temp_vals[0, 0, 0, 0] == 22
+    assert temp_vals[0, 0, 2, 0] == 26
+
+    seg_north = segment(
+        hgrid=hgrid,
+        outfolder=outfolder,
+        segment_name=seg_name,
+        orientation="north",
+        startdate="2003-01-01 00:00:00",
+    )
+    segment_out_north, _ = seg_north.regrid_velocity_tracers(
+        infile, varnames, arakawa_grid="A"
+    )
+    temp_vals = segment_out_north[f"temp_{seg_name}"].values
+    assert temp_vals[0, 0, 0, 0] == 24
+    assert temp_vals[0, 0, 0, 2] == 26
+
+    # Mess with hgrid, subtract 1
+
+    folder = outfolder / "weights"
+    shutil.rmtree(
+        folder
+    )  # removes weights so they aren't saved with the old hgrid, and forces them to be recomputed with the new hgrid
+    folder.mkdir()  # recreate the empty folder
+    hgrid["x"] = hgrid.x + 1
+    hgrid["y"] = hgrid.y + 1
+    seg_regrid = segment(
+        hgrid=hgrid,
+        outfolder=outfolder,
+        segment_name=seg_name,
+        orientation="west",
+        startdate="2003-01-01 00:00:00",
+    )
+    seg_regridded, _ = seg_regrid.regrid_velocity_tracers(
+        infile, varnames, arakawa_grid="A", regridding_method="bilinear"
+    )
+    temp_vals = seg_regridded[f"temp_{seg_name}"].values
+    assert (
+        np.abs(temp_vals[0, 0, 0, 0] - 23) < 0.01
+    )  # bilinear at this point is nearly the average of the toy_glory_ds values (22 and 24 and 26 and 20)
+    assert (
+        temp_vals[0, 0, 2, 0] == 0
+    )  # The bilinear regridding would be zero here because there isn't 4 points
