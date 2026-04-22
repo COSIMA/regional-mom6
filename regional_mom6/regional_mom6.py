@@ -296,11 +296,11 @@ class experiment:
 
         self.mom_run_dir.mkdir(exist_ok=True)
         self.mom_input_dir.mkdir(exist_ok=True)
-
         self.date_range = [
-            dt.datetime.strptime(date_range[0], "%Y-%m-%d %H:%M:%S"),
-            dt.datetime.strptime(date_range[1], "%Y-%m-%d %H:%M:%S"),
+            dt.datetime.fromisoformat(date_range[0]),
+            dt.datetime.fromisoformat(date_range[1]),
         ]
+
         self.resolution = resolution
         self.number_vertical_layers = number_vertical_layers
         self.layer_thickness_ratio = layer_thickness_ratio
@@ -402,9 +402,9 @@ class experiment:
             return None
 
     @property
-    def GRID(self):
+    def grid(self):
         try:
-            return Grid.from_supergrid(expt.mom_input_dir / "hgrid.nc")
+            return Grid.from_supergrid(self.mom_input_dir / "hgrid.nc")
         except Exception as e:
             print(
                 f"Error on trying to read the hgrid in as a mom6_forge Grid object: {e}"
@@ -412,12 +412,12 @@ class experiment:
             return None
 
     @property
-    def TOPO(self):
+    def topo(self):
         try:
-            return Topo.from_topo_file(self.GRID, self.mom_input_dir / "bathymetry.nc")
+            return Topo.from_topo_file(self.grid, self.mom_input_dir / "bathymetry.nc")
         except Exception as e:
             print(
-                f"Error on trying to read the bathymetry in as a mom6_forge Topo object: {e}"
+                f"Error on trying to read the bathymetry in as a mom6_forge Topo object. Make sure you've successfully run the setup_bathymetry method, or copied a bathymetry.nc file into {self.mom_input_dir}: {e}"
             )
             return None
 
@@ -432,6 +432,20 @@ class experiment:
         except Exception as e:
             print(
                 f"Error: {e}. Opening init_vel threw an error! Make sure you've successfully run the setup_initial_condition method, or copied an init_vel.nc file into {self.mom_input_dir}."
+            )
+            return
+
+    @property
+    def init_eta(self):
+        try:
+            return xr.open_dataset(
+                self.mom_input_dir / "init_eta.nc",
+                decode_cf=False,
+                decode_times=False,
+            )
+        except Exception as e:
+            print(
+                f"Error: {e}. Opening init_eta threw an error! Make sure you've successfully run the setup_initial_condition method, or copied an init_eta.nc file into {self.mom_input_dir}."
             )
             return
 
@@ -595,7 +609,7 @@ class experiment:
         ), "only even_spacing grid type is implemented"
 
         if self.hgrid_type == "even_spacing":
-            self.grid = Grid(
+            Grid(
                 resolution=self.resolution,  # in degrees
                 xstart=self.longitude_extent[0],  # min longitude in [0, 360]
                 lenx=self.longitude_extent[1]
@@ -605,7 +619,7 @@ class experiment:
                 - self.latitude_extent[0],  # latitude extent in degrees
                 name=self.expt_name,
                 type="rectilinear_cartesian",  # m6b name for even_spacing
-            )
+            ).write_supergrid(self.mom_input_dir / "hgrid.nc")
 
             return self.grid.write_supergrid(self.mom_input_dir / "hgrid.nc")
 
@@ -1399,12 +1413,14 @@ class experiment:
         if regridding_method is None:
             regridding_method = self.regridding_method
 
-        self.topo = Topo(
+        # Initialise a MOM6_forge topo object from our grid
+        topo = Topo(
             grid=self.grid,
             min_depth=self.minimum_depth,
         )
 
-        self.topo.set_from_dataset(
+        # Feed the source bathymetry file to the topo object, which is then regridded inside the `set_from_dataset` method.
+        topo.set_from_dataset(
             bathymetry_path=bathymetry_path,
             output_dir=self.mom_input_dir,
             longitude_coordinate_name=longitude_coordinate_name,
@@ -1413,7 +1429,8 @@ class experiment:
             regridding_method=regridding_method,
             write_to_file=True,
         )
-        self.topo.write_topo(self.mom_input_dir / "bathymetry.nc")
+        # Write out the topo. Confusingly, `topo` is the word of choice in MOM6_forge, but `bathymetry` has been used in regional-mom6.
+        topo.write_topo(self.mom_input_dir / "bathymetry.nc")
         return self.topo.gen_topo_ds()
 
     def tidy_bathymetry(
@@ -1512,7 +1529,7 @@ class experiment:
             sep="\n\n",
         )
 
-    def setup_generic(self, ncpus=100, mask_land_PEs=True):
+    def setup_generic(self, ncpus=100, mask_land_cpus=True):
         """
         Set up the run directory for the model run. This is a multi step process - given that NUOPC vs FMS based runs are quite different, this function handles all of the setup steps that they share in common, with more specific steps performed in setup_rOM3 and setup_FMS_version respectively.
 
@@ -1520,7 +1537,7 @@ class experiment:
 
         Arguments:
             ncpus (Optional[int]): The number of PEs to use
-            mask_land_PEs (Optional[bool]): If your domain has enough land in it that some processors would only have land to deal with, set to True. If a mostly water domain, set to False otherwise the automatic mask table throws a fatal (see issue: https://github.com/issues/created?issue=mom-ocean%7CMOM6%7C1686)
+            mask_land_cpus (Optional[bool]): If your domain has enough land in it that some processors would only have land to deal with, set to True. If a mostly water domain, set to False otherwise the automatic mask table throws a fatal (see issue: https://github.com/issues/created?issue=mom-ocean%7CMOM6%7C1686)
         """
         # Check if we need tides
         with_tides = len(self.tidal_constituents) > 0
@@ -1556,7 +1573,7 @@ class experiment:
         MOM_override_dict["NJGLOBAL"]["value"] = ny
 
         # If we're not using the Auto Mask Table feature, need a mask table:
-        if mask_land_PEs == True:
+        if mask_land_cpus == True:
             MOM_override_dict["AUTO_MASKTABLE"]["value"] = True
         else:
             # No mask table at all
@@ -1687,24 +1704,24 @@ class experiment:
 
         return
 
-    def setup_rOM3(self, ncpus=208, mask_land_PEs=True):
+    def setup_rOM3(self, ncpus=208, mask_land_cpus=True):
         """
         Set up the run directory for an ACCESS-regional-ocean-model-3 experiment. This function copies existing configuration files (MOM_input,config.yaml etc.) from an ACCESS-NRI supported source to ensure that users have access to the latest executable and fixes.
 
 
         Arguments:
             ncpus (Optional[int]): The number of PEs to use
-            mask_land_PEs (Optional[bool]): If your domain has enough land in it that some processors would only have land to deal with, set to True. If a mostly water domain, set to False otherwise the automatic mask table throws a fatal (see issue: https://github.com/issues/created?issue=mom-ocean%7CMOM6%7C1686)
+            mask_land_cpus (Optional[bool]): If your domain has enough land in it that some processors would only have land to deal with, set to True. If a mostly water domain, set to False otherwise the automatic mask table throws a fatal (see issue: https://github.com/issues/created?issue=mom-ocean%7CMOM6%7C1686)
         """
         if os.path.exists(self.mom_run_dir):
             shutil.rmtree(self.mom_run_dir)
 
         # First, make the ESMF mesh file required for all NUOPC based runs, like rom3
-        self.TOPO.write_esmf_mesh(expt.mom_input_dir / "access-rom3-ESMFmesh.nc")
+        self.topo.write_esmf_mesh(self.mom_input_dir / "access-rom3-ESMFmesh.nc")
         # Now modify to make a mask free version
-        maskmesh = xr.open_dataset(expt.mom_input_dir / "access-rom3-ESMFmesh.nc")
+        maskmesh = xr.open_dataset(self.mom_input_dir / "access-rom3-ESMFmesh.nc")
         maskmesh.elementMask[:] = 1
-        maskmesh.to_netcdf(expt.mom_input_dir / "access-rom3-nomask-ESMFmesh.nc")
+        maskmesh.to_netcdf(self.mom_input_dir / "access-rom3-nomask-ESMFmesh.nc")
 
         #! PLACEHOLDER
         #! need to implement something like:
@@ -1719,11 +1736,8 @@ class experiment:
         #! END PLACEHOLDER
 
         # Run the generic setup that's required for all rmom6 runs
-        if mask_land_PEs:
-            mask_table = "auto"
-        else:
-            mask_table = "none"
-        self.setup_generic(ncpus=ncpus, mask_table=mask_table)
+
+        self.setup_generic(ncpus=ncpus, mask_land_cpus=mask_land_cpus)
 
         nx = self.hgrid.nx.shape[0] // 2
         ny = self.hgrid.ny.shape[0] // 2
@@ -1753,7 +1767,7 @@ class experiment:
 
         return
 
-    def setup_fms_version(self, ncpus=100, surface_forcing=None, mask_land_PEs=True):
+    def setup_fms_version(self, ncpus=100, surface_forcing=None, mask_land_cpus=True):
         """
         Set up the run directory for MOM6. Either copy a pre-made set of files, or modify
         existing files in the 'rundir' directory for the experiment.
@@ -1761,7 +1775,7 @@ class experiment:
         Arguments:
             surface_forcing (Optional[str]): Specify the choice of surface forcing, one
                 of: ``'jra'`` or ``'era5'``. If not prescribed then constant fluxes are used.
-            mask_land_PEs (Optional[bool]): If your domain has enough land in it that some processors would only have land to deal with, set to True. If a mostly water domain, set to False otherwise the automatic mask table throws a fatal (see issue: https://github.com/issues/created?issue=mom-ocean%7CMOM6%7C1686)
+            mask_land_cpus (Optional[bool]): If your domain has enough land in it that some processors would only have land to deal with, set to True. If a mostly water domain, set to False otherwise the automatic mask table throws a fatal (see issue: https://github.com/issues/created?issue=mom-ocean%7CMOM6%7C1686)
         """
 
         ## Get the path to the regional_mom package on this computer
@@ -1833,7 +1847,7 @@ class experiment:
             with open(f"{self.mom_run_dir}/config.yaml", "w") as file:
                 file.writelines(lines)
 
-        self.setup_generic(ncpus=ncpus, mask_land_PEs=mask_land_PEs)
+        self.setup_generic(ncpus=ncpus, mask_land_cpus=mask_land_cpus)
 
         # Modify input.nml
         nml = f90nml.read(self.mom_run_dir / "input.nml")
