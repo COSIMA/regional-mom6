@@ -19,7 +19,7 @@ dependencies = [
   "f90nml >= 1.4.1",
   "copernicusmarine >= 2.0.0,<2.1.0",
   "pint_xarray",
-  "mom6_forge"
+  "mom6_forge>=0.0.2,<0.1.0"
 ]
 
 [build-system]
