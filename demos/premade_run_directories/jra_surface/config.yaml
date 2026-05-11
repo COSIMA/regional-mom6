@@ -18,7 +18,7 @@ input:
 ## but beware, ACCESS-NRI isn't actively maintaining an FMS based executable since they now
 ## work with NUOPC. See the rOM3 setup instead for a better maintained NUOPC based 
 ## regional mom6 run on Gadi / NCI
-exe: /g/data/nm03/mom_executables/jan2024-latest-everything
+exe: /g/data/ik11/mom_executables/jan2024-latest-everything
 
 
 collate: false

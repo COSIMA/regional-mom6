@@ -29,6 +29,7 @@ from mom6_forge.vgrid import *
 from mom6_forge.grid import *
 from mom6_forge.topo import *
 from regional_mom6.validate import validate_obc_file, validate_general_file
+from ruamel.yaml import YAML
 
 warnings.filterwarnings("ignore")
 
@@ -248,7 +249,6 @@ class experiment:
         expt.latitude_extent = latitude_extent
         expt.longitude_extent = longitude_extent
         expt.ocean_mask = None
-        expt.layout = None
         expt.segments = {}
         expt.boundaries = boundaries
         expt.regridding_method = regridding_method
@@ -296,11 +296,11 @@ class experiment:
 
         self.mom_run_dir.mkdir(exist_ok=True)
         self.mom_input_dir.mkdir(exist_ok=True)
-
         self.date_range = [
-            dt.datetime.strptime(date_range[0], "%Y-%m-%d %H:%M:%S"),
-            dt.datetime.strptime(date_range[1], "%Y-%m-%d %H:%M:%S"),
+            dt.datetime.fromisoformat(date_range[0]),
+            dt.datetime.fromisoformat(date_range[1]),
         ]
+
         self.resolution = resolution
         self.number_vertical_layers = number_vertical_layers
         self.layer_thickness_ratio = layer_thickness_ratio
@@ -309,7 +309,6 @@ class experiment:
         self.vgrid_type = vgrid_type
         self.repeat_year_forcing = repeat_year_forcing
         self.ocean_mask = None
-        self.layout = None  # This should be a tuple. Leaving it as 'None' makes it easy to remind the user to provide a value later.
         self.minimum_depth = minimum_depth  # Minimum depth allowed in the bathymetry
         self.tidal_constituents = tidal_constituents
         self.regridding_method = regridding_method
@@ -403,6 +402,26 @@ class experiment:
             return None
 
     @property
+    def grid(self):
+        try:
+            return Grid.from_supergrid(self.mom_input_dir / "hgrid.nc")
+        except Exception as e:
+            print(
+                f"Error on trying to read the hgrid in as a mom6_forge Grid object: {e}"
+            )
+            return None
+
+    @property
+    def topo(self):
+        try:
+            return Topo.from_topo_file(self.grid, self.mom_input_dir / "bathymetry.nc")
+        except Exception as e:
+            print(
+                f"Error on trying to read the bathymetry in as a mom6_forge Topo object. Make sure you've successfully run the setup_bathymetry method, or copied a bathymetry.nc file into {self.mom_input_dir}: {e}"
+            )
+            return None
+
+    @property
     def init_velocities(self):
         try:
             return xr.open_dataset(
@@ -413,6 +432,20 @@ class experiment:
         except Exception as e:
             print(
                 f"Error: {e}. Opening init_vel threw an error! Make sure you've successfully run the setup_initial_condition method, or copied an init_vel.nc file into {self.mom_input_dir}."
+            )
+            return
+
+    @property
+    def init_eta(self):
+        try:
+            return xr.open_dataset(
+                self.mom_input_dir / "init_eta.nc",
+                decode_cf=False,
+                decode_times=False,
+            )
+        except Exception as e:
+            print(
+                f"Error: {e}. Opening init_eta threw an error! Make sure you've successfully run the setup_initial_condition method, or copied an init_eta.nc file into {self.mom_input_dir}."
             )
             return
 
@@ -576,7 +609,7 @@ class experiment:
         ), "only even_spacing grid type is implemented"
 
         if self.hgrid_type == "even_spacing":
-            self.grid = Grid(
+            Grid(
                 resolution=self.resolution,  # in degrees
                 xstart=self.longitude_extent[0],  # min longitude in [0, 360]
                 lenx=self.longitude_extent[1]
@@ -586,7 +619,7 @@ class experiment:
                 - self.latitude_extent[0],  # latitude extent in degrees
                 name=self.expt_name,
                 type="rectilinear_cartesian",  # m6b name for even_spacing
-            )
+            ).write_supergrid(self.mom_input_dir / "hgrid.nc")
 
             return self.grid.write_supergrid(self.mom_input_dir / "hgrid.nc")
 
@@ -1124,7 +1157,7 @@ class experiment:
 
         if len(self.boundaries) < 4:
             print(
-                "NOTE: the 'setup_run_directories' method does understand the less than four boundaries but be careful. Please check the MOM_input/override file carefully to reflect the number of boundaries you have, and their orientations. You should be able to find the relevant section in the MOM_input/override file by searching for 'segment_'. Ensure that the segment names match those in your inputdir/forcing folder"
+                "NOTE: the 'setup_generic' method does understand the less than four boundaries but be careful. Please check the MOM_input/override file carefully to reflect the number of boundaries you have, and their orientations. You should be able to find the relevant section in the MOM_input/override file by searching for 'segment_'. Ensure that the segment names match those in your inputdir/forcing folder"
             )
 
         if len(self.boundaries) > 4:
@@ -1430,12 +1463,14 @@ class experiment:
         if regridding_method is None:
             regridding_method = self.regridding_method
 
-        self.topo = Topo(
+        # Initialise a MOM6_forge topo object from our grid
+        topo = Topo(
             grid=self.grid,
             min_depth=self.minimum_depth,
         )
 
-        self.topo.set_from_dataset(
+        # Feed the source bathymetry file to the topo object, which is then regridded inside the `set_from_dataset` method.
+        topo.set_from_dataset(
             bathymetry_path=bathymetry_path,
             output_dir=self.mom_input_dir,
             longitude_coordinate_name=longitude_coordinate_name,
@@ -1444,7 +1479,8 @@ class experiment:
             regridding_method=regridding_method,
             write_to_file=True,
         )
-        self.topo.write_topo(self.mom_input_dir / "bathymetry.nc")
+        # Write out the topo. Confusingly, `topo` is the word of choice in MOM6_forge, but `bathymetry` has been used in regional-mom6.
+        topo.write_topo(self.mom_input_dir / "bathymetry.nc")
         return self.topo.gen_topo_ds()
 
     def tidy_bathymetry(
@@ -1472,10 +1508,9 @@ class experiment:
         )
         return self.topo.gen_topo_ds()
 
-    def run_FRE_tools(self, layout=None):
+    def run_FRE_tools(self):
         """
         A wrapper for FRE Tools ``check_mask``, ``make_solo_mosaic``, and ``make_quick_mosaic``.
-        User provides processor ``layout`` tuple of processing units.
 
         This method is not needed if you're running under NUOPC (e.g., NCAR/CROCODILE or most ACCESS/COSIMA people). However, if you're not using the auto-mask table, then this is the only way within the regional-mom6 package to generate a cpu mask file.
 
@@ -1544,133 +1579,27 @@ class experiment:
             sep="\n\n",
         )
 
-        # Finally, run the check mask function (kept separate in case people want to update their layout)
-        # to make the cpu mask file. This is not used if auto_masktable is set to true in MOM_input
-        if layout != None:
-            self.configure_cpu_layout(layout)
-
-    def configure_cpu_layout(self, layout):
+    def setup_generic(self, ncpus=100, mask_land_cpus=True):
         """
-        Wrapper for the ``check_mask`` function of GFDL's FRE Tools. User provides processor
-        ``layout`` tuple of processing units.
-        """
+        Set up the run directory for the model run. This is a multi step process - given that NUOPC vs FMS based runs are quite different, this function handles all of the setup steps that they share in common, with more specific steps performed in setup_rOM3 and setup_FMS_version respectively.
 
-        print(
-            "OUTPUT FROM CHECK MASK:\n\n",
-            subprocess.run(
-                str(self.fre_tools_dir / "check_mask")
-                + f" --grid_file ocean_mosaic.nc --ocean_topog bathymetry.nc --layout {layout[0]},{layout[1]} --halo 4",
-                shell=True,
-                cwd=self.mom_input_dir,
-            ),
-        )
-        self.layout = layout
-        return
-
-    def setup_run_directory(
-        self,
-        surface_forcing=None,
-        using_payu=False,
-        overwrite=False,
-        with_tides=False,
-    ):
-        """
-        Set up the run directory for MOM6. Either copy a pre-made set of files, or modify
-        existing files in the 'rundir' directory for the experiment.
+        The main thing this function does is manage the MOM_override file, as this is common to both use cases.
 
         Arguments:
-            surface_forcing (Optional[str]): Specify the choice of surface forcing, one
-                of: ``'jra'`` or ``'era5'``. If not prescribed then constant fluxes are used.
-            using_payu (Optional[bool]): Whether or not to use payu (https://github.com/payu-org/payu)
-                to run the model. If ``True``, a payu configuration file will be created.
-                Default: ``False``.
-            overwrite (Optional[bool]): Whether or not to overwrite existing files in the
-                run directory. If ``False`` (default), will only modify the ``MOM_layout`` file and will
-                not re-copy across the rest of the default files.
+            ncpus (Optional[int]): The number of PEs to use
+            mask_land_cpus (Optional[bool]): If your domain has enough land in it that some processors would only have land to deal with, set to True. If a mostly water domain, set to False otherwise the automatic mask table throws a fatal (see issue: https://github.com/issues/created?issue=mom-ocean%7CMOM6%7C1686)
         """
-
-        ## Get the path to the regional_mom package on this computer
-        premade_rundir_path = Path(
-            importlib.resources.files("regional_mom6")
-            / "demos"
-            / "premade_run_directories"
-        )
-
-        if not premade_rundir_path.exists():
-            print("Could not find premade run directories at ", premade_rundir_path)
-            print(
-                "Perhaps the package was imported directly rather than installed with conda. Checking if this is the case... ",
-                end="",
-            )
-
-            premade_rundir_path = Path(
-                importlib.resources.files("regional_mom6").parent
-                / "demos"
-                / "premade_run_directories"
-            )
-            if not premade_rundir_path.exists():
-                raise ValueError(
-                    f"Cannot find the premade run directory files at {premade_rundir_path} either.\n\n"
-                    + "There may be an issue with package installation. Check that the `premade_run_directory` folder is present in one of these two locations"
-                )
-            else:
-                print("Found run files. Continuing...")
-
-        # Define the locations of the directories we'll copy files across from. Base contains most of the files, and overwrite replaces files in the base directory.
-        base_run_dir = Path(premade_rundir_path / "common_files")
-        if not premade_rundir_path.exists():
-            raise ValueError(
-                f"Cannot find the premade run directory files at {premade_rundir_path}.\n\n"
-                + "These files missing might be indicating an error during the package installation!"
-            )
-        if surface_forcing:
-            overwrite_run_dir = Path(premade_rundir_path / f"{surface_forcing}_surface")
-
-            if not overwrite_run_dir.exists():
-                available = [x for x in premade_rundir_path.iterdir() if x.is_dir()]
-                raise ValueError(
-                    f"Surface forcing {surface_forcing} not available. Please choose from {str(available)}"  ##Here print all available run directories
-                )
-        else:
-            ## In case there is additional forcing (e.g., tides) then we need to modify the run dir to include the additional forcing.
-            overwrite_run_dir = False
-
-        # Check if we can implement tides
+        # Check if we need tides
+        with_tides = len(self.tidal_constituents) > 0
         if with_tides:
             tidal_files_exist = any(Path(self.mom_input_dir).rglob("tu*"))
 
             if not tidal_files_exist:
                 raise ValueError(
-                    "No files with 'tu' in their names found in the forcing or input directory. If you meant to use tides, please run the setup_boundary_tides method first. That does output some tidal files."
+                    "No files with 'tu' in their names found in the forcing or input directory. If you meant to use tides, please run the setup_boundary_tides method first to create tidal files. If you didn't, set ``tidal_constituants = []`` when defining experiment."
                 )
 
-        # Set local var
-        ncpus = None
-
-        # 3 different cases to handle:
-        #   1. User is creating a new run directory from scratch. Here we copy across all files and modify.
-        #   2. User has already created a run directory, and wants to modify it. Here we only modify the MOM_layout file.
-        #   3. User has already created a run directory, and wants to overwrite it. Here we copy across all files and modify. This requires overwrite = True
-
-        if not overwrite:
-            for file in base_run_dir.glob(
-                "*"
-            ):  ## copy each file individually if it doesn't already exist
-                if not (self.mom_run_dir / file.name).exists():
-                    ## Check whether this file exists in an override directory or not
-                    if (
-                        overwrite_run_dir != False
-                        and (overwrite_run_dir / file.name).exists()
-                    ):
-                        shutil.copy(overwrite_run_dir / file.name, self.mom_run_dir)
-                    else:
-                        shutil.copy(base_run_dir / file.name, self.mom_run_dir)
-        else:
-            shutil.copytree(base_run_dir, self.mom_run_dir, dirs_exist_ok=True)
-            if overwrite_run_dir != False:
-                shutil.copytree(base_run_dir, self.mom_run_dir, dirs_exist_ok=True)
-
-        ## Make symlinks between run and input directories
+        ### Make symlinks between run and input directories ###
         inputdir_in_rundir = self.mom_run_dir / "inputdir"
         rundir_in_inputdir = self.mom_input_dir / "rundir"
 
@@ -1680,85 +1609,26 @@ class experiment:
         rundir_in_inputdir.unlink(missing_ok=True)
         rundir_in_inputdir.symlink_to(self.mom_run_dir)
 
-        ## Get mask table information
-        mask_table = None
-        for p in self.mom_input_dir.glob("mask_table.*"):
-            if mask_table != None:
-                print(
-                    f"WARNING: Multiple mask tables found. Defaulting to {mask_table}. If this is not what you want, remove it from the run directory and try again."
-                )
-                break
+        ### Write to the MOM_override file ###
 
-            _, masked, layout = p.name.split(".")
-            mask_table = p.name
-            x, y = (int(v) for v in layout.split("x"))
-            ncpus = (x * y) - int(masked)
-            layout = (
-                x,
-                y,
-            )  # This is a local variable keeping track of the layout as read from the mask table. Not to be confused with self.layout which is unchanged and may differ.
-
-            print(
-                f"Mask table {p.name} read. Using this to infer the cpu layout {layout}, total masked out cells {masked}, and total number of CPUs {ncpus}."
-            )
-        # Case where there's no mask table. Either because user hasn't run FRE tools, or because the domain is mostly water.
-        if mask_table == None:
-            # Here we define a local copy of the layout just for use within this function.
-            # This prevents the layout from being overwritten in the main class in case
-            # in case the user accidentally loads in the wrong mask table.
-            layout = self.layout
-            if layout == None:
-                print(
-                    "WARNING: No mask table found, and the cpu layout has not been set. \nAt least one of these is requiret to set up the experiment if you're running MOM6 standalone with the FMS coupler. \nIf you're running within CESM, ignore this message."
-                )
-            else:
-                print(
-                    f"No mask table found, but the cpu layout has been set to {self.layout} This suggests the domain is mostly water, so there are "
-                    + "no `non compute` cells that are entirely land. If this doesn't seem right, "
-                    + "ensure you've already run the `FRE_tools` method which sets up the cpu mask table. Keep an eye on any errors that might print while"
-                    + "the FRE tools (which run C++ in the background) are running."
-                )
-
-                ncpus = layout[0] * layout[1]
-                print("Number of CPUs required: ", ncpus)
-
-        ## Modify the MOM_layout file to have correct horizontal dimensions and CPU layout
-        # TODO Re-implement with package that works for this file type? or at least tidy up code
-        MOM_layout_dict = mpt.read_MOM_file_as_dict("MOM_layout", self.mom_run_dir)
-        if "MASKTABLE" in MOM_layout_dict:
-            MOM_layout_dict["MASKTABLE"]["value"] = (
-                mask_table or " # MASKTABLE = no mask table"
-            )
-        if (
-            "LAYOUT" in MOM_layout_dict
-            and "IO_Layout" not in MOM_layout_dict
-            and layout != None
-        ):
-            MOM_layout_dict["LAYOUT"]["value"] = str(layout[1]) + "," + str(layout[0])
-        if "NIGLOBAL" in MOM_layout_dict:
-            MOM_layout_dict["NIGLOBAL"]["value"] = self.hgrid.nx.shape[0] // 2
-        if "NJGLOBAL" in MOM_layout_dict:
-            MOM_layout_dict["NJGLOBAL"]["value"] = self.hgrid.ny.shape[0] // 2
-
-        MOM_input_dict = mpt.read_MOM_file_as_dict("MOM_input", self.mom_run_dir)
         MOM_override_dict = mpt.read_MOM_file_as_dict("MOM_override", self.mom_run_dir)
-        # The number of boundaries is reflected in the number of segments setup in setup_ocean_state_boundary under expt.segments.
-        # The setup_boundary_tides function currently only works with rectangular grids amd sets up 4 segments, but DOESN"T save them to expt.segments.
-        # Therefore, we can use expt.segments to determine how many segments we need for MOM_input. We can fill the empty segments with a empty string to make sure it is overriden correctly.
 
-        # Others
         MOM_override_dict["MINIMUM_DEPTH"]["value"] = float(self.minimum_depth)
+
+        # Define spatial dimensions
+        nx = self.hgrid.nx.shape[0] // 2
+        ny = self.hgrid.ny.shape[0] // 2
         MOM_override_dict["NK"]["value"] = len(self.vgrid.zl.values)
+        MOM_override_dict["NIGLOBAL"]["value"] = nx
+        MOM_override_dict["NJGLOBAL"]["value"] = ny
 
-        # OBC Adjustments
-
-        # Delete MOM_input OBC stuff that is indexed because we want them only in MOM_override.
-        print(
-            "Deleting indexed OBC keys from MOM_input_dict in case we have a different number of segments"
-        )
-        keys_to_delete = [key for key in MOM_input_dict if "_SEGMENT_00" in key]
-        for key in keys_to_delete:
-            del MOM_input_dict[key]
+        # If we're not using the Auto Mask Table feature, need a mask table:
+        if mask_land_cpus == True:
+            MOM_override_dict["AUTO_MASKTABLE"]["value"] = True
+        else:
+            # No mask table at all
+            MOM_override_dict["AUTO_MASKTABLE"]["value"] = False
+            MOM_override_dict["MASKTABLE"]["value"] = "None"
 
         # Define number of OBC segments
         MOM_override_dict["OBC_NUMBER_OF_SEGMENTS"]["value"] = len(
@@ -1837,16 +1707,25 @@ class experiment:
             )
         # Tides OBC adjustments
         if with_tides:
+
             # Include internal tide forcing
             MOM_override_dict["TIDES"]["value"] = "True"
+            MOM_override_dict["TIDES"][
+                "comment"
+            ] = "This turns on body tidal forcing in the interior of domain."
+            for constituent in self.tidal_constituents:
+                MOM_override_dict[f"TIDE_{constituent.upper()}"]["value"] = "True"
 
             # OBC tides
+            MOM_override_dict["OBC_TIDE_CONSTITUENTS"]["value"] = (
+                '"' + ", ".join(self.tidal_constituents) + '"'
+            )
+            MOM_override_dict["OBC_TIDE_CONSTITUENTS"][
+                "comment"
+            ] = "OBC_TIDE constituent settings define the tidal forcing at boundaries"
             MOM_override_dict["OBC_TIDE_ADD_EQ_PHASE"]["value"] = "True"
             MOM_override_dict["OBC_TIDE_N_CONSTITUENTS"]["value"] = len(
                 self.tidal_constituents
-            )
-            MOM_override_dict["OBC_TIDE_CONSTITUENTS"]["value"] = (
-                '"' + ", ".join(self.tidal_constituents) + '"'
             )
             MOM_override_dict["OBC_TIDE_REF_DATE"]["value"] = self.date_range[
                 0
@@ -1855,17 +1734,150 @@ class experiment:
         for key, val in MOM_override_dict.items():
             if isinstance(val, dict) and key != "original":
                 MOM_override_dict[key]["override"] = True
-        mpt.write_MOM_file(MOM_input_dict, self.mom_run_dir)
         mpt.write_MOM_file(MOM_override_dict, self.mom_run_dir)
-        mpt.write_MOM_file(MOM_layout_dict, self.mom_run_dir)
 
-        ## If using payu to run the model, create a payu configuration file
-        if not using_payu and os.path.exists(f"{self.mom_run_dir}/config.yaml"):
-            os.remove(f"{self.mom_run_dir}/config.yaml")
-        elif ncpus == None:
+        # Modify the config.yaml file. This is the same whether NUOPC or FMS
+        yaml = YAML()
+        yaml.preserve_quotes = True
+        yaml.default_flow_style = False
+        yaml.indent(
+            mapping=4, sequence=4, offset=4
+        )  # Preserve the 4 space indent formatting
+        yaml.width = 4096  # Prevent line wrapping
+        with open(self.mom_run_dir / "config.yaml", "r") as file:
+            config = yaml.load(file)
+        config["ncpus"] = ncpus
+        config["jobname"] = self.mom_run_dir.name
+        config["input"][0] = str(self.mom_input_dir)
+        with open(self.mom_run_dir / "config.yaml", "w") as file:
+            yaml.dump(config, file)
+
+        return
+
+    def setup_rOM3(self, ncpus=208, mask_land_cpus=True):
+        """
+        Set up the run directory for an ACCESS-regional-ocean-model-3 experiment. This function copies existing configuration files (MOM_input,config.yaml etc.) from an ACCESS-NRI supported source to ensure that users have access to the latest executable and fixes.
+
+
+        Arguments:
+            ncpus (Optional[int]): The number of PEs to use
+            mask_land_cpus (Optional[bool]): If your domain has enough land in it that some processors would only have land to deal with, set to True. If a mostly water domain, set to False otherwise the automatic mask table throws a fatal (see issue: https://github.com/issues/created?issue=mom-ocean%7CMOM6%7C1686)
+        """
+        if os.path.exists(self.mom_run_dir):
+            shutil.rmtree(self.mom_run_dir)
+
+        # First, make the ESMF mesh file required for all NUOPC based runs, like rom3
+        self.topo.write_esmf_mesh(self.mom_input_dir / "access-rom3-ESMFmesh.nc")
+        # Now modify to make a mask free version
+        maskmesh = xr.open_dataset(self.mom_input_dir / "access-rom3-ESMFmesh.nc")
+        maskmesh.elementMask[:] = 1
+        maskmesh.to_netcdf(self.mom_input_dir / "access-rom3-nomask-ESMFmesh.nc")
+
+        #! PLACEHOLDER
+        #! need to implement something like:
+        #! payu clone stencil_name self.mom_run_dir.
+        #!
+        shutil.copytree(
+            "/g/data/ol01/ab8992/access-om3-configs",
+            self.mom_run_dir,
+            dirs_exist_ok=True,
+        )
+        #!
+        #! END PLACEHOLDER
+
+        # Run the generic setup that's required for all rmom6 runs
+
+        self.setup_generic(ncpus=ncpus, mask_land_cpus=mask_land_cpus)
+
+        nx = self.hgrid.nx.shape[0] // 2
+        ny = self.hgrid.ny.shape[0] // 2
+        with open(f"{self.mom_run_dir}/nuopc.runconfig", "r") as file:
+            lines = file.readlines()
+            for i in range(len(lines)):
+                if "     start_ymd" in lines[i]:
+                    lines[i] = (
+                        f"     start_ymd = {self.date_range[0].strftime('%Y%m%d')}\n"
+                    )
+                if "ocn_nx" in lines[i]:
+                    lines[i] = f"     ocn_nx = {nx}\n"
+                if "ocn_ny" in lines[i]:
+                    lines[i] = f"     ocn_ny = {ny}\n"
+        with open(f"{self.mom_run_dir}/nuopc.runconfig", "w") as file:
+            file.writelines(lines)
+
+        # Modify the drof / datm files to all have the right number of x and y points
+        datm = f90nml.read(self.mom_run_dir / "datm_in")
+        datm["datm_nml"]["nx_global"]
+
+        for i in ["drof", "datm"]:
+            file = f90nml.read(self.mom_run_dir / f"{i}_in")
+            file[f"{i}_nml"]["nx_global"] = nx
+            file[f"{i}_nml"]["ny_global"] = ny
+            file.write(self.mom_run_dir / f"{i}_in", force=True)
+
+        return
+
+    def setup_fms_version(self, ncpus=100, surface_forcing=None, mask_land_cpus=True):
+        """
+        Set up the run directory for MOM6. Either copy a pre-made set of files, or modify
+        existing files in the 'rundir' directory for the experiment.
+
+        Arguments:
+            surface_forcing (Optional[str]): Specify the choice of surface forcing, one
+                of: ``'jra'`` or ``'era5'``. If not prescribed then constant fluxes are used.
+            mask_land_cpus (Optional[bool]): If your domain has enough land in it that some processors would only have land to deal with, set to True. If a mostly water domain, set to False otherwise the automatic mask table throws a fatal (see issue: https://github.com/issues/created?issue=mom-ocean%7CMOM6%7C1686)
+        """
+
+        ## Get the path to the regional_mom package on this computer
+        premade_rundir_path = Path(
+            importlib.resources.files("regional_mom6")
+            / "demos"
+            / "premade_run_directories"
+        )
+
+        if not premade_rundir_path.exists():
+            print("Could not find premade run directories at ", premade_rundir_path)
             print(
-                "WARNING: Layout has not been set! Cannot create payu configuration file. Run the FRE_tools first."
+                "Perhaps the package was imported directly rather than installed with conda. Checking if this is the case... ",
+                end="",
             )
+
+            premade_rundir_path = Path(
+                importlib.resources.files("regional_mom6").parent
+                / "demos"
+                / "premade_run_directories"
+            )
+            if not premade_rundir_path.exists():
+                raise ValueError(
+                    f"Cannot find the premade run directory files at {premade_rundir_path} either.\n\n"
+                    + "There may be an issue with package installation. Check that the `premade_run_directory` folder is present in one of these two locations"
+                )
+            else:
+                print("Found run files. Continuing...")
+
+        # Define the locations of the directories we'll copy files across from. Base contains most of the files, and overwrite replaces files in the base directory.
+        base_run_dir = Path(premade_rundir_path / "common_files")
+        if not premade_rundir_path.exists():
+            raise ValueError(
+                f"Cannot find the premade run directory files at {premade_rundir_path}.\n\n"
+                + "These files missing might be indicating an error during the package installation!"
+            )
+        if surface_forcing:
+            overwrite_run_dir = Path(premade_rundir_path / f"{surface_forcing}_surface")
+
+            if not overwrite_run_dir.exists():
+                available = [x for x in premade_rundir_path.iterdir() if x.is_dir()]
+                raise ValueError(
+                    f"Surface forcing {surface_forcing} not available. Please choose from {str(available)}"  ##Here print all available run directories
+                )
+        else:
+            ## In case there is additional forcing (e.g., tides) then we need to modify the run dir to include the additional forcing.
+            overwrite_run_dir = False
+
+        shutil.copytree(base_run_dir, self.mom_run_dir, dirs_exist_ok=True)
+        if overwrite_run_dir != False:
+            shutil.copytree(overwrite_run_dir, self.mom_run_dir, dirs_exist_ok=True)
+
         else:
             with open(f"{self.mom_run_dir}/config.yaml", "r") as file:
                 lines = file.readlines()
@@ -1884,6 +1896,8 @@ class experiment:
 
             with open(f"{self.mom_run_dir}/config.yaml", "w") as file:
                 file.writelines(lines)
+
+        self.setup_generic(ncpus=ncpus, mask_land_cpus=mask_land_cpus)
 
         # Modify input.nml
         nml = f90nml.read(self.mom_run_dir / "input.nml")
