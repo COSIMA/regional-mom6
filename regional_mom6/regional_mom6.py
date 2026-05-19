@@ -1431,11 +1431,7 @@ class experiment:
         if regridding_method is None:
             regridding_method = self.regridding_method
 
-        self.topo = Topo(
-            grid=self.grid,
-            min_depth=self.minimum_depth,
-            git = False
-        )
+        self.topo = Topo(grid=self.grid, min_depth=self.minimum_depth, git=False)
 
         self.topo.set_from_dataset(
             bathymetry_path=bathymetry_path,
