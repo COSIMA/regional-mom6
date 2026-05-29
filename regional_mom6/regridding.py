@@ -27,10 +27,11 @@ from pathlib import Path
 import dask.array as da
 import numpy as np
 import netCDF4
-from regional_mom6.utils import setup_logger, get_edge
+import logging
+from regional_mom6.utils import get_edge
 from os.path import isfile
 
-regridding_logger = setup_logger(__name__, set_handler=False)
+regridding_logger = logging.getLogger(__name__)
 
 
 def coords(
@@ -69,7 +70,7 @@ def coords(
     dataset_to_get_coords = None
 
     if coords_at_t_points:
-        regridding_logger.info("Creating coordinates of the boundary t-points")
+        regridding_logger.debug("Creating coordinates of the boundary t-points")
 
         # Calculate t-point information
         ds = get_hgrid_arakawa_c_points(hgrid, "t")
@@ -85,7 +86,7 @@ def coords(
             coords={"nyp": ds.nyp, "nxp": ds.nxp},
         )
     else:
-        regridding_logger.info("Creating coordinates of the boundary q/u/v points")
+        regridding_logger.debug("Creating coordinates of the boundary q/u/v points")
         # Don't have to do anything because this is the actual boundary.
         # t-points are one-index deep and require managing.
         dataset_to_get_coords = hgrid
@@ -167,7 +168,7 @@ def get_hgrid_arakawa_c_points(hgrid: xr.Dataset, point_type="t") -> xr.Dataset:
     if point_type not in "uvqth":
         raise ValueError("point_type must be one of 'uvqht'")
 
-    regridding_logger.info("Getting {} points..".format(point_type))
+    regridding_logger.debug("Getting {} points..".format(point_type))
 
     # Figure out the maths for the offset
     k = 2
@@ -238,7 +239,7 @@ def create_regridder(
     xe.Regridder
         The regridding object
     """
-    regridding_logger.info("Creating Regridder")
+    regridding_logger.debug("Creating Regridder")
 
     weights_exist = bool(outfile) and isfile(outfile)
     if weights_exist:
@@ -283,7 +284,7 @@ def fill_missing_data(
         Type: Python Functions, Source Code
         Web Address: https://github.com/jsimkins2/nwa25
     """
-    regridding_logger.info("Filling in missing data horizontally, then vertically")
+    regridding_logger.debug("Filling in missing data horizontally, then vertically")
     if fill == "f":
         filled = ds.ffill(dim=xdim, limit=None)
     elif fill == "b":
@@ -308,7 +309,7 @@ def add_or_update_time_dim(ds: xr.Dataset, times, z_dims=None) -> xr.Dataset:
     Returns:
         (xr.Dataset): The dataset with the time dimension added
     """
-    regridding_logger.info("Adding time dimension")
+    regridding_logger.debug("Adding time dimension")
 
     regridding_logger.debug(f"Times: {times}")
     regridding_logger.debug(f"Make sure times is a DataArray")
@@ -374,7 +375,7 @@ def add_secondary_dimension(
     """
 
     # Check if we need to insert the dim earlier or later
-    regridding_logger.info("Adding perpendicular dimension to {}".format(var))
+    regridding_logger.debug("Adding perpendicular dimension to {}".format(var))
 
     regridding_logger.debug(
         "Checking if nz or constituent is in dimensions, then we have to bump the perpendicular dimension up by one"
@@ -420,13 +421,13 @@ def vertical_coordinate_encoding(
         The old vertical coordinate name
     """
 
-    regridding_logger.info("Renaming vertical coordinate to nz_... in {}".format(var))
+    regridding_logger.debug("Renaming vertical coordinate to nz_... in {}".format(var))
     section = "_seg"
     base_var = var[: var.find(section)] if section in var else var
     ds[var] = ds[var].rename({old_vert_coord_name: f"nz_{segment_name}_{base_var}"})
 
     ## Replace the old depth coordinates with incremental integers
-    regridding_logger.info("Replacing old depth coordinates with incremental integers")
+    regridding_logger.debug("Replacing old depth coordinates with incremental integers")
     ds[f"nz_{segment_name}_{base_var}"] = np.arange(
         ds[f"nz_{segment_name}_{base_var}"].size
     )
@@ -559,7 +560,7 @@ def mask_dataset(
     """
     ## Add Boundary Mask ##
     if bathymetry is not None:
-        regridding_logger.info(
+        regridding_logger.debug(
             "Masking to bathymetry. If you don't want this, set bathymetry_path to None in the segment class."
         )
         mask = get_boundary_mask(
@@ -625,7 +626,7 @@ def generate_encoding(
 
         (dict): The encoding dictionary
     """
-    regridding_logger.info("Generating encoding dictionary")
+    regridding_logger.debug("Generating encoding dictionary")
     for var in ds:
         if "_segment_" in var and not "nz" in var:
             encoding_dict[var] = {
