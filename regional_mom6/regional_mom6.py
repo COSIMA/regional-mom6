@@ -14,9 +14,9 @@ import importlib.resources
 import pandas as pd
 from pathlib import Path
 import json
+from enum import Enum
 from regional_mom6 import MOM_parameter_tools as mpt
 from regional_mom6 import regridding as rgd
-from regional_mom6 import rotation as rot
 from regional_mom6.config import Config
 from regional_mom6.utils import (
     ap2ep,
@@ -24,7 +24,9 @@ from regional_mom6.utils import (
     rotate,
     find_files_by_pattern,
     try_pint_convert,
+    is_rectilinear_hgrid,
 )
+from mom6_forge._supergrid import SupergridBase
 from mom6_forge.vgrid import *
 from mom6_forge.grid import *
 from mom6_forge.topo import *
@@ -37,7 +39,73 @@ __all__ = [
     "experiment",
     "segment",
     "get_glorys_data",
+    "RotationMethod",
+    "get_rotation_angle",
 ]
+
+
+class RotationMethod(Enum):
+    """Prescribes the rotational method used in boundary conditions when the grid
+    does not have coordinates along lines of constant longitude-latitude.
+
+    Attributes:
+        EXPAND_GRID (int): Finds angles at q/u/v points by expanding the hgrid by one
+            row/column, replicating exactly what MOM6 does.
+        GIVEN_ANGLE (int): Expects a pre-given angle called ``angle_dx``.
+        NO_ROTATION (int): Grid is along lines of constant latitude-longitude; no rotation required.
+    """
+
+    EXPAND_GRID = 1
+    GIVEN_ANGLE = 2
+    NO_ROTATION = 3
+
+
+def get_rotation_angle(
+    rotational_method: RotationMethod, hgrid: xr.Dataset, orientation=None
+) -> xr.DataArray:
+    """Return the rotation angle (degrees) for the hgrid or a boundary slice of it.
+
+    Parameters
+    ----------
+    rotational_method : RotationMethod
+    hgrid : xr.Dataset
+    orientation : str, optional
+        If given (e.g. ``"north"``), return only the boundary slice.
+    """
+    boundary = orientation is not None
+
+    if rotational_method == RotationMethod.NO_ROTATION:
+        if not is_rectilinear_hgrid(hgrid):
+            raise ValueError("NO_ROTATION method only works with rectilinear grids")
+        angles = xr.zeros_like(hgrid.x)
+        if boundary:
+            hgrid["zero_angle"] = angles
+            return rgd.coords(
+                hgrid, orientation, "doesnt_matter", angle_variable_name="zero_angle"
+            )["angle"]
+        return angles
+
+    elif rotational_method == RotationMethod.GIVEN_ANGLE:
+        if boundary:
+            return rgd.coords(
+                hgrid, orientation, "doesnt_matter", angle_variable_name="angle_dx"
+            )["angle"]
+        return hgrid["angle_dx"]
+
+    elif rotational_method == RotationMethod.EXPAND_GRID:
+        hgrid["angle_dx_rm6"] = xr.DataArray(
+            SupergridBase.calc_supergrid_rotation_angles_using_expanded_supergrid_method(
+                hgrid.x.values, hgrid.y.values
+            ),
+            dims=hgrid.x.dims,
+        )
+        if boundary:
+            return rgd.coords(
+                hgrid, orientation, "doesnt_matter", angle_variable_name="angle_dx_rm6"
+            )["angle"]
+        return hgrid["angle_dx_rm6"]
+
+    raise ValueError("Invalid rotational method")
 
 # If the array is pint possible, ensure we have the right units for main fields (eta, u, v, temp),
 # salinity and bgc tracers are a bit more abstract and should be already in the correct units, a TODO: would be to add functionality to convert these tracers
@@ -629,7 +697,7 @@ class experiment:
         varnames,
         arakawa_grid="A",
         vcoord_type="height",
-        rotational_method=rot.RotationMethod.EXPAND_GRID,
+        rotational_method=RotationMethod.EXPAND_GRID,
         regridding_method=None,
     ):
         """
@@ -818,7 +886,7 @@ class experiment:
             regridded_u,
             regridded_v,
             radian_angle=np.radians(
-                rot.get_rotation_angle(rotational_method, self.hgrid).values
+                get_rotation_angle(rotational_method, self.hgrid).values
             ),
         )
 
@@ -1086,7 +1154,7 @@ class experiment:
         bgc_tracer_names: dict = None,
         arakawa_grid="A",
         bathymetry_path=None,
-        rotational_method=rot.RotationMethod.EXPAND_GRID,
+        rotational_method=RotationMethod.EXPAND_GRID,
         regridding_method=None,
         fill_method=None,
     ):
@@ -1205,7 +1273,7 @@ class experiment:
         segment_number,
         arakawa_grid="A",
         bathymetry_path=None,
-        rotational_method=rot.RotationMethod.EXPAND_GRID,
+        rotational_method=RotationMethod.EXPAND_GRID,
         regridding_method=None,
         fill_method=None,
     ):
@@ -1273,7 +1341,7 @@ class experiment:
         tpxo_velocity_filepath,
         tidal_constituents=None,
         bathymetry_path=None,
-        rotational_method=rot.RotationMethod.EXPAND_GRID,
+        rotational_method=RotationMethod.EXPAND_GRID,
         regridding_method=None,
         fill_method=None,
     ):
@@ -2081,7 +2149,7 @@ class segment:
         infile,
         varnames: dict,
         arakawa_grid="A",
-        rotational_method=rot.RotationMethod.EXPAND_GRID,
+        rotational_method=RotationMethod.EXPAND_GRID,
         regridding_method="bilinear",
         time_units="days",
         calendar="gregorian",
@@ -2091,7 +2159,7 @@ class segment:
         Cut out and interpolate the velocities and tracers.
 
         Arguments:
-            rotational_method (rot.RotationMethod): The method to use for rotation of the velocities. Currently, the default method, ``EXPAND_GRID``, works even with non-rotated grids.
+            rotational_method (RotationMethod): The method to use for rotation of the velocities. Currently, the default method, ``EXPAND_GRID``, works even with non-rotated grids.
             infile (Union[str, Path]): Path to the raw, unprocessed boundary segment.
             varnames (Dict[str, str]): Mapping between the variable/dimension names and
             standard naming convention of this pipeline, e.g., ``{"xq": "longitude,
@@ -2163,7 +2231,7 @@ class segment:
             u_regridded,
             v_regridded,
             radian_angle=np.radians(
-                rot.get_rotation_angle(
+                get_rotation_angle(
                     rotational_method, self.hgrid, orientation=self.orientation
                 ).values
             ),
@@ -2355,7 +2423,7 @@ class segment:
         tpxo_u,
         tpxo_h,
         times,
-        rotational_method=rot.RotationMethod.EXPAND_GRID,
+        rotational_method=RotationMethod.EXPAND_GRID,
         regridding_method="bilinear",
         fill_method=rgd.fill_missing_data,
     ):
@@ -2380,7 +2448,7 @@ class segment:
             infile_td (str): Raw tidal file/directory.
             tpxo_v, tpxo_u, tpxo_h (xarray.Dataset): Specific adjusted for MOM6 tpxo datasets (Adjusted with :func:`~experiment.setup_boundary_tides`)
             times (pd.DateRange): The start date of our model period.
-            rotational_method (rot.RotationMethod): The method to use for rotation of the velocities.
+            rotational_method (RotationMethod): The method to use for rotation of the velocities.
                 The default method, ``EXPAND_GRID``, works even with non-rotated grids.
             regridding_method (str): regridding method to use throughout the function. Default is ``'bilinear'``
             fill_method (Function): Fill method to use throughout the function. Default is ``rgd.fill_missing_data``
@@ -2499,7 +2567,7 @@ class segment:
 
         # Rotate
         INC -= np.radians(
-            rot.get_rotation_angle(
+            get_rotation_angle(
                 rotational_method, self.hgrid, orientation=self.orientation
             ).data[np.newaxis, :]
         )
