@@ -213,6 +213,7 @@ def create_regridder(
     method: str = "bilinear",
     locstream_out: bool = True,
     periodic: bool = False,
+    reuse_weights: bool = False,
 ) -> xe.Regridder:
     """
     Basic regridder for any forcing variables. This is essentially a wrapper for
@@ -225,25 +226,31 @@ def create_regridder(
     output_grid : xr.Dataset
         The dataset of the output grid. This is the boundary of the ``hgrid``
     outfile : Path, optional
-        The path to the output file for weights; default: `None`
+        The path to save regridding weights; default: ``None``. Weights are always
+        written when a path is provided, even if ``reuse_weights=False``.
     method : str, optional
         The regridding method; default: ``"bilinear"``
     locstream_out : bool, optional
         Whether to output the locstream; default: ``True``
     periodic : bool, optional
         Whether the grid is periodic; default: ``False``
+    reuse_weights : bool, optional
+        If ``True`` and ``outfile`` exists on disk, load weights instead of
+        recomputing them. Default ``False`` — always recompute so that stale
+        weights from a previous grid do not silently produce wrong results.
+        Set to ``True`` only when you are certain the grid has not changed,
+        e.g. when reusing a :class:`segment` regridder across multiple time steps.
 
     Returns
     -------
     xe.Regridder
         The regridding object
     """
-    regridding_logger.info("Creating Regridder")
+    regridding_logger.debug("Creating Regridder")
 
-    weights_exist = bool(outfile) and isfile(outfile)
-    if weights_exist:
+    if reuse_weights and bool(outfile) and isfile(outfile):
         regridding_logger.warning(
-            f"Using existing weights file at {outfile} to save computing time. Delete weights file to regenerate weights."
+            f"Reusing existing weights file at {outfile}. Delete it if the grid has changed."
         )
     regridder = xe.Regridder(
         forcing_variables,
@@ -252,7 +259,7 @@ def create_regridder(
         locstream_out=locstream_out,
         periodic=periodic,
         filename=outfile,
-        reuse_weights=weights_exist,
+        reuse_weights=reuse_weights,
         unmapped_to_nan=True,
     )
 
