@@ -2426,19 +2426,25 @@ class segment:
                 "elev": rgd.create_regridder(
                     tpxo_h[["lon", "lat", "hRe"]],
                     coords,
-                    self.outfolder / "weights" / f"bilinear_tidal_elev_weights_{self.segment_name}.nc",
+                    self.outfolder
+                    / "weights"
+                    / f"bilinear_tidal_elev_weights_{self.segment_name}.nc",
                     method=regridding_method,
                 ),
                 "u": rgd.create_regridder(
                     tpxo_u[["lon", "lat", "uRe"]],
                     coords,
-                    self.outfolder / "weights" / f"bilinear_tidal_u_weights_{self.segment_name}.nc",
+                    self.outfolder
+                    / "weights"
+                    / f"bilinear_tidal_u_weights_{self.segment_name}.nc",
                     method=regridding_method,
                 ),
                 "v": rgd.create_regridder(
                     tpxo_v[["lon", "lat", "vRe"]],
                     coords,
-                    self.outfolder / "weights" / f"bilinear_tidal_v_weights_{self.segment_name}.nc",
+                    self.outfolder
+                    / "weights"
+                    / f"bilinear_tidal_v_weights_{self.segment_name}.nc",
                     method=regridding_method,
                 ),
             }
