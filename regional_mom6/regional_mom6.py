@@ -94,7 +94,7 @@ def get_rotation_angle(
 
     elif rotational_method == RotationMethod.EXPAND_GRID:
         hgrid["angle_dx_rm6"] = xr.DataArray(
-            SupergridBase.calc_supergrid_rotation_angles_using_expanded_supergrid_method(
+            SupergridBase.calculate_supergrid_rotation_angles_using_expanded_supergrid_method(
                 hgrid.x.values, hgrid.y.values
             ),
             dims=hgrid.x.dims,
