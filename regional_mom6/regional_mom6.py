@@ -656,7 +656,7 @@ class experiment:
         
         if not Path(raw_ic_path).exists():
             raise FileNotFoundError(
-                f"Boundary file not found at {raw_ic_path}. Please ensure that the files are named in the format `east_unprocessed.nc`."
+                f"Boundary file not found at {raw_ic_path}. Please ensure that the files are named in the format `ic_unprocessed.nc`."
             )
         ic_raw = xr.open_dataset(raw_ic_path)
 
