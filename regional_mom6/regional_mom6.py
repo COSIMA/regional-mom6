@@ -321,6 +321,7 @@ class experiment:
                 hgrid_path = Path(hgrid_path)
             try:
                 self.hgrid = xr.open_dataset(hgrid_path)
+                self.grid = Grid.from_supergrid(hgrid_path)
                 self.longitude_extent = (
                     float(self.hgrid.x.min()),
                     float(self.hgrid.x.max()),
@@ -1430,10 +1431,7 @@ class experiment:
         if regridding_method is None:
             regridding_method = self.regridding_method
 
-        self.topo = Topo(
-            grid=self.grid,
-            min_depth=self.minimum_depth,
-        )
+        self.topo = Topo(grid=self.grid, min_depth=self.minimum_depth, git=False)
 
         self.topo.set_from_dataset(
             bathymetry_path=bathymetry_path,
