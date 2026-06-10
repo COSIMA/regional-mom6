@@ -1179,7 +1179,7 @@ class experiment:
         datasets = {}
         for boundary in self.boundaries:
             num = str(self.find_MOM6_rectangular_orientation(boundary)).zfill(3)
-            datasets[num] = xr.open_mfdataset(
+            datasets[num] = xr.open_dataset(
                 self.mom_input_dir / f"forcing_obc_segment_{num}.nc"
             )
 
