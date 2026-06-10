@@ -33,11 +33,6 @@ jobs:
           git config --global user.email "github-actions@github.com"
           git config --global --add safe.directory '*'
       - uses: actions/checkout@v3
-      - name: Fix git stuff
-        run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
-          git config --global --add safe.directory '*'
       - name: Set up Python ${{ matrix.python-version }}
         uses: conda-incubator/setup-miniconda@v2
         with:
@@ -70,7 +65,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
-        if: ${{ matrix.python-version == '3.10' }}
+        if: ${{ matrix.python-version == '3.11' }}
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: ./coverage/reports/

@@ -21,6 +21,7 @@ dependencies = [
   "pint_xarray",
   "ruamel.yaml",
   "mom6_forge"
+  "mom6_forge>=0.0.2,<0.1.0"
 ]
 
 [build-system]
