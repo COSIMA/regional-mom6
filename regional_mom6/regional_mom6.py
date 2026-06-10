@@ -637,7 +637,7 @@ class experiment:
         model grid, fixes up metadata, and saves back to the input directory.
 
         Arguments:
-            raw_ic_path (Union[str, Path, list[str]]): Path(s) to raw initial condition file(s) to read in.
+            raw_ic_path (Union[str, Path]): Path to raw initial condition file to read in.
             varnames (Dict[str, str]): Mapping from MOM6 variable/coordinate names to the names
                 in the input dataset. For example, ``{'xq': 'lonq', 'yh': 'lath', 'salt': 'so', ...}``.
             arakawa_grid (Optional[str]): Arakawa grid staggering type of the initial condition.
@@ -653,7 +653,12 @@ class experiment:
         reprocessed_var_map = apply_arakawa_grid_mapping(
             var_mapping=varnames, arakawa_grid=arakawa_grid
         )
-        ic_raw = xr.open_mfdataset(raw_ic_path)
+        
+        if not Path(raw_ic_path).exists():
+            raise FileNotFoundError(
+                f"Boundary file not found at {raw_ic_path}. Please ensure that the files are named in the format `east_unprocessed.nc`."
+            )
+        ic_raw = xr.open_dataset(raw_ic_path)
 
         # There is a case where MARBL tracers have multiple zdims, this is not supported for initial conditions:
         if type(reprocessed_var_map["depth_coord"]) == list:
@@ -1241,7 +1246,7 @@ class experiment:
         print(
             "Processing {} boundary velocity & tracers...".format(orientation), end=""
         )
-        if not path_to_bc.exists():
+        if not Path(path_to_bc).exists():
             raise FileNotFoundError(
                 f"Boundary file not found at {path_to_bc}. Please ensure that the files are named in the format `east_unprocessed.nc`."
             )
