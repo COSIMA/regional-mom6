@@ -653,7 +653,7 @@ class experiment:
         reprocessed_var_map = apply_arakawa_grid_mapping(
             var_mapping=varnames, arakawa_grid=arakawa_grid
         )
-        
+
         if not Path(raw_ic_path).exists():
             raise FileNotFoundError(
                 f"Boundary file not found at {raw_ic_path}. Please ensure that the files are named in the format `ic_unprocessed.nc`."
