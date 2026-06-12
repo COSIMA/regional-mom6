@@ -320,6 +320,7 @@ class experiment:
                 hgrid_path = Path(hgrid_path)
             try:
                 self.hgrid = xr.open_dataset(hgrid_path)
+                self.grid = Grid.from_supergrid(hgrid_path)
                 self.longitude_extent = (
                     float(self.hgrid.x.min()),
                     float(self.hgrid.x.max()),
@@ -1463,11 +1464,7 @@ class experiment:
         if regridding_method is None:
             regridding_method = self.regridding_method
 
-        # Initialise a MOM6_forge topo object from our grid
-        topo = Topo(
-            grid=self.grid,
-            min_depth=self.minimum_depth,
-        )
+        self.topo = Topo(grid=self.grid, min_depth=self.minimum_depth, git=False)
 
         # Feed the source bathymetry file to the topo object, which is then regridded inside the `set_from_dataset` method.
         topo.set_from_dataset(
