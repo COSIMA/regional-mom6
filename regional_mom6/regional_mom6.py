@@ -1464,7 +1464,7 @@ class experiment:
         if regridding_method is None:
             regridding_method = self.regridding_method
 
-        self.topo = Topo(grid=self.grid, min_depth=self.minimum_depth, git=False)
+        topo = Topo(grid=self.grid, min_depth=self.minimum_depth, git=False)
 
         # Feed the source bathymetry file to the topo object, which is then regridded inside the `set_from_dataset` method.
         topo.set_from_dataset(
@@ -1478,7 +1478,7 @@ class experiment:
         )
         # Write out the topo. Confusingly, `topo` is the word of choice in MOM6_forge, but `bathymetry` has been used in regional-mom6.
         topo.write_topo(self.mom_input_dir / "bathymetry.nc")
-        return self.topo.gen_topo_ds()
+        return topo.gen_topo_ds()
 
     def tidy_bathymetry(
         self,
