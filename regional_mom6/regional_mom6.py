@@ -1751,7 +1751,7 @@ class experiment:
 
         return
 
-    def setup_rOM3(self, ncpus=208, mask_land_cpus=True):
+    def setup_rOM3(self, ncpus=208, mask_land_cpus=True,overwrite = True):
         """
         Set up the run directory for an ACCESS-regional-ocean-model-3 experiment. This function copies existing configuration files (MOM_input,config.yaml etc.) from an ACCESS-NRI supported source to ensure that users have access to the latest executable and fixes.
 
@@ -1759,9 +1759,13 @@ class experiment:
         Arguments:
             ncpus (Optional[int]): The number of PEs to use
             mask_land_cpus (Optional[bool]): If your domain has enough land in it that some processors would only have land to deal with, set to True. If a mostly water domain, set to False otherwise the automatic mask table throws a fatal (see issue: https://github.com/issues/created?issue=mom-ocean%7CMOM6%7C1686)
+            overwrite (Optional[bool]): If true, reset the run directory. Set to False to attempt to attempt to modify the files in an exsiting run directory.  
         """
-        if os.path.exists(self.mom_run_dir):
+        if os.path.exists(self.mom_run_dir) and overwrite:
             shutil.rmtree(self.mom_run_dir)
+        else:
+            print("Overwrite set to False. I'll attempt to modify existing files in the directory rather than re-populate it from scratch. \nIf there are issues, try re-run with overwrite=True, or make your intended changes manually.")
+
 
         # First, make the ESMF mesh file required for all NUOPC based runs, like rom3
         self.topo.write_esmf_mesh(self.mom_input_dir / "access-rom3-ESMFmesh.nc")
