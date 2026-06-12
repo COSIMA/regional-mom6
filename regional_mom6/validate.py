@@ -8,9 +8,9 @@ from pathlib import Path
 import xarray as xr
 import numpy as np
 import re
-from .utils import setup_logger
+import logging
 
-logger = setup_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def get_file(file):
