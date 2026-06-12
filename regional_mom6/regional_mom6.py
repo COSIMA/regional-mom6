@@ -25,6 +25,7 @@ from regional_mom6.utils import (
     find_files_by_pattern,
     try_pint_convert,
 )
+from mom6_forge.utils import longitude_slicer
 from mom6_forge.vgrid import *
 from mom6_forge.grid import *
 from mom6_forge.topo import *
@@ -33,7 +34,6 @@ from regional_mom6.validate import validate_obc_file, validate_general_file
 warnings.filterwarnings("ignore")
 
 __all__ = [
-    "longitude_slicer",
     "experiment",
     "segment",
     "get_glorys_data",
@@ -321,6 +321,7 @@ class experiment:
                 hgrid_path = Path(hgrid_path)
             try:
                 self.hgrid = xr.open_dataset(hgrid_path)
+                self.grid = Grid.from_supergrid(hgrid_path)
                 self.longitude_extent = (
                     float(self.hgrid.x.min()),
                     float(self.hgrid.x.max()),
@@ -1430,10 +1431,7 @@ class experiment:
         if regridding_method is None:
             regridding_method = self.regridding_method
 
-        self.topo = Topo(
-            grid=self.grid,
-            min_depth=self.minimum_depth,
-        )
+        self.topo = Topo(grid=self.grid, min_depth=self.minimum_depth, git=False)
 
         self.topo.set_from_dataset(
             bathymetry_path=bathymetry_path,
