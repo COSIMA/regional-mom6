@@ -1,6 +1,5 @@
 import numpy as np
 import logging
-import sys
 import xarray as xr
 from regional_mom6 import regridding as rgd
 from pathlib import Path
@@ -78,7 +77,7 @@ def try_pint_convert(da, target_units, var_name=None, debug=False):
             )
             return da_converted
         else:
-            utils_logger.info(f"Units for {var_name} did not need to be converted")
+            utils_logger.debug(f"Units for {var_name} did not need to be converted")
 
     except Exception as e:
         # If any error occurs (bad units, missing Pint, etc.), fall back gracefully
@@ -211,29 +210,6 @@ def ep2ap(SEMA, ECC, INC, PHA):
     return ua, va, up, vp
 
 
-def setup_logger(
-    name: str, set_handler=False, log_level=logging.INFO
-) -> logging.Logger:
-    """
-    Setup general configuration for a logger.
-    """
-
-    logger = logging.getLogger(name)
-    logger.setLevel(log_level)
-    if set_handler and not logger.hasHandlers():
-        # Create a handler to print to stdout (Jupyter captures stdout)
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setLevel(log_level)
-
-        # Create a formatter (optional)
-        formatter = logging.Formatter("%(name)s.%(funcName)s:%(levelname)s:%(message)s")
-        handler.setFormatter(formatter)
-
-        # Add the handler to the logger
-        logger.addHandler(handler)
-    return logger
-
-
 def rotate_complex(u, v, radian_angle):
     """
     Rotate velocities counter-clockwise by angle ``radian_angle`` (in radians) using complex number math (Same as :func:`rotate`.)
@@ -347,4 +323,4 @@ def get_edge(ds, edge, x_name=None, y_name=None):
         return ds.isel({x_name: 0})
 
 
-utils_logger = setup_logger(__name__, set_handler=False)
+utils_logger = logging.getLogger(__name__)
