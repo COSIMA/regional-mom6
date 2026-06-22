@@ -5,9 +5,9 @@ import inspect
 from pathlib import Path
 import datetime as dt
 import xarray as xr
-from regional_mom6.utils import setup_logger
+import logging
 
-config_logger = setup_logger(__name__, set_handler=False)
+config_logger = logging.getLogger(__name__)
 
 
 class Config:
