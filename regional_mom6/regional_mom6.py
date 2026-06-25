@@ -27,6 +27,7 @@ from regional_mom6.utils import (
     is_rectilinear_hgrid,
 )
 from mom6_forge._supergrid import SupergridBase
+from mom6_forge.utils import longitude_slicer
 from mom6_forge.vgrid import *
 from mom6_forge.grid import *
 from mom6_forge.topo import *
@@ -35,7 +36,6 @@ from regional_mom6.validate import validate_obc_file, validate_general_file
 warnings.filterwarnings("ignore")
 
 __all__ = [
-    "longitude_slicer",
     "experiment",
     "segment",
     "get_glorys_data",
@@ -390,6 +390,7 @@ class experiment:
                 hgrid_path = Path(hgrid_path)
             try:
                 self.hgrid = xr.open_dataset(hgrid_path)
+                self.grid = Grid.from_supergrid(hgrid_path)
                 self.longitude_extent = (
                     float(self.hgrid.x.min()),
                     float(self.hgrid.x.max()),
@@ -1248,7 +1249,7 @@ class experiment:
         datasets = {}
         for boundary in self.boundaries:
             num = str(self.find_MOM6_rectangular_orientation(boundary)).zfill(3)
-            datasets[num] = xr.open_mfdataset(
+            datasets[num] = xr.open_dataset(
                 self.mom_input_dir / f"forcing_obc_segment_{num}.nc"
             )
 
@@ -1499,10 +1500,7 @@ class experiment:
         if regridding_method is None:
             regridding_method = self.regridding_method
 
-        self.topo = Topo(
-            grid=self.grid,
-            min_depth=self.minimum_depth,
-        )
+        self.topo = Topo(grid=self.grid, min_depth=self.minimum_depth, git=False)
 
         self.topo.set_from_dataset(
             bathymetry_path=bathymetry_path,
@@ -2144,6 +2142,8 @@ class segment:
             self.bathymetry = None
         self.segment_name = segment_name
         self.repeat_year_forcing = repeat_year_forcing
+        self.regridders = None
+        self.tidal_regridders = None
 
     def regrid_velocity_tracers(
         self,
@@ -2155,6 +2155,7 @@ class segment:
         time_units="days",
         calendar="gregorian",
         fill_method=rgd.fill_missing_data,
+        regridders=None,
     ):
         """
         Cut out and interpolate the velocities and tracers.
@@ -2170,6 +2171,11 @@ class segment:
                 Either ``'A'`` (default), ``'B'``, or ``'C'``.
             regridding_method (str): regridding method to use throughout the function. Default is ``'bilinear'``
             fill_method (Function): Fill method to use throughout the function. Default is ``rgd.fill_missing_data``
+            regridders (dict, optional): Pre-built regridders with keys ``"tracers"``, ``"u"``, ``"v"``.
+                If provided, regridder creation is skipped entirely — useful when calling this method
+                multiple times for different time windows on the same grid (pass ``seg.regridders``
+                from a prior call). Default ``None`` — regridders are built and saved to
+                ``self.regridders``.
 
         """
         reprocessed_var_map = apply_arakawa_grid_mapping(
@@ -2191,14 +2197,16 @@ class segment:
         for dc in dc_list:
             rawseg[dc] = try_pint_convert(rawseg[dc], "m", dc)
 
-        regridders = create_vt_regridders(
-            reprocessed_var_map,
-            rawseg,
-            coords,
-            Path(self.outfolder),
-            regridding_method,
-            self.orientation,
-        )
+        if regridders is None:
+            regridders = create_vt_regridders(
+                reprocessed_var_map,
+                rawseg,
+                coords,
+                Path(self.outfolder),
+                regridding_method,
+                self.orientation,
+            )
+        self.regridders = regridders
 
         u_regridded = regridders["u"](
             rawseg[reprocessed_var_map["u_var_name"]].rename(
@@ -2427,6 +2435,7 @@ class segment:
         rotational_method=RotationMethod.EXPAND_GRID,
         regridding_method="bilinear",
         fill_method=rgd.fill_missing_data,
+        regridders=None,
     ):
         """
         Regrids and interpolates the tidal data for MOM6. Steps include:
@@ -2453,6 +2462,10 @@ class segment:
                 The default method, ``EXPAND_GRID``, works even with non-rotated grids.
             regridding_method (str): regridding method to use throughout the function. Default is ``'bilinear'``
             fill_method (Function): Fill method to use throughout the function. Default is ``rgd.fill_missing_data``
+            regridders (dict, optional): Pre-built regridders with keys ``"elev"``, ``"u"``, ``"v"``.
+                If provided, regridder creation is skipped entirely — useful when calling this method
+                multiple times on the same grid (pass ``seg.tidal_regridders`` from a prior call).
+                Default ``None`` — regridders are built and saved to ``self.tidal_regridders``.
 
         Returns:
             netCDF files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
@@ -2475,15 +2488,37 @@ class segment:
         # Establish Coords
         coords = rgd.coords(self.hgrid, self.orientation, self.segment_name)
 
+        if regridders is None:
+            regridders = {
+                "elev": rgd.create_regridder(
+                    tpxo_h[["lon", "lat", "hRe"]],
+                    coords,
+                    self.outfolder
+                    / "weights"
+                    / f"bilinear_tidal_elev_weights_{self.segment_name}.nc",
+                    method=regridding_method,
+                ),
+                "u": rgd.create_regridder(
+                    tpxo_u[["lon", "lat", "uRe"]],
+                    coords,
+                    self.outfolder
+                    / "weights"
+                    / f"bilinear_tidal_u_weights_{self.segment_name}.nc",
+                    method=regridding_method,
+                ),
+                "v": rgd.create_regridder(
+                    tpxo_v[["lon", "lat", "vRe"]],
+                    coords,
+                    self.outfolder
+                    / "weights"
+                    / f"bilinear_tidal_v_weights_{self.segment_name}.nc",
+                    method=regridding_method,
+                ),
+            }
+        self.tidal_regridders = regridders
+        regrid = regridders["elev"]
+
         ########## Tidal Elevation: Horizontally interpolate elevation components ############
-        regrid = rgd.create_regridder(
-            tpxo_h[["lon", "lat", "hRe"]],
-            coords,
-            Path(
-                self.outfolder / "forcing" / f"regrid_{self.segment_name}_tidal_elev.nc"
-            ),
-            method=regridding_method,
-        )
 
         redest = regrid(tpxo_h[["lon", "lat", "hRe"]])
         imdest = regrid(tpxo_h[["lon", "lat", "hIm"]])
@@ -2529,12 +2564,8 @@ class segment:
 
         ########### Regrid Tidal Velocity ######################
 
-        regrid_u = rgd.create_regridder(
-            tpxo_u[["lon", "lat", "uRe"]], coords, method=regridding_method
-        )
-        regrid_v = rgd.create_regridder(
-            tpxo_v[["lon", "lat", "vRe"]], coords, method=regridding_method
-        )
+        regrid_u = regridders["u"]
+        regrid_v = regridders["v"]
 
         # Interpolate each real and imaginary parts to self.
         uredest = regrid_u(tpxo_u[["lon", "lat", "uRe"]])["uRe"]
