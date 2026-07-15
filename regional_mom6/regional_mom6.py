@@ -32,7 +32,6 @@ from mom6_forge.vgrid import *
 from mom6_forge.grid import *
 from mom6_forge.topo import *
 from regional_mom6.validate import validate_obc_file, validate_general_file
-from ruamel.yaml import YAML
 
 warnings.filterwarnings("ignore")
 
@@ -318,6 +317,7 @@ class experiment:
         expt.latitude_extent = latitude_extent
         expt.longitude_extent = longitude_extent
         expt.ocean_mask = None
+        expt.layout = None
         expt.segments = {}
         expt.boundaries = boundaries
         expt.regridding_method = regridding_method
@@ -365,11 +365,11 @@ class experiment:
 
         self.mom_run_dir.mkdir(exist_ok=True)
         self.mom_input_dir.mkdir(exist_ok=True)
-        self.date_range = [
-            dt.datetime.fromisoformat(date_range[0]),
-            dt.datetime.fromisoformat(date_range[1]),
-        ]
 
+        self.date_range = [
+            dt.datetime.strptime(date_range[0], "%Y-%m-%d %H:%M:%S"),
+            dt.datetime.strptime(date_range[1], "%Y-%m-%d %H:%M:%S"),
+        ]
         self.resolution = resolution
         self.number_vertical_layers = number_vertical_layers
         self.layer_thickness_ratio = layer_thickness_ratio
@@ -378,6 +378,7 @@ class experiment:
         self.vgrid_type = vgrid_type
         self.repeat_year_forcing = repeat_year_forcing
         self.ocean_mask = None
+        self.layout = None  # This should be a tuple. Leaving it as 'None' makes it easy to remind the user to provide a value later.
         self.minimum_depth = minimum_depth  # Minimum depth allowed in the bathymetry
         self.tidal_constituents = tidal_constituents
         self.regridding_method = regridding_method
@@ -472,26 +473,6 @@ class experiment:
             return None
 
     @property
-    def grid(self):
-        try:
-            return Grid.from_supergrid(self.mom_input_dir / "hgrid.nc")
-        except Exception as e:
-            print(
-                f"Error on trying to read the hgrid in as a mom6_forge Grid object: {e}"
-            )
-            return None
-
-    @property
-    def topo(self):
-        try:
-            return Topo.from_topo_file(self.grid, self.mom_input_dir / "bathymetry.nc")
-        except Exception as e:
-            print(
-                f"Error on trying to read the bathymetry in as a mom6_forge Topo object. Make sure you've successfully run the setup_bathymetry method, or copied a bathymetry.nc file into {self.mom_input_dir}: {e}"
-            )
-            return None
-
-    @property
     def init_velocities(self):
         try:
             return xr.open_dataset(
@@ -502,20 +483,6 @@ class experiment:
         except Exception as e:
             print(
                 f"Error: {e}. Opening init_vel threw an error! Make sure you've successfully run the setup_initial_condition method, or copied an init_vel.nc file into {self.mom_input_dir}."
-            )
-            return
-
-    @property
-    def init_eta(self):
-        try:
-            return xr.open_dataset(
-                self.mom_input_dir / "init_eta.nc",
-                decode_cf=False,
-                decode_times=False,
-            )
-        except Exception as e:
-            print(
-                f"Error: {e}. Opening init_eta threw an error! Make sure you've successfully run the setup_initial_condition method, or copied an init_eta.nc file into {self.mom_input_dir}."
             )
             return
 
@@ -679,7 +646,7 @@ class experiment:
         ), "only even_spacing grid type is implemented"
 
         if self.hgrid_type == "even_spacing":
-            Grid(
+            self.grid = Grid(
                 resolution=self.resolution,  # in degrees
                 xstart=self.longitude_extent[0],  # min longitude in [0, 360]
                 lenx=self.longitude_extent[1]
@@ -689,7 +656,7 @@ class experiment:
                 - self.latitude_extent[0],  # latitude extent in degrees
                 name=self.expt_name,
                 type="rectilinear_cartesian",  # m6b name for even_spacing
-            ).write_supergrid(self.mom_input_dir / "hgrid.nc")
+            )
 
             return self.grid.write_supergrid(self.mom_input_dir / "hgrid.nc")
 
@@ -1232,7 +1199,7 @@ class experiment:
 
         if len(self.boundaries) < 4:
             print(
-                "NOTE: the 'setup_generic' method does understand the less than four boundaries but be careful. Please check the MOM_input/override file carefully to reflect the number of boundaries you have, and their orientations. You should be able to find the relevant section in the MOM_input/override file by searching for 'segment_'. Ensure that the segment names match those in your inputdir/forcing folder"
+                "NOTE: the 'setup_run_directories' method does understand the less than four boundaries but be careful. Please check the MOM_input/override file carefully to reflect the number of boundaries you have, and their orientations. You should be able to find the relevant section in the MOM_input/override file by searching for 'segment_'. Ensure that the segment names match those in your inputdir/forcing folder"
             )
 
         if len(self.boundaries) > 4:
@@ -1538,10 +1505,9 @@ class experiment:
         if regridding_method is None:
             regridding_method = self.regridding_method
 
-        topo = Topo(grid=self.grid, min_depth=self.minimum_depth, git=False)
+        self.topo = Topo(grid=self.grid, min_depth=self.minimum_depth, git=False)
 
-        # Feed the source bathymetry file to the topo object, which is then regridded inside the `set_from_dataset` method.
-        topo.set_from_dataset(
+        self.topo.set_from_dataset(
             bathymetry_path=bathymetry_path,
             output_dir=self.mom_input_dir,
             longitude_coordinate_name=longitude_coordinate_name,
@@ -1550,9 +1516,8 @@ class experiment:
             regridding_method=regridding_method,
             write_to_file=True,
         )
-        # Write out the topo. Confusingly, `topo` is the word of choice in MOM6_forge, but `bathymetry` has been used in regional-mom6.
-        topo.write_topo(self.mom_input_dir / "bathymetry.nc")
-        return topo.gen_topo_ds()
+        self.topo.write_topo(self.mom_input_dir / "bathymetry.nc")
+        return self.topo.gen_topo_ds()
 
     def tidy_bathymetry(
         self,
@@ -1578,6 +1543,8 @@ class experiment:
             self.mom_input_dir / "bathymetry.nc",
         )
         return self.topo.gen_topo_ds()
+
+
 
     def run_FRE_tools(self):
         """
