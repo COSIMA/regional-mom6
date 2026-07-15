@@ -151,7 +151,7 @@ def test_tides(dummy_tidal_data, tmp_path):
     expt.segments = {}
     # Generate Hgrid Data
     expt.resolution = 0.1
-    expt.hgrid = expt._make_hgrid()
+    expt._make_hgrid()  # sets `expt.m6f_hgrid`; `expt.hgrid` derives from it
     # Create Forcing Folder
     os.makedirs(tmp_path / "forcing", exist_ok=True)
 
