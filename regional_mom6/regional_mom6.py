@@ -19,7 +19,8 @@ from regional_mom6 import MOM_parameter_tools as mpt
 from regional_mom6 import regridding as rgd
 from regional_mom6.config import Config
 from regional_mom6.grid import Grid
-from mom6_forge.vgrid import VGrid
+from regional_mom6.vgrid import VGrid
+from regional_mom6.topo import Topo
 from regional_mom6.utils import (
     ap2ep,
     ep2ap,
@@ -234,11 +235,14 @@ class experiment:
             example: ``(40.5, 50.0)``.
         latitude_extent (Tuple[float]): Extent of the region in latitude (in degrees). For
             example: ``(-20.0, 30.0)``.
-        hgrid_type (str): Type of horizontal grid to generate. Currently, only ``'even_spacing'`` is supported. Setting this argument to ``'from_file'`` requires the additional hgrid_path argument. You can also pass in a mom6_forge/regional-mom6 grid object
-        hgrid_path (str): Path to the horizontal grid file if the hgrid_type is ``'from_file'``.
-        vgrid_type (str): Type of vertical grid to generate.
-            Currently, only ``'hyperbolic_tangent'`` is supported. Setting this argument to ``'from_file'`` requires the additional vgrid_path argument. You can also pass in a mom6_forge/regional-mom6 grid object
-        vgrid_path (str): Path to the vertical grid file if the vgrid_type is ``'from_file'``.
+        hgrid_type (str or Grid): Type of horizontal grid to generate. Currently, only ``'even_spacing'`` is supported.
+            Setting this argument to ``'from_file'`` lazily reads ``hgrid.nc`` from ``mom_input_dir`` the first time
+            the ``hgrid`` property is accessed. You can also pass a mom6_forge ``Grid`` object directly, in which case
+            ``hgrid`` is derived from it instead of touching disk.
+        vgrid_type (str or VGrid): Type of vertical grid to generate. Currently, only ``'hyperbolic_tangent'`` is
+            supported. Setting this argument to ``'from_file'`` lazily reads ``vgrid.nc`` from ``mom_input_dir`` the
+            first time the ``vgrid`` property is accessed. You can also pass a mom6_forge ``VGrid`` object directly, in
+            which case ``vgrid`` is derived from it instead of touching disk.
         repeat_year_forcing (bool): When ``True`` the experiment runs with
             repeat-year forcing. When ``False`` (default) then inter-annual forcing is used.
         minimum_depth (int): The minimum depth in meters of a grid cell allowed before it is masked out and treated as land.
@@ -324,6 +328,12 @@ class experiment:
         expt.boundaries = boundaries
         expt.regridding_method = regridding_method
         expt.fill_method = fill_method
+        expt.m6f_hgrid = None
+        expt.m6f_vgrid = None
+        expt.m6f_bathymetry = None
+        expt._hgrid = None
+        expt._vgrid = None
+        expt._bathymetry = None
         return expt
 
     def __init__(
@@ -340,9 +350,7 @@ class experiment:
         longitude_extent=None,
         latitude_extent=None,
         hgrid_type="even_spacing",
-        hgrid_path=None,
         vgrid_type="hyperbolic_tangent",
-        vgrid_path=None,
         repeat_year_forcing=False,
         minimum_depth=4,
         tidal_constituents=["M2", "S2", "N2", "K2", "K1", "O1", "P1", "Q1", "MM", "MF"],
@@ -385,37 +393,30 @@ class experiment:
         self.tidal_constituents = tidal_constituents
         self.regridding_method = regridding_method
         self.fill_method = fill_method
-        if hgrid_type == "from_file":
-            if hgrid_path is None:
-                hgrid_path = self.mom_input_dir / "hgrid.nc"
-            else:
-                hgrid_path = Path(hgrid_path)
-            try:
-                self.hgrid = xr.open_dataset(hgrid_path)
-                self.grid = Grid.from_supergrid(hgrid_path)
-                self.longitude_extent = (
-                    float(self.hgrid.x.min()),
-                    float(self.hgrid.x.max()),
-                )
-                self.latitude_extent = (
-                    float(self.hgrid.y.min()),
-                    float(self.hgrid.y.max()),
-                )
-            except FileNotFoundError:
-                if hgrid_path is None:
-                    raise FileNotFoundError(
-                        f"Horizontal grid {self.mom_input_dir}/hgrid.nc not found. Make sure `hgrid.nc`exists in {self.mom_input_dir} directory."
-                    )
-                else:
-                    raise FileNotFoundError(f"Horizontal grid {hgrid_path} not found.")
+        # `self.m6f_hgrid`/`self.m6f_vgrid`/`self.m6f_bathymetry` are the mom6_forge
+        # class objects backing the `hgrid`/`vgrid`/`bathymetry` properties (see below).
+        # When one isn't supplied directly, the properties lazily read it from
+        # `mom_input_dir` on first access.
+        self.m6f_hgrid = None
+        self.m6f_vgrid = None
+        self.m6f_bathymetry = None
+        self._hgrid = None
+        self._vgrid = None
+        self._bathymetry = None
 
-        elif hgrid_path:
-                raise ValueError(
-                    "hgrid_path can only be set if hgrid_type is 'from_file'."
-                )
-        elif isistance(hgrid_type, Grid):
-            self.hgrid = hgrid_type.supergrid.to_ds()
-            self.grid = hgrid_type
+        if isinstance(hgrid_type, Grid):
+            self.m6f_hgrid = hgrid_type
+            self.longitude_extent = (
+                float(self.hgrid.x.min()),
+                float(self.hgrid.x.max()),
+            )
+            self.latitude_extent = (
+                float(self.hgrid.y.min()),
+                float(self.hgrid.y.max()),
+            )
+        elif hgrid_type == "from_file":
+            # `self.hgrid` lazily reads `mom_input_dir/hgrid.nc` the first time
+            # it's accessed.
             self.longitude_extent = (
                 float(self.hgrid.x.min()),
                 float(self.hgrid.x.max()),
@@ -429,30 +430,12 @@ class experiment:
             self.latitude_extent = tuple(latitude_extent)
             self.hgrid = self._make_hgrid()
 
-        if vgrid_type == "from_file":
-            if vgrid_path is None:
-                vgrid_path = self.mom_input_dir / "vgrid.nc"
-            else:
-                vgrid_path = Path(vgrid_path)
-
-            try:
-                vgrid_from_file = xr.open_dataset(vgrid_path)
-
-            except FileNotFoundError:
-                if vgrid_path is None:
-                    raise FileNotFoundError(
-                        f"Vertical grid {self.mom_input_dir}/vcoord.nc not found. Make sure `vcoord.nc`exists in {self.mom_input_dir} directory."
-                    )
-                else:
-                    raise FileNotFoundError(f"Vertical grid {vgrid_path} not found.")
-
-            self.vgrid = self._make_vgrid(vgrid_from_file.dz.data)
-        elif vgrid_path:
-                raise ValueError(
-                    "vgrid_path can only be set if vgrid_type is 'from_file'."
-                )
-        elif isinstance(vgrid_type, VGrid):
-            self.vgrid = vgrid_type
+        if isinstance(vgrid_type, VGrid):
+            self.m6f_vgrid = vgrid_type
+        elif vgrid_type == "from_file":
+            # `self.vgrid` lazily reads `mom_input_dir/vgrid.nc` the first time
+            # it's accessed.
+            pass
         else:
             self.vgrid = self._make_vgrid()
 
@@ -474,18 +457,95 @@ class experiment:
         return json.dumps(Config.save_to_json(self, export=False), indent=4)
 
     @property
+    def hgrid(self):
+        """The horizontal supergrid, as an ``xarray.Dataset``.
+
+        Derived from ``self.m6f_hgrid`` (a mom6_forge ``Grid`` object) if one has already
+        been supplied, either passed in directly via ``hgrid_type`` or generated by
+        ``_make_hgrid``. Otherwise, lazily read from ``hgrid.nc`` in ``mom_input_dir``
+        the first time this property is accessed.
+        """
+        if self._hgrid is None:
+            if self.m6f_hgrid is not None:
+                self._hgrid = self.m6f_hgrid.supergrid.to_ds()
+            else:
+                hgrid_path = self.mom_input_dir / "hgrid.nc"
+                if not hgrid_path.exists():
+                    raise FileNotFoundError(
+                        f"Horizontal grid {hgrid_path} not found. Make sure `hgrid.nc` "
+                        f"exists in {self.mom_input_dir} directory, or pass in a Grid "
+                        "object via `hgrid_type`."
+                    )
+                self.m6f_hgrid = Grid.from_supergrid(hgrid_path)
+                self._hgrid = self.m6f_hgrid.supergrid.to_ds()
+        return self._hgrid
+
+    @hgrid.setter
+    def hgrid(self, value):
+        self._hgrid = value
+
+    @property
+    def vgrid(self):
+        """The vertical coordinate dataset (interface/cell-center depths), as an
+        ``xarray.Dataset``.
+
+        Derived from ``self.m6f_vgrid`` (a mom6_forge ``VGrid`` object) if one has
+        already been supplied, either passed in directly via ``vgrid_type`` or
+        generated by ``_make_vgrid``. Otherwise, lazily read from ``vgrid.nc`` in
+        ``mom_input_dir`` the first time this property is accessed.
+        """
+        if self._vgrid is None:
+            if self.m6f_vgrid is not None:
+                self._vgrid = self.m6f_vgrid.write_z_file(
+                    self.mom_input_dir / "vcoord.nc"
+                )
+            else:
+                vgrid_path = self.mom_input_dir / "vgrid.nc"
+                if not vgrid_path.exists():
+                    raise FileNotFoundError(
+                        f"Vertical grid {vgrid_path} not found. Make sure `vgrid.nc` "
+                        f"exists in {self.mom_input_dir} directory, or pass in a VGrid "
+                        "object via `vgrid_type`."
+                    )
+                self._vgrid = self._make_vgrid(VGrid.from_file(vgrid_path).dz)
+        return self._vgrid
+
+    @vgrid.setter
+    def vgrid(self, value):
+        self._vgrid = value
+
+    @property
     def bathymetry(self):
-        try:
-            return xr.open_dataset(
-                self.mom_input_dir / "bathymetry.nc",
-                decode_cf=False,
-                decode_times=False,
-            )
-        except Exception as e:
-            print(
-                f"Error: {e}. Opening bathymetry threw an error! Make sure you've successfully run the setup_bathymetry method, or copied a bathymetry.nc file into {self.mom_input_dir}."
-            )
-            return None
+        """The bathymetry, as an ``xarray.Dataset``.
+
+        Derived from ``self.m6f_bathymetry`` (a mom6_forge ``Topo`` object) if one has
+        already been supplied, either generated by ``setup_bathymetry``/``tidy_bathymetry``.
+        Otherwise, lazily built from ``bathymetry.nc`` in ``mom_input_dir`` (via
+        ``Topo.from_topo_file``, using ``self.hgrid``) the first time this property is
+        accessed.
+        """
+        if self._bathymetry is None:
+            if self.m6f_bathymetry is None:
+                bathymetry_path = self.mom_input_dir / "bathymetry.nc"
+                if not bathymetry_path.exists():
+                    raise FileNotFoundError(
+                        f"Bathymetry {bathymetry_path} not found. Make sure you've "
+                        "successfully run the setup_bathymetry method, or copied a "
+                        f"bathymetry.nc file into {self.mom_input_dir}."
+                    )
+                _ = self.hgrid  # ensures `m6f_hgrid` is populated (from disk if needed)
+                self.m6f_bathymetry = Topo.from_topo_file(
+                    self.m6f_hgrid,
+                    bathymetry_path,
+                    min_depth=self.minimum_depth,
+                    git=False,
+                )
+            self._bathymetry = self.m6f_bathymetry.gen_topo_ds()
+        return self._bathymetry
+
+    @bathymetry.setter
+    def bathymetry(self, value):
+        self._bathymetry = value
 
     @property
     def init_velocities(self):
@@ -661,7 +721,7 @@ class experiment:
         ), "only even_spacing grid type is implemented"
 
         if self.hgrid_type == "even_spacing":
-            self.grid = Grid(
+            self.m6f_hgrid = Grid(
                 resolution=self.resolution,  # in degrees
                 xstart=self.longitude_extent[0],  # min longitude in [0, 360]
                 lenx=self.longitude_extent[1]
@@ -673,7 +733,7 @@ class experiment:
                 type="rectilinear_cartesian",  # m6b name for even_spacing
             )
 
-            return self.grid.write_supergrid(self.mom_input_dir / "hgrid.nc")
+            return self.m6f_hgrid.write_supergrid(self.mom_input_dir / "hgrid.nc")
 
     def _make_vgrid(self, thicknesses=None):
         """
@@ -689,22 +749,22 @@ class experiment:
         """
 
         if thicknesses is None:
-            self.vgrid_obj = VGrid.hyperbolic(
+            self.m6f_vgrid = VGrid.hyperbolic(
                 self.number_vertical_layers, self.depth, self.layer_thickness_ratio
             )
-            thicknesses = self.vgrid_obj.dz
+            thicknesses = self.m6f_vgrid.dz
         else:
-            self.vgrid_obj = VGrid(thicknesses)
+            self.m6f_vgrid = VGrid(thicknesses)
 
         ## Check whether the minimum depth is less than the first three layers
 
-        if len(self.vgrid_obj.zi) > 2 and self.minimum_depth < self.vgrid_obj.zi[2]:
+        if len(self.m6f_vgrid.zi) > 2 and self.minimum_depth < self.m6f_vgrid.zi[2]:
             print(
-                f"Warning: Minimum depth of {self.minimum_depth}m is less than the depth of the third interface ({self.vgrid_obj.zi[2]}m)!\n"
+                f"Warning: Minimum depth of {self.minimum_depth}m is less than the depth of the third interface ({self.m6f_vgrid.zi[2]}m)!\n"
                 + "This means that some areas may only have one or two layers between the surface and sea floor. \n"
                 + "For increased stability, consider increasing the minimum depth, or adjusting the vertical coordinate to add more layers near the surface."
             )
-        ds = self.vgrid_obj.write_z_file(self.mom_input_dir / "vcoord.nc")
+        ds = self.m6f_vgrid.write_z_file(self.mom_input_dir / "vcoord.nc")
 
         return ds
 
@@ -1487,6 +1547,8 @@ class experiment:
         positive_down=False,
         write_to_file=True,
         regridding_method=None,
+        depth_method="xesmf",
+        mask_method="manual",
     ):
         """
         Cut out and interpolate the chosen bathymetry and then fill inland lakes.
@@ -1512,52 +1574,51 @@ class experiment:
                 bathymetry vertical coordinate is positive downwards. Default: ``False``.
             write_to_file (Optional[bool]): Whether to write the bathymetry to a file. Default: ``True``.
             regridding_method (Optional[str]): The type of regridding method to use. Defaults to self.regridding_method
+            depth_method (Optional[str]): Method used to set the depth: ``'stats'`` (statistic from
+                sub-sampled source data), ``'xesmf'`` (direct xESMF regrid of the source depth), or
+                ``'cressman'`` (Cressman interpolation). Default: ``'xesmf'``.
+            mask_method (Optional[str]): Method used to distinguish ocean from land: ``'naturalearth'``,
+                ``'ocean_frac'``, ``'dataset'``, or ``'manual'`` (uses ``self.m6f_bathymetry.user_mask``, which must
+                already be set). Default: ``'manual'``.
         """
 
         print(
-            "Setting up bathymetry...if this fails, please follow the printed instructions with your experiment topo object, like this: [experiment_obj].topo. For example, if the output tells you to run mpi_set_from_dataset instead of set_from_dataset. You would do: [experiment_obj].topo.mpi_set_from_dataset(...)"
+            "Setting up bathymetry...if this fails, please follow the printed instructions with your experiment's m6f_bathymetry object, like this: [experiment_obj].m6f_bathymetry. For example, if the output tells you to run mpi_set_from_dataset instead of set_from_dataset. You would do: [experiment_obj].m6f_bathymetry.mpi_set_from_dataset(...)"
         )
         if regridding_method is None:
             regridding_method = self.regridding_method
 
-        self.topo = Topo(grid=self.grid, min_depth=self.minimum_depth, git=False)
+        self.m6f_bathymetry = Topo(
+            grid=self.m6f_hgrid, min_depth=self.minimum_depth, git=False
+        )
+        self._bathymetry = None  # invalidate any cached `bathymetry` view
 
-        self.topo.set_from_dataset(
+        self.m6f_bathymetry.set_from_dataset(
             bathymetry_path=bathymetry_path,
             output_dir=self.mom_input_dir,
             longitude_coordinate_name=longitude_coordinate_name,
             latitude_coordinate_name=latitude_coordinate_name,
             vertical_coordinate_name=vertical_coordinate_name,
             regridding_method=regridding_method,
-            write_to_file=True,
+            fill_channels=fill_channels,
+            is_input_positive_below_msl=positive_down,
+            write_to_file=write_to_file,
+            depth_method=depth_method,
+            mask_method=mask_method,
         )
-        self.topo.write_topo(self.mom_input_dir / "bathymetry.nc")
-        return self.topo.gen_topo_ds()
+        self.m6f_bathymetry.write_topo(self.mom_input_dir / "bathymetry.nc")
+        return self.m6f_bathymetry.gen_topo_ds()
 
     def tidy_bathymetry(
         self,
         fill_channels=False,
-        positive_down=False,
-        vertical_coordinate_name="depth",
-        bathymetry=None,
-        write_to_file=True,
-        longitude_coordinate_name="lon",
-        latitude_coordinate_name="lat",
     ):
-        self.topo.tidy_dataset(
-            fill_channels=fill_channels,
-            positive_down=positive_down,
-            vertical_coordinate_name=vertical_coordinate_name,
-            bathymetry=bathymetry,
-            output_dir=self.mom_input_dir,
-            write_to_file=write_to_file,
-            longitude_coordinate_name=longitude_coordinate_name,
-            latitude_coordinate_name=latitude_coordinate_name,
-        )
-        self.topo.write_topo(
+        if fill_channels:
+            self.m6f_bathymetry.fill_inland_lakes_and_channels()
+        self.m6f_bathymetry.write_topo(
             self.mom_input_dir / "bathymetry.nc",
         )
-        return self.topo.gen_topo_ds()
+        return self.m6f_bathymetry.gen_topo_ds()
 
     def run_FRE_tools(self, layout=None):
         """
