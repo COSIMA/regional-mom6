@@ -18,6 +18,8 @@ from enum import Enum
 from regional_mom6 import MOM_parameter_tools as mpt
 from regional_mom6 import regridding as rgd
 from regional_mom6.config import Config
+from regional_mom6.grid import Grid
+from mom6_forge.vgrid import VGrid
 from regional_mom6.utils import (
     ap2ep,
     ep2ap,
@@ -232,10 +234,10 @@ class experiment:
             example: ``(40.5, 50.0)``.
         latitude_extent (Tuple[float]): Extent of the region in latitude (in degrees). For
             example: ``(-20.0, 30.0)``.
-        hgrid_type (str): Type of horizontal grid to generate. Currently, only ``'even_spacing'`` is supported. Setting this argument to ``'from_file'`` requires the additional hgrid_path argument
+        hgrid_type (str): Type of horizontal grid to generate. Currently, only ``'even_spacing'`` is supported. Setting this argument to ``'from_file'`` requires the additional hgrid_path argument. You can also pass in a mom6_forge/regional-mom6 grid object
         hgrid_path (str): Path to the horizontal grid file if the hgrid_type is ``'from_file'``.
         vgrid_type (str): Type of vertical grid to generate.
-            Currently, only ``'hyperbolic_tangent'`` is supported. Setting this argument to ``'from_file'`` requires the additional vgrid_path argument
+            Currently, only ``'hyperbolic_tangent'`` is supported. Setting this argument to ``'from_file'`` requires the additional vgrid_path argument. You can also pass in a mom6_forge/regional-mom6 grid object
         vgrid_path (str): Path to the vertical grid file if the vgrid_type is ``'from_file'``.
         repeat_year_forcing (bool): When ``True`` the experiment runs with
             repeat-year forcing. When ``False`` (default) then inter-annual forcing is used.
@@ -407,11 +409,22 @@ class experiment:
                 else:
                     raise FileNotFoundError(f"Horizontal grid {hgrid_path} not found.")
 
-        else:
-            if hgrid_path:
+        elif hgrid_path:
                 raise ValueError(
                     "hgrid_path can only be set if hgrid_type is 'from_file'."
                 )
+        elif isistance(hgrid_type, Grid):
+            self.hgrid = hgrid_type.supergrid.to_ds()
+            self.grid = hgrid_type
+            self.longitude_extent = (
+                float(self.hgrid.x.min()),
+                float(self.hgrid.x.max()),
+            )
+            self.latitude_extent = (
+                float(self.hgrid.y.min()),
+                float(self.hgrid.y.max()),
+            )
+        else:
             self.longitude_extent = tuple(longitude_extent)
             self.latitude_extent = tuple(latitude_extent)
             self.hgrid = self._make_hgrid()
@@ -434,11 +447,13 @@ class experiment:
                     raise FileNotFoundError(f"Vertical grid {vgrid_path} not found.")
 
             self.vgrid = self._make_vgrid(vgrid_from_file.dz.data)
-        else:
-            if vgrid_path:
+        elif vgrid_path:
                 raise ValueError(
                     "vgrid_path can only be set if vgrid_type is 'from_file'."
                 )
+        elif isinstance(vgrid_type, VGrid):
+            self.vgrid = vgrid_type
+        else:
             self.vgrid = self._make_vgrid()
 
         self.segments = {}
