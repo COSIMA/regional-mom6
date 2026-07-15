@@ -14,9 +14,9 @@ import importlib.resources
 import pandas as pd
 from pathlib import Path
 import json
+from enum import Enum
 from regional_mom6 import MOM_parameter_tools as mpt
 from regional_mom6 import regridding as rgd
-from regional_mom6 import rotation as rot
 from regional_mom6.config import Config
 from regional_mom6.utils import (
     ap2ep,
@@ -24,7 +24,9 @@ from regional_mom6.utils import (
     rotate,
     find_files_by_pattern,
     try_pint_convert,
+    is_rectilinear_hgrid,
 )
+from mom6_forge._supergrid import SupergridBase
 from mom6_forge.utils import longitude_slicer
 from mom6_forge.vgrid import *
 from mom6_forge.grid import *
@@ -38,7 +40,74 @@ __all__ = [
     "experiment",
     "segment",
     "get_glorys_data",
+    "RotationMethod",
+    "get_rotation_angle",
 ]
+
+
+class RotationMethod(Enum):
+    """Prescribes the rotational method used in boundary conditions when the grid
+    does not have coordinates along lines of constant longitude-latitude.
+
+    Attributes:
+        EXPAND_GRID (int): Finds angles at q/u/v points by expanding the hgrid by one
+            row/column, replicating exactly what MOM6 does.
+        GIVEN_ANGLE (int): Expects a pre-given angle called ``angle_dx``.
+        NO_ROTATION (int): Grid is along lines of constant latitude-longitude; no rotation required.
+    """
+
+    EXPAND_GRID = 1
+    GIVEN_ANGLE = 2
+    NO_ROTATION = 3
+
+
+def get_rotation_angle(
+    rotational_method: RotationMethod, hgrid: xr.Dataset, orientation=None
+) -> xr.DataArray:
+    """Return the rotation angle (degrees) for the hgrid or a boundary slice of it.
+
+    Parameters
+    ----------
+    rotational_method : RotationMethod
+    hgrid : xr.Dataset
+    orientation : str, optional
+        If given (e.g. ``"north"``), return only the boundary slice.
+    """
+    boundary = orientation is not None
+
+    if rotational_method == RotationMethod.NO_ROTATION:
+        if not is_rectilinear_hgrid(hgrid):
+            raise ValueError("NO_ROTATION method only works with rectilinear grids")
+        angles = xr.zeros_like(hgrid.x)
+        if boundary:
+            hgrid["zero_angle"] = angles
+            return rgd.coords(
+                hgrid, orientation, "doesnt_matter", angle_variable_name="zero_angle"
+            )["angle"]
+        return angles
+
+    elif rotational_method == RotationMethod.GIVEN_ANGLE:
+        if boundary:
+            return rgd.coords(
+                hgrid, orientation, "doesnt_matter", angle_variable_name="angle_dx"
+            )["angle"]
+        return hgrid["angle_dx"]
+
+    elif rotational_method == RotationMethod.EXPAND_GRID:
+        hgrid["angle_dx_rm6"] = xr.DataArray(
+            SupergridBase.calculate_supergrid_rotation_angles_using_expanded_supergrid_method(
+                hgrid.x.values, hgrid.y.values
+            ),
+            dims=hgrid.x.dims,
+        )
+        if boundary:
+            return rgd.coords(
+                hgrid, orientation, "doesnt_matter", angle_variable_name="angle_dx_rm6"
+            )["angle"]
+        return hgrid["angle_dx_rm6"]
+
+    raise ValueError("Invalid rotational method")
+
 
 # If the array is pint possible, ensure we have the right units for main fields (eta, u, v, temp),
 # salinity and bgc tracers are a bit more abstract and should be already in the correct units, a TODO: would be to add functionality to convert these tracers
@@ -663,7 +732,7 @@ class experiment:
         varnames,
         arakawa_grid="A",
         vcoord_type="height",
-        rotational_method=rot.RotationMethod.EXPAND_GRID,
+        rotational_method=RotationMethod.EXPAND_GRID,
         regridding_method=None,
     ):
         """
@@ -671,7 +740,7 @@ class experiment:
         model grid, fixes up metadata, and saves back to the input directory.
 
         Arguments:
-            raw_ic_path (Union[str, Path, list[str]]): Path(s) to raw initial condition file(s) to read in.
+            raw_ic_path (Union[str, Path]): Path to raw initial condition file to read in.
             varnames (Dict[str, str]): Mapping from MOM6 variable/coordinate names to the names
                 in the input dataset. For example, ``{'xq': 'lonq', 'yh': 'lath', 'salt': 'so', ...}``.
             arakawa_grid (Optional[str]): Arakawa grid staggering type of the initial condition.
@@ -687,7 +756,12 @@ class experiment:
         reprocessed_var_map = apply_arakawa_grid_mapping(
             var_mapping=varnames, arakawa_grid=arakawa_grid
         )
-        ic_raw = xr.open_mfdataset(raw_ic_path)
+
+        if not Path(raw_ic_path).exists():
+            raise FileNotFoundError(
+                f"Initial condition file not found at {raw_ic_path}. Please ensure that the files are named in the format `ic_unprocessed.nc`."
+            )
+        ic_raw = xr.open_dataset(raw_ic_path)
 
         # There is a case where MARBL tracers have multiple zdims, this is not supported for initial conditions:
         if type(reprocessed_var_map["depth_coord"]) == list:
@@ -852,7 +926,7 @@ class experiment:
             regridded_u,
             regridded_v,
             radian_angle=np.radians(
-                rot.get_rotation_angle(rotational_method, self.hgrid).values
+                get_rotation_angle(rotational_method, self.hgrid).values
             ),
         )
 
@@ -1120,7 +1194,7 @@ class experiment:
         bgc_tracer_names: dict = None,
         arakawa_grid="A",
         bathymetry_path=None,
-        rotational_method=rot.RotationMethod.EXPAND_GRID,
+        rotational_method=RotationMethod.EXPAND_GRID,
         regridding_method=None,
         fill_method=None,
     ):
@@ -1213,7 +1287,7 @@ class experiment:
         datasets = {}
         for boundary in self.boundaries:
             num = str(self.find_MOM6_rectangular_orientation(boundary)).zfill(3)
-            datasets[num] = xr.open_mfdataset(
+            datasets[num] = xr.open_dataset(
                 self.mom_input_dir / f"forcing_obc_segment_{num}.nc"
             )
 
@@ -1239,7 +1313,7 @@ class experiment:
         segment_number,
         arakawa_grid="A",
         bathymetry_path=None,
-        rotational_method=rot.RotationMethod.EXPAND_GRID,
+        rotational_method=RotationMethod.EXPAND_GRID,
         regridding_method=None,
         fill_method=None,
     ):
@@ -1275,7 +1349,7 @@ class experiment:
         print(
             "Processing {} boundary velocity & tracers...".format(orientation), end=""
         )
-        if not path_to_bc.exists():
+        if not Path(path_to_bc).exists():
             raise FileNotFoundError(
                 f"Boundary file not found at {path_to_bc}. Please ensure that the files are named in the format `east_unprocessed.nc`."
             )
@@ -1307,7 +1381,7 @@ class experiment:
         tpxo_velocity_filepath,
         tidal_constituents=None,
         bathymetry_path=None,
-        rotational_method=rot.RotationMethod.EXPAND_GRID,
+        rotational_method=RotationMethod.EXPAND_GRID,
         regridding_method=None,
         fill_method=None,
     ):
@@ -2091,23 +2165,26 @@ class segment:
             self.bathymetry = None
         self.segment_name = segment_name
         self.repeat_year_forcing = repeat_year_forcing
+        self.regridders = None
+        self.tidal_regridders = None
 
     def regrid_velocity_tracers(
         self,
         infile,
         varnames: dict,
         arakawa_grid="A",
-        rotational_method=rot.RotationMethod.EXPAND_GRID,
+        rotational_method=RotationMethod.EXPAND_GRID,
         regridding_method="bilinear",
         time_units="days",
         calendar="gregorian",
         fill_method=rgd.fill_missing_data,
+        regridders=None,
     ):
         """
         Cut out and interpolate the velocities and tracers.
 
         Arguments:
-            rotational_method (rot.RotationMethod): The method to use for rotation of the velocities. Currently, the default method, ``EXPAND_GRID``, works even with non-rotated grids.
+            rotational_method (RotationMethod): The method to use for rotation of the velocities. Currently, the default method, ``EXPAND_GRID``, works even with non-rotated grids.
             infile (Union[str, Path]): Path to the raw, unprocessed boundary segment.
             varnames (Dict[str, str]): Mapping between the variable/dimension names and
             standard naming convention of this pipeline, e.g., ``{"xq": "longitude,
@@ -2117,6 +2194,11 @@ class segment:
                 Either ``'A'`` (default), ``'B'``, or ``'C'``.
             regridding_method (str): regridding method to use throughout the function. Default is ``'bilinear'``
             fill_method (Function): Fill method to use throughout the function. Default is ``rgd.fill_missing_data``
+            regridders (dict, optional): Pre-built regridders with keys ``"tracers"``, ``"u"``, ``"v"``.
+                If provided, regridder creation is skipped entirely — useful when calling this method
+                multiple times for different time windows on the same grid (pass ``seg.regridders``
+                from a prior call). Default ``None`` — regridders are built and saved to
+                ``self.regridders``.
 
         """
         reprocessed_var_map = apply_arakawa_grid_mapping(
@@ -2138,14 +2220,16 @@ class segment:
         for dc in dc_list:
             rawseg[dc] = try_pint_convert(rawseg[dc], "m", dc)
 
-        regridders = create_vt_regridders(
-            reprocessed_var_map,
-            rawseg,
-            coords,
-            Path(self.outfolder),
-            regridding_method,
-            self.orientation,
-        )
+        if regridders is None:
+            regridders = create_vt_regridders(
+                reprocessed_var_map,
+                rawseg,
+                coords,
+                Path(self.outfolder),
+                regridding_method,
+                self.orientation,
+            )
+        self.regridders = regridders
 
         u_regridded = regridders["u"](
             rawseg[reprocessed_var_map["u_var_name"]].rename(
@@ -2179,7 +2263,7 @@ class segment:
             u_regridded,
             v_regridded,
             radian_angle=np.radians(
-                rot.get_rotation_angle(
+                get_rotation_angle(
                     rotational_method, self.hgrid, orientation=self.orientation
                 ).values
             ),
@@ -2371,9 +2455,10 @@ class segment:
         tpxo_u,
         tpxo_h,
         times,
-        rotational_method=rot.RotationMethod.EXPAND_GRID,
+        rotational_method=RotationMethod.EXPAND_GRID,
         regridding_method="bilinear",
         fill_method=rgd.fill_missing_data,
+        regridders=None,
     ):
         """
         Regrids and interpolates the tidal data for MOM6. Steps include:
@@ -2396,10 +2481,14 @@ class segment:
             infile_td (str): Raw tidal file/directory.
             tpxo_v, tpxo_u, tpxo_h (xarray.Dataset): Specific adjusted for MOM6 tpxo datasets (Adjusted with :func:`~experiment.setup_boundary_tides`)
             times (pd.DateRange): The start date of our model period.
-            rotational_method (rot.RotationMethod): The method to use for rotation of the velocities.
+            rotational_method (RotationMethod): The method to use for rotation of the velocities.
                 The default method, ``EXPAND_GRID``, works even with non-rotated grids.
             regridding_method (str): regridding method to use throughout the function. Default is ``'bilinear'``
             fill_method (Function): Fill method to use throughout the function. Default is ``rgd.fill_missing_data``
+            regridders (dict, optional): Pre-built regridders with keys ``"elev"``, ``"u"``, ``"v"``.
+                If provided, regridder creation is skipped entirely — useful when calling this method
+                multiple times on the same grid (pass ``seg.tidal_regridders`` from a prior call).
+                Default ``None`` — regridders are built and saved to ``self.tidal_regridders``.
 
         Returns:
             netCDF files: Regridded tidal velocity and elevation files in 'inputdir/forcing'
@@ -2422,15 +2511,37 @@ class segment:
         # Establish Coords
         coords = rgd.coords(self.hgrid, self.orientation, self.segment_name)
 
+        if regridders is None:
+            regridders = {
+                "elev": rgd.create_regridder(
+                    tpxo_h[["lon", "lat", "hRe"]],
+                    coords,
+                    self.outfolder
+                    / "weights"
+                    / f"bilinear_tidal_elev_weights_{self.segment_name}.nc",
+                    method=regridding_method,
+                ),
+                "u": rgd.create_regridder(
+                    tpxo_u[["lon", "lat", "uRe"]],
+                    coords,
+                    self.outfolder
+                    / "weights"
+                    / f"bilinear_tidal_u_weights_{self.segment_name}.nc",
+                    method=regridding_method,
+                ),
+                "v": rgd.create_regridder(
+                    tpxo_v[["lon", "lat", "vRe"]],
+                    coords,
+                    self.outfolder
+                    / "weights"
+                    / f"bilinear_tidal_v_weights_{self.segment_name}.nc",
+                    method=regridding_method,
+                ),
+            }
+        self.tidal_regridders = regridders
+        regrid = regridders["elev"]
+
         ########## Tidal Elevation: Horizontally interpolate elevation components ############
-        regrid = rgd.create_regridder(
-            tpxo_h[["lon", "lat", "hRe"]],
-            coords,
-            Path(
-                self.outfolder / "forcing" / f"regrid_{self.segment_name}_tidal_elev.nc"
-            ),
-            method=regridding_method,
-        )
 
         redest = regrid(tpxo_h[["lon", "lat", "hRe"]])
         imdest = regrid(tpxo_h[["lon", "lat", "hIm"]])
@@ -2476,12 +2587,8 @@ class segment:
 
         ########### Regrid Tidal Velocity ######################
 
-        regrid_u = rgd.create_regridder(
-            tpxo_u[["lon", "lat", "uRe"]], coords, method=regridding_method
-        )
-        regrid_v = rgd.create_regridder(
-            tpxo_v[["lon", "lat", "vRe"]], coords, method=regridding_method
-        )
+        regrid_u = regridders["u"]
+        regrid_v = regridders["v"]
 
         # Interpolate each real and imaginary parts to self.
         uredest = regrid_u(tpxo_u[["lon", "lat", "uRe"]])["uRe"]
@@ -2515,7 +2622,7 @@ class segment:
 
         # Rotate
         INC -= np.radians(
-            rot.get_rotation_angle(
+            get_rotation_angle(
                 rotational_method, self.hgrid, orientation=self.orientation
             ).data[np.newaxis, :]
         )
