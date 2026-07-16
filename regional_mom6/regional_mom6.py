@@ -97,7 +97,7 @@ def get_rotation_angle(
 
     elif rotational_method == RotationMethod.EXPAND_GRID:
         hgrid["angle_dx_rm6"] = xr.DataArray(
-            SupergridBase.calculate_supergrid_rotation_angles_using_expanded_supergrid_method(
+            SupergridBase.calc_supergrid_rotation_angles_using_expanded_supergrid_method(
                 hgrid.x.values, hgrid.y.values
             ),
             dims=hgrid.x.dims,
@@ -925,10 +925,18 @@ class experiment:
             }
         )
 
-        self.hgrid["lon"] = self.hgrid["x"]
-        self.hgrid["lat"] = self.hgrid["y"]
+        ic_raw_eta = ic_raw_eta.rename(
+            {
+                reprocessed_var_map["tracer_lat_coord"]: "lat",
+                reprocessed_var_map["tracer_lon_coord"]: "lon",
+            }
+        )
+
+        hgrid = self.hgrid
+        hgrid["lon"] = hgrid["x"]
+        hgrid["lat"] = hgrid["y"]
         tgrid = (
-            rgd.get_hgrid_arakawa_c_points(self.hgrid, "t")
+            rgd.get_hgrid_arakawa_c_points(hgrid, "t")
             .rename({"tlon": "lon", "tlat": "lat", "nxp": "nx", "nyp": "ny"})
             .set_coords(["lat", "lon"])
         )
@@ -936,10 +944,10 @@ class experiment:
         ## Make our three horizontal regridders
 
         regridder_u = rgd.create_regridder(
-            ic_raw_u, self.hgrid, locstream_out=False, method=regridding_method
+            ic_raw_u, hgrid, locstream_out=False, method=regridding_method
         )
         regridder_v = rgd.create_regridder(
-            ic_raw_v, self.hgrid, locstream_out=False, method=regridding_method
+            ic_raw_v, hgrid, locstream_out=False, method=regridding_method
         )
         regridder_t = rgd.create_regridder(
             ic_raw_tracers, tgrid, locstream_out=False, method=regridding_method
@@ -957,13 +965,13 @@ class experiment:
             regridded_u,
             regridded_v,
             radian_angle=np.radians(
-                get_rotation_angle(rotational_method, self.hgrid).values
+                get_rotation_angle(rotational_method, hgrid).values
             ),
         )
 
         # Slice the velocites to the u and v grid.
-        u_points = rgd.get_hgrid_arakawa_c_points(self.hgrid, "u")
-        v_points = rgd.get_hgrid_arakawa_c_points(self.hgrid, "v")
+        u_points = rgd.get_hgrid_arakawa_c_points(hgrid, "u")
+        v_points = rgd.get_hgrid_arakawa_c_points(hgrid, "v")
         rotated_v = rotated_v[:, v_points.v_points_y.values, v_points.v_points_x.values]
         rotated_u = rotated_u[:, u_points.u_points_y.values, u_points.u_points_x.values]
         rotated_u["lon"] = u_points.ulon
@@ -1537,7 +1545,7 @@ class experiment:
         write_to_file=True,
         regridding_method=None,
         depth_method="xesmf",
-        mask_method="manual",
+        mask_method="dataset",
     ):
         """
         Cut out and interpolate the chosen bathymetry and then fill inland lakes.
@@ -1568,7 +1576,7 @@ class experiment:
                 ``'cressman'`` (Cressman interpolation). Default: ``'xesmf'``.
             mask_method (Optional[str]): Method used to distinguish ocean from land: ``'naturalearth'``,
                 ``'ocean_frac'``, ``'dataset'``, or ``'manual'`` (uses ``self.m6f_bathymetry.user_mask``, which must
-                already be set). Default: ``'manual'``.
+                already be set). Default: ``'dataset'``.
         """
 
         print(
