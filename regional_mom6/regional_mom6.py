@@ -500,10 +500,7 @@ class experiment:
                     "object via `vgrid_type`."
                 )
             self.m6f_vgrid = VGrid.from_file(vgrid_path)
-            if (
-                len(self.m6f_vgrid.zi) > 2
-                and self.minimum_depth < self.m6f_vgrid.zi[2]
-            ):
+            if len(self.m6f_vgrid.zi) > 2 and self.minimum_depth < self.m6f_vgrid.zi[2]:
                 print(
                     f"Warning: Minimum depth of {self.minimum_depth}m is less than the depth of the third interface ({self.m6f_vgrid.zi[2]}m)!\n"
                     + "This means that some areas may only have one or two layers between the surface and sea floor. \n"
