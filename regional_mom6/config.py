@@ -110,8 +110,8 @@ class Config:
         expt.mom_input_dir.mkdir(parents=True, exist_ok=True)
 
         if create_hgrid_and_vgrid:
-            expt.hgrid = expt._make_hgrid()
-            expt.vgrid = expt._make_vgrid()
+            expt._make_hgrid()  # sets `expt.m6f_hgrid`; `expt.hgrid` derives from it
+            expt._make_vgrid()  # sets `expt.m6f_vgrid`; `expt.vgrid` derives from it
 
         return expt
 

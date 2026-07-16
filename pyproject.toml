@@ -20,8 +20,9 @@ dependencies = [
   "copernicusmarine >= 2.0.0,<2.1.0",
   "pint_xarray",
   "ruamel.yaml",
-  "mom6_forge>=0.0.2,<0.1.0"
+  "mom6_forge>=0.3.0,<0.4.0"
 ]
+
 
 [build-system]
 requires = ["setuptools", "setuptools_scm[toml]"]
