@@ -1,22 +1,24 @@
 import regional_mom6 as rmom6
 import regional_mom6.regridding as rgd
 import pytest
+import warnings
 import xarray as xr
 import numpy as np
 import pandas as pd
-from regional_mom6.regional_mom6 import segment
+from regional_mom6.boundary import Boundary
 import shutil
 from mom6_forge.grid import *
+from mom6_forge.topo import Topo
 
 
-# Not testing get_arakawa_c_points, coords, & create_regridder
+# Not testing get_arakawa_c_points, & create_regridder
 def test_smoke_untested_funcs(get_curvilinear_hgrid, generate_silly_vt_dataset):
     hgrid = get_curvilinear_hgrid
     ds = generate_silly_vt_dataset
     ds["lat"] = ds.silly_lat
     ds["lon"] = ds.silly_lat
     assert rgd.get_hgrid_arakawa_c_points(hgrid, "t")
-    assert rgd.coords(hgrid, "north", "segment_002")
+    assert Boundary.cardinal(hgrid, "north", "segment_002")
     assert rgd.create_regridder(ds, ds)
 
 
@@ -64,8 +66,8 @@ def test_add_secondary_dimension(get_curvilinear_hgrid, generate_silly_vt_datase
     hgrid = get_curvilinear_hgrid
 
     # N/S Boundary
-    coords = rgd.coords(hgrid, "north", "segment_002")
-    ds = rgd.add_secondary_dimension(ds, "temp", coords, "segment_002")
+    boundary = Boundary.cardinal(hgrid, "north", "segment_002")
+    ds = rgd.add_secondary_dimension(ds, "temp", boundary, "segment_002")
     assert ds.time.attrs == {"units": "days"}  # Assert that attributes are retained
     assert ds["temp"].dims == (
         "silly_lat",
@@ -76,9 +78,9 @@ def test_add_secondary_dimension(get_curvilinear_hgrid, generate_silly_vt_datase
     )
 
     # E/W Boundary
-    coords = rgd.coords(hgrid, "east", "segment_003")
+    boundary = Boundary.cardinal(hgrid, "east", "segment_003")
     ds = generate_silly_vt_dataset
-    ds = rgd.add_secondary_dimension(ds, "v", coords, "segment_003")
+    ds = rgd.add_secondary_dimension(ds, "v", boundary, "segment_003")
     assert ds["v"].dims == (
         "silly_lat",
         "silly_lon",
@@ -90,14 +92,14 @@ def test_add_secondary_dimension(get_curvilinear_hgrid, generate_silly_vt_datase
     # Beginning
     ds = generate_silly_vt_dataset
     ds = rgd.add_secondary_dimension(
-        ds, "temp", coords, "segment_003", to_beginning=True
+        ds, "temp", boundary, "segment_003", to_beginning=True
     )
     assert ds["temp"].dims[0] == "nx_segment_003"
 
     # NZ dim E/W Boundary
     ds = generate_silly_vt_dataset
     ds = ds.rename({"silly_depth": "nz"})
-    ds = rgd.add_secondary_dimension(ds, "u", coords, "segment_003")
+    ds = rgd.add_secondary_dimension(ds, "u", boundary, "segment_003")
     assert ds["u"].dims == (
         "silly_lat",
         "silly_lon",
@@ -146,132 +148,126 @@ def test_generate_encoding(generate_silly_vt_dataset):
     assert encoding_dict["temp_segment_003_nz_"]["dtype"] == "int32"
 
 
-def test_get_boundary_mask(get_curvilinear_hgrid):
-    hgrid = get_curvilinear_hgrid
-    t_points = rgd.get_hgrid_arakawa_c_points(hgrid, "t")
-    bathy = hgrid.isel(nyp=t_points.t_points_y, nxp=t_points.t_points_x)
-    bathy["depth"] = (("t_points_y", "t_points_x"), (np.full(bathy.x.shape, 0)))
-    north_mask = rgd.get_boundary_mask(
-        bathy,
-        "north",
-        y_dim_name="t_points_y",
-        x_dim_name="t_points_x",
+def _synthetic_grid_and_topo(land_ny_indices=()):
+    """A small rectilinear synthetic grid + matching Topo, all-ocean except for
+    the given t-point row indices (along ny), which are forced to land."""
+    grid = Grid(
+        resolution=2,
+        xstart=2,
+        lenx=10,
+        ystart=2,
+        leny=10,
+        name="masktest",
+        type="rectilinear_cartesian",
     )
-    south_mask = rgd.get_boundary_mask(
-        bathy,
-        "south",
-        y_dim_name="t_points_y",
-        x_dim_name="t_points_x",
+    topo = Topo(grid, min_depth=5.0, git=False)
+    topo.set_flat(100.0)
+    if land_ny_indices:
+        depth = topo.depth.values.copy()
+        for j in land_ny_indices:
+            depth[j, :] = 0.0
+        topo.depth = depth
+    return grid, topo
+
+
+def test_boundary_mask_matches_direct_supergridmask_slice():
+    """Boundary.from_hgrid's mask should be exactly topo.supergridmask sliced the
+    same way as lon/lat/angle -- no separate resolution-conversion step needed."""
+    grid, topo = _synthetic_grid_and_topo(land_ny_indices=[0])
+    hgrid = grid._supergrid.to_ds(name=grid.name, author="pytest")
+
+    boundary = Boundary.from_hgrid(
+        hgrid, axis="nyp", index=-1, segment_name="segment_001", topo=topo
     )
-    east_mask = rgd.get_boundary_mask(
-        bathy,
-        "east",
-        y_dim_name="t_points_y",
-        x_dim_name="t_points_x",
+    expected = topo.supergridmask.isel(nyp=-1)
+    assert (boundary.mask.values == expected.values).all()
+
+
+def test_mask_dataset_no_mask_fills_zero():
+    """With no mask (topo=None equivalent), mask_dataset just fills NaNs with 0."""
+    boundary = Boundary(
+        lon=xr.DataArray([1.0, 2.0, 3.0], dims=["nx_segment_099"]),
+        lat=xr.DataArray([1.0, 1.0, 1.0], dims=["nx_segment_099"]),
+        angle=xr.DataArray([0.0, 0.0, 0.0], dims=["nx_segment_099"]),
+        segment_name="segment_099",
+        parallel="nx",
+        perpendicular="ny",
+        axis_to_expand=2,
+        mask=None,
     )
-    west_mask = rgd.get_boundary_mask(
-        bathy,
-        "west",
-        y_dim_name="t_points_y",
-        x_dim_name="t_points_x",
+    ds = xr.Dataset(
+        {"temp": (("ny_segment_099", "nx_segment_099"), np.array([[1.0, np.nan, 3.0]]))}
     )
+    ds = rgd.mask_dataset(ds, boundary)
+    assert (ds["temp"].values == np.array([[1.0, 0.0, 3.0]])).all()
 
-    # Check corner property of mask, and ensure each direction is following what we expect
-    for mask in [north_mask, south_mask, east_mask, west_mask]:
-        assert (mask == 0).all()  # Ensure all other points are land
-    assert north_mask.shape == (hgrid.x[-1].shape)  # Ensure mask is the right shape
-    assert south_mask.shape == (hgrid.x[0].shape)  # Ensure mask is the right shape
-    assert east_mask.shape == (hgrid.x[:, -1].shape)  # Ensure mask is the right shape
-    assert west_mask.shape == (hgrid.x[:, 0].shape)  # Ensure mask is the right shape
 
-    ## Now we check if the coast masking is correct (remember we make 3 cells into the coast be ocean)
-    start_ind = 6
-    end_ind = 9
-    for i in range(start_ind, end_ind + 1):
-        bathy["depth"][-1][i] = 15
-    north_mask = rgd.get_boundary_mask(
-        bathy,
-        "north",
-        y_dim_name="t_points_y",
-        x_dim_name="t_points_x",
+def test_mask_dataset_no_dilation():
+    """Ocean/land transitions should NOT be dilated by one point -- unlike the old
+    get_boundary_mask, boundary.mask (from Topo.supergridmask) is treated as ground
+    truth with no post-processing."""
+    boundary = Boundary(
+        lon=xr.DataArray([1.0, 2.0, 3.0, 4.0, 5.0], dims=["nx_segment_099"]),
+        lat=xr.DataArray([1.0] * 5, dims=["nx_segment_099"]),
+        angle=xr.DataArray([0.0] * 5, dims=["nx_segment_099"]),
+        segment_name="segment_099",
+        parallel="nx",
+        perpendicular="ny",
+        axis_to_expand=2,
+        mask=xr.DataArray(
+            [0, 1, 1, 0, 1], dims=["nx_segment_099"]
+        ),  # land,ocean,ocean,land,ocean
     )
-
-    # Ensure coasts are ocean with a 1 cell buffer, for the 1-point (remember mask is on the hgrid boundary - so (6 *2 +2) - 1 -> (9 *2 +2) + 1)
-    assert (
-        north_mask[(((start_ind * 2) + 1) - 1) : (((end_ind * 2) + 1) + 1 + 1)] == 1
-    ).all()
-    assert (north_mask[0 : (((start_ind * 2) + 1) - 1)] == 0).all()  # Left Side
-    assert (north_mask[(((end_ind * 2) + 1) + 1 + 1) :] == 0).all()  # Right Side
-
-    # On E/W
-    start_ind = 6
-    end_ind = 9
-    for i in range(start_ind, end_ind + 1):
-        bathy["depth"][:, 0][i] = 15
-    west_mask = rgd.get_boundary_mask(
-        bathy,
-        "west",
-        y_dim_name="t_points_y",
-        x_dim_name="t_points_x",
+    ds = xr.Dataset(
+        {
+            "temp": (
+                ("ny_segment_099", "nx_segment_099"),
+                np.array([[10.0, 20.0, 30.0, 40.0, 50.0]]),
+            )
+        }
     )
-    # Ensure coasts are ocean with a 1 cell buffer, for the 1-point (remember mask is on the hgrid boundary - so (6 *2 +2) - 1 -> (9 *2 +2) + 1)
-    assert (
-        west_mask[(((start_ind * 2) + 1) - 1) : (((end_ind * 2) + 1) + 1 + 1)] == 1
-    ).all()
-    assert (west_mask[0 : (((start_ind * 2) + 1) - 1)] == 0).all()  # Left Side
-    assert (west_mask[(((end_ind * 2) + 1) + 1 + 1) :] == 0).all()  # Right Side
+    fill_value = -999.0
+    ds = rgd.mask_dataset(ds, boundary, fill_value=fill_value)
+    # Land points (index 0 and 3) are masked out; ocean points keep their values --
+    # in particular, index 2 (ocean, adjacent to land at index 3) is NOT dilated
+    # into being masked, and index 0/3 are NOT left unmasked just because a
+    # neighbor is ocean.
+    assert ds["temp"].values[0, 0] == fill_value
+    assert ds["temp"].values[0, 3] == fill_value
+    assert ds["temp"].values[0, 1] == 20.0
+    assert ds["temp"].values[0, 2] == 30.0
+    assert ds["temp"].values[0, 4] == 50.0
 
 
-def test_mask_dataset(get_curvilinear_hgrid):
-    hgrid = get_curvilinear_hgrid
-    t_points = rgd.get_hgrid_arakawa_c_points(hgrid, "t")
-    bathy = hgrid.isel(nyp=t_points.t_points_y, nxp=t_points.t_points_x)
-    bathy["depth"] = (("t_points_y", "t_points_x"), (np.full(bathy.x.shape, 0)))
-    ds = hgrid.copy(deep=True)
-    ds = ds.drop_vars(("tile", "area", "y", "x", "angle_dx", "dy", "dx"))
-    ds["temp"] = (("t_points_y", "t_points_x"), (np.full(hgrid.x.shape, 100)))
-    ds["temp"] = ds["temp"].isel(t_points_y=-1)
-    start_ind = 6
-    end_ind = 9
-    for i in range(start_ind, end_ind + 1):
-        bathy["depth"][-1][i] = 15
-
-    ds["temp"][start_ind * 2 + 2] = np.nan
-    ds["temp"] = ds["temp"].expand_dims("y", axis=0)
-    ds["temp"] = ds["temp"].expand_dims("nz_temp", axis=0)
-    ds["temp"] = ds["temp"].expand_dims("time", axis=0)
-    ds.temp.attrs = {"units": "C"}
-    fill_value = 36
-    ds = rgd.mask_dataset(
-        ds,
-        bathy,
-        "north",
-        y_dim_name="t_points_y",
-        x_dim_name="t_points_x",
-        fill_value=fill_value,
-    )
-    assert ds.temp.attrs == {"units": "C"}
-
-    assert (
-        np.isnan(ds["temp"][0, 0, 0][start_ind * 2 + 2]) == False
-    )  # Ensure missing value was filled
-    assert (
-        np.isnan(
-            ds["temp"][0, 0, 0][
-                (((start_ind * 2) + 1) - 1) : (((end_ind * 2) + 1) + 1 + 1)
-            ]
+def test_boundary_from_hgrid_missing_angle_dx_warns(get_rectilinear_hgrid):
+    hgrid = get_rectilinear_hgrid.drop_vars("angle_dx")
+    with pytest.warns(UserWarning, match="angle_dx"):
+        boundary = Boundary.from_hgrid(
+            hgrid, axis="nyp", index=-1, segment_name="segment_001"
         )
-    ).all() == False  # Ensure data is kept in ocean area
-    assert (
-        (ds["temp"][0, 0, 0][1 : (((start_ind * 2) + 1) - 1)] == fill_value)
-    ).all() == True and (
-        (ds["temp"][0, 0, 0][(((end_ind * 2) + 1) + 1 + 1) : -1] == fill_value)
-    ).all() == True  # Ensure data is not in land area
+    assert (boundary.angle.values == 0).all()
+
+
+def test_boundary_from_hgrid_arbitrary_axis_index_range(get_rectilinear_hgrid):
+    hgrid = get_rectilinear_hgrid
+    index_range = slice(2, 6)
+    boundary = Boundary.from_hgrid(
+        hgrid,
+        axis="nyp",
+        index=3,
+        segment_name="segment_001",
+        index_range=index_range,
+    )
+    expected_lon = hgrid["x"].isel(nyp=3).isel(nxp=index_range)
+    expected_lat = hgrid["y"].isel(nyp=3).isel(nxp=index_range)
+    assert np.allclose(boundary.lon.values, expected_lon.values)
+    assert np.allclose(boundary.lat.values, expected_lat.values)
+    assert boundary.lon.sizes["nx_segment_001"] == index_range.stop - index_range.start
 
 
 def test_regrid_velocity_tracers(toy_glorys_ds, tmp_path):
     """
-    Correctness test for segment.regrid_velocity_tracers.
+    Correctness test for Boundary.regrid_velocity_tracers.
 
     Checks:
     - Output OBC file is written
@@ -314,14 +310,10 @@ def test_regrid_velocity_tracers(toy_glorys_ds, tmp_path):
         "tracers": {"temp": "temp", "salt": "salt"},
     }
 
-    seg = segment(
-        hgrid=hgrid,
-        outfolder=outfolder,
-        segment_name=seg_name,
-        orientation="east",
-        startdate="2003-01-01 00:00:00",
+    boundary = Boundary.cardinal(hgrid, "east", seg_name)
+    segment_out, _ = boundary.regrid_velocity_tracers(
+        infile, varnames, outfolder, "2003-01-01 00:00:00", arakawa_grid="A"
     )
-    segment_out, _ = seg.regrid_velocity_tracers(infile, varnames, arakawa_grid="A")
 
     # Salt is spatially constant, so all ocean points must match exactly.
     salt_vals = segment_out[f"salt_{seg_name}"].values
@@ -332,15 +324,9 @@ def test_regrid_velocity_tracers(toy_glorys_ds, tmp_path):
     assert temp_vals[0, 0, 0, 0] == 22
     assert temp_vals[0, 0, 2, 0] == 26
 
-    seg_north = segment(
-        hgrid=hgrid,
-        outfolder=outfolder,
-        segment_name=seg_name,
-        orientation="north",
-        startdate="2003-01-01 00:00:00",
-    )
-    segment_out_north, _ = seg_north.regrid_velocity_tracers(
-        infile, varnames, arakawa_grid="A"
+    boundary_north = Boundary.cardinal(hgrid, "north", seg_name)
+    segment_out_north, _ = boundary_north.regrid_velocity_tracers(
+        infile, varnames, outfolder, "2003-01-01 00:00:00", arakawa_grid="A"
     )
     temp_vals = segment_out_north[f"temp_{seg_name}"].values
     assert temp_vals[0, 0, 0, 0] == 24
@@ -355,15 +341,14 @@ def test_regrid_velocity_tracers(toy_glorys_ds, tmp_path):
     folder.mkdir()  # recreate the empty folder
     hgrid["x"] = hgrid.x + 1
     hgrid["y"] = hgrid.y + 1
-    seg_regrid = segment(
-        hgrid=hgrid,
-        outfolder=outfolder,
-        segment_name=seg_name,
-        orientation="west",
-        startdate="2003-01-01 00:00:00",
-    )
-    seg_regridded, _ = seg_regrid.regrid_velocity_tracers(
-        infile, varnames, arakawa_grid="A", regridding_method="bilinear"
+    boundary_regrid = Boundary.cardinal(hgrid, "west", seg_name)
+    seg_regridded, _ = boundary_regrid.regrid_velocity_tracers(
+        infile,
+        varnames,
+        outfolder,
+        "2003-01-01 00:00:00",
+        arakawa_grid="A",
+        regridding_method="bilinear",
     )
     temp_vals = seg_regridded[f"temp_{seg_name}"].values
     assert (
@@ -372,3 +357,109 @@ def test_regrid_velocity_tracers(toy_glorys_ds, tmp_path):
     assert (
         temp_vals[0, 0, 2, 0] == 0
     )  # The bilinear regridding would be zero here because there isn't 4 points
+
+
+def test_boundary_standalone_no_hgrid(toy_glorys_ds, tmp_path):
+    """Prove regrid_velocity_tracers needs nothing beyond a hand-built Boundary --
+    no mom6_forge.Grid, no hgrid, no Experiment involved at all."""
+    outfolder = tmp_path / "inputdir"
+    outfolder.mkdir()
+
+    infile = tmp_path / "raw.nc"
+    ds = toy_glorys_ds
+    ds.to_netcdf(infile)
+    ds.close()
+
+    varnames = {
+        "xh": "lon",
+        "yh": "lat",
+        "time": "time",
+        "eta": "eta",
+        "zl": "depth",
+        "u": "u",
+        "v": "v",
+        "tracers": {"temp": "temp", "salt": "salt"},
+    }
+
+    seg_name = "segment_099"
+    # A straight boundary line of 2 points, fully described by literal numbers --
+    # lon fixed at 3.0 (inside toy_glorys_ds's [2, 4] lon range), lat spanning it.
+    boundary = Boundary(
+        lon=xr.DataArray([3.0, 3.0], dims=[f"ny_{seg_name}"]),
+        lat=xr.DataArray([2.5, 3.5], dims=[f"ny_{seg_name}"]),
+        angle=xr.DataArray([0.0, 0.0], dims=[f"ny_{seg_name}"]),
+        segment_name=seg_name,
+        parallel="ny",
+        perpendicular="nx",
+        axis_to_expand=3,
+        mask=None,
+    )
+
+    segment_out, _ = boundary.regrid_velocity_tracers(
+        infile, varnames, outfolder, "2003-01-01 00:00:00", arakawa_grid="A"
+    )
+
+    assert (outfolder / f"forcing_obc_{seg_name}.nc").exists()
+    assert np.isfinite(segment_out[f"temp_{seg_name}"].values).all()
+    np.testing.assert_allclose(segment_out[f"salt_{seg_name}"].values, 35.0, rtol=1e-4)
+
+
+def test_boundary_regridders_manual_reuse(toy_glorys_ds, tmp_path, monkeypatch):
+    """regrid_velocity_tracers should only rebuild regridders when regridders=None
+    -- passing back a previously-returned dict skips rebuilding, matching today's
+    documented manual-reuse pattern."""
+    grid = Grid(
+        resolution=2,
+        xstart=2,
+        lenx=2,
+        ystart=2,
+        leny=2,
+        name="test",
+        type="rectilinear_cartesian",
+    )
+    hgrid = grid._supergrid.to_ds(name=grid.name, author="pytest")
+    outfolder = tmp_path / "inputdir"
+    outfolder.mkdir()
+
+    infile = tmp_path / "east_raw.nc"
+    ds = toy_glorys_ds
+    ds.to_netcdf(infile)
+    ds.close()
+
+    varnames = {
+        "xh": "lon",
+        "yh": "lat",
+        "time": "time",
+        "eta": "eta",
+        "zl": "depth",
+        "u": "u",
+        "v": "v",
+        "tracers": {"temp": "temp", "salt": "salt"},
+    }
+
+    boundary = Boundary.cardinal(hgrid, "east", "segment_001")
+
+    call_count = {"n": 0}
+    real_create_vt_regridders = rgd.create_vt_regridders
+
+    def counting_create_vt_regridders(*args, **kwargs):
+        call_count["n"] += 1
+        return real_create_vt_regridders(*args, **kwargs)
+
+    monkeypatch.setattr(rgd, "create_vt_regridders", counting_create_vt_regridders)
+
+    _, _ = boundary.regrid_velocity_tracers(
+        infile, varnames, outfolder, "2003-01-01 00:00:00", arakawa_grid="A"
+    )
+    assert call_count["n"] == 1
+    cached_regridders = boundary._regridders
+
+    _, _ = boundary.regrid_velocity_tracers(
+        infile,
+        varnames,
+        outfolder,
+        "2003-01-01 00:00:00",
+        arakawa_grid="A",
+        regridders=cached_regridders,
+    )
+    assert call_count["n"] == 1  # not rebuilt
