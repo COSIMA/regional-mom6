@@ -22,6 +22,7 @@ from regional_mom6.config import Config
 from regional_mom6.grid import Grid
 from regional_mom6.vgrid import VGrid
 from regional_mom6.topo import Topo
+from regional_mom6.chl import interpolate_and_fill_seawifs
 from regional_mom6.utils import (
     ap2ep,
     ep2ap,
@@ -1617,6 +1618,33 @@ class experiment:
             self.mom_input_dir / "bathymetry.nc",
         )
         return self.m6f_bathymetry.gen_topo_ds()
+
+    def setup_chl(self, processed_seawifs_path, output_path=None):
+        """
+        Interpolate and fill the SeaWiFS chlorophyll climatology onto the experiment's grid.
+
+        Output is saved in the input directory of the experiment, unless a different
+        ``output_path`` is provided.
+
+        Arguments:
+            processed_seawifs_path (str): Path to the preprocessed SeaWiFS chlorophyll dataset.
+            output_path (Optional[str]): Path to save the output NetCDF file. Defaults to
+                ``mom_input_dir / f"seawifs-clim-1997-2010-{expt_name}.nc"``.
+        """
+        self.hgrid  # ensures `m6f_hgrid` is populated (from disk if needed)
+        self.bathymetry  # ensures `m6f_bathymetry` is populated (from disk if needed)
+
+        if output_path is None:
+            output_path = (
+                self.mom_input_dir / f"seawifs-clim-1997-2010-{self.expt_name}.nc"
+            )
+
+        return interpolate_and_fill_seawifs(
+            self.m6f_hgrid,
+            self.m6f_bathymetry,
+            processed_seawifs_path,
+            output_path=output_path,
+        )
 
     def run_FRE_tools(self):
         """
