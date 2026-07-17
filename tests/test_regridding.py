@@ -248,6 +248,18 @@ def test_boundary_from_hgrid_missing_angle_dx_warns(get_rectilinear_hgrid):
     assert (boundary.angle.values == 0).all()
 
 
+def test_boundary_cardinal_invalid_orientation_raises(get_rectilinear_hgrid):
+    with pytest.raises(ValueError, match="orientation must be one of"):
+        Boundary.cardinal(get_rectilinear_hgrid, "northeast", "segment_001")
+
+
+def test_boundary_from_hgrid_invalid_axis_raises(get_rectilinear_hgrid):
+    with pytest.raises(ValueError, match="axis must be one of"):
+        Boundary.from_hgrid(
+            get_rectilinear_hgrid, axis="nx", index=0, segment_name="segment_001"
+        )
+
+
 def test_boundary_from_hgrid_arbitrary_axis_index_range(get_rectilinear_hgrid):
     hgrid = get_rectilinear_hgrid
     index_range = slice(2, 6)
@@ -463,3 +475,97 @@ def test_boundary_regridders_manual_reuse(toy_glorys_ds, tmp_path, monkeypatch):
         regridders=cached_regridders,
     )
     assert call_count["n"] == 1  # not rebuilt
+
+
+def _synthetic_tidal_datasets(nc=2):
+    """Minimal synthetic TPXO-like elevation/velocity datasets, already in the
+    lon/lat/*Re/*Im form Boundary.regrid_tides expects -- skips the raw
+    h_*/u_*-file parsing that experiment.setup_boundary_tides normally does
+    (that parsing is covered separately by test_tides.py)."""
+    nx, ny = 6, 6
+    lon2d, lat2d = np.meshgrid(
+        np.linspace(277, 283, nx), np.linspace(6, 11, ny), indexing="ij"
+    )
+    rng = np.random.default_rng(0)
+
+    def _mk(*var_names):
+        data = {
+            "lon": (["nx", "ny"], lon2d),
+            "lat": (["nx", "ny"], lat2d),
+        }
+        for name in var_names:
+            data[name] = (["constituent", "nx", "ny"], rng.random((nc, nx, ny)))
+        return xr.Dataset(data, coords={"constituent": np.arange(nc)})
+
+    tpxo_h = _mk("hRe", "hIm")
+    tpxo_u = _mk("uRe", "uIm")
+    tpxo_v = _mk("vRe", "vIm")
+    return tpxo_v, tpxo_u, tpxo_h
+
+
+def test_regrid_tides_standalone(get_rectilinear_hgrid, tmp_path):
+    """Boundary.regrid_tides should run against a plain Boundary (no Experiment
+    involved) and write tz_*/tu_* files, mirroring the existing standalone
+    coverage of regrid_velocity_tracers."""
+    hgrid = get_rectilinear_hgrid
+    seg_name = "segment_001"
+    boundary = Boundary.cardinal(hgrid, "east", seg_name)
+
+    tpxo_v, tpxo_u, tpxo_h = _synthetic_tidal_datasets()
+    times = xr.DataArray(pd.date_range("2000-01-01", periods=1), dims=["time"])
+
+    outfolder = tmp_path / "inputdir"
+    outfolder.mkdir()
+
+    boundary.regrid_tides(
+        tpxo_v, tpxo_u, tpxo_h, times, outfolder, "2000-01-01 00:00:00"
+    )
+
+    assert (outfolder / f"tz_{seg_name}.nc").exists()
+    assert (outfolder / f"tu_{seg_name}.nc").exists()
+
+    tz = xr.open_dataset(outfolder / f"tz_{seg_name}.nc")
+    assert np.isfinite(tz[f"zamp_{seg_name}"].values).all()
+
+
+def test_regrid_tides_regridders_manual_reuse(
+    get_rectilinear_hgrid, tmp_path, monkeypatch
+):
+    """regrid_tides should only rebuild its 3 regridders (elev/u/v) when
+    regridders=None -- passing back boundary._tidal_regridders from a prior
+    call skips rebuilding, matching the documented manual-reuse pattern for
+    regrid_velocity_tracers."""
+    hgrid = get_rectilinear_hgrid
+    boundary = Boundary.cardinal(hgrid, "east", "segment_001")
+
+    tpxo_v, tpxo_u, tpxo_h = _synthetic_tidal_datasets()
+    times = xr.DataArray(pd.date_range("2000-01-01", periods=1), dims=["time"])
+
+    outfolder = tmp_path / "inputdir"
+    outfolder.mkdir()
+
+    call_count = {"n": 0}
+    real_create_regridder = rgd.create_regridder
+
+    def counting_create_regridder(*args, **kwargs):
+        call_count["n"] += 1
+        return real_create_regridder(*args, **kwargs)
+
+    monkeypatch.setattr(rgd, "create_regridder", counting_create_regridder)
+
+    boundary.regrid_tides(
+        tpxo_v, tpxo_u, tpxo_h, times, outfolder, "2000-01-01 00:00:00"
+    )
+    assert call_count["n"] == 3  # elev, u, v
+    cached_regridders = boundary._tidal_regridders
+
+    boundary.regrid_tides(
+        tpxo_v,
+        tpxo_u,
+        tpxo_h,
+        times,
+        outfolder,
+        "2000-01-01 00:00:00",
+        regridders=cached_regridders,
+    )
+    assert call_count["n"] == 3  # not rebuilt

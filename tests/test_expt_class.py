@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from regional_mom6 import experiment
+from regional_mom6.boundary import Boundary
 import xarray as xr
 import xesmf as xe
 import dask
@@ -492,3 +493,41 @@ def test_reformat_bgc_tracers_into_files(tmp_path):
         assert (
             f"temp_segment_{seg}" not in result
         ), "physical tracer should not be in BGC file"
+
+
+def test_get_boundary_reuses_cached_boundary(tmp_path, monkeypatch):
+    """_get_boundary should build a Boundary once per orientation and reuse the
+    same object on subsequent calls -- this is what lets setup_ocean_state_boundaries
+    and setup_boundary_tides share one Boundary per orientation instead of each
+    re-deriving it from the grid."""
+    expt = experiment.create_empty(
+        expt_name="cache_test",
+        mom_input_dir=tmp_path,
+        mom_run_dir=tmp_path,
+    )
+    expt.longitude_extent = (-5, 5)
+    expt.latitude_extent = (0, 10)
+    expt.hgrid_type = "even_spacing"
+    expt.resolution = 0.1
+    expt._make_hgrid()
+
+    call_count = {"n": 0}
+    real_cardinal = Boundary.cardinal.__func__
+
+    def counting_cardinal(cls, *args, **kwargs):
+        call_count["n"] += 1
+        return real_cardinal(cls, *args, **kwargs)
+
+    monkeypatch.setattr(Boundary, "cardinal", classmethod(counting_cardinal))
+
+    boundary_first = expt._get_boundary("east")
+    boundary_second = expt._get_boundary("east")
+
+    assert call_count["n"] == 1, "Boundary.cardinal should only be called once"
+    assert boundary_first is boundary_second
+    assert expt.segments["east"] is boundary_first
+
+    # A different orientation still builds its own Boundary
+    boundary_north = expt._get_boundary("north")
+    assert call_count["n"] == 2
+    assert boundary_north is not boundary_first
