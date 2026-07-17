@@ -223,27 +223,36 @@ class experiment:
     Arguments:
         date_range (Tuple[str]): Start and end dates of the boundary forcing window. For
             example: ``("2003-01-01", "2003-01-31")``.
-        resolution (float): Lateral resolution of the domain (in degrees).
-        number_vertical_layers (int): Number of vertical layers.
-        layer_thickness_ratio (float): Ratio of largest to smallest layer thickness;
-            used as input in :func:`~hyperbolictan_thickness_profile`.
-        depth (float): Depth of the domain.
         mom_run_dir (str): Path of the MOM6 control directory.
         mom_input_dir (str): Path of the MOM6 input directory, to receive the forcing files.
+        resolution (float, optional): Lateral resolution of the domain (in degrees). Required
+            only when ``hgrid_type`` doesn't already provide a ``Grid`` object (i.e., you need
+            one to be generated from ``longitude_extent``/``latitude_extent``).
+        number_vertical_layers (int, optional): Number of vertical layers. Required only when
+            ``vgrid_type`` doesn't already provide a ``VGrid`` object.
+        layer_thickness_ratio (float, optional): Ratio of largest to smallest layer thickness;
+            used as input in :func:`~hyperbolictan_thickness_profile`. Required only when
+            ``vgrid_type`` doesn't already provide a ``VGrid`` object.
+        depth (float, optional): Depth of the domain. Required only when ``vgrid_type`` doesn't
+            already provide a ``VGrid`` object.
         fre_tools_dir (str): Path of GFDL's FRE tools (https://github.com/NOAA-GFDL/FRE-NCtools)
             binaries.
-        longitude_extent (Tuple[float]): Extent of the region in longitude (in degrees). For
-            example: ``(40.5, 50.0)``.
-        latitude_extent (Tuple[float]): Extent of the region in latitude (in degrees). For
-            example: ``(-20.0, 30.0)``.
+        longitude_extent (Tuple[float], optional): Extent of the region in longitude (in degrees). For
+            example: ``(40.5, 50.0)``. Required only when ``hgrid_type`` doesn't already provide a
+            ``Grid`` object.
+        latitude_extent (Tuple[float], optional): Extent of the region in latitude (in degrees). For
+            example: ``(-20.0, 30.0)``. Required only when ``hgrid_type`` doesn't already provide a
+            ``Grid`` object.
         hgrid_type (str or Grid): Type of horizontal grid to generate. Currently, only ``'even_spacing'`` is supported.
             Setting this argument to ``'from_file'`` lazily reads ``hgrid.nc`` from ``mom_input_dir`` the first time
             the ``hgrid`` property is accessed. You can also pass a mom6_forge ``Grid`` object directly, in which case
-            ``hgrid`` is derived from it instead of touching disk.
+            ``hgrid`` is derived from it instead of touching disk, and ``resolution``/``longitude_extent``/
+            ``latitude_extent`` are not required.
         vgrid_type (str or VGrid): Type of vertical grid to generate. Currently, only ``'hyperbolic_tangent'`` is
             supported. Setting this argument to ``'from_file'`` lazily reads ``vgrid.nc`` from ``mom_input_dir`` the
             first time the ``vgrid`` property is accessed. You can also pass a mom6_forge ``VGrid`` object directly, in
-            which case ``vgrid`` is derived from it instead of touching disk.
+            which case ``vgrid`` is derived from it instead of touching disk, and ``number_vertical_layers``/
+            ``layer_thickness_ratio``/``depth`` are not required.
         repeat_year_forcing (bool): When ``True`` the experiment runs with
             repeat-year forcing. When ``False`` (default) then inter-annual forcing is used.
         minimum_depth (int): The minimum depth in meters of a grid cell allowed before it is masked out and treated as land.
@@ -341,12 +350,12 @@ class experiment:
         self,
         *,
         date_range,
-        resolution,
-        number_vertical_layers,
-        layer_thickness_ratio,
-        depth,
         mom_run_dir,
         mom_input_dir,
+        resolution=None,
+        number_vertical_layers=None,
+        layer_thickness_ratio=None,
+        depth=None,
         fre_tools_dir=None,
         longitude_extent=None,
         latitude_extent=None,
@@ -427,6 +436,15 @@ class experiment:
                 float(self.hgrid.y.max()),
             )
         else:
+            assert (
+                resolution is not None
+                and longitude_extent is not None
+                and latitude_extent is not None
+            ), (
+                "`resolution`, `longitude_extent`, and `latitude_extent` are required "
+                "to generate an hgrid; pass a mom6_forge `Grid` object via `hgrid_type` "
+                "instead if you don't want to specify them."
+            )
             self.longitude_extent = tuple(longitude_extent)
             self.latitude_extent = tuple(latitude_extent)
             self._make_hgrid()  # sets `self.m6f_hgrid`; `self.hgrid` derives from it
@@ -438,6 +456,15 @@ class experiment:
             # it's accessed.
             pass
         else:
+            assert (
+                number_vertical_layers is not None
+                and layer_thickness_ratio is not None
+                and depth is not None
+            ), (
+                "`number_vertical_layers`, `layer_thickness_ratio`, and `depth` are "
+                "required to generate a vgrid; pass a mom6_forge `VGrid` object via "
+                "`vgrid_type` instead if you don't want to specify them."
+            )
             self._make_vgrid()  # sets `self.m6f_vgrid`; `self.vgrid` derives from it
 
         self.segments = {}
