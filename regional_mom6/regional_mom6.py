@@ -1872,6 +1872,14 @@ class experiment:
                 0
             ].strftime("%Y, %m, %d")
 
+        # Chlorophyll shortwave penetration, if setup_chl has been run
+        chl_files = list(Path(self.mom_input_dir).glob("seawifs-clim-*.nc"))
+        if chl_files:
+            MOM_override_dict["CHL_FILE"]["value"] = f'"{chl_files[0].name}"'
+            MOM_override_dict["CHL_FROM_FILE"]["value"] = "True"
+            MOM_override_dict["VAR_PEN_SW"]["value"] = "True"
+            MOM_override_dict["PEN_SW_NBANDS"]["value"] = 3
+
         for key, val in MOM_override_dict.items():
             if isinstance(val, dict) and key != "original":
                 MOM_override_dict[key]["override"] = True
