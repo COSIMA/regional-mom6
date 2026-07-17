@@ -1,6 +1,8 @@
 import numpy as np
 import pytest
 from regional_mom6 import experiment
+from mom6_forge.grid import Grid
+from mom6_forge.vgrid import VGrid
 import xarray as xr
 import xesmf as xe
 import dask
@@ -492,3 +494,52 @@ def test_reformat_bgc_tracers_into_files(tmp_path):
         assert (
             f"temp_segment_{seg}" not in result
         ), "physical tracer should not be in BGC file"
+
+
+def test_experiment_from_grid_and_vgrid_objects_without_scalar_args(tmp_path):
+    """Passing Grid/VGrid objects directly via hgrid_type/vgrid_type should not require
+    resolution, longitude_extent, latitude_extent, number_vertical_layers,
+    layer_thickness_ratio, or depth."""
+    grid = Grid(resolution=0.1, xstart=-5, lenx=10, ystart=0, leny=10, name="test_grid")
+    vgrid = VGrid.hyperbolic(5, 1000, 1)
+
+    expt = experiment(
+        date_range=["2003-01-01 00:00:00", "2003-01-01 00:00:00"],
+        mom_run_dir=tmp_path / "rundir",
+        mom_input_dir=tmp_path / "inputdir",
+        hgrid_type=grid,
+        vgrid_type=vgrid,
+    )
+
+    assert expt.longitude_extent == (-5.0, 5.0)
+    assert expt.latitude_extent == (0.0, 10.0)
+    assert expt.m6f_hgrid is grid
+    assert expt.m6f_vgrid is vgrid
+
+
+def test_experiment_requires_hgrid_scalars_when_no_grid_object(tmp_path):
+    """Without a Grid object, resolution/longitude_extent/latitude_extent are required
+    to generate an hgrid."""
+    with pytest.raises(AssertionError, match="resolution"):
+        experiment(
+            date_range=["2003-01-01 00:00:00", "2003-01-01 00:00:00"],
+            mom_run_dir=tmp_path / "rundir",
+            mom_input_dir=tmp_path / "inputdir",
+            number_vertical_layers=5,
+            layer_thickness_ratio=1,
+            depth=1000,
+        )
+
+
+def test_experiment_requires_vgrid_scalars_when_no_vgrid_object(tmp_path):
+    """Without a VGrid object, number_vertical_layers/layer_thickness_ratio/depth are
+    required to generate a vgrid."""
+    with pytest.raises(AssertionError, match="number_vertical_layers"):
+        experiment(
+            longitude_extent=[-5, 5],
+            latitude_extent=[0, 10],
+            date_range=["2003-01-01 00:00:00", "2003-01-01 00:00:00"],
+            resolution=0.1,
+            mom_run_dir=tmp_path / "rundir",
+            mom_input_dir=tmp_path / "inputdir",
+        )
