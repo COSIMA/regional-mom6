@@ -22,7 +22,7 @@ from regional_mom6.config import Config
 from regional_mom6.grid import Grid
 from regional_mom6.vgrid import VGrid
 from regional_mom6.topo import Topo
-from regional_mom6.boundary import Boundary
+from regional_mom6.segment import Segment
 from regional_mom6.utils import (
     ap2ep,
     ep2ap,
@@ -42,7 +42,7 @@ warnings.filterwarnings("ignore")
 
 __all__ = [
     "experiment",
-    "Boundary",
+    "Segment",
     "get_glorys_data",
     "RotationMethod",
     "get_rotation_angle",
@@ -71,7 +71,7 @@ def get_rotation_angle(
 ) -> xr.DataArray:
     """Return the rotation angle (degrees) for the whole hgrid.
 
-    Note: boundary segments no longer use this function -- ``Boundary`` reads
+    Note: OBC segments no longer use this function -- ``Segment`` reads
     ``hgrid["angle_dx"]`` directly. This remains for whole-grid uses, e.g.
     :func:`~experiment.setup_initial_condition`.
 
@@ -658,17 +658,17 @@ class experiment:
             )
         return val
 
-    def _get_boundary(self, orientation, bathymetry_path=None):
+    def _get_segment(self, orientation, bathymetry_path=None):
         """
-        Build (or reuse a cached) :class:`~regional_mom6.boundary.Boundary` for the
+        Build (or reuse a cached) :class:`~regional_mom6.segment.Segment` for the
         given cardinal ``orientation``.
 
-        The first call for a given ``orientation`` builds the ``Boundary`` (masking
+        The first call for a given ``orientation`` builds the ``Segment`` (masking
         with the bathymetry at ``bathymetry_path`` if given) and caches it in
         ``self.segments``; subsequent calls for the same ``orientation`` reuse the
-        cached ``Boundary`` regardless of ``bathymetry_path`` -- this lets
+        cached ``Segment`` regardless of ``bathymetry_path`` -- this lets
         :func:`~setup_ocean_state_boundaries` and :func:`~setup_boundary_tides` share
-        one ``Boundary`` per orientation instead of each re-deriving it from the grid.
+        one ``Segment`` per orientation instead of each re-deriving it from the grid.
         """
         if orientation in self.segments:
             return self.segments[orientation]
@@ -689,9 +689,9 @@ class experiment:
         segment_name = "segment_{:03d}".format(
             self.find_MOM6_rectangular_orientation(orientation)
         )
-        boundary = Boundary.cardinal(self.hgrid, orientation, segment_name, topo=topo)
-        self.segments[orientation] = boundary
-        return boundary
+        segment = Segment.cardinal(self.hgrid, orientation, segment_name, topo=topo)
+        self.segments[orientation] = segment
+        return segment
 
     def _make_hgrid(self):
         """
@@ -1288,7 +1288,7 @@ class experiment:
         if len(self.boundaries) > 4:
             raise ValueError(
                 "This method only supports up to four boundaries. To set up more complex boundary shapes, construct a "
-                "regional_mom6.boundary.Boundary directly (e.g. via Boundary.from_hgrid) and call its "
+                "regional_mom6.segment.Segment directly (e.g. via Segment.from_hgrid) and call its "
                 "regrid_velocity_tracers method for each boundary."
             )
 
@@ -1401,9 +1401,9 @@ class experiment:
             raise FileNotFoundError(
                 f"Boundary file not found at {path_to_bc}. Please ensure that the files are named in the format `east_unprocessed.nc`."
             )
-        boundary = self._get_boundary(orientation, bathymetry_path=bathymetry_path)
+        segment = self._get_segment(orientation, bathymetry_path=bathymetry_path)
 
-        boundary.regrid_velocity_tracers(
+        segment.regrid_velocity_tracers(
             infile=path_to_bc,  # location of raw boundary
             varnames=varnames,
             outfolder=self.mom_input_dir,
@@ -1443,11 +1443,11 @@ class experiment:
 
         The tidal data functions are sourced from the GFDL NWA25 and modified so that:
 
-        - Converted code for regional-mom6 :class:`~regional_mom6.boundary.Boundary` class
+        - Converted code for regional-mom6 :class:`~regional_mom6.segment.Segment` class
         - Implemented horizontal subsetting.
         - Combined all functions of NWA25 into a four function process (in the style of regional-mom6), i.e.,
-          :func:`~experiment.setup_boundary_tides`, :meth:`Boundary.from_hgrid`, :meth:`Boundary.regrid_tides`, and
-          :meth:`Boundary.encode_tidal_files_and_output`.
+          :func:`~experiment.setup_boundary_tides`, :meth:`Segment.from_hgrid`, :meth:`Segment.regrid_tides`, and
+          :meth:`Segment.encode_tidal_files_and_output`.
 
         Code credit:
 
@@ -1510,12 +1510,12 @@ class experiment:
         for b in self.boundaries:
             print("Processing {} boundary...".format(b), end="")
 
-            # If ocean-state setup already built this boundary, reuse it instead of
+            # If ocean-state setup already built this segment, reuse it instead of
             # re-deriving it from the grid again.
-            boundary = self._get_boundary(b, bathymetry_path=bathymetry_path)
+            segment = self._get_segment(b, bathymetry_path=bathymetry_path)
 
             # Output and regrid tides
-            boundary.regrid_tides(
+            segment.regrid_tides(
                 tpxo_v,
                 tpxo_u,
                 tpxo_h,
@@ -1758,13 +1758,7 @@ class experiment:
             ## Position and Config
             key_POSITION = key_start
 
-            rect_MOM6_index_dir = {
-                "south": '"J=0,I=0:N',
-                "north": '"J=N,I=N:0',
-                "east": '"I=N,J=0:N',
-                "west": '"I=0,J=N:0',
-            }
-            index_str = rect_MOM6_index_dir[seg]
+            index_str = '"' + self._get_segment(seg).mom6_obc_position_string()
 
             MOM_override_dict[key_POSITION]["value"] = (
                 index_str + ',FLATHER,ORLANSKI,NUDGED,ORLANSKI_TAN,NUDGED_TAN"'

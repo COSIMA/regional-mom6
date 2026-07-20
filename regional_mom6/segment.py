@@ -1,9 +1,10 @@
 """
-Boundary: a self-contained description of a single straight, index-aligned
-MOM6 open boundary condition (OBC) line, plus the regridding/rotation/masking/
-writing logic needed to turn raw forcing data into MOM6 OBC segment files.
+Segment: a self-contained description of a single straight, index-aligned
+MOM6 open boundary condition (OBC) segment, plus the regridding/rotation/
+masking/writing logic needed to turn raw forcing data into MOM6 OBC segment
+files.
 
-A ``Boundary`` only ever needs a small slice of a horizontal grid (and,
+A ``Segment`` only ever needs a small slice of a horizontal grid (and,
 optionally, a matching ``mom6_forge.Topo`` for masking) -- it never needs the
 whole ``experiment``/rest of the domain, so it can be built and exercised on
 its own, independent of ``experiment``.
@@ -28,23 +29,31 @@ _CARDINAL_AXES = {
     "east": ("nxp", -1),
 }
 
+# Whether the parallel (along-segment) MOM6 index counts up or down for each
+# legacy full-edge case, matching MOM6's requirement that the domain interior
+# stay on the same side all the way around the perimeter: walking south (I
+# ascending) -> east (J ascending) -> north (I descending) -> west (J
+# descending) traces the perimeter counterclockwise, keeping the interior on
+# the left throughout.
+_CARDINAL_REVERSE = {"south": False, "east": False, "north": True, "west": True}
 
-class Boundary:
+
+class Segment:
     """
-    The geometry of a single straight boundary line, plus the ability to
+    The geometry of a single straight MOM6 OBC segment, plus the ability to
     regrid raw forcing data onto it and write MOM6-ready segment files.
 
     Fields (set once at construction, never mutated):
-        lon (xarray.DataArray): 1-D longitude along the boundary.
-        lat (xarray.DataArray): 1-D latitude along the boundary, same dims as ``lon``.
+        lon (xarray.DataArray): 1-D longitude along the segment.
+        lat (xarray.DataArray): 1-D latitude along the segment, same dims as ``lon``.
         angle (xarray.DataArray): Rotation angle (degrees) at each point along the
-            boundary, same dims as ``lon``.
+            segment, same dims as ``lon``.
         segment_name (str): Name of the segment, e.g., ``'segment_001'``.
-        parallel (str): ``"nx"`` or ``"ny"`` -- the along-boundary logical dim prefix.
-        perpendicular (str): ``"ny"`` or ``"nx"`` -- the across-boundary logical dim prefix.
+        parallel (str): ``"nx"`` or ``"ny"`` -- the along-segment logical dim prefix.
+        perpendicular (str): ``"ny"`` or ``"nx"`` -- the across-segment logical dim prefix.
         axis_to_expand (int): Which axis the "main" coordinate corresponds to when
             re-adding the perpendicular axis during regridding.
-        mask (Optional[xarray.DataArray]): 1-D ocean(1)/land(0) mask along the boundary,
+        mask (Optional[xarray.DataArray]): 1-D ocean(1)/land(0) mask along the segment,
             same dims as ``lon``. ``None`` means no masking is applied.
     """
 
@@ -59,6 +68,7 @@ class Boundary:
         perpendicular,
         axis_to_expand,
         mask=None,
+        grid_index=None,
     ):
         self.lon = lon
         self.lat = lat
@@ -68,6 +78,7 @@ class Boundary:
         self.perpendicular = perpendicular
         self.axis_to_expand = axis_to_expand
         self.mask = mask
+        self._grid_index = grid_index
         self._regridders = None
         self._tidal_regridders = None
 
@@ -81,25 +92,34 @@ class Boundary:
         segment_name: str,
         index_range=None,
         topo=None,
-    ) -> "Boundary":
+        mom6_index_reverse: bool = False,
+    ) -> "Segment":
         """
-        Slice a straight boundary line out of ``hgrid``.
+        Slice a straight segment out of ``hgrid``.
 
         Arguments:
             hgrid (xarray.Dataset): The horizontal supergrid dataset.
-            axis (str): Which supergrid axis is held fixed -- ``"nyp"`` for a boundary
+            axis (str): Which supergrid axis is held fixed -- ``"nyp"`` for a segment
                 that runs east-west (varies in x), ``"nxp"`` for one that runs
                 north-south (varies in y).
             index (int): The fixed index along ``axis``. ``0`` or ``-1`` gives a full
                 outer edge (the legacy north/south/east/west cases); any other value
                 gives an interior/arbitrary line.
             segment_name (str): Name of the segment, e.g., ``'segment_001'``.
-            index_range (slice, optional): Restrict the boundary to part of the line
+            index_range (slice, optional): Restrict the segment to part of the line
                 along the other (parallel) axis instead of its full length.
                 Default ``None`` (whole line).
             topo (mom6_forge.topo.Topo, optional): A ``Topo`` instance for the same
                 grid. If given, its ``supergridmask`` is sliced the same way to build
-                the boundary's ocean/land mask. Default ``None`` (no masking).
+                the segment's ocean/land mask. Default ``None`` (no masking).
+            mom6_index_reverse (bool): Default direction used by
+                :meth:`mom6_obc_position_string` for this segment's along-segment
+                (parallel) MOM6 index -- ``False`` counts up, ``True`` counts down.
+                MOM6 requires the domain interior to stay on the same side all the
+                way around a segment, which for a line that isn't a full outer edge
+                depends on which side of the line is ocean -- something only the
+                caller knows. Default ``False`` (count up); pass ``True`` if that's
+                wrong for your segment, or override per call.
         """
         if axis not in ("nyp", "nxp"):
             raise ValueError("axis must be one of: 'nyp', 'nxp'")
@@ -111,13 +131,17 @@ class Boundary:
         else:
             warnings.warn(
                 "hgrid has no 'angle_dx' variable -- assuming zero rotation for this "
-                "boundary. If your grid is rotated, compute angle_dx yourself (e.g. "
+                "segment. If your grid is rotated, compute angle_dx yourself (e.g. "
                 "via mom6_forge's grid generation) before calling from_hgrid."
             )
             angle = xr.zeros_like(lon)
         mask = topo.supergridmask.isel({axis: index}) if topo is not None else None
 
         parallel_axis = "nxp" if axis == "nyp" else "nyp"
+        grid_index = cls._compute_grid_index(
+            hgrid, axis, index, parallel_axis, index_range, mom6_index_reverse
+        )
+
         if index_range is not None:
             lon = lon.isel({parallel_axis: index_range})
             lat = lat.isel({parallel_axis: index_range})
@@ -144,7 +168,92 @@ class Boundary:
             perpendicular=perpendicular,
             axis_to_expand=axis_to_expand,
             mask=mask,
+            grid_index=grid_index,
         )
+
+    @staticmethod
+    def _compute_grid_index(hgrid, axis, index, parallel_axis, index_range, reverse):
+        """Bookkeeping for :meth:`mom6_obc_position_string`: convert a supergrid
+        axis/index/index_range into MOM6's own (half-resolution) model-grid I/J
+        numbering, resolved once at construction time."""
+        nyp_size = hgrid.sizes["nyp"]
+        nxp_size = hgrid.sizes["nxp"]
+        NJ = (nyp_size - 1) // 2
+        NI = (nxp_size - 1) // 2
+
+        fixed_size = nyp_size if axis == "nyp" else nxp_size
+        resolved_index = index if index >= 0 else fixed_size + index
+        fixed_value = resolved_index // 2
+
+        if axis == "nyp":
+            fixed_letter, fixed_max = "J", NJ
+            parallel_letter, parallel_size = "I", NI
+        else:
+            fixed_letter, fixed_max = "I", NI
+            parallel_letter, parallel_size = "J", NJ
+
+        parallel_full_size = nxp_size if parallel_axis == "nxp" else nyp_size
+        if index_range is None:
+            p_start_super, p_stop_super = 0, parallel_full_size
+        else:
+            p_start_super = index_range.start if index_range.start is not None else 0
+            p_stop_super = (
+                index_range.stop if index_range.stop is not None else parallel_full_size
+            )
+
+        return {
+            "fixed_letter": fixed_letter,
+            "fixed_value": fixed_value,
+            "fixed_max": fixed_max,
+            "parallel_letter": parallel_letter,
+            "parallel_start": p_start_super // 2,
+            "parallel_stop": (p_stop_super - 1) // 2,
+            "parallel_size": parallel_size,
+            "reverse": reverse,
+        }
+
+    def mom6_obc_position_string(self, reverse: bool = None) -> str:
+        """
+        This segment's MOM6 ``OBC_SEGMENT_00N`` grid-index position string, e.g.
+        ``"J=45,I=5:15"``, or ``"J=0,I=0:N"`` for a full south edge (``"N"`` is
+        MOM6's own last-index sentinel, resolved by MOM6 at runtime).
+
+        MOM6 numbers I/J on its own (half-resolution) model grid, not the
+        supergrid this ``Segment`` was built from -- this converts automatically.
+
+        Arguments:
+            reverse (bool, optional): Direction of the along-segment (parallel)
+                index -- ``False`` counts up, ``True`` counts down. Default
+                ``None`` uses the segment's own default (set automatically by
+                :meth:`cardinal`; ``False`` for a segment built directly via
+                :meth:`from_hgrid` unless ``mom6_index_reverse`` was passed there).
+                MOM6 requires the domain interior to stay on the same side all the
+                way around a segment; get this wrong and the segment runs backwards.
+        """
+        if self._grid_index is None:
+            raise ValueError(
+                "mom6_obc_position_string() needs grid-index bookkeeping that's only "
+                "recorded by Segment.from_hgrid/Segment.cardinal -- this Segment "
+                "was constructed directly and has no underlying grid to derive it from."
+            )
+        info = self._grid_index
+        if reverse is None:
+            reverse = info["reverse"]
+
+        def fmt(value, vmax):
+            return "N" if value == vmax else str(value)
+
+        fixed_str = (
+            f"{info['fixed_letter']}={fmt(info['fixed_value'], info['fixed_max'])}"
+        )
+        start, stop = info["parallel_start"], info["parallel_stop"]
+        if reverse:
+            start, stop = stop, start
+        parallel_str = (
+            f"{info['parallel_letter']}={fmt(start, info['parallel_size'])}:"
+            f"{fmt(stop, info['parallel_size'])}"
+        )
+        return f"{fixed_str},{parallel_str}"
 
     @classmethod
     def cardinal(
@@ -154,7 +263,7 @@ class Boundary:
         segment_name: str,
         index_range=None,
         topo=None,
-    ) -> "Boundary":
+    ) -> "Segment":
         """
         Convenience wrapper for the 4 legacy full-edge cases.
 
@@ -163,7 +272,7 @@ class Boundary:
             orientation (str): One of ``'north'``, ``'south'``, ``'east'``, ``'west'``
                 (case-insensitive).
             segment_name (str): Name of the segment, e.g., ``'segment_001'``.
-            index_range (slice, optional): Restrict the boundary to part of the edge.
+            index_range (slice, optional): Restrict the segment to part of the edge.
                 Default ``None`` (the whole edge).
             topo (mom6_forge.topo.Topo, optional): See :meth:`from_hgrid`.
         """
@@ -171,7 +280,7 @@ class Boundary:
         if orientation not in _CARDINAL_AXES:
             raise ValueError(
                 "orientation must be one of: 'north', 'south', 'east', or 'west'. "
-                "For a boundary that isn't a full outer edge, use Boundary.from_hgrid directly."
+                "For a segment that isn't a full outer edge, use Segment.from_hgrid directly."
             )
         axis, index = _CARDINAL_AXES[orientation]
         return cls.from_hgrid(
@@ -181,11 +290,12 @@ class Boundary:
             segment_name=segment_name,
             index_range=index_range,
             topo=topo,
+            mom6_index_reverse=_CARDINAL_REVERSE[orientation],
         )
 
     @property
     def _coords_ds(self) -> xr.Dataset:
-        """The boundary's lon/lat as a small xarray.Dataset, for use as the
+        """The segment's lon/lat as a small xarray.Dataset, for use as the
         ``xesmf.Regridder`` output grid. ``lon``/``lat`` must be actual
         coordinates (not just data variables) for ``xe.Regridder``'s
         ``locstream_out`` mode to carry them through to the regridded output."""
@@ -207,18 +317,18 @@ class Boundary:
         repeat_year_forcing=False,
     ):
         """
-        Cut out and interpolate the velocities and tracers onto this boundary.
+        Cut out and interpolate the velocities and tracers onto this segment.
 
         Arguments:
-            infile (Union[str, Path]): Path to the raw, unprocessed boundary segment.
+            infile (Union[str, Path]): Path to the raw, unprocessed segment forcing file.
             varnames (Dict[str, str]): Mapping between the variable/dimension names and
                 standard naming convention of this pipeline, e.g., ``{"xh": "longitude",
                 "yh": "latitude", "salt": "salinity", ...}``. Key "tracers" points to a
-                nested dictionary of tracers to include in boundary.
+                nested dictionary of tracers to include in the segment.
             outfolder (Union[str, Path]): Path to folder where the model inputs will
                 be stored.
             startdate (str): The starting date to use in the segment calendar.
-            arakawa_grid (Optional[str]): Arakawa grid staggering type of the boundary
+            arakawa_grid (Optional[str]): Arakawa grid staggering type of the segment
                 forcing. Either ``'A'`` (default), ``'B'``, or ``'C'``.
             regridding_method (str): Regridding method to use throughout the function.
                 Default is ``'bilinear'``.
@@ -229,7 +339,7 @@ class Boundary:
             regridders (dict, optional): Pre-built regridders with keys ``"tracers"``,
                 ``"u"``, ``"v"``. If provided, regridder creation is skipped entirely --
                 useful when calling this method multiple times for different time
-                windows on the same boundary (pass ``boundary._regridders`` from a
+                windows on the same segment (pass ``segment._regridders`` from a
                 prior call). Default ``None`` -- regridders are built and cached on
                 ``self._regridders`` for reuse on the next call.
             repeat_year_forcing (Optional[bool]): When ``True`` the experiment runs
@@ -302,7 +412,7 @@ class Boundary:
         rotated_v.name = reprocessed_var_map["v_var_name"]
         segment_out = xr.merge([rotated_u, rotated_v, tracers_regridded])
 
-        ## segment out now contains our interpolated boundary.
+        ## segment_out now contains our interpolated segment.
         ## Now, we need to fix up all the metadata and save
         segment_out = segment_out.rename(
             {"lon": f"lon_{self.segment_name}", "lat": f"lat_{self.segment_name}"}
@@ -488,8 +598,8 @@ class Boundary:
         repeat_year_forcing=False,
     ):
         """
-        Regrids and interpolates the tidal data for MOM6 onto this boundary. Steps
-        include:
+        Regrids and interpolates the tidal data for MOM6 onto this segment.
+        Steps include:
 
         - Read raw tidal data (all constituents)
         - Perform minor transformations/conversions
@@ -510,7 +620,7 @@ class Boundary:
             regridders (dict, optional): Pre-built regridders with keys ``"elev"``,
                 ``"u"``, ``"v"``. If provided, regridder creation is skipped entirely
                 -- useful when calling this method multiple times on the same
-                boundary (pass ``boundary._tidal_regridders`` from a prior call).
+                segment (pass ``segment._tidal_regridders`` from a prior call).
                 Default ``None`` -- regridders are built and cached on
                 ``self._tidal_regridders`` for reuse on the next call.
             repeat_year_forcing (Optional[bool]): Unused for tides (kept for
@@ -722,7 +832,7 @@ class Boundary:
             print(
                 "A land/ocean mask has been provided to the regridding tides function. "
                 "Masking tides dataset with it may result in errors like large surface values one timestep in. "
-                "To avoid masking tides, don't pass a topo to Boundary construction for tidal-only use."
+                "To avoid masking tides, don't pass a topo to Segment construction for tidal-only use."
             )
         ds = rgd.mask_dataset(ds, self)
         ## Perform Encoding ##

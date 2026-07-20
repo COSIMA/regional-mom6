@@ -5,7 +5,7 @@ import warnings
 import xarray as xr
 import numpy as np
 import pandas as pd
-from regional_mom6.boundary import Boundary
+from regional_mom6.segment import Segment
 import shutil
 from mom6_forge.grid import *
 from mom6_forge.topo import Topo
@@ -18,7 +18,7 @@ def test_smoke_untested_funcs(get_curvilinear_hgrid, generate_silly_vt_dataset):
     ds["lat"] = ds.silly_lat
     ds["lon"] = ds.silly_lat
     assert rgd.get_hgrid_arakawa_c_points(hgrid, "t")
-    assert Boundary.cardinal(hgrid, "north", "segment_002")
+    assert Segment.cardinal(hgrid, "north", "segment_002")
     assert rgd.create_regridder(ds, ds)
 
 
@@ -65,9 +65,9 @@ def test_add_secondary_dimension(get_curvilinear_hgrid, generate_silly_vt_datase
     ds = generate_silly_vt_dataset
     hgrid = get_curvilinear_hgrid
 
-    # N/S Boundary
-    boundary = Boundary.cardinal(hgrid, "north", "segment_002")
-    ds = rgd.add_secondary_dimension(ds, "temp", boundary, "segment_002")
+    # N/S Segment
+    segment = Segment.cardinal(hgrid, "north", "segment_002")
+    ds = rgd.add_secondary_dimension(ds, "temp", segment, "segment_002")
     assert ds.time.attrs == {"units": "days"}  # Assert that attributes are retained
     assert ds["temp"].dims == (
         "silly_lat",
@@ -77,10 +77,10 @@ def test_add_secondary_dimension(get_curvilinear_hgrid, generate_silly_vt_datase
         "time",
     )
 
-    # E/W Boundary
-    boundary = Boundary.cardinal(hgrid, "east", "segment_003")
+    # E/W Segment
+    segment = Segment.cardinal(hgrid, "east", "segment_003")
     ds = generate_silly_vt_dataset
-    ds = rgd.add_secondary_dimension(ds, "v", boundary, "segment_003")
+    ds = rgd.add_secondary_dimension(ds, "v", segment, "segment_003")
     assert ds["v"].dims == (
         "silly_lat",
         "silly_lon",
@@ -92,14 +92,14 @@ def test_add_secondary_dimension(get_curvilinear_hgrid, generate_silly_vt_datase
     # Beginning
     ds = generate_silly_vt_dataset
     ds = rgd.add_secondary_dimension(
-        ds, "temp", boundary, "segment_003", to_beginning=True
+        ds, "temp", segment, "segment_003", to_beginning=True
     )
     assert ds["temp"].dims[0] == "nx_segment_003"
 
-    # NZ dim E/W Boundary
+    # NZ dim E/W Segment
     ds = generate_silly_vt_dataset
     ds = ds.rename({"silly_depth": "nz"})
-    ds = rgd.add_secondary_dimension(ds, "u", boundary, "segment_003")
+    ds = rgd.add_secondary_dimension(ds, "u", segment, "segment_003")
     assert ds["u"].dims == (
         "silly_lat",
         "silly_lon",
@@ -170,22 +170,22 @@ def _synthetic_grid_and_topo(land_ny_indices=()):
     return grid, topo
 
 
-def test_boundary_mask_matches_direct_supergridmask_slice():
-    """Boundary.from_hgrid's mask should be exactly topo.supergridmask sliced the
+def test_segment_mask_matches_direct_supergridmask_slice():
+    """Segment.from_hgrid's mask should be exactly topo.supergridmask sliced the
     same way as lon/lat/angle -- no separate resolution-conversion step needed."""
     grid, topo = _synthetic_grid_and_topo(land_ny_indices=[0])
     hgrid = grid._supergrid.to_ds(name=grid.name, author="pytest")
 
-    boundary = Boundary.from_hgrid(
+    segment = Segment.from_hgrid(
         hgrid, axis="nyp", index=-1, segment_name="segment_001", topo=topo
     )
     expected = topo.supergridmask.isel(nyp=-1)
-    assert (boundary.mask.values == expected.values).all()
+    assert (segment.mask.values == expected.values).all()
 
 
 def test_mask_dataset_no_mask_fills_zero():
     """With no mask (topo=None equivalent), mask_dataset just fills NaNs with 0."""
-    boundary = Boundary(
+    segment = Segment(
         lon=xr.DataArray([1.0, 2.0, 3.0], dims=["nx_segment_099"]),
         lat=xr.DataArray([1.0, 1.0, 1.0], dims=["nx_segment_099"]),
         angle=xr.DataArray([0.0, 0.0, 0.0], dims=["nx_segment_099"]),
@@ -198,15 +198,15 @@ def test_mask_dataset_no_mask_fills_zero():
     ds = xr.Dataset(
         {"temp": (("ny_segment_099", "nx_segment_099"), np.array([[1.0, np.nan, 3.0]]))}
     )
-    ds = rgd.mask_dataset(ds, boundary)
+    ds = rgd.mask_dataset(ds, segment)
     assert (ds["temp"].values == np.array([[1.0, 0.0, 3.0]])).all()
 
 
 def test_mask_dataset_no_dilation():
     """Ocean/land transitions should NOT be dilated by one point -- unlike the old
-    get_boundary_mask, boundary.mask (from Topo.supergridmask) is treated as ground
+    get_boundary_mask, segment.mask (from Topo.supergridmask) is treated as ground
     truth with no post-processing."""
-    boundary = Boundary(
+    segment = Segment(
         lon=xr.DataArray([1.0, 2.0, 3.0, 4.0, 5.0], dims=["nx_segment_099"]),
         lat=xr.DataArray([1.0] * 5, dims=["nx_segment_099"]),
         angle=xr.DataArray([0.0] * 5, dims=["nx_segment_099"]),
@@ -227,7 +227,7 @@ def test_mask_dataset_no_dilation():
         }
     )
     fill_value = -999.0
-    ds = rgd.mask_dataset(ds, boundary, fill_value=fill_value)
+    ds = rgd.mask_dataset(ds, segment, fill_value=fill_value)
     # Land points (index 0 and 3) are masked out; ocean points keep their values --
     # in particular, index 2 (ocean, adjacent to land at index 3) is NOT dilated
     # into being masked, and index 0/3 are NOT left unmasked just because a
@@ -239,31 +239,31 @@ def test_mask_dataset_no_dilation():
     assert ds["temp"].values[0, 4] == 50.0
 
 
-def test_boundary_from_hgrid_missing_angle_dx_warns(get_rectilinear_hgrid):
+def test_segment_from_hgrid_missing_angle_dx_warns(get_rectilinear_hgrid):
     hgrid = get_rectilinear_hgrid.drop_vars("angle_dx")
     with pytest.warns(UserWarning, match="angle_dx"):
-        boundary = Boundary.from_hgrid(
+        segment = Segment.from_hgrid(
             hgrid, axis="nyp", index=-1, segment_name="segment_001"
         )
-    assert (boundary.angle.values == 0).all()
+    assert (segment.angle.values == 0).all()
 
 
-def test_boundary_cardinal_invalid_orientation_raises(get_rectilinear_hgrid):
+def test_segment_cardinal_invalid_orientation_raises(get_rectilinear_hgrid):
     with pytest.raises(ValueError, match="orientation must be one of"):
-        Boundary.cardinal(get_rectilinear_hgrid, "northeast", "segment_001")
+        Segment.cardinal(get_rectilinear_hgrid, "northeast", "segment_001")
 
 
-def test_boundary_from_hgrid_invalid_axis_raises(get_rectilinear_hgrid):
+def test_segment_from_hgrid_invalid_axis_raises(get_rectilinear_hgrid):
     with pytest.raises(ValueError, match="axis must be one of"):
-        Boundary.from_hgrid(
+        Segment.from_hgrid(
             get_rectilinear_hgrid, axis="nx", index=0, segment_name="segment_001"
         )
 
 
-def test_boundary_from_hgrid_arbitrary_axis_index_range(get_rectilinear_hgrid):
+def test_segment_from_hgrid_arbitrary_axis_index_range(get_rectilinear_hgrid):
     hgrid = get_rectilinear_hgrid
     index_range = slice(2, 6)
-    boundary = Boundary.from_hgrid(
+    segment = Segment.from_hgrid(
         hgrid,
         axis="nyp",
         index=3,
@@ -272,14 +272,67 @@ def test_boundary_from_hgrid_arbitrary_axis_index_range(get_rectilinear_hgrid):
     )
     expected_lon = hgrid["x"].isel(nyp=3).isel(nxp=index_range)
     expected_lat = hgrid["y"].isel(nyp=3).isel(nxp=index_range)
-    assert np.allclose(boundary.lon.values, expected_lon.values)
-    assert np.allclose(boundary.lat.values, expected_lat.values)
-    assert boundary.lon.sizes["nx_segment_001"] == index_range.stop - index_range.start
+    assert np.allclose(segment.lon.values, expected_lon.values)
+    assert np.allclose(segment.lat.values, expected_lat.values)
+    assert segment.lon.sizes["nx_segment_001"] == index_range.stop - index_range.start
+
+
+@pytest.mark.parametrize(
+    "orientation,expected",
+    [
+        ("south", "J=0,I=0:N"),
+        ("north", "J=N,I=N:0"),
+        ("east", "I=N,J=0:N"),
+        ("west", "I=0,J=N:0"),
+    ],
+)
+def test_mom6_obc_position_string_matches_legacy_cardinal_convention(
+    get_rectilinear_hgrid, orientation, expected
+):
+    """Segment.cardinal's default MOM6 index string must match the values the
+    old hardcoded rect_MOM6_index_dir produced for the 4 cardinal boundaries,
+    including the ascending/descending convention and the 'N' sentinel."""
+    hgrid = get_rectilinear_hgrid
+    segment = Segment.cardinal(hgrid, orientation, "segment_001")
+    assert segment.mom6_obc_position_string() == expected
+
+
+def test_mom6_obc_position_string_arbitrary_segment(get_rectilinear_hgrid):
+    """An interior/partial segment (not a full outer edge) should get numeric
+    MOM6 model-grid indices -- half the supergrid index, per the supergrid's
+    2x resolution relative to MOM6's own model grid -- instead of the 'N'
+    sentinel, and reverse=True should flip the parallel index direction."""
+    hgrid = get_rectilinear_hgrid
+    segment = Segment.from_hgrid(
+        hgrid,
+        axis="nyp",
+        index=4,
+        segment_name="segment_002",
+        index_range=slice(2, 8),
+    )
+    assert segment.mom6_obc_position_string() == "J=2,I=1:3"
+    assert segment.mom6_obc_position_string(reverse=True) == "J=2,I=3:1"
+
+
+def test_mom6_obc_position_string_requires_grid_index():
+    """A hand-built Segment (no from_hgrid/cardinal) has no grid to derive
+    MOM6 indices from, so this should fail loudly rather than guess."""
+    segment = Segment(
+        lon=xr.DataArray([1.0, 2.0], dims=["nx_segment_099"]),
+        lat=xr.DataArray([1.0, 1.0], dims=["nx_segment_099"]),
+        angle=xr.DataArray([0.0, 0.0], dims=["nx_segment_099"]),
+        segment_name="segment_099",
+        parallel="nx",
+        perpendicular="ny",
+        axis_to_expand=2,
+    )
+    with pytest.raises(ValueError, match="grid-index bookkeeping"):
+        segment.mom6_obc_position_string()
 
 
 def test_regrid_velocity_tracers(toy_glorys_ds, tmp_path):
     """
-    Correctness test for Boundary.regrid_velocity_tracers.
+    Correctness test for Segment.regrid_velocity_tracers.
 
     Checks:
     - Output OBC file is written
@@ -304,7 +357,7 @@ def test_regrid_velocity_tracers(toy_glorys_ds, tmp_path):
     outfolder = tmp_path / "inputdir"
     outfolder.mkdir()
 
-    # Minimal synthetic boundary dataset covering the east edge of the hgrid (lon ≈ 10, lat 0-10)
+    # Minimal synthetic segment dataset covering the east edge of the hgrid (lon ≈ 10, lat 0-10)
 
     infile = tmp_path / "east_raw.nc"
     ds = toy_glorys_ds
@@ -322,8 +375,8 @@ def test_regrid_velocity_tracers(toy_glorys_ds, tmp_path):
         "tracers": {"temp": "temp", "salt": "salt"},
     }
 
-    boundary = Boundary.cardinal(hgrid, "east", seg_name)
-    segment_out, _ = boundary.regrid_velocity_tracers(
+    segment = Segment.cardinal(hgrid, "east", seg_name)
+    segment_out, _ = segment.regrid_velocity_tracers(
         infile, varnames, outfolder, "2003-01-01 00:00:00", arakawa_grid="A"
     )
 
@@ -336,8 +389,8 @@ def test_regrid_velocity_tracers(toy_glorys_ds, tmp_path):
     assert temp_vals[0, 0, 0, 0] == 22
     assert temp_vals[0, 0, 2, 0] == 26
 
-    boundary_north = Boundary.cardinal(hgrid, "north", seg_name)
-    segment_out_north, _ = boundary_north.regrid_velocity_tracers(
+    segment_north = Segment.cardinal(hgrid, "north", seg_name)
+    segment_out_north, _ = segment_north.regrid_velocity_tracers(
         infile, varnames, outfolder, "2003-01-01 00:00:00", arakawa_grid="A"
     )
     temp_vals = segment_out_north[f"temp_{seg_name}"].values
@@ -353,8 +406,8 @@ def test_regrid_velocity_tracers(toy_glorys_ds, tmp_path):
     folder.mkdir()  # recreate the empty folder
     hgrid["x"] = hgrid.x + 1
     hgrid["y"] = hgrid.y + 1
-    boundary_regrid = Boundary.cardinal(hgrid, "west", seg_name)
-    seg_regridded, _ = boundary_regrid.regrid_velocity_tracers(
+    segment_regrid = Segment.cardinal(hgrid, "west", seg_name)
+    seg_regridded, _ = segment_regrid.regrid_velocity_tracers(
         infile,
         varnames,
         outfolder,
@@ -371,8 +424,8 @@ def test_regrid_velocity_tracers(toy_glorys_ds, tmp_path):
     )  # The bilinear regridding would be zero here because there isn't 4 points
 
 
-def test_boundary_standalone_no_hgrid(toy_glorys_ds, tmp_path):
-    """Prove regrid_velocity_tracers needs nothing beyond a hand-built Boundary --
+def test_segment_standalone_no_hgrid(toy_glorys_ds, tmp_path):
+    """Prove regrid_velocity_tracers needs nothing beyond a hand-built Segment --
     no mom6_forge.Grid, no hgrid, no Experiment involved at all."""
     outfolder = tmp_path / "inputdir"
     outfolder.mkdir()
@@ -394,9 +447,9 @@ def test_boundary_standalone_no_hgrid(toy_glorys_ds, tmp_path):
     }
 
     seg_name = "segment_099"
-    # A straight boundary line of 2 points, fully described by literal numbers --
+    # A straight segment line of 2 points, fully described by literal numbers --
     # lon fixed at 3.0 (inside toy_glorys_ds's [2, 4] lon range), lat spanning it.
-    boundary = Boundary(
+    segment = Segment(
         lon=xr.DataArray([3.0, 3.0], dims=[f"ny_{seg_name}"]),
         lat=xr.DataArray([2.5, 3.5], dims=[f"ny_{seg_name}"]),
         angle=xr.DataArray([0.0, 0.0], dims=[f"ny_{seg_name}"]),
@@ -407,7 +460,7 @@ def test_boundary_standalone_no_hgrid(toy_glorys_ds, tmp_path):
         mask=None,
     )
 
-    segment_out, _ = boundary.regrid_velocity_tracers(
+    segment_out, _ = segment.regrid_velocity_tracers(
         infile, varnames, outfolder, "2003-01-01 00:00:00", arakawa_grid="A"
     )
 
@@ -416,7 +469,7 @@ def test_boundary_standalone_no_hgrid(toy_glorys_ds, tmp_path):
     np.testing.assert_allclose(segment_out[f"salt_{seg_name}"].values, 35.0, rtol=1e-4)
 
 
-def test_boundary_regridders_manual_reuse(toy_glorys_ds, tmp_path, monkeypatch):
+def test_segment_regridders_manual_reuse(toy_glorys_ds, tmp_path, monkeypatch):
     """regrid_velocity_tracers should only rebuild regridders when regridders=None
     -- passing back a previously-returned dict skips rebuilding, matching today's
     documented manual-reuse pattern."""
@@ -449,7 +502,7 @@ def test_boundary_regridders_manual_reuse(toy_glorys_ds, tmp_path, monkeypatch):
         "tracers": {"temp": "temp", "salt": "salt"},
     }
 
-    boundary = Boundary.cardinal(hgrid, "east", "segment_001")
+    segment = Segment.cardinal(hgrid, "east", "segment_001")
 
     call_count = {"n": 0}
     real_create_vt_regridders = rgd.create_vt_regridders
@@ -460,13 +513,13 @@ def test_boundary_regridders_manual_reuse(toy_glorys_ds, tmp_path, monkeypatch):
 
     monkeypatch.setattr(rgd, "create_vt_regridders", counting_create_vt_regridders)
 
-    _, _ = boundary.regrid_velocity_tracers(
+    _, _ = segment.regrid_velocity_tracers(
         infile, varnames, outfolder, "2003-01-01 00:00:00", arakawa_grid="A"
     )
     assert call_count["n"] == 1
-    cached_regridders = boundary._regridders
+    cached_regridders = segment._regridders
 
-    _, _ = boundary.regrid_velocity_tracers(
+    _, _ = segment.regrid_velocity_tracers(
         infile,
         varnames,
         outfolder,
@@ -479,7 +532,7 @@ def test_boundary_regridders_manual_reuse(toy_glorys_ds, tmp_path, monkeypatch):
 
 def _synthetic_tidal_datasets(nc=2):
     """Minimal synthetic TPXO-like elevation/velocity datasets, already in the
-    lon/lat/*Re/*Im form Boundary.regrid_tides expects -- skips the raw
+    lon/lat/*Re/*Im form Segment.regrid_tides expects -- skips the raw
     h_*/u_*-file parsing that experiment.setup_boundary_tides normally does
     (that parsing is covered separately by test_tides.py)."""
     nx, ny = 6, 6
@@ -504,12 +557,12 @@ def _synthetic_tidal_datasets(nc=2):
 
 
 def test_regrid_tides_standalone(get_rectilinear_hgrid, tmp_path):
-    """Boundary.regrid_tides should run against a plain Boundary (no Experiment
+    """Segment.regrid_tides should run against a plain Segment (no Experiment
     involved) and write tz_*/tu_* files, mirroring the existing standalone
     coverage of regrid_velocity_tracers."""
     hgrid = get_rectilinear_hgrid
     seg_name = "segment_001"
-    boundary = Boundary.cardinal(hgrid, "east", seg_name)
+    segment = Segment.cardinal(hgrid, "east", seg_name)
 
     tpxo_v, tpxo_u, tpxo_h = _synthetic_tidal_datasets()
     times = xr.DataArray(pd.date_range("2000-01-01", periods=1), dims=["time"])
@@ -517,7 +570,7 @@ def test_regrid_tides_standalone(get_rectilinear_hgrid, tmp_path):
     outfolder = tmp_path / "inputdir"
     outfolder.mkdir()
 
-    boundary.regrid_tides(
+    segment.regrid_tides(
         tpxo_v, tpxo_u, tpxo_h, times, outfolder, "2000-01-01 00:00:00"
     )
 
@@ -532,11 +585,11 @@ def test_regrid_tides_regridders_manual_reuse(
     get_rectilinear_hgrid, tmp_path, monkeypatch
 ):
     """regrid_tides should only rebuild its 3 regridders (elev/u/v) when
-    regridders=None -- passing back boundary._tidal_regridders from a prior
+    regridders=None -- passing back segment._tidal_regridders from a prior
     call skips rebuilding, matching the documented manual-reuse pattern for
     regrid_velocity_tracers."""
     hgrid = get_rectilinear_hgrid
-    boundary = Boundary.cardinal(hgrid, "east", "segment_001")
+    segment = Segment.cardinal(hgrid, "east", "segment_001")
 
     tpxo_v, tpxo_u, tpxo_h = _synthetic_tidal_datasets()
     times = xr.DataArray(pd.date_range("2000-01-01", periods=1), dims=["time"])
@@ -553,13 +606,13 @@ def test_regrid_tides_regridders_manual_reuse(
 
     monkeypatch.setattr(rgd, "create_regridder", counting_create_regridder)
 
-    boundary.regrid_tides(
+    segment.regrid_tides(
         tpxo_v, tpxo_u, tpxo_h, times, outfolder, "2000-01-01 00:00:00"
     )
     assert call_count["n"] == 3  # elev, u, v
-    cached_regridders = boundary._tidal_regridders
+    cached_regridders = segment._tidal_regridders
 
-    boundary.regrid_tides(
+    segment.regrid_tides(
         tpxo_v,
         tpxo_u,
         tpxo_h,

@@ -256,7 +256,7 @@ def generate_dz(ds: xr.Dataset, z_dim_name: str) -> xr.Dataset:
 
 
 def add_secondary_dimension(
-    ds: xr.Dataset, var: str, boundary, segment_name: str, to_beginning=False
+    ds: xr.Dataset, var: str, segment, segment_name: str, to_beginning=False
 ) -> xr.Dataset:
     """Add the perpendiciular dimension to the dataset, even if it is
     only one value since it is required.
@@ -264,8 +264,8 @@ def add_secondary_dimension(
     Parameters:
         ds (xr.Dataset): The dataset to add the perpendicular dimension to
         var (str): The variable to add the perpendicular dimension to
-        boundary: A ``regional_mom6.boundary.Boundary`` (or any object exposing
-            ``.perpendicular``/``.axis_to_expand``) describing the boundary's
+        segment: A ``regional_mom6.segment.Segment`` (or any object exposing
+            ``.perpendicular``/``.axis_to_expand``) describing the segment's
             dimension layout, needed to add the perpendicular dimension.
         segment_name (str): The segment name
         to_beginning (bool, optional): Whether to add the perpendicular dimension to the
@@ -294,13 +294,13 @@ def add_secondary_dimension(
             insert_behind_by = 1
     else:
         insert_behind_by = (
-            boundary.axis_to_expand
+            segment.axis_to_expand
         )  # Just magic to add dim to the beginning
 
     regridding_logger.debug(f"Expand dimensions")
     ds[var] = ds[var].expand_dims(
-        f"{boundary.perpendicular}_{segment_name}",
-        axis=boundary.axis_to_expand - insert_behind_by,
+        f"{segment.perpendicular}_{segment_name}",
+        axis=segment.axis_to_expand - insert_behind_by,
     )
     return ds
 
@@ -383,39 +383,39 @@ def generate_layer_thickness(
 
 def mask_dataset(
     ds: xr.Dataset,
-    boundary,
+    segment,
     fill_value=-1e20,
 ) -> xr.Dataset:
     """
-    This function masks the dataset using the boundary's ocean(1)/land(0) mask
-    (``boundary.mask``, already aligned point-for-point with the boundary's
-    lon/lat). If ``boundary.mask`` is ``None``, it fills all NaNs with 0 instead.
+    This function masks the dataset using the segment's ocean(1)/land(0) mask
+    (``segment.mask``, already aligned point-for-point with the segment's
+    lon/lat). If ``segment.mask`` is ``None``, it fills all NaNs with 0 instead.
 
     Parameters
     ----------
     ds : xr.Dataset
         The dataset to mask
-    boundary : regional_mom6.boundary.Boundary
-        The boundary supplying the ocean/land mask (``boundary.mask``) and the
-        across-boundary dimension prefix (``boundary.perpendicular``).
+    segment : regional_mom6.segment.Segment
+        The segment supplying the ocean/land mask (``segment.mask``) and the
+        across-segment dimension prefix (``segment.perpendicular``).
     fill_value : float
         The value land points should be filled with
     """
-    ## Add Boundary Mask ##
-    if boundary.mask is not None:
+    ## Add Segment Mask ##
+    if segment.mask is not None:
         regridding_logger.debug(
-            "Masking to the boundary's ocean/land mask. If you don't want this, don't pass a topo to Boundary construction."
+            "Masking to the segment's ocean/land mask. If you don't want this, don't pass a topo to Segment construction."
         )
-        mask = boundary.mask.values.astype(float).copy()
+        mask = segment.mask.values.astype(float).copy()
         mask[np.where(mask == 0)] = np.nan  # Convert Land Points to NaNs
 
-        if boundary.perpendicular == "nx":
+        if segment.perpendicular == "nx":
             mask = mask[:, np.newaxis]
         else:
             mask = mask[np.newaxis, :]
 
         for var in ds.data_vars.keys():
-            # Drop to just the Boundary Dim
+            # Drop to just the Segment Dim
             da = ds[var].isel({dim: 0 for dim in list(ds[var].dims)[:-2]}).squeeze()
 
             nans_in_data = np.where(np.isnan(da))
@@ -437,7 +437,7 @@ def mask_dataset(
     else:
         regridding_logger.warning(
             "All NaNs filled b/c no ocean/land mask was available. "
-            + "Pass a topo to Boundary construction to avoid this."
+            + "Pass a topo to Segment construction to avoid this."
         )
         ds = ds.fillna(
             0
