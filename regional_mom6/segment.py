@@ -17,6 +17,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from mom6_forge.grid import Grid
+
 from regional_mom6 import regridding as rgd
 from regional_mom6.utils import ap2ep, ep2ap, rotate, try_pint_convert
 from regional_mom6.validate import validate_obc_file
@@ -69,6 +71,9 @@ class Segment:
         axis_to_expand,
         mask=None,
         grid_index=None,
+        axis=None,
+        index=None,
+        index_range=None,
     ):
         self.lon = lon
         self.lat = lat
@@ -79,6 +84,9 @@ class Segment:
         self.axis_to_expand = axis_to_expand
         self.mask = mask
         self._grid_index = grid_index
+        self._axis = axis
+        self._index = index
+        self._index_range = index_range
         self._regridders = None
         self._tidal_regridders = None
 
@@ -169,6 +177,9 @@ class Segment:
             axis_to_expand=axis_to_expand,
             mask=mask,
             grid_index=grid_index,
+            axis=axis,
+            index=index,
+            index_range=index_range,
         )
 
     @staticmethod
@@ -291,6 +302,119 @@ class Segment:
             index_range=index_range,
             topo=topo,
             mom6_index_reverse=_CARDINAL_REVERSE[orientation],
+        )
+
+    @classmethod
+    def from_lonlat(
+        cls,
+        hgrid: xr.Dataset,
+        *,
+        axis: str,
+        segment_name: str,
+        fixed_lat: float = None,
+        fixed_lon: float = None,
+        lon_range=None,
+        lat_range=None,
+        topo=None,
+        mom6_index_reverse: bool = False,
+    ) -> "Segment":
+        """
+        Build a segment from physical coordinates instead of raw supergrid
+        indices, resolving the nearest T-cell on ``hgrid`` itself (via a
+        ``mom6_forge.Grid`` built from it) and delegating to
+        :meth:`from_hgrid`.
+
+        For ``axis="nyp"`` (a line running east-west): pass ``fixed_lat`` and
+        ``lon_range=(lon0, lon1)``. For ``axis="nxp"`` (a line running
+        north-south): pass ``fixed_lon`` and ``lat_range=(lat0, lat1)``.
+
+        This is a nearest-T-cell approximation, exact on a uniform
+        rectilinear grid (where ``j`` depends only on latitude and ``i``
+        only on longitude); on a curvilinear/rotated grid it still resolves
+        to a single straight index-aligned line, but that line may drift
+        from the requested fixed coordinate away from the two endpoints.
+
+        Arguments:
+            hgrid (xarray.Dataset): The horizontal supergrid dataset.
+            axis (str): ``"nyp"`` or ``"nxp"``, as in :meth:`from_hgrid`.
+            segment_name (str): Name of the segment, e.g., ``'segment_001'``.
+            fixed_lat (float): Required for ``axis="nyp"``.
+            fixed_lon (float): Required for ``axis="nxp"``.
+            lon_range (tuple[float, float]): Required for ``axis="nyp"``.
+            lat_range (tuple[float, float]): Required for ``axis="nxp"``.
+            topo (mom6_forge.topo.Topo, optional): See :meth:`from_hgrid`.
+            mom6_index_reverse (bool): See :meth:`from_hgrid`.
+        """
+        grid = Grid.from_supergrid_ds(hgrid)
+
+        if axis == "nyp":
+            if fixed_lat is None or lon_range is None:
+                raise ValueError("axis='nyp' requires fixed_lat and lon_range")
+            j0, i0 = grid.get_indices(fixed_lat, lon_range[0])
+            _, i1 = grid.get_indices(fixed_lat, lon_range[1])
+            index = 2 * j0 + 1
+            index_range = slice(2 * min(i0, i1), 2 * max(i0, i1) + 2)
+        elif axis == "nxp":
+            if fixed_lon is None or lat_range is None:
+                raise ValueError("axis='nxp' requires fixed_lon and lat_range")
+            j0, i0 = grid.get_indices(lat_range[0], fixed_lon)
+            j1, _ = grid.get_indices(lat_range[1], fixed_lon)
+            index = 2 * i0 + 1
+            index_range = slice(2 * min(j0, j1), 2 * max(j0, j1) + 2)
+        else:
+            raise ValueError("axis must be one of: 'nyp', 'nxp'")
+
+        return cls.from_hgrid(
+            hgrid,
+            axis=axis,
+            index=index,
+            segment_name=segment_name,
+            index_range=index_range,
+            topo=topo,
+            mom6_index_reverse=mom6_index_reverse,
+        )
+
+    def to_spec(self) -> dict:
+        """
+        A small, JSON-serializable dict describing how this segment was cut
+        from its ``hgrid`` -- everything needed to reconstruct an equivalent
+        ``Segment`` later via :meth:`from_spec`, without holding onto the
+        ``hgrid``/``topo`` objects themselves.
+        """
+        if self._axis is None:
+            raise ValueError(
+                "to_spec() needs the axis/index bookkeeping recorded by "
+                "Segment.from_hgrid/Segment.cardinal/Segment.from_lonlat -- "
+                "this Segment was constructed directly and has nothing to "
+                "serialize."
+            )
+        return {
+            "axis": self._axis,
+            "index": self._index,
+            "index_range": (
+                [self._index_range.start, self._index_range.stop]
+                if self._index_range is not None
+                else None
+            ),
+            "mom6_index_reverse": self._grid_index["reverse"],
+        }
+
+    @classmethod
+    def from_spec(
+        cls, hgrid: xr.Dataset, spec: dict, segment_name: str, topo=None
+    ) -> "Segment":
+        """Rebuild a ``Segment`` from a dict produced by :meth:`to_spec`."""
+        index_range = (
+            slice(*spec["index_range"]) if spec.get("index_range") else None
+        )
+        return cls.from_hgrid(
+            hgrid,
+            axis=spec["axis"],
+            index=spec["index"],
+            segment_name=segment_name,
+            index_range=index_range,
+            topo=topo,
+            mom6_index_reverse=spec.get("mom6_index_reverse", False),
         )
 
     @property
