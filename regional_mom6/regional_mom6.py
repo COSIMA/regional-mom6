@@ -41,6 +41,9 @@ __all__ = [
     "experiment",
     "segment",
     "get_glorys_data",
+    "Grid",
+    "Topo",
+    "VGrid",
 ]
 
 
