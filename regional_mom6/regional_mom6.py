@@ -24,8 +24,6 @@ from regional_mom6.topo import Topo
 from regional_mom6.chl import interpolate_and_fill_seawifs
 from regional_mom6.segment import Segment
 from regional_mom6.utils import (
-    ap2ep,
-    ep2ap,
     rotate,
     find_files_by_pattern,
     try_pint_convert,
@@ -47,25 +45,6 @@ __all__ = [
     "Topo",
     "VGrid",
 ]
-
-
-def _get_angle_dx(hgrid: xr.Dataset, orientation=None) -> xr.DataArray:
-    """Return the MOM6-consistent ``angle_dx`` rotation angle (degrees) for the hgrid,
-    or a boundary slice of it.
-
-    ``angle_dx`` is computed by mom6_forge (via the expanded-supergrid method) at grid
-    construction time and is always present on ``experiment.hgrid``; see
-    :meth:`~experiment.recalculate_rotation_angle` if it ever needs to be refreshed.
-
-    Parameters
-    ----------
-    hgrid : xr.Dataset
-    """
-    if orientation is not None:
-        return rgd.coords(
-            hgrid, orientation, "doesnt_matter", angle_variable_name="angle_dx"
-        )["angle"]
-    return hgrid["angle_dx"]
 
 
 # Maximum tolerated disagreement (in degrees) between an hgrid.nc file's stored
@@ -1019,7 +998,7 @@ class experiment:
         rotated_u, rotated_v = rotate(
             regridded_u,
             regridded_v,
-            radian_angle=np.radians(_get_angle_dx(hgrid).values),
+            radian_angle=np.radians(hgrid.angle_dx.values),
         )
 
         # Slice the velocites to the u and v grid.

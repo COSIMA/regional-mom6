@@ -106,7 +106,11 @@ def test_sketch_domain_segment_masks_match_supergridmask_slices():
     for name, seg in segments.items():
         if name in _SKETCH_CARDINAL_SEGMENTS:
             spec = None
-            axis = "nyp" if _SKETCH_CARDINAL_SEGMENTS[name] in ("south", "north") else "nxp"
+            axis = (
+                "nyp"
+                if _SKETCH_CARDINAL_SEGMENTS[name] in ("south", "north")
+                else "nxp"
+            )
             index = {"south": 0, "north": -1, "west": 0, "east": -1}[
                 _SKETCH_CARDINAL_SEGMENTS[name]
             ]
@@ -197,9 +201,9 @@ def test_sketch_domain_position_strings_full_edge_vs_interior():
     assert segments["segment_005"].mom6_obc_position_string() == "I=N,J=0:4"
     for name in ("segment_001", "segment_003", "segment_005", "segment_004"):
         parallel = segments[name].mom6_obc_position_string().split(",")[1]
-        assert parallel != "I=0:N" and parallel != "J=0:N", (
-            f"{name} shouldn't span the *whole* parallel edge like a cardinal segment: {parallel}"
-        )
+        assert (
+            parallel != "I=0:N" and parallel != "J=0:N"
+        ), f"{name} shouldn't span the *whole* parallel edge like a cardinal segment: {parallel}"
 
 
 def test_interior_partial_segment_regrid_velocity_tracers(toy_glorys_ds, tmp_path):

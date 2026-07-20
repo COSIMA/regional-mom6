@@ -404,9 +404,7 @@ class Segment:
         cls, hgrid: xr.Dataset, spec: dict, segment_name: str, topo=None
     ) -> "Segment":
         """Rebuild a ``Segment`` from a dict produced by :meth:`to_spec`."""
-        index_range = (
-            slice(*spec["index_range"]) if spec.get("index_range") else None
-        )
+        index_range = slice(*spec["index_range"]) if spec.get("index_range") else None
         return cls.from_hgrid(
             hgrid,
             axis=spec["axis"],
