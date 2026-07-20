@@ -1,8 +1,6 @@
 import numpy as np
 import pytest
 from regional_mom6 import experiment
-from mom6_forge.grid import Grid
-from mom6_forge.vgrid import VGrid
 import xarray as xr
 import xesmf as xe
 import dask
@@ -496,13 +494,12 @@ def test_reformat_bgc_tracers_into_files(tmp_path):
         ), "physical tracer should not be in BGC file"
 
 
-def test_experiment_from_grid_and_vgrid_objects_without_scalar_args(tmp_path):
+def test_experiment_from_grid_and_vgrid_objects_without_scalar_args(
+    tmp_path, grid, vgrid
+):
     """Passing Grid/VGrid objects directly via hgrid_type/vgrid_type should not require
     resolution, longitude_extent, latitude_extent, number_vertical_layers,
     layer_thickness_ratio, or depth."""
-    grid = Grid(resolution=0.1, xstart=-5, lenx=10, ystart=0, leny=10, name="test_grid")
-    vgrid = VGrid.hyperbolic(5, 1000, 1)
-
     expt = experiment(
         date_range=["2003-01-01 00:00:00", "2003-01-01 00:00:00"],
         mom_run_dir=tmp_path / "rundir",
@@ -545,10 +542,9 @@ def test_experiment_requires_vgrid_scalars_when_no_vgrid_object(tmp_path):
         )
 
 
-def _write_hgrid_with_angle_offset(tmp_path, angle_offset_degrees):
+def _write_hgrid_with_angle_offset(tmp_path, grid, angle_offset_degrees):
     """Build a small hgrid via mom6_forge, inject an `angle_dx` discrepancy, and write
     it to `tmp_path/inputdir/hgrid.nc`. Returns the input dir."""
-    grid = Grid(resolution=0.1, xstart=-5, lenx=10, ystart=0, leny=10, name="test_grid")
     ds = grid.supergrid.to_ds()
     ds["angle_dx"] = ds["angle_dx"] + angle_offset_degrees
     input_dir = tmp_path / "inputdir"
@@ -557,11 +553,13 @@ def _write_hgrid_with_angle_offset(tmp_path, angle_offset_degrees):
     return input_dir
 
 
-def test_hgrid_property_raises_on_stale_angle_dx_after_construction(tmp_path):
+def test_hgrid_property_raises_on_stale_angle_dx_after_construction(tmp_path, grid):
     """A large angle_dx discrepancy discovered on a *lazy* hgrid.nc load (i.e. not
     during __init__ itself) should hard-error, pointing at recalculate_rotation_angle.
     """
-    input_dir = _write_hgrid_with_angle_offset(tmp_path, angle_offset_degrees=45.0)
+    input_dir = _write_hgrid_with_angle_offset(
+        tmp_path, grid, angle_offset_degrees=45.0
+    )
 
     expt = experiment.create_empty()
     expt.mom_input_dir = input_dir
@@ -570,12 +568,15 @@ def test_hgrid_property_raises_on_stale_angle_dx_after_construction(tmp_path):
         expt.hgrid
 
 
-def test_experiment_init_warns_instead_of_raising_on_stale_angle_dx(tmp_path):
+def test_experiment_init_warns_instead_of_raising_on_stale_angle_dx(
+    tmp_path, grid, vgrid
+):
     """The same discrepancy, discovered during __init__ (hgrid_type='from_file'),
     should only warn -- construction must still succeed so the user has an experiment
     to call recalculate_rotation_angle() on."""
-    input_dir = _write_hgrid_with_angle_offset(tmp_path, angle_offset_degrees=45.0)
-    vgrid = VGrid.hyperbolic(5, 1000, 1)
+    input_dir = _write_hgrid_with_angle_offset(
+        tmp_path, grid, angle_offset_degrees=45.0
+    )
 
     with pytest.warns(UserWarning, match="recalculate_rotation_angle"):
         expt = experiment(
@@ -590,12 +591,9 @@ def test_experiment_init_warns_instead_of_raising_on_stale_angle_dx(tmp_path):
     assert np.allclose(expt.hgrid["angle_dx"], 0.0, atol=1e-6)
 
 
-def test_recalculate_rotation_angle_is_noop_for_consistent_grid(tmp_path):
+def test_recalculate_rotation_angle_is_noop_for_consistent_grid(tmp_path, grid, vgrid):
     """Calling recalculate_rotation_angle() on an already-consistent grid should
     leave angle_dx unchanged."""
-    grid = Grid(resolution=0.1, xstart=-5, lenx=10, ystart=0, leny=10, name="test_grid")
-    vgrid = VGrid.hyperbolic(5, 1000, 1)
-
     expt = experiment(
         date_range=["2003-01-01 00:00:00", "2003-01-01 00:00:00"],
         mom_run_dir=tmp_path / "rundir",

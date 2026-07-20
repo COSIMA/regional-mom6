@@ -502,11 +502,7 @@ class experiment:
         ``TopoEditor``/manual rotation), or if :attr:`hgrid` raised a discrepancy
         error and the MOM6-consistent angle is what you want.
         """
-        if self.m6f_hgrid is None:
-            try:
-                self.hgrid  # lazily load; a discrepancy error here is exactly what we're about to fix
-            except ValueError:
-                pass
+        assert self.hgrid is not None, "No hgrid available"
         supergrid = self.m6f_hgrid.supergrid
         supergrid.angle_dx = SupergridBase.calc_supergrid_rotation_angles_using_expanded_supergrid_method(
             supergrid.x, supergrid.y

@@ -3,6 +3,8 @@ import os
 import xarray as xr
 import numpy as np
 from mom6_forge.grid import *
+from mom6_forge.vgrid import VGrid
+from mom6_forge.topo import Topo
 import regional_mom6 as rmom6
 from regional_mom6 import experiment
 
@@ -79,6 +81,23 @@ def get_curvilinear_hgrid():
         pytest.skip(
             f"Required file 'hgrid.nc' not found in {DOCKER_FILE_PATH} or {LOCAL_FILE_PATH}"
         )
+
+
+@pytest.fixture
+def grid():
+    return Grid(resolution=0.1, xstart=-5, lenx=10, ystart=0, leny=10, name="test_grid")
+
+
+@pytest.fixture
+def vgrid():
+    return VGrid.hyperbolic(5, 1000, 1)
+
+
+@pytest.fixture
+def flat_topo(grid):
+    topo = Topo(grid, min_depth=4, git=False)
+    topo.set_flat(1000.0)
+    return topo
 
 
 @pytest.fixture
