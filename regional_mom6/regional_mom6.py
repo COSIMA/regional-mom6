@@ -14,7 +14,6 @@ import importlib.resources
 import pandas as pd
 from pathlib import Path
 import json
-from enum import Enum
 from ruamel.yaml import YAML
 from regional_mom6 import MOM_parameter_tools as mpt
 from regional_mom6 import regridding as rgd
@@ -22,6 +21,7 @@ from regional_mom6.config import Config
 from regional_mom6.grid import Grid
 from regional_mom6.vgrid import VGrid
 from regional_mom6.topo import Topo
+from regional_mom6.chl import interpolate_and_fill_seawifs
 from regional_mom6.segment import Segment
 from regional_mom6.utils import (
     ap2ep,
@@ -29,7 +29,6 @@ from regional_mom6.utils import (
     rotate,
     find_files_by_pattern,
     try_pint_convert,
-    is_rectilinear_hgrid,
 )
 from mom6_forge._supergrid import SupergridBase
 from mom6_forge.utils import longitude_slicer
@@ -44,59 +43,37 @@ __all__ = [
     "experiment",
     "Segment",
     "get_glorys_data",
-    "RotationMethod",
-    "get_rotation_angle",
+    "Grid",
+    "Topo",
+    "VGrid",
 ]
 
 
-class RotationMethod(Enum):
-    """Prescribes the rotational method used to rotate whole-grid velocities
-    (e.g. for initial conditions) when the grid does not have coordinates along
-    lines of constant longitude-latitude.
+def _get_angle_dx(hgrid: xr.Dataset, orientation=None) -> xr.DataArray:
+    """Return the MOM6-consistent ``angle_dx`` rotation angle (degrees) for the hgrid,
+    or a boundary slice of it.
 
-    Attributes:
-        EXPAND_GRID (int): Finds angles at q/u/v points by expanding the hgrid by one
-            row/column, replicating exactly what MOM6 does.
-        GIVEN_ANGLE (int): Expects a pre-given angle called ``angle_dx``.
-        NO_ROTATION (int): Grid is along lines of constant latitude-longitude; no rotation required.
-    """
-
-    EXPAND_GRID = 1
-    GIVEN_ANGLE = 2
-    NO_ROTATION = 3
-
-
-def get_rotation_angle(
-    rotational_method: RotationMethod, hgrid: xr.Dataset
-) -> xr.DataArray:
-    """Return the rotation angle (degrees) for the whole hgrid.
-
-    Note: OBC segments no longer use this function -- ``Segment`` reads
-    ``hgrid["angle_dx"]`` directly. This remains for whole-grid uses, e.g.
-    :func:`~experiment.setup_initial_condition`.
+    ``angle_dx`` is computed by mom6_forge (via the expanded-supergrid method) at grid
+    construction time and is always present on ``experiment.hgrid``; see
+    :meth:`~experiment.recalculate_rotation_angle` if it ever needs to be refreshed.
 
     Parameters
     ----------
-    rotational_method : RotationMethod
     hgrid : xr.Dataset
     """
-    if rotational_method == RotationMethod.NO_ROTATION:
-        if not is_rectilinear_hgrid(hgrid):
-            raise ValueError("NO_ROTATION method only works with rectilinear grids")
-        return xr.zeros_like(hgrid.x)
+    if orientation is not None:
+        return rgd.coords(
+            hgrid, orientation, "doesnt_matter", angle_variable_name="angle_dx"
+        )["angle"]
+    return hgrid["angle_dx"]
 
-    elif rotational_method == RotationMethod.GIVEN_ANGLE:
-        return hgrid["angle_dx"]
 
-    elif rotational_method == RotationMethod.EXPAND_GRID:
-        return xr.DataArray(
-            SupergridBase.calc_supergrid_rotation_angles_using_expanded_supergrid_method(
-                hgrid.x.values, hgrid.y.values
-            ),
-            dims=hgrid.x.dims,
-        )
-
-    raise ValueError("Invalid rotational method")
+# Maximum tolerated disagreement (in degrees) between an hgrid.nc file's stored
+# `angle_dx` and the angle MOM6's expanded-supergrid method computes from the same
+# grid's x/y coordinates, before `experiment.hgrid` refuses to use it. A large
+# disagreement usually means the file's `angle_dx` came from a different tool or
+# rotation convention than mom6_forge/MOM6 expect.
+ANGLE_DX_DISCREPANCY_THRESHOLD_DEGREES = 5.0
 
 
 ## Mapping Functions
@@ -201,27 +178,36 @@ class experiment:
     Arguments:
         date_range (Tuple[str]): Start and end dates of the boundary forcing window. For
             example: ``("2003-01-01", "2003-01-31")``.
-        resolution (float): Lateral resolution of the domain (in degrees).
-        number_vertical_layers (int): Number of vertical layers.
-        layer_thickness_ratio (float): Ratio of largest to smallest layer thickness;
-            used as input in :func:`~hyperbolictan_thickness_profile`.
-        depth (float): Depth of the domain.
         mom_run_dir (str): Path of the MOM6 control directory.
         mom_input_dir (str): Path of the MOM6 input directory, to receive the forcing files.
+        resolution (float, optional): Lateral resolution of the domain (in degrees). Required
+            only when ``hgrid_type`` doesn't already provide a ``Grid`` object (i.e., you need
+            one to be generated from ``longitude_extent``/``latitude_extent``).
+        number_vertical_layers (int, optional): Number of vertical layers. Required only when
+            ``vgrid_type`` doesn't already provide a ``VGrid`` object.
+        layer_thickness_ratio (float, optional): Ratio of largest to smallest layer thickness;
+            used as input in :func:`~hyperbolictan_thickness_profile`. Required only when
+            ``vgrid_type`` doesn't already provide a ``VGrid`` object.
+        depth (float, optional): Depth of the domain. Required only when ``vgrid_type`` doesn't
+            already provide a ``VGrid`` object.
         fre_tools_dir (str): Path of GFDL's FRE tools (https://github.com/NOAA-GFDL/FRE-NCtools)
             binaries.
-        longitude_extent (Tuple[float]): Extent of the region in longitude (in degrees). For
-            example: ``(40.5, 50.0)``.
-        latitude_extent (Tuple[float]): Extent of the region in latitude (in degrees). For
-            example: ``(-20.0, 30.0)``.
+        longitude_extent (Tuple[float], optional): Extent of the region in longitude (in degrees). For
+            example: ``(40.5, 50.0)``. Required only when ``hgrid_type`` doesn't already provide a
+            ``Grid`` object.
+        latitude_extent (Tuple[float], optional): Extent of the region in latitude (in degrees). For
+            example: ``(-20.0, 30.0)``. Required only when ``hgrid_type`` doesn't already provide a
+            ``Grid`` object.
         hgrid_type (str or Grid): Type of horizontal grid to generate. Currently, only ``'even_spacing'`` is supported.
             Setting this argument to ``'from_file'`` lazily reads ``hgrid.nc`` from ``mom_input_dir`` the first time
             the ``hgrid`` property is accessed. You can also pass a mom6_forge ``Grid`` object directly, in which case
-            ``hgrid`` is derived from it instead of touching disk.
+            ``hgrid`` is derived from it instead of touching disk, and ``resolution``/``longitude_extent``/
+            ``latitude_extent`` are not required.
         vgrid_type (str or VGrid): Type of vertical grid to generate. Currently, only ``'hyperbolic_tangent'`` is
             supported. Setting this argument to ``'from_file'`` lazily reads ``vgrid.nc`` from ``mom_input_dir`` the
             first time the ``vgrid`` property is accessed. You can also pass a mom6_forge ``VGrid`` object directly, in
-            which case ``vgrid`` is derived from it instead of touching disk.
+            which case ``vgrid`` is derived from it instead of touching disk, and ``number_vertical_layers``/
+            ``layer_thickness_ratio``/``depth`` are not required.
         repeat_year_forcing (bool): When ``True`` the experiment runs with
             repeat-year forcing. When ``False`` (default) then inter-annual forcing is used.
         minimum_depth (int): The minimum depth in meters of a grid cell allowed before it is masked out and treated as land.
@@ -319,12 +305,12 @@ class experiment:
         self,
         *,
         date_range,
-        resolution,
-        number_vertical_layers,
-        layer_thickness_ratio,
-        depth,
         mom_run_dir,
         mom_input_dir,
+        resolution=None,
+        number_vertical_layers=None,
+        layer_thickness_ratio=None,
+        depth=None,
         fre_tools_dir=None,
         longitude_extent=None,
         latitude_extent=None,
@@ -394,17 +380,24 @@ class experiment:
                 float(self.hgrid.y.max()),
             )
         elif hgrid_type == "from_file":
-            # `self.hgrid` lazily reads `mom_input_dir/hgrid.nc` the first time
-            # it's accessed.
-            self.longitude_extent = (
-                float(self.hgrid.x.min()),
-                float(self.hgrid.x.max()),
-            )
-            self.latitude_extent = (
-                float(self.hgrid.y.min()),
-                float(self.hgrid.y.max()),
-            )
+            # `self.hgrid` lazily reads `mom_input_dir/hgrid.nc` the first time it's
+            # accessed. A rotation-angle discrepancy here is only warned about (not
+            # raised), so construction can still succeed and the user has a live
+            # `experiment` to call `recalculate_rotation_angle()` on afterward.
+            hgrid = self.hgrid
+            hgrid = self.m6f_hgrid.supergrid.to_ds()
+            self.longitude_extent = (float(hgrid.x.min()), float(hgrid.x.max()))
+            self.latitude_extent = (float(hgrid.y.min()), float(hgrid.y.max()))
         else:
+            assert (
+                resolution is not None
+                and longitude_extent is not None
+                and latitude_extent is not None
+            ), (
+                "`resolution`, `longitude_extent`, and `latitude_extent` are required "
+                "to generate an hgrid; pass a mom6_forge `Grid` object via `hgrid_type` "
+                "instead if you don't want to specify them."
+            )
             self.longitude_extent = tuple(longitude_extent)
             self.latitude_extent = tuple(latitude_extent)
             self._make_hgrid()  # sets `self.m6f_hgrid`; `self.hgrid` derives from it
@@ -416,6 +409,15 @@ class experiment:
             # it's accessed.
             pass
         else:
+            assert (
+                number_vertical_layers is not None
+                and layer_thickness_ratio is not None
+                and depth is not None
+            ), (
+                "`number_vertical_layers`, `layer_thickness_ratio`, and `depth` are "
+                "required to generate a vgrid; pass a mom6_forge `VGrid` object via "
+                "`vgrid_type` instead if you don't want to specify them."
+            )
             self._make_vgrid()  # sets `self.m6f_vgrid`; `self.vgrid` derives from it
 
         self.segments = {}
@@ -443,7 +445,10 @@ class experiment:
 
         If ``m6f_hgrid`` hasn't been supplied yet -- passed in directly via
         ``hgrid_type``, or generated by ``_make_hgrid`` -- it's lazily built from
-        ``hgrid.nc`` in ``mom_input_dir`` the first time this property is accessed.
+        ``hgrid.nc`` in ``mom_input_dir`` the first time this property is accessed. On
+        that first load, the file's ``angle_dx`` is checked against the angle MOM6's
+        expanded-supergrid method would compute from the grid's ``x``/``y``
+        coordinates; see :meth:`recalculate_rotation_angle`.
         """
         if self.m6f_hgrid is None:
             hgrid_path = self.mom_input_dir / "hgrid.nc"
@@ -454,7 +459,45 @@ class experiment:
                     "object via `hgrid_type`."
                 )
             self.m6f_hgrid = Grid.from_supergrid(hgrid_path)
+            self._validate_hgrid_rotation_angle(source=hgrid_path)
         return self.m6f_hgrid.supergrid.to_ds()
+
+    def _validate_hgrid_rotation_angle(self, source):
+        """Compare the loaded hgrid's stored ``angle_dx`` against the angle MOM6's
+        expanded-supergrid method computes from its ``x``/``y`` coordinates, and raise
+        if they disagree by more than :data:`ANGLE_DX_DISCREPANCY_THRESHOLD_DEGREES`.
+        """
+        supergrid = self.m6f_hgrid.supergrid
+        expected_angle_dx = SupergridBase.calc_supergrid_rotation_angles_using_expanded_supergrid_method(
+            supergrid.x, supergrid.y
+        )
+        max_discrepancy = float(
+            np.nanmax(np.abs(supergrid.angle_dx - expected_angle_dx))
+        )
+        if max_discrepancy > ANGLE_DX_DISCREPANCY_THRESHOLD_DEGREES:
+            warnings.warn(
+                f"The `angle_dx` stored in {source} disagrees with the angle MOM6's "
+                f"expanded-supergrid method computes from the grid's x/y coordinates "
+                f"by up to {max_discrepancy:.2f} degrees (threshold: "
+                f"{ANGLE_DX_DISCREPANCY_THRESHOLD_DEGREES} degrees). This usually means "
+                "the hgrid.nc came from a different tool or rotation convention. If the "
+                "MOM6-consistent angle is what you actually want, call "
+                "`recalculate_rotation_angle()` to overwrite it."
+            )
+
+    def recalculate_rotation_angle(self):
+        """Recompute ``angle_dx`` for the current hgrid using MOM6's
+        expanded-supergrid method, overwriting whatever is currently stored.
+
+        Call this after hand-editing the hgrid's coordinates (e.g. via
+        ``TopoEditor``/manual rotation), or if :attr:`hgrid` raised a discrepancy
+        error and the MOM6-consistent angle is what you want.
+        """
+        assert self.hgrid is not None, "No hgrid available"
+        supergrid = self.m6f_hgrid.supergrid
+        supergrid.angle_dx = SupergridBase.calc_supergrid_rotation_angles_using_expanded_supergrid_method(
+            supergrid.x, supergrid.y
+        )
 
     @property
     def vgrid(self):
@@ -777,7 +820,6 @@ class experiment:
         varnames,
         arakawa_grid="A",
         vcoord_type="height",
-        rotational_method=RotationMethod.EXPAND_GRID,
         regridding_method=None,
     ):
         """
@@ -792,7 +834,6 @@ class experiment:
                 Either ``'A'`` (default), ``'B'``, or ``'C'``.
             vcoord_type (Optional[str]): The type of vertical coordinate used in the forcing files.
                 Either ``'height'`` or ``'thickness'``.
-            rotational_method (Optional[RotationMethod]): The method used to rotate the velocities.
             regridding_method (Optional[str]): The type of regridding method to use. Defaults to self.regridding_method
         """
         if regridding_method is None:
@@ -978,9 +1019,7 @@ class experiment:
         rotated_u, rotated_v = rotate(
             regridded_u,
             regridded_v,
-            radian_angle=np.radians(
-                get_rotation_angle(rotational_method, hgrid).values
-            ),
+            radian_angle=np.radians(_get_angle_dx(hgrid).values),
         )
 
         # Slice the velocites to the u and v grid.
@@ -1611,6 +1650,33 @@ class experiment:
         )
         return self.m6f_bathymetry.gen_topo_ds()
 
+    def setup_chl(self, processed_seawifs_path, output_path=None):
+        """
+        Interpolate and fill the SeaWiFS chlorophyll climatology onto the experiment's grid.
+
+        Output is saved in the input directory of the experiment, unless a different
+        ``output_path`` is provided.
+
+        Arguments:
+            processed_seawifs_path (str): Path to the preprocessed SeaWiFS chlorophyll dataset.
+            output_path (Optional[str]): Path to save the output NetCDF file. Defaults to
+                ``mom_input_dir / f"seawifs-clim-1997-2010-{expt_name}.nc"``.
+        """
+        self.hgrid  # ensures `m6f_hgrid` is populated (from disk if needed)
+        self.bathymetry  # ensures `m6f_bathymetry` is populated (from disk if needed)
+
+        if output_path is None:
+            output_path = (
+                self.mom_input_dir / f"seawifs-clim-1997-2010-{self.expt_name}.nc"
+            )
+
+        return interpolate_and_fill_seawifs(
+            self.m6f_hgrid,
+            self.m6f_bathymetry,
+            processed_seawifs_path,
+            output_path=output_path,
+        )
+
     def run_FRE_tools(self):
         """
         A wrapper for FRE Tools ``check_mask``, ``make_solo_mosaic``, and ``make_quick_mosaic``.
@@ -1830,6 +1896,14 @@ class experiment:
             MOM_override_dict["OBC_TIDE_REF_DATE"]["value"] = self.date_range[
                 0
             ].strftime("%Y, %m, %d")
+
+        # Chlorophyll shortwave penetration, if setup_chl has been run
+        chl_files = list(Path(self.mom_input_dir).glob("seawifs-clim-*.nc"))
+        if chl_files:
+            MOM_override_dict["CHL_FILE"]["value"] = f'"{chl_files[0].name}"'
+            MOM_override_dict["CHL_FROM_FILE"]["value"] = "True"
+            MOM_override_dict["VAR_PEN_SW"]["value"] = "True"
+            MOM_override_dict["PEN_SW_NBANDS"]["value"] = 3
 
         for key, val in MOM_override_dict.items():
             if isinstance(val, dict) and key != "original":
@@ -2133,3 +2207,4 @@ class experiment:
                     unlimited_dims="time",
                     encoding={vname: {"dtype": "double"}},
                 )
+
