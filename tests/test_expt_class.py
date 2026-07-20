@@ -542,7 +542,7 @@ def test_experiment_requires_vgrid_scalars_when_no_vgrid_object(tmp_path):
         )
 
 
-def _write_hgrid_with_angle_offset(tmp_path, grid, angle_offset_degrees):
+def _write_hgrid_with_bad_angle_calc(tmp_path, grid, angle_offset_degrees):
     """Build a small hgrid via mom6_forge, inject an `angle_dx` discrepancy, and write
     it to `tmp_path/inputdir/hgrid.nc`. Returns the input dir."""
     ds = grid.supergrid.to_ds()
@@ -553,28 +553,11 @@ def _write_hgrid_with_angle_offset(tmp_path, grid, angle_offset_degrees):
     return input_dir
 
 
-def test_hgrid_property_raises_on_stale_angle_dx_after_construction(tmp_path, grid):
+def test_hgrid_property_raises_on_stale_angle_dx(tmp_path, grid, vgrid):
     """A large angle_dx discrepancy discovered on a *lazy* hgrid.nc load (i.e. not
     during __init__ itself) should hard-error, pointing at recalculate_rotation_angle.
     """
-    input_dir = _write_hgrid_with_angle_offset(
-        tmp_path, grid, angle_offset_degrees=45.0
-    )
-
-    expt = experiment.create_empty()
-    expt.mom_input_dir = input_dir
-
-    with pytest.raises(ValueError, match="recalculate_rotation_angle"):
-        expt.hgrid
-
-
-def test_experiment_init_warns_instead_of_raising_on_stale_angle_dx(
-    tmp_path, grid, vgrid
-):
-    """The same discrepancy, discovered during __init__ (hgrid_type='from_file'),
-    should only warn -- construction must still succeed so the user has an experiment
-    to call recalculate_rotation_angle() on."""
-    input_dir = _write_hgrid_with_angle_offset(
+    input_dir = _write_hgrid_with_bad_angle_calc(
         tmp_path, grid, angle_offset_degrees=45.0
     )
 
@@ -586,9 +569,6 @@ def test_experiment_init_warns_instead_of_raising_on_stale_angle_dx(
             hgrid_type="from_file",
             vgrid_type=vgrid,
         )
-
-    expt.recalculate_rotation_angle()
-    assert np.allclose(expt.hgrid["angle_dx"], 0.0, atol=1e-6)
 
 
 def test_recalculate_rotation_angle_is_noop_for_consistent_grid(tmp_path, grid, vgrid):

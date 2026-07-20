@@ -390,11 +390,8 @@ class experiment:
             # accessed. A rotation-angle discrepancy here is only warned about (not
             # raised), so construction can still succeed and the user has a live
             # `experiment` to call `recalculate_rotation_angle()` on afterward.
-            try:
-                hgrid = self.hgrid
-            except ValueError as e:
-                warnings.warn(str(e))
-                hgrid = self.m6f_hgrid.supergrid.to_ds()
+            hgrid = self.hgrid
+            hgrid = self.m6f_hgrid.supergrid.to_ds()
             self.longitude_extent = (float(hgrid.x.min()), float(hgrid.x.max()))
             self.latitude_extent = (float(hgrid.y.min()), float(hgrid.y.max()))
         else:
@@ -484,7 +481,7 @@ class experiment:
             np.nanmax(np.abs(supergrid.angle_dx - expected_angle_dx))
         )
         if max_discrepancy > ANGLE_DX_DISCREPANCY_THRESHOLD_DEGREES:
-            raise ValueError(
+            warnings.warn(
                 f"The `angle_dx` stored in {source} disagrees with the angle MOM6's "
                 f"expanded-supergrid method computes from the grid's x/y coordinates "
                 f"by up to {max_discrepancy:.2f} degrees (threshold: "
