@@ -14,7 +14,6 @@ import importlib.resources
 import pandas as pd
 from pathlib import Path
 import json
-from enum import Enum
 from ruamel.yaml import YAML
 from regional_mom6 import MOM_parameter_tools as mpt
 from regional_mom6 import regridding as rgd
@@ -28,7 +27,6 @@ from regional_mom6.utils import (
     rotate,
     find_files_by_pattern,
     try_pint_convert,
-    is_rectilinear_hgrid,
 )
 from mom6_forge._supergrid import SupergridBase
 from mom6_forge.utils import longitude_slicer
@@ -43,76 +41,39 @@ __all__ = [
     "experiment",
     "segment",
     "get_glorys_data",
-    "RotationMethod",
-    "get_rotation_angle",
     "Grid",
     "Topo",
     "VGrid",
 ]
 
 
-class RotationMethod(Enum):
-    """Prescribes the rotational method used in boundary conditions when the grid
-    does not have coordinates along lines of constant longitude-latitude.
+def _get_angle_dx(hgrid: xr.Dataset, orientation=None) -> xr.DataArray:
+    """Return the MOM6-consistent ``angle_dx`` rotation angle (degrees) for the hgrid,
+    or a boundary slice of it.
 
-    Attributes:
-        EXPAND_GRID (int): Finds angles at q/u/v points by expanding the hgrid by one
-            row/column, replicating exactly what MOM6 does.
-        GIVEN_ANGLE (int): Expects a pre-given angle called ``angle_dx``.
-        NO_ROTATION (int): Grid is along lines of constant latitude-longitude; no rotation required.
-    """
-
-    EXPAND_GRID = 1
-    GIVEN_ANGLE = 2
-    NO_ROTATION = 3
-
-
-def get_rotation_angle(
-    rotational_method: RotationMethod, hgrid: xr.Dataset, orientation=None
-) -> xr.DataArray:
-    """Return the rotation angle (degrees) for the hgrid or a boundary slice of it.
+    ``angle_dx`` is computed by mom6_forge (via the expanded-supergrid method) at grid
+    construction time and is always present on ``experiment.hgrid``; see
+    :meth:`~experiment.recalculate_rotation_angle` if it ever needs to be refreshed.
 
     Parameters
     ----------
-    rotational_method : RotationMethod
     hgrid : xr.Dataset
     orientation : str, optional
         If given (e.g. ``"north"``), return only the boundary slice.
     """
-    boundary = orientation is not None
+    if orientation is not None:
+        return rgd.coords(
+            hgrid, orientation, "doesnt_matter", angle_variable_name="angle_dx"
+        )["angle"]
+    return hgrid["angle_dx"]
 
-    if rotational_method == RotationMethod.NO_ROTATION:
-        if not is_rectilinear_hgrid(hgrid):
-            raise ValueError("NO_ROTATION method only works with rectilinear grids")
-        angles = xr.zeros_like(hgrid.x)
-        if boundary:
-            hgrid["zero_angle"] = angles
-            return rgd.coords(
-                hgrid, orientation, "doesnt_matter", angle_variable_name="zero_angle"
-            )["angle"]
-        return angles
 
-    elif rotational_method == RotationMethod.GIVEN_ANGLE:
-        if boundary:
-            return rgd.coords(
-                hgrid, orientation, "doesnt_matter", angle_variable_name="angle_dx"
-            )["angle"]
-        return hgrid["angle_dx"]
-
-    elif rotational_method == RotationMethod.EXPAND_GRID:
-        hgrid["angle_dx_rm6"] = xr.DataArray(
-            SupergridBase.calc_supergrid_rotation_angles_using_expanded_supergrid_method(
-                hgrid.x.values, hgrid.y.values
-            ),
-            dims=hgrid.x.dims,
-        )
-        if boundary:
-            return rgd.coords(
-                hgrid, orientation, "doesnt_matter", angle_variable_name="angle_dx_rm6"
-            )["angle"]
-        return hgrid["angle_dx_rm6"]
-
-    raise ValueError("Invalid rotational method")
+# Maximum tolerated disagreement (in degrees) between an hgrid.nc file's stored
+# `angle_dx` and the angle MOM6's expanded-supergrid method computes from the same
+# grid's x/y coordinates, before `experiment.hgrid` refuses to use it. A large
+# disagreement usually means the file's `angle_dx` came from a different tool or
+# rotation convention than mom6_forge/MOM6 expect.
+ANGLE_DX_DISCREPANCY_THRESHOLD_DEGREES = 5.0
 
 
 # If the array is pint possible, ensure we have the right units for main fields (eta, u, v, temp),
@@ -226,27 +187,36 @@ class experiment:
     Arguments:
         date_range (Tuple[str]): Start and end dates of the boundary forcing window. For
             example: ``("2003-01-01", "2003-01-31")``.
-        resolution (float): Lateral resolution of the domain (in degrees).
-        number_vertical_layers (int): Number of vertical layers.
-        layer_thickness_ratio (float): Ratio of largest to smallest layer thickness;
-            used as input in :func:`~hyperbolictan_thickness_profile`.
-        depth (float): Depth of the domain.
         mom_run_dir (str): Path of the MOM6 control directory.
         mom_input_dir (str): Path of the MOM6 input directory, to receive the forcing files.
+        resolution (float, optional): Lateral resolution of the domain (in degrees). Required
+            only when ``hgrid_type`` doesn't already provide a ``Grid`` object (i.e., you need
+            one to be generated from ``longitude_extent``/``latitude_extent``).
+        number_vertical_layers (int, optional): Number of vertical layers. Required only when
+            ``vgrid_type`` doesn't already provide a ``VGrid`` object.
+        layer_thickness_ratio (float, optional): Ratio of largest to smallest layer thickness;
+            used as input in :func:`~hyperbolictan_thickness_profile`. Required only when
+            ``vgrid_type`` doesn't already provide a ``VGrid`` object.
+        depth (float, optional): Depth of the domain. Required only when ``vgrid_type`` doesn't
+            already provide a ``VGrid`` object.
         fre_tools_dir (str): Path of GFDL's FRE tools (https://github.com/NOAA-GFDL/FRE-NCtools)
             binaries.
-        longitude_extent (Tuple[float]): Extent of the region in longitude (in degrees). For
-            example: ``(40.5, 50.0)``.
-        latitude_extent (Tuple[float]): Extent of the region in latitude (in degrees). For
-            example: ``(-20.0, 30.0)``.
+        longitude_extent (Tuple[float], optional): Extent of the region in longitude (in degrees). For
+            example: ``(40.5, 50.0)``. Required only when ``hgrid_type`` doesn't already provide a
+            ``Grid`` object.
+        latitude_extent (Tuple[float], optional): Extent of the region in latitude (in degrees). For
+            example: ``(-20.0, 30.0)``. Required only when ``hgrid_type`` doesn't already provide a
+            ``Grid`` object.
         hgrid_type (str or Grid): Type of horizontal grid to generate. Currently, only ``'even_spacing'`` is supported.
             Setting this argument to ``'from_file'`` lazily reads ``hgrid.nc`` from ``mom_input_dir`` the first time
             the ``hgrid`` property is accessed. You can also pass a mom6_forge ``Grid`` object directly, in which case
-            ``hgrid`` is derived from it instead of touching disk.
+            ``hgrid`` is derived from it instead of touching disk, and ``resolution``/``longitude_extent``/
+            ``latitude_extent`` are not required.
         vgrid_type (str or VGrid): Type of vertical grid to generate. Currently, only ``'hyperbolic_tangent'`` is
             supported. Setting this argument to ``'from_file'`` lazily reads ``vgrid.nc`` from ``mom_input_dir`` the
             first time the ``vgrid`` property is accessed. You can also pass a mom6_forge ``VGrid`` object directly, in
-            which case ``vgrid`` is derived from it instead of touching disk.
+            which case ``vgrid`` is derived from it instead of touching disk, and ``number_vertical_layers``/
+            ``layer_thickness_ratio``/``depth`` are not required.
         repeat_year_forcing (bool): When ``True`` the experiment runs with
             repeat-year forcing. When ``False`` (default) then inter-annual forcing is used.
         minimum_depth (int): The minimum depth in meters of a grid cell allowed before it is masked out and treated as land.
@@ -344,12 +314,12 @@ class experiment:
         self,
         *,
         date_range,
-        resolution,
-        number_vertical_layers,
-        layer_thickness_ratio,
-        depth,
         mom_run_dir,
         mom_input_dir,
+        resolution=None,
+        number_vertical_layers=None,
+        layer_thickness_ratio=None,
+        depth=None,
         fre_tools_dir=None,
         longitude_extent=None,
         latitude_extent=None,
@@ -419,17 +389,24 @@ class experiment:
                 float(self.hgrid.y.max()),
             )
         elif hgrid_type == "from_file":
-            # `self.hgrid` lazily reads `mom_input_dir/hgrid.nc` the first time
-            # it's accessed.
-            self.longitude_extent = (
-                float(self.hgrid.x.min()),
-                float(self.hgrid.x.max()),
-            )
-            self.latitude_extent = (
-                float(self.hgrid.y.min()),
-                float(self.hgrid.y.max()),
-            )
+            # `self.hgrid` lazily reads `mom_input_dir/hgrid.nc` the first time it's
+            # accessed. A rotation-angle discrepancy here is only warned about (not
+            # raised), so construction can still succeed and the user has a live
+            # `experiment` to call `recalculate_rotation_angle()` on afterward.
+            hgrid = self.hgrid
+            hgrid = self.m6f_hgrid.supergrid.to_ds()
+            self.longitude_extent = (float(hgrid.x.min()), float(hgrid.x.max()))
+            self.latitude_extent = (float(hgrid.y.min()), float(hgrid.y.max()))
         else:
+            assert (
+                resolution is not None
+                and longitude_extent is not None
+                and latitude_extent is not None
+            ), (
+                "`resolution`, `longitude_extent`, and `latitude_extent` are required "
+                "to generate an hgrid; pass a mom6_forge `Grid` object via `hgrid_type` "
+                "instead if you don't want to specify them."
+            )
             self.longitude_extent = tuple(longitude_extent)
             self.latitude_extent = tuple(latitude_extent)
             self._make_hgrid()  # sets `self.m6f_hgrid`; `self.hgrid` derives from it
@@ -441,6 +418,15 @@ class experiment:
             # it's accessed.
             pass
         else:
+            assert (
+                number_vertical_layers is not None
+                and layer_thickness_ratio is not None
+                and depth is not None
+            ), (
+                "`number_vertical_layers`, `layer_thickness_ratio`, and `depth` are "
+                "required to generate a vgrid; pass a mom6_forge `VGrid` object via "
+                "`vgrid_type` instead if you don't want to specify them."
+            )
             self._make_vgrid()  # sets `self.m6f_vgrid`; `self.vgrid` derives from it
 
         self.segments = {}
@@ -468,7 +454,10 @@ class experiment:
 
         If ``m6f_hgrid`` hasn't been supplied yet -- passed in directly via
         ``hgrid_type``, or generated by ``_make_hgrid`` -- it's lazily built from
-        ``hgrid.nc`` in ``mom_input_dir`` the first time this property is accessed.
+        ``hgrid.nc`` in ``mom_input_dir`` the first time this property is accessed. On
+        that first load, the file's ``angle_dx`` is checked against the angle MOM6's
+        expanded-supergrid method would compute from the grid's ``x``/``y``
+        coordinates; see :meth:`recalculate_rotation_angle`.
         """
         if self.m6f_hgrid is None:
             hgrid_path = self.mom_input_dir / "hgrid.nc"
@@ -479,7 +468,45 @@ class experiment:
                     "object via `hgrid_type`."
                 )
             self.m6f_hgrid = Grid.from_supergrid(hgrid_path)
+            self._validate_hgrid_rotation_angle(source=hgrid_path)
         return self.m6f_hgrid.supergrid.to_ds()
+
+    def _validate_hgrid_rotation_angle(self, source):
+        """Compare the loaded hgrid's stored ``angle_dx`` against the angle MOM6's
+        expanded-supergrid method computes from its ``x``/``y`` coordinates, and raise
+        if they disagree by more than :data:`ANGLE_DX_DISCREPANCY_THRESHOLD_DEGREES`.
+        """
+        supergrid = self.m6f_hgrid.supergrid
+        expected_angle_dx = SupergridBase.calc_supergrid_rotation_angles_using_expanded_supergrid_method(
+            supergrid.x, supergrid.y
+        )
+        max_discrepancy = float(
+            np.nanmax(np.abs(supergrid.angle_dx - expected_angle_dx))
+        )
+        if max_discrepancy > ANGLE_DX_DISCREPANCY_THRESHOLD_DEGREES:
+            warnings.warn(
+                f"The `angle_dx` stored in {source} disagrees with the angle MOM6's "
+                f"expanded-supergrid method computes from the grid's x/y coordinates "
+                f"by up to {max_discrepancy:.2f} degrees (threshold: "
+                f"{ANGLE_DX_DISCREPANCY_THRESHOLD_DEGREES} degrees). This usually means "
+                "the hgrid.nc came from a different tool or rotation convention. If the "
+                "MOM6-consistent angle is what you actually want, call "
+                "`recalculate_rotation_angle()` to overwrite it."
+            )
+
+    def recalculate_rotation_angle(self):
+        """Recompute ``angle_dx`` for the current hgrid using MOM6's
+        expanded-supergrid method, overwriting whatever is currently stored.
+
+        Call this after hand-editing the hgrid's coordinates (e.g. via
+        ``TopoEditor``/manual rotation), or if :attr:`hgrid` raised a discrepancy
+        error and the MOM6-consistent angle is what you want.
+        """
+        assert self.hgrid is not None, "No hgrid available"
+        supergrid = self.m6f_hgrid.supergrid
+        supergrid.angle_dx = SupergridBase.calc_supergrid_rotation_angles_using_expanded_supergrid_method(
+            supergrid.x, supergrid.y
+        )
 
     @property
     def vgrid(self):
@@ -767,7 +794,6 @@ class experiment:
         varnames,
         arakawa_grid="A",
         vcoord_type="height",
-        rotational_method=RotationMethod.EXPAND_GRID,
         regridding_method=None,
     ):
         """
@@ -782,7 +808,6 @@ class experiment:
                 Either ``'A'`` (default), ``'B'``, or ``'C'``.
             vcoord_type (Optional[str]): The type of vertical coordinate used in the forcing files.
                 Either ``'height'`` or ``'thickness'``.
-            rotational_method (Optional[RotationMethod]): The method used to rotate the velocities.
             regridding_method (Optional[str]): The type of regridding method to use. Defaults to self.regridding_method
         """
         if regridding_method is None:
@@ -968,9 +993,7 @@ class experiment:
         rotated_u, rotated_v = rotate(
             regridded_u,
             regridded_v,
-            radian_angle=np.radians(
-                get_rotation_angle(rotational_method, hgrid).values
-            ),
+            radian_angle=np.radians(_get_angle_dx(hgrid).values),
         )
 
         # Slice the velocites to the u and v grid.
@@ -1237,7 +1260,6 @@ class experiment:
         bgc_tracer_names: dict = None,
         arakawa_grid="A",
         bathymetry_path=None,
-        rotational_method=RotationMethod.EXPAND_GRID,
         regridding_method=None,
         fill_method=None,
     ):
@@ -1258,8 +1280,6 @@ class experiment:
                 Either ``'A'`` (default), ``'B'``, or ``'C'``.
             bathymetry_path (Optional[str]): Path to the bathymetry file. Default is ``None``, in which case the
                 boundary condition is not masked.
-            rotational_method (Optional[str]): Method to use for rotating the boundary velocities.
-                Default is ``EXPAND_GRID``.
             regridding_method (Optional[str]): The type of regridding method to use. Defaults to self.regridding_method
             fill_method (Function): Fill method to use throughout the function. Default is ``self.fill_method``
         """
@@ -1306,7 +1326,6 @@ class experiment:
                 ),  # A number to identify the boundary; indexes from 1
                 arakawa_grid=arakawa_grid,
                 bathymetry_path=bathymetry_path,
-                rotational_method=rotational_method,
                 regridding_method=regridding_method,
                 fill_method=fill_method,
             )
@@ -1356,7 +1375,6 @@ class experiment:
         segment_number,
         arakawa_grid="A",
         bathymetry_path=None,
-        rotational_method=RotationMethod.EXPAND_GRID,
         regridding_method=None,
         fill_method=None,
     ):
@@ -1378,8 +1396,6 @@ class experiment:
                 Either ``'A'`` (default), ``'B'``, or ``'C'``.
             bathymetry_path (str): Path to the bathymetry file. Default is ``None``, in which case
                 the boundary condition is not masked.
-            rotational_method (Optional[str]): Method to use for rotating the boundary velocities.
-                Default is 'EXPAND_GRID'.
             regridding_method (Optional[str]): The type of regridding method to use. Defaults to self.regridding_method
             fill_method (Function): Fill method to use throughout the function. Default is ``rgd.fill_missing_data``
 
@@ -1410,7 +1426,6 @@ class experiment:
             infile=path_to_bc,  # location of raw boundary
             varnames=varnames,
             arakawa_grid=arakawa_grid,
-            rotational_method=rotational_method,
             regridding_method=regridding_method,
             fill_method=fill_method,
         )
@@ -1424,7 +1439,6 @@ class experiment:
         tpxo_velocity_filepath,
         tidal_constituents=None,
         bathymetry_path=None,
-        rotational_method=RotationMethod.EXPAND_GRID,
         regridding_method=None,
         fill_method=None,
     ):
@@ -1437,7 +1451,6 @@ class experiment:
             tpxo_velocity_filepath: Filepath to the TPXO velocity product. Generally of the form ``u_tidalversion.nc``
             tidal_constituents: List of tidal constituents to include in the regridding. Default is set in the experiment constructor (See :class:`~Experiment`)
             bathymetry_path (str): Path to the bathymetry file. Default is ``None``, in which case the boundary condition is not masked
-            rotational_method (str): Method to use for rotating the tidal velocities. Default is 'EXPAND_GRID'.
             regridding_method (Optional[str]): The type of regridding method to use. Defaults to self.regridding_method
             fill_method (Function): Fill method to use throughout the function. Default is ``self.fill_method``
 
@@ -1532,7 +1545,6 @@ class experiment:
                 tpxo_u,
                 tpxo_h,
                 times,
-                rotational_method=rotational_method,
                 regridding_method=regridding_method,
             )
             print("Done")
@@ -2218,7 +2230,6 @@ class segment:
         infile,
         varnames: dict,
         arakawa_grid="A",
-        rotational_method=RotationMethod.EXPAND_GRID,
         regridding_method="bilinear",
         time_units="days",
         calendar="gregorian",
@@ -2229,7 +2240,6 @@ class segment:
         Cut out and interpolate the velocities and tracers.
 
         Arguments:
-            rotational_method (RotationMethod): The method to use for rotation of the velocities. Currently, the default method, ``EXPAND_GRID``, works even with non-rotated grids.
             infile (Union[str, Path]): Path to the raw, unprocessed boundary segment.
             varnames (Dict[str, str]): Mapping between the variable/dimension names and
             standard naming convention of this pipeline, e.g., ``{"xq": "longitude,
@@ -2308,9 +2318,7 @@ class segment:
             u_regridded,
             v_regridded,
             radian_angle=np.radians(
-                get_rotation_angle(
-                    rotational_method, self.hgrid, orientation=self.orientation
-                ).values
+                _get_angle_dx(self.hgrid, orientation=self.orientation).values
             ),
         )
 
@@ -2500,7 +2508,6 @@ class segment:
         tpxo_u,
         tpxo_h,
         times,
-        rotational_method=RotationMethod.EXPAND_GRID,
         regridding_method="bilinear",
         fill_method=rgd.fill_missing_data,
         regridders=None,
@@ -2526,8 +2533,6 @@ class segment:
             infile_td (str): Raw tidal file/directory.
             tpxo_v, tpxo_u, tpxo_h (xarray.Dataset): Specific adjusted for MOM6 tpxo datasets (Adjusted with :func:`~experiment.setup_boundary_tides`)
             times (pd.DateRange): The start date of our model period.
-            rotational_method (RotationMethod): The method to use for rotation of the velocities.
-                The default method, ``EXPAND_GRID``, works even with non-rotated grids.
             regridding_method (str): regridding method to use throughout the function. Default is ``'bilinear'``
             fill_method (Function): Fill method to use throughout the function. Default is ``rgd.fill_missing_data``
             regridders (dict, optional): Pre-built regridders with keys ``"elev"``, ``"u"``, ``"v"``.
@@ -2667,9 +2672,7 @@ class segment:
 
         # Rotate
         INC -= np.radians(
-            get_rotation_angle(
-                rotational_method, self.hgrid, orientation=self.orientation
-            ).data[np.newaxis, :]
+            _get_angle_dx(self.hgrid, orientation=self.orientation).data[np.newaxis, :]
         )
 
         ua, va, up, vp = ep2ap(SEMA, ECC, INC, PHA)
