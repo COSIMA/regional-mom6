@@ -95,7 +95,7 @@ def test_write_config(create_expt, tmp_path):
         "MF",
     ]
     assert config_dict["args"]["expt_name"]["value"] == "test"
-    assert config_dict["args"]["boundaries"]["value"]["values"] == ["south", "north"]
+    assert config_dict["args"]["segments"]["value"]["values"] == ["south", "north"]
     assert config_dict["args"]["regridding_method"]["value"] == "bilinear"
     assert config_dict["args"]["fill_method"]["type"] == "function"
 
