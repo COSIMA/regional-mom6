@@ -186,7 +186,22 @@ class Segment:
     def _compute_grid_index(hgrid, axis, index, parallel_axis, index_range, reverse):
         """Bookkeeping for :meth:`mom6_obc_position_string`: convert a supergrid
         axis/index/index_range into MOM6's own (half-resolution) model-grid I/J
-        numbering, resolved once at construction time."""
+        numbering, resolved once at construction time.
+
+        MOM6's own ``open_boundary_impose_land_mask`` (MOM_open_boundary.F90) is
+        asymmetric: for a J-fixed (nyp) segment it force-masks T-row ``J-1`` to
+        land for a SOUTH-direction segment, but T-row ``J`` itself (the
+        segment's *own* row) for a NORTH-direction one; symmetrically, for an
+        I-fixed (nxp) segment it masks T-column ``I-1`` for WEST but ``I``
+        itself for EAST. For a full outer edge this lands on a harmless
+        sentinel/out-of-bounds value either way, which is why this was never
+        caught before -- but for a genuine interior line, the "masks its own
+        row/column" direction would force the segment's own wet cell to land,
+        breaking it outright (confirmed against a real MOM6 run). We
+        compensate by shifting ``fixed_value`` by one for exactly that
+        direction, on interior lines only, so MOM6 always ends up masking the
+        intended neighbor instead of the segment itself.
+        """
         nyp_size = hgrid.sizes["nyp"]
         nxp_size = hgrid.sizes["nxp"]
         NJ = (nyp_size - 1) // 2
@@ -195,6 +210,13 @@ class Segment:
         fixed_size = nyp_size if axis == "nyp" else nxp_size
         resolved_index = index if index >= 0 else fixed_size + index
         fixed_value = resolved_index // 2
+        is_full_edge = resolved_index in (0, fixed_size - 1)
+
+        # axis=="nyp": reverse=True -> NORTH direction masks its own row.
+        # axis=="nxp": reverse=False -> EAST direction masks its own column.
+        masks_own_position = (axis == "nyp") == reverse
+        if not is_full_edge and masks_own_position:
+            fixed_value += 1
 
         if axis == "nyp":
             fixed_letter, fixed_max = "J", NJ
@@ -216,6 +238,7 @@ class Segment:
             "fixed_letter": fixed_letter,
             "fixed_value": fixed_value,
             "fixed_max": fixed_max,
+            "fixed_is_edge": is_full_edge,
             "parallel_letter": parallel_letter,
             "parallel_start": p_start_super // 2,
             "parallel_stop": (p_stop_super - 1) // 2,
@@ -254,9 +277,16 @@ class Segment:
         def fmt(value, vmax):
             return "N" if value == vmax else str(value)
 
-        fixed_str = (
-            f"{info['fixed_letter']}={fmt(info['fixed_value'], info['fixed_max'])}"
-        )
+        # A full outer edge still needs fmt()'s value==vmax check (to tell a
+        # J=0/I=0 edge from a J=N/I=N one) -- but an interior line must never
+        # print "N" for the fixed coordinate, even if the own-position
+        # compensation above happens to push fixed_value up to fixed_max,
+        # since it isn't actually a full edge.
+        if info["fixed_is_edge"]:
+            fixed_value_str = fmt(info["fixed_value"], info["fixed_max"])
+        else:
+            fixed_value_str = str(info["fixed_value"])
+        fixed_str = f"{info['fixed_letter']}={fixed_value_str}"
         start, stop = info["parallel_start"], info["parallel_stop"]
         if reverse:
             start, stop = stop, start

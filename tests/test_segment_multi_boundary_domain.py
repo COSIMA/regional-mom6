@@ -187,10 +187,18 @@ def test_sketch_domain_position_strings_full_edge_vs_interior():
     assert segments["segment_007"].mom6_obc_position_string() == "I=0,J=N:0"
 
     # Interior line (axis="nyp", index=30, index_range=slice(8, 40), reverse=True):
-    # fixed J = 30 // 2 = 15; parallel I = 8//2=4 .. (40-1)//2=19, reversed -> 19:4.
-    assert segments["segment_002"].mom6_obc_position_string() == "J=15,I=19:4"
+    # fixed J = 30 // 2 = 15, but reverse=True on axis="nyp" is the NORTH
+    # direction, which MOM6's open_boundary_impose_land_mask force-masks to
+    # land at J *itself* rather than a neighbor (confirmed against a real
+    # MOM6 run) -- Segment compensates by reporting J=16 so MOM6 masks J=16
+    # (the true north neighbor) instead of the segment's own row, J=15.
+    # Parallel I = 8//2=4 .. (40-1)//2=19, reversed -> 19:4.
+    assert segments["segment_002"].mom6_obc_position_string() == "J=16,I=19:4"
     # Interior line adjacent to headland B (axis="nxp", index=30, index_range=slice(0,10)).
-    assert segments["segment_004"].mom6_obc_position_string() == "I=15,J=0:4"
+    # fixed I = 30 // 2 = 15, but reverse=False on axis="nxp" is the EAST
+    # direction, which is the mirror-image broken case (masks I itself) --
+    # compensated the same way, reporting I=16 instead of the own value, 15.
+    assert segments["segment_004"].mom6_obc_position_string() == "I=16,J=0:4"
 
     # Partial edges: the *fixed* coordinate is still "N" (it's a real edge row/
     # column), but the *parallel* (index_range-restricted) coordinate is only
