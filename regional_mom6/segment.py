@@ -47,15 +47,18 @@ the index arithmetic below.
     T-column ``k`` and ``k + 1``, and MOM6 forcibly masks one of those two
     T-cells to land at runtime for every segment that isn't a full outer
     edge -- regardless of what the bathymetry file says.** Which of the two
-    gets masked depends on the segment's direction, and -- this is the
-    non-obvious, previously-undiscovered part, confirmed against a real MOM6
-    run -- it is genuinely asymmetric between the two directions of a given
-    axis; it is not simply "always the neighbor on this side." See
+    gets masked depends on which side of the line the ocean is on, and --
+    this is the non-obvious, previously-undiscovered part, confirmed against
+    a real MOM6 run -- it is genuinely asymmetric between the two sides of a
+    given axis (``ocean_side="south"``/``"west"`` masks the segment's own
+    T-row/T-column; ``"north"``/``"east"`` masks the true neighbor); it is
+    not simply "always the neighbor on this side." See
     :meth:`Segment._compute_grid_index` for the exact rule MOM6 follows and
     the compensation ``Segment`` applies automatically so callers never have
-    to reason about it themselves -- callers only need to get
-    ``mom6_index_reverse`` right (see :meth:`Segment.from_hgrid`), which
-    T-cell specifically ends up masked is handled internally.
+    to reason about it themselves -- callers only need to say which side is
+    ocean via ``ocean_side`` (see :meth:`Segment.from_hgrid`; the older,
+    lower-level ``mom6_index_reverse`` is equivalent and still accepted),
+    which T-cell specifically ends up masked is handled internally.
 """
 
 import warnings
@@ -86,6 +89,28 @@ _CARDINAL_AXES = {
 # descending) traces the perimeter counterclockwise, keeping the interior on
 # the left throughout.
 _CARDINAL_REVERSE = {"south": False, "east": False, "north": True, "west": True}
+
+# Which compass side is the ocean/interior on, for each axis -- the
+# human-facing alternative to mom6_index_reverse. A "nyp" (horizontal, J-fixed)
+# segment's interior is either "north" or "south" of the line; a "nxp"
+# (vertical, I-fixed) segment's is either "west" or "east". These map 1:1
+# onto mom6_index_reverse (True/False) for the corresponding axis -- e.g. the
+# 4 cardinal cases are just the special case where the ocean_side matches the
+# edge's own name (a "south" edge has its ocean to the north, etc, per
+# _CARDINAL_REVERSE above).
+_OCEAN_SIDE_REVERSE = {
+    "nyp": {"north": False, "south": True},
+    "nxp": {"west": False, "east": True},
+}
+_REVERSE_TO_OCEAN_SIDE = {
+    axis: {reverse: side for side, reverse in sides.items()}
+    for axis, sides in _OCEAN_SIDE_REVERSE.items()
+}
+
+# The two ocean_side values (one per axis) for which MOM6's
+# open_boundary_impose_land_mask masks the segment's own T-row/T-column
+# rather than its neighbor's -- see _compute_grid_index.
+_OCEAN_SIDE_MASKS_OWN_POSITION = frozenset({"south", "west"})
 
 
 class Segment:
@@ -148,7 +173,8 @@ class Segment:
         segment_name: str,
         index_range=None,
         topo=None,
-        mom6_index_reverse: bool = False,
+        ocean_side: str = None,
+        mom6_index_reverse: bool = None,
     ) -> "Segment":
         """
         Slice a straight segment out of ``hgrid``.
@@ -185,23 +211,54 @@ class Segment:
             topo (mom6_forge.topo.Topo, optional): A ``Topo`` instance for the same
                 grid. If given, its ``supergridmask`` is sliced the same way to build
                 the segment's ocean/land mask. Default ``None`` (no masking).
-            mom6_index_reverse (bool): Which of the two possible directions
-                this segment faces, i.e. which side of the line is the
-                interior (ocean) side -- ``False`` emits the parallel range
-                ascending in :meth:`mom6_obc_position_string` (MOM6's SOUTH
-                direction for ``axis="nyp"``, EAST for ``axis="nxp"``);
-                ``True`` emits it descending (NORTH / WEST respectively).
-                Concretely, in terms of which side stays open:
+            ocean_side (str, optional): Which side of the line is the interior
+                (ocean) side, in plain compass terms -- the recommended way to
+                specify this. For ``axis="nyp"`` (horizontal line): ``"north"``
+                or ``"south"``. For ``axis="nxp"`` (vertical line): ``"east"``
+                or ``"west"``. Passing a direction that doesn't belong to
+                ``axis`` (e.g. ``"east"`` with ``axis="nyp"``) raises
+                ``ValueError`` immediately, rather than silently building a
+                segment MOM6 will mask on the wrong side. Mutually exclusive
+                with ``mom6_index_reverse`` -- pass exactly one.
+            mom6_index_reverse (bool, optional): The lower-level equivalent of
+                ``ocean_side``, kept for callers that already think in these
+                terms (e.g. :meth:`cardinal`) -- prefer ``ocean_side`` for new
+                code. ``False`` emits the parallel range ascending in
+                :meth:`mom6_obc_position_string` (MOM6's SOUTH direction for
+                ``axis="nyp"``, EAST for ``axis="nxp"``); ``True`` emits it
+                descending (NORTH / WEST respectively). Concretely, in terms
+                of which side stays open:
                     ``axis="nyp"`` (horizontal line): ``False`` -> interior is
-                        NORTH of the line; ``True`` -> interior is SOUTH.
+                        NORTH of the line (``ocean_side="north"``); ``True``
+                        -> interior is SOUTH (``ocean_side="south"``).
                     ``axis="nxp"`` (vertical line): ``False`` -> interior is
-                        WEST of the line; ``True`` -> interior is EAST.
+                        WEST of the line (``ocean_side="west"``); ``True`` ->
+                        interior is EAST (``ocean_side="east"``).
                 Get this backwards and MOM6 will force the *wrong* side of
                 the line to land at runtime, since it always trusts this
-                direction over the bathymetry file. Default ``False``.
+                direction over the bathymetry file. Default ``False`` if
+                neither ``ocean_side`` nor ``mom6_index_reverse`` is given.
         """
         if axis not in ("nyp", "nxp"):
             raise ValueError("axis must be one of: 'nyp', 'nxp'")
+
+        if ocean_side is not None and mom6_index_reverse is not None:
+            raise ValueError(
+                "pass either ocean_side or mom6_index_reverse for segment "
+                f"{segment_name!r}, not both."
+            )
+        if ocean_side is not None:
+            valid_sides = _OCEAN_SIDE_REVERSE[axis]
+            if ocean_side not in valid_sides:
+                raise ValueError(
+                    f"ocean_side={ocean_side!r} is invalid for axis={axis!r} "
+                    f"on segment {segment_name!r} -- axis={axis!r} segments "
+                    f"take ocean_side in {sorted(valid_sides)}."
+                )
+            mom6_index_reverse = valid_sides[ocean_side]
+        elif mom6_index_reverse is None:
+            mom6_index_reverse = False
+        ocean_side = _REVERSE_TO_OCEAN_SIDE[axis][mom6_index_reverse]
 
         parallel_axis = "nxp" if axis == "nyp" else "nyp"
         if index_range is not None:
@@ -231,7 +288,7 @@ class Segment:
         mask = topo.supergridmask.isel({axis: index}) if topo is not None else None
 
         grid_index = cls._compute_grid_index(
-            hgrid, axis, index, parallel_axis, index_range, mom6_index_reverse
+            hgrid, axis, index, parallel_axis, index_range, mom6_index_reverse, ocean_side
         )
 
         if index_range is not None:
@@ -267,24 +324,26 @@ class Segment:
         )
 
     @staticmethod
-    def _compute_grid_index(hgrid, axis, index, parallel_axis, index_range, reverse):
+    def _compute_grid_index(
+        hgrid, axis, index, parallel_axis, index_range, reverse, ocean_side
+    ):
         """Bookkeeping for :meth:`mom6_obc_position_string`: convert a supergrid
         axis/index/index_range into MOM6's own (half-resolution) model-grid I/J
         numbering, resolved once at construction time.
 
         MOM6's own ``open_boundary_impose_land_mask`` (MOM_open_boundary.F90) is
         asymmetric: for a J-fixed (nyp) segment it force-masks T-row ``J-1`` to
-        land for a SOUTH-direction segment, but T-row ``J`` itself (the
-        segment's *own* row) for a NORTH-direction one; symmetrically, for an
-        I-fixed (nxp) segment it masks T-column ``I-1`` for WEST but ``I``
-        itself for EAST. For a full outer edge this lands on a harmless
-        sentinel/out-of-bounds value either way, which is why this was never
-        caught before -- but for a genuine interior line, the "masks its own
-        row/column" direction would force the segment's own wet cell to land,
-        breaking it outright (confirmed against a real MOM6 run). We
-        compensate by shifting ``fixed_value`` by one for exactly that
-        direction, on interior lines only, so MOM6 always ends up masking the
-        intended neighbor instead of the segment itself.
+        land when the ocean is to the north, but T-row ``J`` itself (the
+        segment's *own* row) when the ocean is to the south; symmetrically, for
+        an I-fixed (nxp) segment it masks T-column ``I-1`` when the ocean is to
+        the east but ``I`` itself when the ocean is to the west. For a full
+        outer edge this lands on a harmless sentinel/out-of-bounds value either
+        way, which is why this was never caught before -- but for a genuine
+        interior line, the "masks its own row/column" case would force the
+        segment's own wet cell to land, breaking it outright (confirmed
+        against a real MOM6 run). We compensate by shifting ``fixed_value`` by
+        one for exactly that case, on interior lines only, so MOM6 always ends
+        up masking the intended neighbor instead of the segment itself.
         """
         nyp_size = hgrid.sizes["nyp"]
         nxp_size = hgrid.sizes["nxp"]
@@ -296,9 +355,9 @@ class Segment:
         fixed_value = resolved_index // 2
         is_full_edge = resolved_index in (0, fixed_size - 1)
 
-        # axis=="nyp": reverse=True -> NORTH direction masks its own row.
-        # axis=="nxp": reverse=False -> EAST direction masks its own column.
-        masks_own_position = (axis == "nyp") == reverse
+        # ocean_side="south"/"west" is exactly the case MOM6 masks its own
+        # T-row/T-column rather than the neighbor's -- see docstring above.
+        masks_own_position = ocean_side in _OCEAN_SIDE_MASKS_OWN_POSITION
         if not is_full_edge and masks_own_position:
             fixed_value += 1
 
@@ -430,7 +489,8 @@ class Segment:
         lon_range=None,
         lat_range=None,
         topo=None,
-        mom6_index_reverse: bool = False,
+        ocean_side: str = None,
+        mom6_index_reverse: bool = None,
     ) -> "Segment":
         """
         Build a segment from physical coordinates instead of raw supergrid
@@ -457,7 +517,9 @@ class Segment:
             lon_range (tuple[float, float]): Required for ``axis="nyp"``.
             lat_range (tuple[float, float]): Required for ``axis="nxp"``.
             topo (mom6_forge.topo.Topo, optional): See :meth:`from_hgrid`.
-            mom6_index_reverse (bool): See :meth:`from_hgrid`.
+            ocean_side (str, optional): See :meth:`from_hgrid`. Recommended
+                over ``mom6_index_reverse``.
+            mom6_index_reverse (bool, optional): See :meth:`from_hgrid`.
         """
         grid = Grid.from_supergrid_ds(hgrid)
 
@@ -489,6 +551,7 @@ class Segment:
             segment_name=segment_name,
             index_range=index_range,
             topo=topo,
+            ocean_side=ocean_side,
             mom6_index_reverse=mom6_index_reverse,
         )
 

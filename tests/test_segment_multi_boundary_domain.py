@@ -8,6 +8,7 @@ mom6_forge.Topo -- all exercised without ever touching regional_mom6.experiment.
 
 import numpy as np
 import pandas as pd
+import pytest
 import xarray as xr
 
 from mom6_forge.grid import Grid
@@ -278,3 +279,92 @@ def test_interior_partial_segment_regrid_velocity_tracers(toy_glorys_ds, tmp_pat
     # match; masked land points are filled, not physically meaningful.
     np.testing.assert_allclose(salt_vals[..., ocean_points], 35.0, rtol=1e-4)
     assert np.isfinite(salt_vals).all()
+
+
+@pytest.mark.parametrize(
+    "axis, ocean_side, mom6_index_reverse",
+    [
+        ("nyp", "north", False),
+        ("nyp", "south", True),
+        ("nxp", "west", False),
+        ("nxp", "east", True),
+    ],
+)
+def test_ocean_side_matches_equivalent_mom6_index_reverse(
+    axis, ocean_side, mom6_index_reverse
+):
+    """ocean_side is purely a friendlier spelling of mom6_index_reverse --
+    for every valid (axis, ocean_side) pair, the two must produce a
+    bit-identical Segment (geometry, mask, and position string alike)."""
+    grid, topo = _sketch_grid_and_topo()
+    hgrid = grid._supergrid.to_ds(name=grid.name, author="pytest")
+    # An interior line, away from either headland, valid for both axes.
+    index, index_range = 10, slice(1, 8)
+
+    by_side = Segment.from_hgrid(
+        hgrid,
+        axis=axis,
+        index=index,
+        index_range=index_range,
+        segment_name="by_side",
+        topo=topo,
+        ocean_side=ocean_side,
+    )
+    by_reverse = Segment.from_hgrid(
+        hgrid,
+        axis=axis,
+        index=index,
+        index_range=index_range,
+        segment_name="by_reverse",
+        topo=topo,
+        mom6_index_reverse=mom6_index_reverse,
+    )
+
+    assert np.array_equal(by_side.lon.values, by_reverse.lon.values)
+    assert np.array_equal(by_side.lat.values, by_reverse.lat.values)
+    assert np.array_equal(by_side.mask.values, by_reverse.mask.values)
+    # position strings embed the segment name -- compare everything else.
+    fixed_a, parallel_a = by_side.mom6_obc_position_string().split(",")
+    fixed_b, parallel_b = by_reverse.mom6_obc_position_string().split(",")
+    assert fixed_a == fixed_b
+    assert parallel_a == parallel_b
+
+
+def test_ocean_side_rejects_direction_that_does_not_match_axis():
+    grid, topo = _sketch_grid_and_topo()
+    hgrid = grid._supergrid.to_ds(name=grid.name, author="pytest")
+
+    with pytest.raises(ValueError, match="invalid for axis"):
+        Segment.from_hgrid(
+            hgrid,
+            axis="nyp",
+            index=10,
+            segment_name="bad_side",
+            topo=topo,
+            ocean_side="east",
+        )
+    with pytest.raises(ValueError, match="invalid for axis"):
+        Segment.from_hgrid(
+            hgrid,
+            axis="nxp",
+            index=10,
+            segment_name="bad_side",
+            topo=topo,
+            ocean_side="north",
+        )
+
+
+def test_ocean_side_and_mom6_index_reverse_are_mutually_exclusive():
+    grid, topo = _sketch_grid_and_topo()
+    hgrid = grid._supergrid.to_ds(name=grid.name, author="pytest")
+
+    with pytest.raises(ValueError, match="not both"):
+        Segment.from_hgrid(
+            hgrid,
+            axis="nyp",
+            index=10,
+            segment_name="ambiguous",
+            topo=topo,
+            ocean_side="north",
+            mom6_index_reverse=False,
+        )
