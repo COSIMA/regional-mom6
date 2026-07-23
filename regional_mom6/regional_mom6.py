@@ -352,8 +352,8 @@ class experiment:
         self.mom_input_dir.mkdir(exist_ok=True)
 
         self.date_range = [
-            dt.datetime.strptime(date_range[0], "%Y-%m-%d %H:%M:%S"),
-            dt.datetime.strptime(date_range[1], "%Y-%m-%d %H:%M:%S"),
+            dt.datetime.fromisoformat(date_range[0]),
+            dt.datetime.fromisoformat(date_range[1]),
         ]
         self.resolution = resolution
         self.number_vertical_layers = number_vertical_layers
@@ -1557,7 +1557,7 @@ class experiment:
         longitude_coordinate_name="lon",
         latitude_coordinate_name="lat",
         vertical_coordinate_name="elevation",  # This is to match GEBCO
-        fill_channels=False,
+        fill_channels=True,
         positive_down=False,
         write_to_file=True,
         regridding_method=None,
