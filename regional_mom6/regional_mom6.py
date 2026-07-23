@@ -1557,7 +1557,7 @@ class experiment:
         longitude_coordinate_name="lon",
         latitude_coordinate_name="lat",
         vertical_coordinate_name="elevation",  # This is to match GEBCO
-        fill_channels=False,
+        fill_channels=True,
         positive_down=False,
         write_to_file=True,
         regridding_method=None,
