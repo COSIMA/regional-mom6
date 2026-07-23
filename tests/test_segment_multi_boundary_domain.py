@@ -43,21 +43,23 @@ def _sketch_grid_and_topo():
 
 
 # (segment_name, kwargs for Segment.from_hgrid, or None to use Segment.cardinal)
+# Every index_range below is odd-length (T-center-aligned), per
+# BRUSHCUTTER_MODE -- from_hgrid rejects an even-length one outright.
 _SKETCH_SEGMENT_SPECS = {
     "segment_001": dict(
-        axis="nyp", index=-1, index_range=slice(0, 14)
+        axis="nyp", index=-1, index_range=slice(0, 15)
     ),  # north edge, west of headland A
     "segment_002": dict(
-        axis="nyp", index=30, index_range=slice(8, 40), mom6_index_reverse=True
-    ),  # interior line just south of headland A; overlaps segment_001 in columns 4-6
+        axis="nyp", index=30, index_range=slice(7, 40), mom6_index_reverse=True
+    ),  # interior line just south of headland A; overlaps segment_001
     "segment_003": dict(
         axis="nxp", index=-1, index_range=slice(10, 41)
     ),  # east edge, above headland B
     "segment_004": dict(
-        axis="nxp", index=30, index_range=slice(0, 10)
+        axis="nxp", index=30, index_range=slice(0, 11)
     ),  # interior line, west edge of headland B
     "segment_005": dict(
-        axis="nxp", index=-1, index_range=slice(0, 10)
+        axis="nxp", index=-1, index_range=slice(0, 11)
     ),  # east edge, alongside headland B
 }
 _SKETCH_CARDINAL_SEGMENTS = {
@@ -186,27 +188,27 @@ def test_sketch_domain_position_strings_full_edge_vs_interior():
     assert segments["segment_006"].mom6_obc_position_string() == "J=0,I=0:N"
     assert segments["segment_007"].mom6_obc_position_string() == "I=0,J=N:0"
 
-    # Interior line (axis="nyp", index=30, index_range=slice(8, 40), reverse=True):
+    # Interior line (axis="nyp", index=30, index_range=slice(7, 40), reverse=True):
     # fixed J = 30 // 2 = 15, but reverse=True on axis="nyp" is the NORTH
     # direction, which MOM6's open_boundary_impose_land_mask force-masks to
     # land at J *itself* rather than a neighbor (confirmed against a real
     # MOM6 run) -- Segment compensates by reporting J=16 so MOM6 masks J=16
     # (the true north neighbor) instead of the segment's own row, J=15.
-    # Parallel I = 8//2=4 .. (40-1)//2=19, reversed -> 19:4.
-    assert segments["segment_002"].mom6_obc_position_string() == "J=16,I=19:4"
-    # Interior line adjacent to headland B (axis="nxp", index=30, index_range=slice(0,10)).
+    # Parallel I = 7//2=3 .. (40-1)//2=19, reversed -> 19:3.
+    assert segments["segment_002"].mom6_obc_position_string() == "J=16,I=19:3"
+    # Interior line adjacent to headland B (axis="nxp", index=30, index_range=slice(0,11)).
     # fixed I = 30 // 2 = 15, but reverse=False on axis="nxp" is the EAST
     # direction, which is the mirror-image broken case (masks I itself) --
     # compensated the same way, reporting I=16 instead of the own value, 15.
-    assert segments["segment_004"].mom6_obc_position_string() == "I=16,J=0:4"
+    assert segments["segment_004"].mom6_obc_position_string() == "I=16,J=0:5"
 
     # Partial edges: the *fixed* coordinate is still "N" (it's a real edge row/
     # column), but the *parallel* (index_range-restricted) coordinate is only
     # "N" on the side that happens to reach the domain boundary -- never on
     # both sides at once the way a full cardinal edge would.
-    assert segments["segment_001"].mom6_obc_position_string() == "J=N,I=0:6"
+    assert segments["segment_001"].mom6_obc_position_string() == "J=N,I=0:7"
     assert segments["segment_003"].mom6_obc_position_string() == "I=N,J=5:N"
-    assert segments["segment_005"].mom6_obc_position_string() == "I=N,J=0:4"
+    assert segments["segment_005"].mom6_obc_position_string() == "I=N,J=0:5"
     for name in ("segment_001", "segment_003", "segment_005", "segment_004"):
         parallel = segments[name].mom6_obc_position_string().split(",")[1]
         assert (

@@ -262,7 +262,9 @@ def test_segment_from_hgrid_invalid_axis_raises(get_rectilinear_hgrid):
 
 def test_segment_from_hgrid_arbitrary_axis_index_range(get_rectilinear_hgrid):
     hgrid = get_rectilinear_hgrid
-    index_range = slice(2, 6)
+    # Odd-length (T-center-aligned) slice -- BRUSHCUTTER_MODE requires this;
+    # from_hgrid rejects an even-length (corner-aligned) one.
+    index_range = slice(2, 7)
     segment = Segment.from_hgrid(
         hgrid,
         axis="nyp",
@@ -303,15 +305,16 @@ def test_mom6_obc_position_string_arbitrary_segment(get_rectilinear_hgrid):
     2x resolution relative to MOM6's own model grid -- instead of the 'N'
     sentinel, and reverse=True should flip the parallel index direction."""
     hgrid = get_rectilinear_hgrid
+    # Odd-length (T-center-aligned) slice -- BRUSHCUTTER_MODE requires this.
     segment = Segment.from_hgrid(
         hgrid,
         axis="nyp",
         index=4,
         segment_name="segment_002",
-        index_range=slice(2, 8),
+        index_range=slice(2, 9),
     )
-    assert segment.mom6_obc_position_string() == "J=2,I=1:3"
-    assert segment.mom6_obc_position_string(reverse=True) == "J=2,I=3:1"
+    assert segment.mom6_obc_position_string() == "J=2,I=1:4"
+    assert segment.mom6_obc_position_string(reverse=True) == "J=2,I=4:1"
 
 
 def test_mom6_obc_position_string_requires_grid_index():

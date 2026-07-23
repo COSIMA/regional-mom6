@@ -8,6 +8,54 @@ A ``Segment`` only ever needs a small slice of a horizontal grid (and,
 optionally, a matching ``mom6_forge.Topo`` for masking) -- it never needs the
 whole ``experiment``/rest of the domain, so it can be built and exercised on
 its own, independent of ``experiment``.
+
+Indexing conventions
+---------------------
+Two different grids, and two different sub-grids within MOM6's own grid, are
+involved here. Getting them confused is the single easiest way to build a
+segment that looks right in Python but is silently wrong (or outright
+crashes) in MOM6 -- so this is worth reading carefully before touching any of
+the index arithmetic below.
+
+1.  **Supergrid vs. native grid.** ``hgrid`` (dims ``nyp``/``nxp``) is at 2x
+    MOM6's native resolution: even supergrid indices are cell corners, odd
+    supergrid indices are T-cell (tracer) centers. ``from_hgrid``'s ``index``
+    and ``index_range`` arguments are always supergrid indices, because
+    that's what's needed to slice ``hgrid``/``topo.supergridmask`` directly --
+    for native T-cell row/column ``k``, the corresponding supergrid index is
+    ``2 * k + 1``. Everywhere below, "T-row/T-column ``k``" means this native,
+    non-supergrid index (``supergrid_index // 2``).
+
+2.  **T-points vs. U-/V-points.** MOM6's own ``OBC_SEGMENT_00N =
+    "J=...,I=..."`` runtime string is in its native grid too, but -- and this
+    is the part that's easy to get backwards -- **the fixed coordinate of
+    that string is not a T-point index**. A segment with a fixed ``J``
+    (``axis="nyp"``, a horizontal line running east-west) sits on the
+    **V-point** grid, because the velocity component that flows *through* a
+    horizontal boundary is the meridional one, V. A segment with a fixed
+    ``I`` (``axis="nxp"``, a vertical line running north-south) sits on the
+    **U-point** grid, for the same reason with the zonal component, U. This
+    isn't a convention invented here -- it's how MOM6 itself is written: the
+    Fortran routines that parse these strings in ``MOM_open_boundary.F90``
+    are literally named ``setup_v_point_obc`` (for ``"J="`` strings) and
+    ``setup_u_point_obc`` (for ``"I="`` strings). The *parallel* range
+    (``I=lo:hi`` on a ``J=``-fixed segment, or vice versa) stays in plain
+    T-cell units, which is why it needs no special adjustment -- only the
+    fixed coordinate does (see point 3).
+
+3.  **Every U- or V-point line sits on the face between two T-cells, T-row/
+    T-column ``k`` and ``k + 1``, and MOM6 forcibly masks one of those two
+    T-cells to land at runtime for every segment that isn't a full outer
+    edge -- regardless of what the bathymetry file says.** Which of the two
+    gets masked depends on the segment's direction, and -- this is the
+    non-obvious, previously-undiscovered part, confirmed against a real MOM6
+    run -- it is genuinely asymmetric between the two directions of a given
+    axis; it is not simply "always the neighbor on this side." See
+    :meth:`Segment._compute_grid_index` for the exact rule MOM6 follows and
+    the compensation ``Segment`` applies automatically so callers never have
+    to reason about it themselves -- callers only need to get
+    ``mom6_index_reverse`` right (see :meth:`Segment.from_hgrid`), which
+    T-cell specifically ends up masked is handled internally.
 """
 
 import warnings
@@ -107,30 +155,67 @@ class Segment:
 
         Arguments:
             hgrid (xarray.Dataset): The horizontal supergrid dataset.
-            axis (str): Which supergrid axis is held fixed -- ``"nyp"`` for a segment
-                that runs east-west (varies in x), ``"nxp"`` for one that runs
-                north-south (varies in y).
-            index (int): The fixed index along ``axis``. ``0`` or ``-1`` gives a full
-                outer edge (the legacy north/south/east/west cases); any other value
-                gives an interior/arbitrary line.
+            axis (str): Which supergrid axis is held fixed -- ``"nyp"`` for a
+                *horizontal* segment that runs east-west (varies in x, sits on
+                MOM6's V-point grid), ``"nxp"`` for a *vertical* one that runs
+                north-south (varies in y, sits on MOM6's U-point grid). See
+                the module docstring's "Indexing conventions" section for why.
+            index (int): The fixed index along ``axis``, as a **supergrid**
+                index -- i.e. ``2 * k + 1`` for native T-row/T-column ``k``,
+                never the native index ``k`` directly. ``0`` or ``-1`` gives a
+                full outer edge (the legacy north/south/east/west cases,
+                where ``index`` lands on a supergrid *corner*, not a T-cell
+                center); any other value gives an interior/arbitrary line and
+                should be a T-center-aligned (odd) supergrid index so the
+                segment's data actually comes from the T-row/T-column you
+                intend. Always pick this to point at the row/column you want
+                the segment's own wet data on -- ``Segment`` handles the
+                separate MOM6-side masking arithmetic (see point 3 in the
+                module docstring, and :meth:`_compute_grid_index`)
+                internally; you never need to shift ``index`` yourself to
+                compensate for it.
             segment_name (str): Name of the segment, e.g., ``'segment_001'``.
             index_range (slice, optional): Restrict the segment to part of the line
                 along the other (parallel) axis instead of its full length.
-                Default ``None`` (whole line).
+                Default ``None`` (whole line). Must resolve to an *odd* number
+                of supergrid points (MOM6's BRUSHCUTTER_MODE requirement,
+                checked at construction) -- for T-cell indices ``lo``/``hi``,
+                use ``slice(2 * lo + 1, 2 * hi + 2)``, not
+                ``slice(2 * lo, 2 * hi + 2)``.
             topo (mom6_forge.topo.Topo, optional): A ``Topo`` instance for the same
                 grid. If given, its ``supergridmask`` is sliced the same way to build
                 the segment's ocean/land mask. Default ``None`` (no masking).
-            mom6_index_reverse (bool): Default direction used by
-                :meth:`mom6_obc_position_string` for this segment's along-segment
-                (parallel) MOM6 index -- ``False`` counts up, ``True`` counts down.
-                MOM6 requires the domain interior to stay on the same side all the
-                way around a segment, which for a line that isn't a full outer edge
-                depends on which side of the line is ocean -- something only the
-                caller knows. Default ``False`` (count up); pass ``True`` if that's
-                wrong for your segment, or override per call.
+            mom6_index_reverse (bool): Which of the two possible directions
+                this segment faces, i.e. which side of the line is the
+                interior (ocean) side -- ``False`` emits the parallel range
+                ascending in :meth:`mom6_obc_position_string` (MOM6's SOUTH
+                direction for ``axis="nyp"``, EAST for ``axis="nxp"``);
+                ``True`` emits it descending (NORTH / WEST respectively).
+                Concretely, in terms of which side stays open:
+                    ``axis="nyp"`` (horizontal line): ``False`` -> interior is
+                        NORTH of the line; ``True`` -> interior is SOUTH.
+                    ``axis="nxp"`` (vertical line): ``False`` -> interior is
+                        WEST of the line; ``True`` -> interior is EAST.
+                Get this backwards and MOM6 will force the *wrong* side of
+                the line to land at runtime, since it always trusts this
+                direction over the bathymetry file. Default ``False``.
         """
         if axis not in ("nyp", "nxp"):
             raise ValueError("axis must be one of: 'nyp', 'nxp'")
+
+        parallel_axis = "nxp" if axis == "nyp" else "nyp"
+        if index_range is not None:
+            parallel_size = hgrid.sizes[parallel_axis]
+            p_start = index_range.start if index_range.start is not None else 0
+            p_stop = index_range.stop if index_range.stop is not None else parallel_size
+            if (p_stop - p_start) % 2 == 0:
+                raise ValueError(
+                    f"index_range={index_range!r} for segment {segment_name!r} spans "
+                    f"{p_stop - p_start} supergrid points (even) -- MOM6's "
+                    "BRUSHCUTTER_MODE requires an odd number, aligned to T-cell "
+                    "centers rather than raw corners. For T-cell indices lo/hi, use "
+                    "slice(2 * lo + 1, 2 * hi + 2), not slice(2 * lo, 2 * hi + 2)."
+                )
 
         lon = hgrid["x"].isel({axis: index})
         lat = hgrid["y"].isel({axis: index})
@@ -145,7 +230,6 @@ class Segment:
             angle = xr.zeros_like(lon)
         mask = topo.supergridmask.isel({axis: index}) if topo is not None else None
 
-        parallel_axis = "nxp" if axis == "nyp" else "nyp"
         grid_index = cls._compute_grid_index(
             hgrid, axis, index, parallel_axis, index_range, mom6_index_reverse
         )
@@ -383,14 +467,18 @@ class Segment:
             j0, i0 = grid.get_indices(fixed_lat, lon_range[0])
             _, i1 = grid.get_indices(fixed_lat, lon_range[1])
             index = 2 * j0 + 1
-            index_range = slice(2 * min(i0, i1), 2 * max(i0, i1) + 2)
+            # T-center-aligned (odd-length) slice, not a raw corner-to-corner
+            # one -- see from_hgrid's index_range docs.
+            index_range = slice(2 * min(i0, i1) + 1, 2 * max(i0, i1) + 2)
         elif axis == "nxp":
             if fixed_lon is None or lat_range is None:
                 raise ValueError("axis='nxp' requires fixed_lon and lat_range")
             j0, i0 = grid.get_indices(lat_range[0], fixed_lon)
             j1, _ = grid.get_indices(lat_range[1], fixed_lon)
             index = 2 * i0 + 1
-            index_range = slice(2 * min(j0, j1), 2 * max(j0, j1) + 2)
+            # T-center-aligned (odd-length) slice, not a raw corner-to-corner
+            # one -- see from_hgrid's index_range docs.
+            index_range = slice(2 * min(j0, j1) + 1, 2 * max(j0, j1) + 2)
         else:
             raise ValueError("axis must be one of: 'nyp', 'nxp'")
 
