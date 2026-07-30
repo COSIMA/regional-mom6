@@ -478,6 +478,33 @@ class Segment:
         )
 
     @classmethod
+    def detect_open_cardinal_boundaries(cls, topo) -> list:
+        """
+        The subset of the 4 cardinal edges (``'north'``, ``'south'``,
+        ``'east'``, ``'west'``) that touch at least one ocean point in
+        ``topo.supergridmask`` -- an edge that's entirely land needs no OBC
+        segment at all, since MOM6 has nothing to force open there.
+
+        Whether a cardinal edge is open is a property of the grid and
+        bathymetry, not something a caller should have to spell out by hand;
+        this is meant as a sensible default for callers building a segment
+        list, e.g. CrocoDash's ``configure_forcings(boundaries=None, ...)``.
+
+        Doesn't apply to custom/interior boundaries -- those can't be
+        inferred from topo alone and must always be specified explicitly.
+
+        Arguments:
+            topo (mom6_forge.topo.Topo): A ``Topo`` instance for the grid in
+                question; only its ``supergridmask`` is used.
+        """
+        mask = topo.supergridmask
+        return [
+            orientation
+            for orientation, (axis, index) in _CARDINAL_AXES.items()
+            if bool(mask.isel({axis: index}).any())
+        ]
+
+    @classmethod
     def from_lonlat(
         cls,
         hgrid: xr.Dataset,
