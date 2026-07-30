@@ -92,6 +92,60 @@ def convert_to_tpxo_tidal_constituents(tidal_constituents):
     return constituent_indices
 
 
+def prepare_tpxo_tidal_forcing(
+    tpxo_elevation_filepath, tpxo_velocity_filepath, tidal_constituents
+):
+    """
+    Load and preprocess raw TPXO elevation/velocity data into the form
+    :meth:`~regional_mom6.segment.Segment.regrid_tides` expects -- boundary-
+    agnostic, shared by :meth:`experiment.setup_boundary_tides` and any other
+    caller driving ``Segment.regrid_tides`` directly (e.g. a caller with
+    boundaries ``Segment`` itself doesn't know about, like a custom/interior
+    segment).
+
+    Arguments:
+        tpxo_elevation_filepath: Filepath to the TPXO elevation product. Generally of the form ``h_tidalversion.nc``
+        tpxo_velocity_filepath: Filepath to the TPXO velocity product. Generally of the form ``u_tidalversion.nc``
+        tidal_constituents (list of str): Tidal constituents to include, e.g. ``["M2"]``.
+
+    Returns:
+        tuple of xarray.Dataset: ``(tpxo_h, tpxo_u, tpxo_v)``, each with real/
+        imaginary complex amplitude-phase components (``hRe``/``hIm``,
+        ``uRe``/``uIm``, ``vRe``/``vIm``) and, for velocity, already converted
+        from cm/s to m/s.
+    """
+    tpxo_h = (
+        xr.open_dataset(Path(tpxo_elevation_filepath))
+        .rename({"lon_z": "lon", "lat_z": "lat", "nc": "constituent"})
+        .isel(constituent=convert_to_tpxo_tidal_constituents(tidal_constituents))
+    )
+    h = tpxo_h["ha"] * np.exp(-1j * np.radians(tpxo_h["hp"]))
+    tpxo_h["hRe"] = np.real(h)
+    tpxo_h["hIm"] = np.imag(h)
+
+    tpxo_u = (
+        xr.open_dataset(Path(tpxo_velocity_filepath))
+        .rename({"lon_u": "lon", "lat_u": "lat", "nc": "constituent"})
+        .isel(constituent=convert_to_tpxo_tidal_constituents(tidal_constituents))
+    )
+    tpxo_u["ua"] *= 0.01  # convert to m/s
+    u = tpxo_u["ua"] * np.exp(-1j * np.radians(tpxo_u["up"]))
+    tpxo_u["uRe"] = np.real(u)
+    tpxo_u["uIm"] = np.imag(u)
+
+    tpxo_v = (
+        xr.open_dataset(Path(tpxo_velocity_filepath))
+        .rename({"lon_v": "lon", "lat_v": "lat", "nc": "constituent"})
+        .isel(constituent=convert_to_tpxo_tidal_constituents(tidal_constituents))
+    )
+    tpxo_v["va"] *= 0.01  # convert to m/s
+    v = tpxo_v["va"] * np.exp(-1j * np.radians(tpxo_v["vp"]))
+    tpxo_v["vRe"] = np.real(v)
+    tpxo_v["vIm"] = np.imag(v)
+
+    return tpxo_h, tpxo_u, tpxo_v
+
+
 ## Auxiliary functions
 
 
@@ -1485,39 +1539,10 @@ class experiment:
             fill_method = self.fill_method
         if tidal_constituents is not None:
             self.tidal_constituents = tidal_constituents
-        tpxo_h = (
-            xr.open_dataset(Path(tpxo_elevation_filepath))
-            .rename({"lon_z": "lon", "lat_z": "lat", "nc": "constituent"})
-            .isel(
-                constituent=convert_to_tpxo_tidal_constituents(self.tidal_constituents)
-            )
-        )
 
-        h = tpxo_h["ha"] * np.exp(-1j * np.radians(tpxo_h["hp"]))
-        tpxo_h["hRe"] = np.real(h)
-        tpxo_h["hIm"] = np.imag(h)
-        tpxo_u = (
-            xr.open_dataset(Path(tpxo_velocity_filepath))
-            .rename({"lon_u": "lon", "lat_u": "lat", "nc": "constituent"})
-            .isel(
-                constituent=convert_to_tpxo_tidal_constituents(self.tidal_constituents)
-            )
+        tpxo_h, tpxo_u, tpxo_v = prepare_tpxo_tidal_forcing(
+            tpxo_elevation_filepath, tpxo_velocity_filepath, self.tidal_constituents
         )
-        tpxo_u["ua"] *= 0.01  # convert to m/s
-        u = tpxo_u["ua"] * np.exp(-1j * np.radians(tpxo_u["up"]))
-        tpxo_u["uRe"] = np.real(u)
-        tpxo_u["uIm"] = np.imag(u)
-        tpxo_v = (
-            xr.open_dataset(Path(tpxo_velocity_filepath))
-            .rename({"lon_v": "lon", "lat_v": "lat", "nc": "constituent"})
-            .isel(
-                constituent=convert_to_tpxo_tidal_constituents(self.tidal_constituents)
-            )
-        )
-        tpxo_v["va"] *= 0.01  # convert to m/s
-        v = tpxo_v["va"] * np.exp(-1j * np.radians(tpxo_v["vp"]))
-        tpxo_v["vRe"] = np.real(v)
-        tpxo_v["vIm"] = np.imag(v)
         times = xr.DataArray(
             pd.date_range(
                 self.date_range[0], periods=1
