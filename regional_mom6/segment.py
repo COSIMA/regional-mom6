@@ -260,6 +260,11 @@ class Segment:
             mom6_index_reverse = False
         ocean_side = _REVERSE_TO_OCEAN_SIDE[axis][mom6_index_reverse]
 
+        if topo is not None:
+            cls._check_land_capped_endpoints(
+                hgrid, axis, index, index_range, ocean_side, topo, segment_name
+            )
+
         parallel_axis = "nxp" if axis == "nyp" else "nyp"
         if index_range is not None:
             parallel_size = hgrid.sizes[parallel_axis]
@@ -322,6 +327,78 @@ class Segment:
             index=index,
             index_range=index_range,
         )
+
+    @staticmethod
+    def _check_land_capped_endpoints(
+        hgrid, axis, index, index_range, ocean_side, topo, segment_name
+    ):
+        """Require an interior segment's two endpoints to be flanked by land.
+
+        This is independent of the own-position masking rule documented on
+        :meth:`_compute_grid_index` -- that rule is about which T-cell
+        *straddling the line* MOM6 masks; this is about the T-cell one step
+        *past each end* of the line, on the land side. A segment that ends
+        flush against open water there -- with no land buffer past its own
+        span -- puts that open-water cell in a concave notch against the
+        land wall. That alone is enough to blow MOM6 up: it produces wildly
+        different velocities on opposite faces of that one cell (a
+        masking/velocity-point inconsistency), giving extreme SSH and
+        velocity right there within the model's first timestep, even with
+        fully correct segment indexing/orientation and a bathymetry file
+        that already passes MOM6's usual "T-cell on the land side must be
+        land" check (confirmed against a real MOM6 run).
+
+        Only applies to genuine interior segments -- a full cardinal edge's
+        endpoints are the domain's own corners, a separate, already-robust
+        case that predates this check.
+        """
+        if index_range is None:
+            return  # full-length line along this axis -- not interior
+
+        fixed_size = hgrid.sizes[axis]
+        resolved_index = index if index >= 0 else fixed_size + index
+        if resolved_index in (0, fixed_size - 1):
+            return  # full cardinal edge -- endpoints are the domain's corners
+        t_index = resolved_index // 2  # native T-row/T-column the segment sits on
+
+        depth = topo.depth.values
+        ny, nx = depth.shape
+
+        parallel_axis = "nxp" if axis == "nyp" else "nyp"
+        p_start = index_range.start if index_range.start is not None else 0
+        p_stop = (
+            index_range.stop
+            if index_range.stop is not None
+            else hgrid.sizes[parallel_axis]
+        )
+        lo, hi = p_start // 2, (p_stop - 1) // 2
+
+        if axis == "nyp":
+            land_row = t_index + 1 if ocean_side == "south" else t_index - 1
+            if not (0 <= land_row < ny):
+                return  # land side is outside the domain entirely
+            if lo <= 0 and hi >= nx - 1:
+                return  # full-width line, not an interior segment
+            checks = [(land_row, lo - 1, "west"), (land_row, hi + 1, "east")]
+        else:
+            land_col = t_index + 1 if ocean_side == "west" else t_index - 1
+            if not (0 <= land_col < nx):
+                return
+            if lo <= 0 and hi >= ny - 1:
+                return
+            checks = [(lo - 1, land_col, "south"), (hi + 1, land_col, "north")]
+
+        for row, col, side in checks:
+            if 0 <= row < ny and 0 <= col < nx and depth[row, col] > 0:
+                raise ValueError(
+                    f"Segment {segment_name!r} isn't land-capped at its {side} end: "
+                    f"(row={row}, col={col}) is open ocean, one cell past the "
+                    f"segment's own span. MOM6 can produce spurious velocity/SSH "
+                    f"right at that corner even though the segment's own index/"
+                    f"orientation is correct -- widen the land mask so this cell "
+                    f"is land too, or shorten the segment so its endpoint lands "
+                    f"under land."
+                )
 
     @staticmethod
     def _compute_grid_index(
