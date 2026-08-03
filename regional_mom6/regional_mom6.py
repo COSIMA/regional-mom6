@@ -1936,7 +1936,7 @@ class experiment:
             )
 
         # First, make the ESMF mesh file required for all NUOPC based runs, like rom3
-        self.topo.write_esmf_mesh(self.mom_input_dir / "access-rom3-ESMFmesh.nc")
+        self.m6f_bathymetry.write_esmf_mesh(self.mom_input_dir / "access-rom3-ESMFmesh.nc")
         # Now modify to make a mask free version
         maskmesh = xr.open_dataset(self.mom_input_dir / "access-rom3-ESMFmesh.nc")
         maskmesh.elementMask[:] = 1
