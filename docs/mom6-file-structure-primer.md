@@ -10,10 +10,8 @@ The directory, specified by the `mom_run_dir` path keyword argument in the `expe
 You can see examples of these files in [`demos/premade_run_directories`](https://github.com/COSIMA/regional-mom6/tree/main/demos/premade_run_directories).
 These files are:
 
-* `input.nml`:
-  High-level information that is passed directly to each component of your MOM6 setup.
-  The paths of the `SIS` and `MOM` input directories and outputs are included.
-  The `coupler` section turns on or off different model components, and specifies how long to run the experiment for.
+### Machine independent
+These files are mostly the same regardless of the computing environment.
 
 * `diag_table`:
   The diagnostics to output at model runtime.
@@ -34,12 +32,15 @@ These files are:
   Instructions for how to format the `diag_table` are included in the [MOM6 documentation](https://mom6.readthedocs.io/en/dev-gfdl/api/generated/pages/Diagnostics.html).
 
 * `data_table`:
-  The data table is read by the coupler to provide the different model components with inputs.
+  The data table is read by GFDL's Flexible Modelling System to provide the different model components with inputs.
+  This file is *not* needed for ocean-only configurations using the NUOPC coupler, as in that case, this job is done with the `d*_in` files.
+  However, even when running with NUOPC, a data table is required to specify biogeochemical data. 
 
   Instructions for how to format the `data_table` are included in the [MOM6 documentation](https://mom6.readthedocs.io/en/dev-gfdl/forcing.html).
 
 * `field_table`:
   The field table defines tracer fields.
+  This file is *not* needed for ocean-only configurations using the NUOPC coupler, however even when running with NUOPC, a `field_table` is required to specify biogeochemical data. 
 
 * `MOM_input / SIS_input`:
   Basic settings for the core MOM and SIS code with reasonably good documentation.
@@ -59,10 +60,42 @@ These files are:
 * `MOM_layout`:
   This file provides information on the model grid, processor layout and I/O layout.
 
-* `config` file:
-  This file is machine dependent and environment dependent. For instance, if you're using Australia's National Computational Infrastructure (NCI), then you're likely using the [`payu`](https://payu.readthedocs.io/en/latest/) framework, and you'll have a `config.yaml` file. Regardless of what it looks like, this file should contain information that points to the executable, your input directory (aka the `mom_input_dir` you specified), the computational resources you'd like to request and other various settings.
+### Environment / Machine specific
+This section is mostly relevant to people using Australia's National Computational Infrastructure, but may provide some insights to other users as to how MOM6 could be configured on their machine. 
 
-  The package does come with a premade `config.yaml` file for payu users which is automatically copied and modified when the appropriate flag is passed to the `setup_rundir` method. If you find this package useful and you use a different machine, I'd encourage you to provide an example config file for your institution!
+* `input.nml`:
+  High-level information that is passed directly to each component of your MOM6 setup.
+  While present in most (all?) MOM6 configurations, its contents depend heavily on the coupler that's being used. 
+  For instance, GFDL's standalone MOM6 uses `SIS` to handle the atmospheric fluxes from a data atmosphere, so in that case, the `input.nml` will also include settings for `SIS`.
+  When running in GFDL's ecosystem, the `coupler` section turns on or off different model components, and specifies how long to run the experiment for.
+  However, if using the nuopc coupler, this higher level information like model components and model run length are instead handled by the nuopc configuration files
+  and `input.nml` is much simpler.
+
+* Payu `config.yaml` file:
+  This is only relevant for users running with the [`payu`](https://payu.readthedocs.io/en/latest/) framework, typically those on using Australia's National Computational Infrastructure (NCI). The `config.yaml` file specifies paths to model inputs, selects the executable, sets PBS directives and defines any postprocessing tasks.
+
+* `nuopc.runconf`:
+  Only relevent to those running MOM6 with the nuopc coupler, which is the default for Australian/NCI or NCAR/CROCODILE users. 
+  This file is the top level control file for the run, as NUOPC and the CMEPS mediator in turn tell MOM6 what to do.
+  `regional-mom6` will automatically set up the processor configuration and number of x and y points for your domain in this file. 
+  The main thing to edit is the run length, under the `clock` subheading.  
+
+* `nuopc.runseq`:
+  This file tells the [CMEPS mediator ](https://github.com/ACCESS-NRI/CMEPS) the order-of-operations for the various model components.
+  There's little reason to modify it for MOM standalone runs, but important (and becomes quite complex) once you're coupling multiple active model components together. 
+
+* `fd.yaml`:
+  Defines all data forcing fields, used within the payu/nuopc framework. 
+  There is little reason to edit this for most users, unless you're trying to implement new data forcing products.
+
+* `d*_in`:
+  e.g., `drv_in` is the "data-river-input". `datm_in` the "data-atmosphere-input", etc.
+  These files tell the NUOPC coupler what data to expect for these passive data-only model components.
+  In your `nuopc.runconfig` file, if the `ATM_model = datm`, this means nuopc is expecting a data atmosphere, and therefore needs to be told what this will look like. 
+
+* `d*.streams.xml`:
+  Like the previous entry, but providing specific paths and metadata pertaining to each data file making up the data model component. 
+  This file is generally generated by a script, not by hand, and the sets of data forcing products are maintained by ACCESS-NRI. 
 
 ## `input` directory
 
@@ -108,3 +141,10 @@ These files can be big, so it is usually helpful to store them somewhere without
 
 * `forcing/{tz/tu}_segment**`
   The boundary tidal segments, numbered the same way as in `MOM_input`. See the previous bullet point for more information on these type of files.
+
+* `*ESMFmesh.nc`:
+  ESMF mesh files are only required for NUOPC based runs. 
+  They tell the coupler everything it needs to know to map data to and from other model components. 
+
+* `mosaic.nc` & `grid_spec.nc`:
+  The equivalent files to the ESMF mesh for running with GFDL's coupler rather than NUOPC. 
