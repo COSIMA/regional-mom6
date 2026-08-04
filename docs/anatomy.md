@@ -1,5 +1,3 @@
-# regional-mom6 workflow
-
 # Anatomy of a regional MOM6 model
 
 Running a regional MOM6 ocean model requires similar components to a global model, with some modifications and extra files necessary to handle the open boundary conditions.
