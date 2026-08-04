@@ -27,7 +27,7 @@
 
 Regional-mom6 is designed to be machine agnostic as much as possible, meaning that as long as you have a working MOM6 executable on your computer, this package gets you most of the way towards running your MOM6 configuration. However, additional support is available for the two main institutions who use and maintain regional-mom6: [COSIMA](https://cosima.org.au/) and NCAR's [CROCODILE project](https://github.com/CROCODILE-CESM/). 
 
-Check out the [documentation](https://regional-mom6.readthedocs.io/en/latest/) and browse through the [demos](https://regional-mom6.readthedocs.io/en/latest/demos.html).
+Check out the [documentation](https://regional-mom6.readthedocs.io/en/latest/) and try the [demos](https://regional-mom6.readthedocs.io/en/latest/demos.html).
 
 ## For COSIMA / Gadi users
 
@@ -39,7 +39,7 @@ CESM users should check out the [CrocoDash](https://github.com/CROCODILE-CESM/Cr
 
 ## For users outside Australia and the U.S
 
-This package can still be used to set up your model! The only catch is that you need to supply an executable built on your machine. We maintain a machine agnostic demonstration how to use regional-mom6 for everything short of _running_ the model.
+This package can still be used to set up your model! The only catch is that you need to supply an executable built on your machine. We maintain a machine agnostic [demo](https://regional-mom6.readthedocs.io/en/latest/demos.html) on how to use regional-mom6 for everything short of _running_ the model.
 
 ## We want to hear from you
 
@@ -98,20 +98,6 @@ Alternatively, install the version that corresponds to a particular git commit u
 ```bash
 pip install git+https://github.com/COSIMA/regional-mom6.git@061b0ef80c7cbc04de0566df329c4ea472002f7e
 ```
-
-## MOM6 Configuration and Version Requirements
-
-The package and demos assume a coupled MOM6-SIS2 configuration, but also work for MOM6 ocean-only configuration after appropriate changes in the `input.nml` and `MOM_input` files.
-
-Additionally, regional configurations require that the MOM6 executable _must_ be compiled with **symmetric memory**.
-
-The current release of this package assumes the latest source code of all components needed to run MOM6 as of
-January 2024. A forked version of the [`setup-mom6-nci`](https://github.com/ashjbarnes/setup-mom6-nci) repository
-contains scripts for compiling MOM6 and, furthermore, its [`src`](https://github.com/ashjbarnes/setup-mom6-nci/tree/setup-mom6/src)
-directory lists the particular commits that were used to compile MOM6 and its submodules for this package.
-
-Note that the commits used for MOM6 submodules (e.g., Flexible Modelling System (FMS), coupler, SIS2) are _not_
-necessarily those used by the GFDL's [`MOM6_examples`](https://github.com/NOAA-GFDL/MOM6-examples) repository.
 
 
 ## Getting started
