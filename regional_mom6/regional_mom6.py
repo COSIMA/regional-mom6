@@ -11,6 +11,8 @@ import warnings
 import shutil
 import os
 import importlib.resources
+from importlib.metadata import version
+
 import pandas as pd
 from pathlib import Path
 import json
@@ -42,6 +44,7 @@ __all__ = [
     "experiment",
     "segment",
     "get_glorys_data",
+    "add_version_to_ds",
     "Grid",
     "Topo",
     "VGrid",
@@ -169,6 +172,18 @@ copernicusmarine subset --dataset-id cmems_mod_glo_phy_my_0.083deg_P1D-m --varia
     file.writelines(lines)
     file.close()
     return Path(path / "get_glorys_data.sh")
+
+
+def add_version_to_ds(ds):
+    """
+    Add the regional-mom6 version to a dataset so it's easy to keep track of how input files were produced
+    """
+    try:
+        from ._version import __version__
+    except ImportError:
+        __version__ = "unknown"
+    ds.attrs["rmom6_version"] = f"Made with regional-mom6 version {__version__}"
+    return ds
 
 
 class experiment:
@@ -1105,8 +1120,7 @@ class experiment:
         )
 
         print("Saving outputs... ", end="")
-
-        vel_out.fillna(0).to_netcdf(
+        add_version_to_ds(vel_out).fillna(0).to_netcdf(
             self.mom_input_dir / "init_vel.nc",
             mode="w",
             encoding={
@@ -1119,12 +1133,12 @@ class experiment:
             var: {"_FillValue": -1e20, "missing_value": -1e20}
             for var in reprocessed_var_map["tracer_var_names"].keys()
         }
-        tracers_out.to_netcdf(
+        add_version_to_ds(tracers_out).to_netcdf(
             self.mom_input_dir / "init_tracers.nc",
             mode="w",
             encoding=encoding,
         )
-        eta_out.to_netcdf(
+        add_version_to_ds(eta_out).to_netcdf(
             self.mom_input_dir / "init_eta.nc",
             mode="w",
             encoding={
@@ -1365,7 +1379,7 @@ class experiment:
                 if dz_var_name in ds:
                     ds_var[dz_var_name] = ds[dz_var_name]
             output_file = self.mom_input_dir / f"{var}_obc_segment.nc"
-            ds_var.to_netcdf(output_file, unlimited_dims="time")
+            add_version_to_ds(ds_var).to_netcdf(output_file, unlimited_dims="time")
             print("Saved BGC tracer {} to file {}".format(var, output_file))
 
     def setup_single_boundary(
@@ -1936,11 +1950,15 @@ class experiment:
             )
 
         # First, make the ESMF mesh file required for all NUOPC based runs, like rom3
-        self.m6f_bathymetry.write_esmf_mesh(self.mom_input_dir / "access-rom3-ESMFmesh.nc")
+        self.m6f_bathymetry.write_esmf_mesh(
+            self.mom_input_dir / "access-rom3-ESMFmesh.nc"
+        )
         # Now modify to make a mask free version
         maskmesh = xr.open_dataset(self.mom_input_dir / "access-rom3-ESMFmesh.nc")
         maskmesh.elementMask[:] = 1
-        maskmesh.to_netcdf(self.mom_input_dir / "access-rom3-nomask-ESMFmesh.nc")
+        add_version_to_ds(maskmesh).to_netcdf(
+            self.mom_input_dir / "access-rom3-nomask-ESMFmesh.nc"
+        )
 
         #! PLACEHOLDER
         #! need to implement something like:
@@ -2167,7 +2185,7 @@ class experiment:
                 q = xr.Dataset(data_vars={"q": humidity})
 
                 q.q.attrs = {"long_name": "Specific Humidity", "units": "kg/kg"}
-                q.to_netcdf(
+                add_version_to_ds(q).to_netcdf(
                     f"{self.mom_input_dir}/q_ERA5.nc",
                     unlimited_dims="time",
                     encoding={"q": {"dtype": "double"}},
@@ -2182,7 +2200,7 @@ class experiment:
                     "long_name": "Total Rain Rate",
                     "units": "kg m**-2 s**-1",
                 }
-                trr.to_netcdf(
+                add_version_to_ds(trr).to_netcdf(
                     f"{self.mom_input_dir}/trr_ERA5.nc",
                     unlimited_dims="time",
                     encoding={"trr": {"dtype": "double"}},
@@ -2523,7 +2541,7 @@ class segment:
         # If repeat-year forcing, add modulo coordinate
         if self.repeat_year_forcing:
             segment_out["time"] = segment_out["time"].assign_attrs({"modulo": " "})
-        segment_out.load().to_netcdf(
+        add_version_to_ds(segment_out).load().to_netcdf(
             self.outfolder / f"forcing_obc_{self.segment_name}.nc",
             encoding=encoding_dict,
             unlimited_dims="time",
@@ -2826,7 +2844,7 @@ class segment:
         )
 
         ## Export Files ##
-        ds.to_netcdf(
+        add_version_to_ds(ds).to_netcdf(
             Path(self.outfolder / fname),
             engine="netcdf4",
             encoding=encoding,
