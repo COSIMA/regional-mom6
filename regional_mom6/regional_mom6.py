@@ -157,21 +157,32 @@ def get_glorys_data(
     path = Path(download_path)
 
     if modify_existing:
-        file = open(Path(path / "get_glorys_data.sh"), "r")
+        file = open(Path(path / "get_glorys_data.pbs"), "r")
         lines = file.readlines()
         file.close()
 
     else:
-        lines = ["#!/bin/bash\n"]
+        lines = [
+            "#!/bin/bash\n",
+            "#PBS -N get_glorys_data\n",
+            "#PBS -P <project>\n",
+            "#PBS -q copyq\n",
+            "#PBS -l ncpus=1\n",
+            "#PBS -l mem=4GB\n",
+            "#PBS -l walltime=10:00:00\n",
+            "#PBS -l wd\n",
+            "#PBS -l storage=gdata/<project>+gdata/vk83\n",
+            "#PBS -o get_glorys_data.log\n"
+            ]
 
-    file = open(Path(path / "get_glorys_data.sh"), "w")
+    file = open(Path(path / "get_glorys_data.pbs"), "w")
 
     lines.append(f"""
 copernicusmarine subset --dataset-id cmems_mod_glo_phy_my_0.083deg_P1D-m --variable so --variable thetao --variable uo --variable vo --variable zos --start-datetime {str(timerange[0]).replace(" ","T")} --end-datetime {str(timerange[1]).replace(" ","T")} --minimum-longitude {longitude_extent[0] - buffer} --maximum-longitude {longitude_extent[1] + buffer} --minimum-latitude {latitude_extent[0] - buffer} --maximum-latitude {latitude_extent[1] + buffer} --minimum-depth 0 --maximum-depth 6000 -o {str(path)} -f {segment_name}.nc\n
 """)
     file.writelines(lines)
     file.close()
-    return Path(path / "get_glorys_data.sh")
+    return Path(path / "get_glorys_data.pbs")
 
 
 def add_version_to_ds(ds):
@@ -1256,15 +1267,14 @@ class experiment:
             )
 
         print(
-            f"The script `get_glorys_data.sh` has been generated at:\n  {raw_boundaries_path}.\n"
-            f"To download the data, run this script using `bash` in a terminal with internet access.\n\n"
+            f"The script `get_glorys_data.pbs` has been generated at:\n  {raw_boundaries_path}.\n"
+            f"To download the data, run this script using `qsub` (or simply Bash to ignore the NCI-specific pbs directives)\n\n"
             f"Important instructions:\n"
             f"1. You will need your Copernicus Marine username and password.\n"
             f"   If you do not have an account, you can create one here: \n"
             f"   https://data.marine.copernicus.eu/register\n"
             f"2. You will be prompted to enter your Copernicus Marine credentials multiple times: once for each dataset.\n"
             f"3. Depending on the dataset size, the download process may take significant time and resources.\n"
-            f"4. Thus, on certain systems, you may need to run this script as a batch job.\n"
         )
         return
 
