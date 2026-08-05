@@ -136,6 +136,7 @@ def get_glorys_data(
     segment_name,
     download_path,
     modify_existing=True,
+    project = None,
 ):
     """
     Generates a bash script to download all of the required ocean forcing data.
@@ -147,6 +148,7 @@ def get_glorys_data(
         segment_range (str): name of the segment (without the ``.nc`` extension, e.g., ``east_unprocessed``)
         download_path (str): Location of where the script is saved
         modify_existing (bool): Whether to add to an existing script or start a new one
+        project (str or None): the NCI project the user belongs to. If none, pbs directives aren't added and plain bash script is written.
     Returns:
         file path
     """
@@ -161,19 +163,24 @@ def get_glorys_data(
         lines = file.readlines()
         file.close()
 
-    else:
+    elif project != None:
+        # Add pbs directives
         lines = [
             "#!/bin/bash\n",
             "#PBS -N get_glorys_data\n",
-            "#PBS -P <project>\n",
+            f"#PBS -P {project}\n",
             "#PBS -q copyq\n",
             "#PBS -l ncpus=1\n",
             "#PBS -l mem=4GB\n",
             "#PBS -l walltime=10:00:00\n",
             "#PBS -l wd\n",
-            "#PBS -l storage=gdata/<project>+gdata/vk83\n",
-            "#PBS -o get_glorys_data.log\n"
+            f"#PBS -l storage=scratch/{project}+gdata/{project}+gdata/vk83\n",
+            "#PBS -o get_glorys_data.log\n",
+            "module use /g/data/vk83/modules\n",
+            "module load copernicusmarine/2.4.1\n"
             ]
+    else:
+        lines = ["#!/bin/bash\n"]
 
     file = open(Path(path / "get_glorys_data.pbs"), "w")
 
@@ -1183,7 +1190,7 @@ class experiment:
         )
         return
 
-    def get_glorys(self, raw_boundaries_path):
+    def get_glorys(self, raw_boundaries_path,project = None):
         """
         This is a wrapper that calls :func:`~get_glorys_data` once for each of the rectangular boundary segments
         and the initial condition. For more complex boundary shapes, call :func:`~get_glorys_data` directly for
@@ -1195,6 +1202,7 @@ class experiment:
             raw_boundaries_path (str): Path to the directory containing the raw boundary forcing files.
             boundaries (List[str]): List of cardinal directions for which to create boundary forcing files.
                 Default is ``["south", "north", "west", "east"]``.
+            project (str or None): NCI project of the user, or None to set up a machine agnostic file instead
         """
 
         # Initial Condition
@@ -1208,6 +1216,7 @@ class experiment:
             segment_name="ic_unprocessed",
             download_path=raw_boundaries_path,
             modify_existing=False,  # This is the first line, so start bash script anew
+            project = project
         )
         if "east" in self.boundaries:
             get_glorys_data(
@@ -1268,13 +1277,13 @@ class experiment:
 
         print(
             f"The script `get_glorys_data.pbs` has been generated at:\n  {raw_boundaries_path}.\n"
-            f"To download the data, run this script using `qsub` (or simply Bash to ignore the NCI-specific pbs directives)\n\n"
-            f"Important instructions:\n"
-            f"1. You will need your Copernicus Marine username and password.\n"
-            f"   If you do not have an account, you can create one here: \n"
-            f"   https://data.marine.copernicus.eu/register\n"
-            f"2. You will be prompted to enter your Copernicus Marine credentials multiple times: once for each dataset.\n"
-            f"3. Depending on the dataset size, the download process may take significant time and resources.\n"
+            "To download the data, qsub \n\n"
+            "Important instructions:\n"
+            "1. You will need your Copernicus Marine username and password.\n"
+            "   If you do not have an account, you can create one here: \n"
+            "   https://data.marine.copernicus.eu/register\n"
+            "2. Follow the instructions below to set up your account properly on gadi using `coperinucmarine login`. You may want to do this first on a login node before trying the pbs job. https://help.marine.copernicus.eu/en/articles/8185007-copernicus-marine-toolbox-credentials-configuration \n"
+            "3. Depending on the dataset size, the download process may take significant time and resources.\n"
         )
         return
 
