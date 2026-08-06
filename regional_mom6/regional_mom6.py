@@ -630,6 +630,20 @@ class experiment:
             return
 
     @property
+    def init_eta(self):
+        try:
+            return xr.open_dataset(
+                self.mom_input_dir / "init_eta.nc",
+                decode_cf=False,
+                decode_times=False,
+            )
+        except Exception as e:
+            print(
+                f"Error: {e}. Opening init_eta threw an error! Make sure you've successfully run the setup_initial_condition method, or copied an init_eta.nc file into {self.mom_input_dir}."
+            )
+            return
+
+    @property
     def ocean_state_boundary_paths(self):
         """
         Finds the ocean state files from disk, and prints the file paths
