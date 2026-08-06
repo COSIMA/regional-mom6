@@ -136,7 +136,7 @@ def get_glorys_data(
     segment_name,
     download_path,
     modify_existing=True,
-    project = None,
+    project=None,
 ):
     """
     Generates a bash script to download all of the required ocean forcing data.
@@ -177,8 +177,8 @@ def get_glorys_data(
             f"#PBS -l storage=scratch/{project}+gdata/{project}+gdata/vk83\n",
             "#PBS -o get_glorys_data.log\n",
             "module use /g/data/vk83/modules\n",
-            "module load copernicusmarine/2.4.1\n"
-            ]
+            "module load copernicusmarine/2.4.1\n",
+        ]
     else:
         lines = ["#!/bin/bash\n"]
 
@@ -1190,7 +1190,7 @@ class experiment:
         )
         return
 
-    def get_glorys(self, raw_boundaries_path,project = None):
+    def get_glorys(self, raw_boundaries_path, project=None):
         """
         This is a wrapper that calls :func:`~get_glorys_data` once for each of the rectangular boundary segments
         and the initial condition. For more complex boundary shapes, call :func:`~get_glorys_data` directly for
@@ -1216,7 +1216,7 @@ class experiment:
             segment_name="ic_unprocessed",
             download_path=raw_boundaries_path,
             modify_existing=False,  # This is the first line, so start bash script anew
-            project = project
+            project=project,
         )
         if "east" in self.boundaries:
             get_glorys_data(
