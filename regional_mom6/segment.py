@@ -17,6 +17,18 @@ segment that looks right in Python but is silently wrong (or outright
 crashes) in MOM6 -- so this is worth reading carefully before touching any of
 the index arithmetic below.
 
+**The mental model:** you specify a T-point, and the segment ends up enforced
+on the U/V-point face right next to it. ``index`` (a T-center-aligned, odd
+supergrid value -- point 1 below) is used *only* to pull the segment's own
+data: lon/lat/mask/forcing values come straight from that T-row/T-column's
+own coordinates and wetness. But every T-cell has two adjacent U/V-point
+faces along the fixed axis -- e.g. for ``axis="nyp"``, T-row ``k`` has a
+south face (the V-point between row ``k - 1`` and ``k``) and a north face
+(between ``k`` and ``k + 1``) -- and ``ocean_side`` (point 3 below) tells
+``Segment`` which of those two faces is the real boundary MOM6 enforces, by
+saying which side of T-row/T-column ``k`` the open ocean is on. You never
+touch the U/V arithmetic yourself; T-point in, correct U/V face out.
+
 1.  **Supergrid vs. native grid.** ``hgrid`` (dims ``nyp``/``nxp``) is at 2x
     MOM6's native resolution: even supergrid indices are cell corners, odd
     supergrid indices are T-cell (tracer) centers. ``from_hgrid``'s ``index``
@@ -190,9 +202,12 @@ class Segment:
                 full outer edge (the legacy north/south/east/west cases,
                 where ``index`` lands on a supergrid *corner*, not a T-cell
                 center); any other value gives an interior/arbitrary line and
-                should be a T-center-aligned (odd) supergrid index so the
-                segment's data actually comes from the T-row/T-column you
-                intend. Always pick this to point at the row/column you want
+                **must** be a T-center-aligned (odd) supergrid index --
+                ``from_hgrid`` raises ``ValueError`` immediately for an even,
+                corner-aligned ``index`` outside the two edge cases, since the
+                segment's data would otherwise be silently pulled from the
+                corner instead of the T-row/T-column you intend. Always pick
+                this to point at the row/column you want
                 the segment's own wet data on -- ``Segment`` handles the
                 separate MOM6-side masking arithmetic (see point 3 in the
                 module docstring, and :meth:`_compute_grid_index`)
@@ -222,6 +237,22 @@ class Segment:
         """
         if axis not in ("nyp", "nxp"):
             raise ValueError("axis must be one of: 'nyp', 'nxp'")
+
+        fixed_size = hgrid.sizes[axis]
+        resolved_index = index if index >= 0 else fixed_size + index
+        is_full_edge = resolved_index in (0, fixed_size - 1)
+        if not is_full_edge and resolved_index % 2 == 0:
+            raise ValueError(
+                f"index={index!r} for segment {segment_name!r} is an even "
+                "supergrid index (a grid corner), not a T-cell center. "
+                "Interior/arbitrary lines must use an odd, T-center-aligned "
+                "index (2 * k + 1 for native T-row/T-column k) -- otherwise "
+                "the segment's own data is silently pulled from the corner "
+                "instead of the T-cell you intend, even though the reported "
+                "MOM6 J/I value is unchanged (both floor-divide to the same "
+                "native row/column). Full outer edges (index=0 or index=-1) "
+                "are exempt."
+            )
 
         valid_sides = _OCEAN_SIDE_REVERSE[axis]
         if ocean_side not in valid_sides:

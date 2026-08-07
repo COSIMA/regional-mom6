@@ -111,7 +111,7 @@ def test_ocean_side_rejects_direction_that_does_not_match_axis(get_rectilinear_h
         Segment.from_hgrid(
             hgrid,
             axis="nyp",
-            index=10,
+            index=11,
             segment_name="bad_side",
             ocean_side="east",
         )
@@ -119,7 +119,7 @@ def test_ocean_side_rejects_direction_that_does_not_match_axis(get_rectilinear_h
         Segment.from_hgrid(
             hgrid,
             axis="nxp",
-            index=10,
+            index=11,
             segment_name="bad_side",
             ocean_side="north",
         )
@@ -282,7 +282,7 @@ def test_mom6_obc_position_string_arbitrary_segment(get_rectilinear_hgrid):
     segment = Segment.from_hgrid(
         hgrid,
         axis="nyp",
-        index=4,
+        index=5,
         segment_name="segment_002",
         index_range=slice(2, 9),
         ocean_side="north",
@@ -379,7 +379,8 @@ def _sketch_grid_and_topo():
     data -- that extra width exists purely so segment_002's west endpoint
     (T-column 3) is land-capped: _check_land_capped_endpoints requires land
     one column past that endpoint (col 2) on the row MOM6 force-masks (16,
-    one row north of segment_002's own row 15).
+    one row north of segment_002's own row 15, which sits at the T-center
+    supergrid index 31 = 2 * 15 + 1).
     """
     grid = Grid(
         resolution=1,
@@ -410,13 +411,13 @@ _SKETCH_SEGMENT_SPECS = {
         axis="nyp", index=-1, index_range=slice(0, 15), ocean_side="north"
     ),  # north edge, west of headland A
     "segment_002": dict(
-        axis="nyp", index=30, index_range=slice(7, 40), ocean_side="south"
+        axis="nyp", index=31, index_range=slice(7, 40), ocean_side="south"
     ),  # interior line just south of headland A; overlaps segment_001
     "segment_003": dict(
         axis="nxp", index=-1, index_range=slice(10, 41), ocean_side="west"
     ),  # east edge, above headland B
     "segment_004": dict(
-        axis="nxp", index=30, index_range=slice(0, 7), ocean_side="west"
+        axis="nxp", index=31, index_range=slice(0, 7), ocean_side="west"
     ),  # interior line, west edge of headland B -- T-rows 0-3, land-capped
     # by headland B itself at (row 4, col 16), one row past its own span
     "segment_005": dict(
@@ -549,19 +550,20 @@ def test_sketch_domain_position_strings_full_edge_vs_interior():
     assert segments["segment_006"].mom6_obc_position_string() == "J=0,I=0:N"
     assert segments["segment_007"].mom6_obc_position_string() == "I=0,J=N:0"
 
-    # Interior line (axis="nyp", index=30, index_range=slice(7, 40),
-    # ocean_side="south"): fixed J = 30 // 2 = 15, but ocean_side="south" is
-    # exactly the case MOM6's open_boundary_impose_land_mask force-masks to
-    # land at J *itself* rather than a neighbor (confirmed against a real
-    # MOM6 run) -- Segment compensates by reporting J=16 so MOM6 masks J=16
-    # (the true north neighbor) instead of the segment's own row, J=15.
+    # Interior line (axis="nyp", index=31 -- T-center for T-row 15,
+    # index_range=slice(7, 40), ocean_side="south"): fixed J = 31 // 2 = 15,
+    # but ocean_side="south" is exactly the case MOM6's
+    # open_boundary_impose_land_mask force-masks to land at J *itself*
+    # rather than a neighbor (confirmed against a real MOM6 run) -- Segment
+    # compensates by reporting J=16 so MOM6 masks J=16 (the true north
+    # neighbor) instead of the segment's own row, J=15.
     # Parallel I = 7//2=3 .. (40-1)//2=19, reversed (ocean_side="south") -> 19:3.
     assert segments["segment_002"].mom6_obc_position_string() == "J=16,I=19:3"
-    # Interior line adjacent to headland B (axis="nxp", index=30,
-    # index_range=slice(0, 7)). fixed I = 30 // 2 = 15, but ocean_side="west"
-    # is the mirror-image broken case (masks I itself) -- compensated the
-    # same way, reporting I=16 instead of the own value, 15. Parallel
-    # J = 0//2=0 .. (7-1)//2=3, not reversed (ocean_side="west") -> 0:3.
+    # Interior line adjacent to headland B (axis="nxp", index=31 -- T-center
+    # for T-column 15, index_range=slice(0, 7)). fixed I = 31 // 2 = 15, but
+    # ocean_side="west" is the mirror-image broken case (masks I itself) --
+    # compensated the same way, reporting I=16 instead of the own value, 15.
+    # Parallel J = 0//2=0 .. (7-1)//2=3, not reversed (ocean_side="west") -> 0:3.
     assert segments["segment_004"].mom6_obc_position_string() == "I=16,J=0:3"
 
     # Partial edges: the *fixed* coordinate is still "N" (it's a real edge row/
@@ -594,8 +596,8 @@ def test_interior_partial_segment_regrid_velocity_tracers(toy_glorys_ds, tmp_pat
     topo = Topo(grid, min_depth=5.0, git=False)
     topo.set_flat(100.0)
     depth = topo.depth.values.copy()
-    depth[2, 2] = 0.0  # mask one interior T-cell along the segment's line to land
-    depth[3, 0] = 0.0  # land-cap the segment's west endpoint (row south of it)
+    depth[0, 2] = 0.0  # mask one interior T-cell along the segment's line to land
+    depth[1, 0] = 0.0  # land-cap the segment's west endpoint (row north of it)
     topo.depth = depth
     hgrid = grid._supergrid.to_ds(name=grid.name, author="pytest")
 
@@ -618,13 +620,15 @@ def test_interior_partial_segment_regrid_velocity_tracers(toy_glorys_ds, tmp_pat
         "tracers": {"temp": "temp", "salt": "salt"},
     }
 
-    # axis="nyp", index=4 is an interior line (neither 0 nor the last index),
-    # index_range restricts it to part of the domain's width -- exactly the
-    # "not a cardinal edge" case the sketch is about.
+    # axis="nyp", index=1 (T-center for T-row 0, the row closest to
+    # toy_glorys_ds's lat coverage so the regrid below doesn't extrapolate)
+    # is an interior line (neither 0 nor the last index), index_range
+    # restricts it to part of the domain's width -- exactly the "not a
+    # cardinal edge" case the sketch is about.
     segment = Segment.from_hgrid(
         hgrid,
         axis="nyp",
-        index=4,
+        index=1,
         segment_name=seg_name,
         index_range=slice(2, 7),
         topo=topo,
