@@ -28,125 +28,18 @@ import dask.array as da
 import numpy as np
 import netCDF4
 import logging
-from regional_mom6.utils import get_edge
 from os.path import isfile
 
 regridding_logger = logging.getLogger(__name__)
 
-
-def coords(
-    hgrid: xr.Dataset,
-    orientation: str,
-    segment_name: str,
-    coords_at_t_points=False,
-    angle_variable_name="angle_dx",
-) -> xr.Dataset:
-    """
-    Allows us to call the coords for use in the ``xesmf.Regridder`` in the :func:`~regrid_tides` function.
-    ``self.coords`` gives us the subset of the ``hgrid`` based on the orientation.
-
-    Arguments:
-        hgrid (xr.Dataset): The horizontal grid dataset.
-        orientation (str): The orientation of the boundary.
-        segment_name (str): The name of the segment.
-        coords_at_t_points (bool, optional): Whether to return the boundary t-points instead of
-            the q/u/v of a general boundary for rotation. Default: ``False``.
-
-    Returns:
-        xr.Dataset: The correct coordinate space for the orientation
-
-    Code credit:
-
-    .. code-block:: bash
-
-        Author(s): GFDL, James Simkins, Rob Cermak, and contributors
-        Year: 2022
-        Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
-        Version: N/A
-        Type: Python Functions, Source Code
-        Web Address: https://github.com/jsimkins2/nwa25
-    """
-
-    dataset_to_get_coords = None
-
-    if coords_at_t_points:
-        regridding_logger.debug("Creating coordinates of the boundary t-points")
-
-        # Calculate t-point information
-        ds = get_hgrid_arakawa_c_points(hgrid, "t")
-
-        tangle_dx = hgrid[angle_variable_name][(ds.t_points_y, ds.t_points_x)]
-        # Assign to dataset
-        dataset_to_get_coords = xr.Dataset(
-            {
-                "x": ds.tlon,
-                "y": ds.tlat,
-                angle_variable_name: (("nyp", "nxp"), tangle_dx.values),
-            },
-            coords={"nyp": ds.nyp, "nxp": ds.nxp},
-        )
-    else:
-        regridding_logger.debug("Creating coordinates of the boundary q/u/v points")
-        # Don't have to do anything because this is the actual boundary.
-        # t-points are one-index deep and require managing.
-        dataset_to_get_coords = hgrid
-
-    # Rename nxp and nyp to locations
-    if orientation == "south":
-        rcoord = xr.Dataset(
-            {
-                "lon": dataset_to_get_coords["x"].isel(nyp=0),
-                "lat": dataset_to_get_coords["y"].isel(nyp=0),
-                "angle": dataset_to_get_coords[angle_variable_name].isel(nyp=0),
-            }
-        )
-        rcoord = rcoord.rename_dims({"nxp": f"nx_{segment_name}"})
-        rcoord.attrs["perpendicular"] = "ny"
-        rcoord.attrs["parallel"] = "nx"
-        rcoord.attrs["axis_to_expand"] = (
-            2  ## Need to keep track of which axis the 'main' coordinate corresponds to when re-adding the 'secondary' axis
-        )
-    elif orientation == "north":
-        rcoord = xr.Dataset(
-            {
-                "lon": dataset_to_get_coords["x"].isel(nyp=-1),
-                "lat": dataset_to_get_coords["y"].isel(nyp=-1),
-                "angle": dataset_to_get_coords[angle_variable_name].isel(nyp=-1),
-            }
-        )
-        rcoord = rcoord.rename_dims({"nxp": f"nx_{segment_name}"})
-        rcoord.attrs["perpendicular"] = "ny"
-        rcoord.attrs["parallel"] = "nx"
-        rcoord.attrs["axis_to_expand"] = 2
-    elif orientation == "west":
-        rcoord = xr.Dataset(
-            {
-                "lon": dataset_to_get_coords["x"].isel(nxp=0),
-                "lat": dataset_to_get_coords["y"].isel(nxp=0),
-                "angle": dataset_to_get_coords[angle_variable_name].isel(nxp=0),
-            }
-        )
-        rcoord = rcoord.rename_dims({"nyp": f"ny_{segment_name}"})
-        rcoord.attrs["perpendicular"] = "nx"
-        rcoord.attrs["parallel"] = "ny"
-        rcoord.attrs["axis_to_expand"] = 3
-    elif orientation == "east":
-        rcoord = xr.Dataset(
-            {
-                "lon": dataset_to_get_coords["x"].isel(nxp=-1),
-                "lat": dataset_to_get_coords["y"].isel(nxp=-1),
-                "angle": dataset_to_get_coords[angle_variable_name].isel(nxp=-1),
-            }
-        )
-        rcoord = rcoord.rename_dims({"nyp": f"ny_{segment_name}"})
-        rcoord.attrs["perpendicular"] = "nx"
-        rcoord.attrs["parallel"] = "ny"
-        rcoord.attrs["axis_to_expand"] = 3
-
-    # Make lat and lon coordinates
-    rcoord = rcoord.assign_coords(lat=rcoord["lat"], lon=rcoord["lon"])
-
-    return rcoord
+# If the array is pint possible, ensure we have the right units for main fields (eta, u, v, temp),
+# salinity and bgc tracers are a bit more abstract and should be already in the correct units, a TODO: would be to add functionality to convert these tracers
+main_field_target_units = {
+    "eta": "m",
+    "u": "m/s",
+    "v": "m/s",
+    "temp": "degC",
+}
 
 
 def get_hgrid_arakawa_c_points(hgrid: xr.Dataset, point_type="t") -> xr.Dataset:
@@ -363,7 +256,7 @@ def generate_dz(ds: xr.Dataset, z_dim_name: str) -> xr.Dataset:
 
 
 def add_secondary_dimension(
-    ds: xr.Dataset, var: str, coords, segment_name: str, to_beginning=False
+    ds: xr.Dataset, var: str, segment, segment_name: str, to_beginning=False
 ) -> xr.Dataset:
     """Add the perpendiciular dimension to the dataset, even if it is
     only one value since it is required.
@@ -371,7 +264,9 @@ def add_secondary_dimension(
     Parameters:
         ds (xr.Dataset): The dataset to add the perpendicular dimension to
         var (str): The variable to add the perpendicular dimension to
-        coords (xr.Dataset): The output xarray Dataset from the coords function. Contains information required to add the perpendicular dimension.
+        segment: A ``regional_mom6.segment.Segment`` (or any object exposing
+            ``.perpendicular``/``.axis_to_expand``) describing the segment's
+            dimension layout, needed to add the perpendicular dimension.
         segment_name (str): The segment name
         to_beginning (bool, optional): Whether to add the perpendicular dimension to the
             beginning or to the selected position, by default False
@@ -398,14 +293,14 @@ def add_secondary_dimension(
             # Missing vertical dim or tidal coord means we don't need to offset the perpendicular
             insert_behind_by = 1
     else:
-        insert_behind_by = coords.attrs[
-            "axis_to_expand"
-        ]  # Just magic to add dim to the beginning
+        insert_behind_by = (
+            segment.axis_to_expand
+        )  # Just magic to add dim to the beginning
 
     regridding_logger.debug(f"Expand dimensions")
     ds[var] = ds[var].expand_dims(
-        f"{coords.attrs['perpendicular']}_{segment_name}",
-        axis=coords.attrs["axis_to_expand"] - insert_behind_by,
+        f"{segment.perpendicular}_{segment_name}",
+        axis=segment.axis_to_expand - insert_behind_by,
     )
     return ds
 
@@ -486,107 +381,41 @@ def generate_layer_thickness(
     return ds
 
 
-def get_boundary_mask(
-    bathy: xr.Dataset,
-    side: str,
-    minimum_depth=0,
-    x_dim_name="nx",
-    y_dim_name="ny",
-) -> np.ndarray:
-    """
-    Mask out the boundary conditions based on the bathymetry. We don't want to have boundary conditions on land.
-    Parameters
-    ----------
-    bathy : xr.Dataset
-        The bathymetry dataset
-    side : str
-        The side of the boundary, "north", "south", "east", or "west"
-    minimum_depth : float, optional
-        The minimum depth to consider land, by default 0
-    Returns
-    -------
-    np.ndarray
-        The boundary mask
-    """
-
-    # Get the boundary depth
-    depth = get_edge(bathy, side, x_name=x_dim_name, y_name=y_dim_name).depth
-    # Force loading and copying to avoid shared references or lazy arrays
-    depth = depth.load().copy()
-
-    # If ntiles in bathymetry, remove it.
-    if "ntiles" in depth.dims:
-        depth = depth.isel({"ntiles": 0})
-
-    # Mask fill values
-    land = 0.0
-    ocean = 1.0
-
-    # Create mask of all ocean
-    boundary_mask = np.full(depth.shape[0] * 2 + 1, ocean)
-
-    # Fill with MOM6 version of mask (wet, wet_u,wet_c, wet_v)
-    for i in range(len(depth)):
-        if depth[i] <= minimum_depth:
-            # The points to the left and right of this t-point are land points
-            boundary_mask[(i * 2) + 2] = land
-            boundary_mask[(i * 2) + 1] = land
-            boundary_mask[(i * 2)] = land
-
-    # Add Exceptions. The MOM6 mask (wet, not wet) does not include the neighboring q point as ocean. However, that point is used at the boundary.
-    boundary_mask_og = boundary_mask.copy()
-    for index in range(1, len(boundary_mask) - 1):
-        if boundary_mask_og[index - 1] == land and boundary_mask_og[index] == ocean:
-            boundary_mask[index - 1] = ocean
-        elif boundary_mask_og[index + 1] == land and boundary_mask_og[index] == ocean:
-            boundary_mask[index + 1] = ocean
-
-    return boundary_mask
-
-
 def mask_dataset(
     ds: xr.Dataset,
-    bathymetry: xr.Dataset,
-    orientation,
-    y_dim_name="ny",
-    x_dim_name="nx",
+    segment,
     fill_value=-1e20,
 ) -> xr.Dataset:
     """
-    This function masks the dataset to the provided bathymetry. If bathymetry is not provided, it fills all NaNs with 0.
+    This function masks the dataset using the segment's ocean(1)/land(0) mask
+    (``segment.mask``, already aligned point-for-point with the segment's
+    lon/lat). If ``segment.mask`` is ``None``, it fills all NaNs with 0 instead.
+
     Parameters
     ----------
     ds : xr.Dataset
         The dataset to mask
-    bathymetry : xr.Dataset
-        The bathymetry dataset
-    orientation : str
-        The orientation of the boundary
+    segment : regional_mom6.segment.Segment
+        The segment supplying the ocean/land mask (``segment.mask``) and the
+        across-segment dimension prefix (``segment.perpendicular``).
     fill_value : float
         The value land points should be filled with
     """
-    ## Add Boundary Mask ##
-    if bathymetry is not None:
+    ## Add Segment Mask ##
+    if segment.mask is not None:
         regridding_logger.debug(
-            "Masking to bathymetry. If you don't want this, set bathymetry_path to None in the segment class."
+            "Masking to the segment's ocean/land mask. If you don't want this, don't pass a topo to Segment construction."
         )
-        mask = get_boundary_mask(
-            bathymetry,
-            orientation,
-            minimum_depth=0,
-            x_dim_name=x_dim_name,
-            y_dim_name=y_dim_name,
-        )
-
+        mask = segment.mask.values.astype(float).copy()
         mask[np.where(mask == 0)] = np.nan  # Convert Land Points to NaNs
 
-        if orientation in ["east", "west"]:
+        if segment.perpendicular == "nx":
             mask = mask[:, np.newaxis]
         else:
             mask = mask[np.newaxis, :]
 
         for var in ds.data_vars.keys():
-            # Drop to just the Boundary Dim
+            # Drop to just the Segment Dim
             da = ds[var].isel({dim: 0 for dim in list(ds[var].dims)[:-2]}).squeeze()
 
             nans_in_data = np.where(np.isnan(da))
@@ -607,12 +436,12 @@ def mask_dataset(
             ds[var].values = ds[var].fillna(fill_value)
     else:
         regridding_logger.warning(
-            "All NaNs filled b/c bathymetry wasn't provided to the function. "
-            + "Add bathymetry_path to the segment class to avoid this"
+            "All NaNs filled b/c no ocean/land mask was available. "
+            + "Pass a topo to Segment construction to avoid this."
         )
         ds = ds.fillna(
             0
-        )  # Without bathymetry, we can't assume the nans will be allowed in Boundary Conditions
+        )  # Without a mask, we can't assume the nans will be allowed in Boundary Conditions
     return ds
 
 
@@ -646,3 +475,286 @@ def generate_encoding(
             }
 
     return encoding_dict
+
+
+def create_vt_regridders(
+    reprocessed_var_map: dict,
+    rawseg: xr.Dataset,
+    coords: xr.Dataset,
+    outfolder: str,
+    regridding_method: str,
+    id: str = "",
+) -> dict[str, xe.Regridder]:
+    """
+    Create regridders for velocity and tracer variables based on the specified Arakawa grid.
+
+    This function uses a validated variable mapping to create one or more
+    `xesmf.Regridder` objects for velocity (`u`, `v`) and tracer fields,
+    depending on the detected Arakawa grid type.
+
+    Args:
+        reprocessed_var_map: Mapping of variable and coordinate names, including nested
+            tracer variable names (e.g., {"tracers": {"salt": "salt", "temp": "temp"}}).
+        raw_seg: The source dataset containing the original variables.
+        coords: The target grid coordinates dataset.
+        outfolder: Path to the output folder where regridding weights are saved.
+        regridding_method: The interpolation method (default: "bilinear").
+        id: Optional string identifier appended to output weight filenames.
+
+    Returns:
+        dict[str, xe.Regridder]: A dictionary containing the created regridders with keys:
+            - "tracers"
+            - "u"
+            - "v"
+    """
+    regridders = {}
+    arakawa_grid = identify_arakawa_grid(reprocessed_var_map)
+    outfolder = Path(outfolder)
+    regridders["tracers"] = create_regridder(
+        rawseg[reprocessed_var_map["tracer_var_names"]["salt"]].rename(
+            {
+                reprocessed_var_map["tracer_lon_coord"]: "lon",
+                reprocessed_var_map["tracer_lat_coord"]: "lat",
+            }
+        ),
+        coords,
+        outfolder / f"weights/bilinear_tracer_weights_{id}.nc",
+        method=regridding_method,
+    )
+
+    if arakawa_grid == "B" or arakawa_grid == "C":
+        regridders["u"] = create_regridder(
+            rawseg[reprocessed_var_map["u_var_name"]].rename(
+                {
+                    reprocessed_var_map["u_lon_coord"]: "lon",
+                    reprocessed_var_map["u_lat_coord"]: "lat",
+                }
+            ),
+            coords,
+            outfolder / f"weights/bilinear_u_weights_{id}.nc",
+            method=regridding_method,
+        )
+    else:  # Arakawa A
+        regridders["u"] = regridders["tracers"]
+
+    if arakawa_grid == "C":
+        regridders["v"] = create_regridder(
+            rawseg[reprocessed_var_map["v_var_name"]].rename(
+                {
+                    reprocessed_var_map["v_lon_coord"]: "lon",
+                    reprocessed_var_map["v_lat_coord"]: "lat",
+                }
+            ),
+            coords,
+            outfolder / f"weights/bilinear_v_weights_{id}.nc",
+            method=regridding_method,
+        )
+    else:  # Arakawa A and B
+        regridders["v"] = regridders["u"]
+
+    return regridders
+
+
+def apply_arakawa_grid_mapping(var_mapping: dict, arakawa_grid: str = None) -> dict:
+    """
+    Map variable and coordinate names according to the specified Arakawa grid type.
+
+    This function checks the provided Arakawa grid type and constructs a consistent
+    mapping between standard variable keys (e.g., tracer, velocity components) and
+    their corresponding actual names. It raises an error if any required variable
+    names are missing for the specified grid type.
+
+    Args:
+        var_mappings (Dict[str, str]):
+            A dictionary mapping standardized variable/dimension names to their actual
+            names. Input names can use either the ``xh/xq`` convention with a specific arakawa grid or the exact output
+            format produced by this function without the arakawa_grid specified (which it will only then do the sanity checks).
+        arakawa_grid (str):
+            The Arakawa grid staggering type of the boundary forcing. Must be one of:
+            ``'A'``, ``'B'``, or ``'C'``.
+
+    Returns:
+        Dict[str, Any]:
+            A dictionary containing variable names mapped according to the specified
+            Arakawa grid type. The returned dictionary includes the following keys:
+                - ``u_x_coord``
+                - ``u_y_coord``
+                - ``v_x_coord``
+                - ``v_y_coord``
+                - ``tracer_x_coord``
+                - ``tracer_y_coord``
+                - ``u_lon_coord``
+                - ``u_lat_coord``
+                - ``v_lon_coord``
+                - ``v_lat_coord``
+                - ``tracer_lon_coord``
+                - ``tracer_lat_coord``
+                - ``depth_coord``
+                - ``u_var_name``
+                - ``v_var_name``
+                - ``tracer_var_names`` (a nested dict with keys ``"salt"`` and ``"temp"``)
+    """
+
+    if arakawa_grid is None:
+        # If no arakawa_grid is provided, assume the mapping is already in the correct format
+        print(
+            "No arakawa_grid provided, assuming the variable mapping for your data product is already in correct format."
+        )
+        validate_var_mapping(var_mapping, is_xhyh=False)
+        arakawa_grid = identify_arakawa_grid(var_mapping)
+        print("Arakawa {} grid detected in variable mapping".format(arakawa_grid))
+        return var_mapping
+    else:
+        if arakawa_grid not in ("A", "B", "C"):
+            raise ValueError("arakawa_grid must be one of: 'A', 'B', or 'C'")
+
+        # Validate basic var mapping structure
+        validate_var_mapping(var_mapping, is_xhyh=True)
+
+        reprocessed_var_map = {
+            "tracer_x_coord": var_mapping["xh"],
+            "tracer_y_coord": var_mapping["yh"],
+            "u_var_name": var_mapping["u"],
+            "v_var_name": var_mapping["v"],
+            "eta_var_name": var_mapping["eta"],
+            "time_var_name": var_mapping["time"],
+            "depth_coord": var_mapping["zl"],
+            "tracer_var_names": var_mapping[
+                "tracers"
+            ],  # validate_var_mapping will ensure this is a nested dict with "salt" and "temp" keys
+        }
+
+        if arakawa_grid == "A":
+            print(
+                "Applying Arakawa A grid variable mapping, which is velocities and tracers on the same grid"
+            )
+            reprocessed_var_map["u_x_coord"] = reprocessed_var_map["tracer_x_coord"]
+            reprocessed_var_map["u_y_coord"] = reprocessed_var_map["tracer_y_coord"]
+            reprocessed_var_map["v_x_coord"] = reprocessed_var_map["tracer_x_coord"]
+            reprocessed_var_map["v_y_coord"] = reprocessed_var_map["tracer_y_coord"]
+
+        elif arakawa_grid == "B":
+            print(
+                "Applying Arakawa B grid variable mapping, which is velocities on xq, yq and tracers on xh, yh."
+            )
+            if var_mapping["xq"] is None or var_mapping["yq"] is None:
+                raise ValueError(
+                    "For Arakawa B grid, variable mapping must include 'xq' and 'yq' coordinate names."
+                )
+            reprocessed_var_map["u_x_coord"] = var_mapping["xq"]
+            reprocessed_var_map["u_y_coord"] = var_mapping["yq"]
+            reprocessed_var_map["v_x_coord"] = var_mapping["xq"]
+            reprocessed_var_map["v_y_coord"] = var_mapping["yq"]
+
+        elif arakawa_grid == "C":
+            print(
+                "Applying Arakawa C grid variable mapping, which is u-velocity on xq, yh; v-velocity on xh, yq; and tracers on xh, yh."
+            )
+            if var_mapping["xq"] is None or var_mapping["yq"] is None:
+                raise ValueError(
+                    "For Arakawa C grid, variable mapping must include 'xq' and 'yq' coordinate names."
+                )
+            reprocessed_var_map["u_x_coord"] = var_mapping["xq"]
+            reprocessed_var_map["u_y_coord"] = var_mapping["yh"]
+            reprocessed_var_map["v_x_coord"] = var_mapping["xh"]
+            reprocessed_var_map["v_y_coord"] = var_mapping["yq"]
+
+        # Because curvilinear grids will have different x.y versus lat/lon but this version of the var_mapping assumes they are rectilinear, we set the
+        # x/y coord to lon/lat
+        # If you did want to use curvilinear in/out data, you would not use this xh/yh version of the var mapping and instead use the reprocessed variable mapping, which is the if part of this if/else statement
+        reprocessed_var_map["u_lon_coord"] = reprocessed_var_map["u_x_coord"]
+        reprocessed_var_map["u_lat_coord"] = reprocessed_var_map["u_y_coord"]
+        reprocessed_var_map["v_lon_coord"] = reprocessed_var_map["v_x_coord"]
+        reprocessed_var_map["v_lat_coord"] = reprocessed_var_map["v_y_coord"]
+        reprocessed_var_map["tracer_lon_coord"] = reprocessed_var_map["tracer_x_coord"]
+        reprocessed_var_map["tracer_lat_coord"] = reprocessed_var_map["tracer_y_coord"]
+
+        # One last sanity check
+        validate_var_mapping(reprocessed_var_map, is_xhyh=False)
+        return reprocessed_var_map
+
+
+def validate_var_mapping(var_map: dict, is_xhyh: bool = False) -> None:
+    """
+    Validate the structure and completeness of a variable mapping dictionary.
+
+    This function checks that all expected keys and subkeys are present in the
+    dictionary returned by the Arakawa grid variable mapping function.
+
+    Args:
+        var_map (Dict[str, Any]): The dictionary to validate.
+        is_xhyh (bool): If True, expects the input dictionary to use the ``xh/xq`` regional_mom6 format
+
+    Raises:
+        ValueError: If any required keys or subkeys are missing, or if the dictionary
+                    structure does not match the expected format.
+    """
+    if not is_xhyh:
+        required_keys = {
+            "time_var_name",
+            "u_x_coord",
+            "u_y_coord",
+            "v_x_coord",
+            "v_y_coord",
+            "u_lon_coord",
+            "u_lat_coord",
+            "v_lon_coord",
+            "v_lat_coord",
+            "tracer_x_coord",
+            "tracer_y_coord",
+            "tracer_lon_coord",
+            "tracer_lat_coord",
+            "depth_coord",
+            "u_var_name",
+            "v_var_name",
+            "eta_var_name",
+            "tracer_var_names",
+        }
+
+    else:
+        required_keys = {"time", "xh", "zl", "u", "v", "tracers", "eta"}
+
+    missing = required_keys - var_map.keys()
+    if missing:
+        raise ValueError(
+            f"Missing required keys in var_map: {', '.join(sorted(missing))}"
+        )
+    if not is_xhyh:
+        tracer_map = var_map.get("tracer_var_names")
+    else:
+        tracer_map = var_map.get("tracers")
+    # Validate nested tracer variable names
+
+    if not isinstance(tracer_map, dict):
+        raise ValueError("Expected tracers to be a dictionary.")
+
+    required_tracers = {"salt", "temp"}
+    missing_tracers = required_tracers - tracer_map.keys()
+    if missing_tracers:
+        raise ValueError(
+            f"Missing required tracer variable names: {', '.join(sorted(missing_tracers))}"
+        )
+
+
+def identify_arakawa_grid(var_mapping):
+    """identify the arakawa grid from the variable mapping"""
+    if (
+        var_mapping["v_x_coord"] == var_mapping["u_x_coord"]
+        and var_mapping["u_x_coord"] == var_mapping["tracer_x_coord"]
+    ):
+        return "A"
+    elif (
+        var_mapping["v_x_coord"] == var_mapping["u_x_coord"]
+        and var_mapping["u_x_coord"] != var_mapping["tracer_x_coord"]
+    ):
+        return "B"
+    elif (
+        var_mapping["v_x_coord"] != var_mapping["u_x_coord"]
+        and var_mapping["u_x_coord"] != var_mapping["tracer_x_coord"]
+        and var_mapping["v_y_coord"] != var_mapping["tracer_y_coord"]
+    ):
+        return "C"
+    else:
+        raise ValueError(
+            "Could not determine Arakawa grid type from provided variable mapping. Something's wrong! Please specify variable mapping correctly"
+        )
