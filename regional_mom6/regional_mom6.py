@@ -1967,7 +1967,14 @@ class experiment:
 
         return
 
-    def setup_rOM3(self, ncpus=208, mask_land_cpus=True, overwrite=True,branch="M_regional_template",era5 = True):
+    def setup_rOM3(
+        self,
+        ncpus=208,
+        mask_land_cpus=True,
+        overwrite=True,
+        branch="M_regional_template",
+        era5=True,
+    ):
         """
         Set up the run directory for an ACCESS-regional-ocean-model-3 experiment. This function copies existing configuration files (MOM_input,config.yaml etc.) from an ACCESS-NRI supported source to ensure that users have access to the latest executable and fixes.
 
@@ -1979,7 +1986,9 @@ class experiment:
         """
         if overwrite:
 
-            print(f"Overwrite set to True. Run directory {self.mom_run_dir} to be emptied and replaced with")
+            print(
+                f"Overwrite set to True. Run directory {self.mom_run_dir} to be emptied and replaced with"
+            )
             print(f"a fresh template from OM3-configs branch {branch}")
             if os.path.exists(self.mom_run_dir):
                 shutil.rmtree(self.mom_run_dir)
@@ -1995,22 +2004,23 @@ class experiment:
                     capture_output=True,
                     text=True,
                     timeout=60,
-                    shell = True
+                    shell=True,
                 )
             except subprocess.CalledProcessError as e:
-                raise RuntimeError(
-                    f"git clone failed for {command}"
-                ) from e
-
+                raise RuntimeError(f"git clone failed for {command}") from e
 
         else:
-            print("Overwrite set to False. I'll attempt to modify existing files in the directory rather than replacing them entirely.")
-            print("If any files are missing the run directory, you can get them from the template directory at https://github.com/ACCESS-NRI/access-om3-configs/tree/M_regional_template")
+            print(
+                "Overwrite set to False. I'll attempt to modify existing files in the directory rather than replacing them entirely."
+            )
+            print(
+                "If any files are missing the run directory, you can get them from the template directory at https://github.com/ACCESS-NRI/access-om3-configs/tree/M_regional_template"
+            )
 
         # First, make the ESMF mesh file required for all NUOPC based runs, like rom3
         if self.m6f_bathymetry == None:
-            self.bathymetry  # Silly workaround to ensure that the m6f object is initialised in 
-                             # case we're just reading everything from disk rather than generating bathy
+            self.bathymetry  # Silly workaround to ensure that the m6f object is initialised in
+            # case we're just reading everything from disk rather than generating bathy
         self.m6f_bathymetry.write_esmf_mesh(
             self.mom_input_dir / "access-rom3-ESMFmesh.nc"
         )
@@ -2051,19 +2061,17 @@ class experiment:
             file[f"{i}_nml"]["ny_global"] = ny
             file.write(self.mom_run_dir / f"{i}_in", force=True)
 
-
         #! The following code block is temporary, and will be removed / replaced when whichever of the following comes first:
         #!      a) ACCESS-NRI's ERA5 forcing implementation is ready for use in regional models
         #!      b) ACCESS-NRI's grid generation tools are available as an installable package that can be included in the rom3 environment
         #!         and called in a normal way.
         if era5:
             cmd = f"python3 /g/data/vk83/apps/om3-scripts/mesh_generation/generate_mesh.py --grid-type=latlon --grid-filename={self.mom_input_dir}/10u_ERA5.nc --mesh-filename={self.mom_input_dir}/era5-ESMF-mesh.nc --wrap-lons=True"
-            print("ERA5 set to True - attempting to create an ESMF mesh for the surface forcing using")
-            print(cmd)
-            subprocess.run(
-                cmd,
-                shell=True
+            print(
+                "ERA5 set to True - attempting to create an ESMF mesh for the surface forcing using"
             )
+            print(cmd)
+            subprocess.run(cmd, shell=True)
         return
 
     def setup_fms_version(self, ncpus=100, surface_forcing=None, mask_land_cpus=True):
@@ -2189,8 +2197,32 @@ class experiment:
         ## Firstly just open all raw data
         rawdata = {}
         for fname, vname in zip(
-            ["2t", "10u", "10v", "sp", "2d", "msdwswrf", "msdwlwrf", "lsrr", "crr","lssfr","csfr"],
-            ["t2m", "u10", "v10", "sp", "d2m", "msdwswrf", "msdwlwrf", "lsrr", "crr","lssfr","csfr"],
+            [
+                "2t",
+                "10u",
+                "10v",
+                "sp",
+                "2d",
+                "msdwswrf",
+                "msdwlwrf",
+                "lsrr",
+                "crr",
+                "lssfr",
+                "csfr",
+            ],
+            [
+                "t2m",
+                "u10",
+                "v10",
+                "sp",
+                "d2m",
+                "msdwswrf",
+                "msdwlwrf",
+                "lsrr",
+                "crr",
+                "lssfr",
+                "csfr",
+            ],
         ):
             ## Load data from all relevant years
             years = [
@@ -2274,7 +2306,9 @@ class experiment:
             elif fname == "csfr":
                 ## Calculate total rain rate from convective and total
                 tsfr = xr.Dataset(
-                    data_vars={"tsfr": rawdata["csfr"]["csfr"] + rawdata["lssfr"]["lssfr"]}
+                    data_vars={
+                        "tsfr": rawdata["csfr"]["csfr"] + rawdata["lssfr"]["lssfr"]
+                    }
                 )
 
                 tsfr.tsfr.attrs = {
