@@ -12,7 +12,9 @@ import shutil
 import os
 import importlib.resources
 from importlib.metadata import version
-
+import urllib.request
+import tarfile
+import io
 import pandas as pd
 from pathlib import Path
 import json
@@ -1965,7 +1967,7 @@ class experiment:
 
         return
 
-    def setup_rOM3(self, ncpus=208, mask_land_cpus=True, overwrite=True):
+    def setup_rOM3(self, ncpus=208, mask_land_cpus=True, overwrite=True,branch="M_regional_template",era5 = True):
         """
         Set up the run directory for an ACCESS-regional-ocean-model-3 experiment. This function copies existing configuration files (MOM_input,config.yaml etc.) from an ACCESS-NRI supported source to ensure that users have access to the latest executable and fixes.
 
@@ -1975,14 +1977,40 @@ class experiment:
             mask_land_cpus (Optional[bool]): If your domain has enough land in it that some processors would only have land to deal with, set to True. If a mostly water domain, set to False otherwise the automatic mask table throws a fatal (see issue: https://github.com/issues/created?issue=mom-ocean%7CMOM6%7C1686)
             overwrite (Optional[bool]): If true, reset the run directory. Set to False to attempt to attempt to modify the files in an exsiting run directory.
         """
-        if os.path.exists(self.mom_run_dir) and overwrite:
-            shutil.rmtree(self.mom_run_dir)
+        if overwrite:
+
+            print(f"Overwrite set to True. Run directory {self.mom_run_dir} to be emptied and replaced with")
+            print(f"a fresh template from OM3-configs branch {branch}")
+            if os.path.exists(self.mom_run_dir):
+                shutil.rmtree(self.mom_run_dir)
+
+            try:
+                url = "https://github.com/ACCESS-NRI/access-om3-configs"
+                command = f"git clone --branch {branch} --single-branch {url} {self.mom_run_dir} --depth 1"
+                print("Cloning with")
+                print(command)
+                subprocess.run(
+                    command,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                    shell = True
+                )
+            except subprocess.CalledProcessError as e:
+                raise RuntimeError(
+                    f"git clone failed for {command}"
+                ) from e
+
+
         else:
-            print(
-                "Overwrite set to False. I'll attempt to modify existing files in the directory rather than re-populate it from scratch. \nIf there are issues, try re-run with overwrite=True, or make your intended changes manually."
-            )
+            print("Overwrite set to False. I'll attempt to modify existing files in the directory rather than replacing them entirely.")
+            print("If any files are missing the run directory, you can get them from the template directory at https://github.com/ACCESS-NRI/access-om3-configs/tree/M_regional_template")
 
         # First, make the ESMF mesh file required for all NUOPC based runs, like rom3
+        if self.m6f_bathymetry == None:
+            self.bathymetry  # Silly workaround to ensure that the m6f object is initialised in 
+                             # case we're just reading everything from disk rather than generating bathy
         self.m6f_bathymetry.write_esmf_mesh(
             self.mom_input_dir / "access-rom3-ESMFmesh.nc"
         )
@@ -1992,18 +2020,6 @@ class experiment:
         add_version_to_ds(maskmesh).to_netcdf(
             self.mom_input_dir / "access-rom3-nomask-ESMFmesh.nc"
         )
-
-        #! PLACEHOLDER
-        #! need to implement something like:
-        #! payu clone stencil_name self.mom_run_dir.
-        #!
-        shutil.copytree(
-            "/g/data/ol01/ab8992/access-om3-configs",
-            self.mom_run_dir,
-            dirs_exist_ok=True,
-        )
-        #!
-        #! END PLACEHOLDER
 
         # Run the generic setup that's required for all rmom6 runs
 
@@ -2035,6 +2051,19 @@ class experiment:
             file[f"{i}_nml"]["ny_global"] = ny
             file.write(self.mom_run_dir / f"{i}_in", force=True)
 
+
+        #! The following code block is temporary, and will be removed / replaced when whichever of the following comes first:
+        #!      a) ACCESS-NRI's ERA5 forcing implementation is ready for use in regional models
+        #!      b) ACCESS-NRI's grid generation tools are available as an installable package that can be included in the rom3 environment
+        #!         and called in a normal way.
+        if era5:
+            cmd = f"python3 /g/data/vk83/apps/om3-scripts/mesh_generation/generate_mesh.py --grid-type=latlon --grid-filename={self.mom_input_dir}/10u_ERA5.nc --mesh-filename={self.mom_input_dir}/era5-ESMF-mesh.nc --wrap-lons=True"
+            print("ERA5 set to True - attempting to create an ESMF mesh for the surface forcing using")
+            print(cmd)
+            subprocess.run(
+                cmd,
+                shell=True
+            )
         return
 
     def setup_fms_version(self, ncpus=100, surface_forcing=None, mask_land_cpus=True):
@@ -2160,8 +2189,8 @@ class experiment:
         ## Firstly just open all raw data
         rawdata = {}
         for fname, vname in zip(
-            ["2t", "10u", "10v", "sp", "2d", "msdwswrf", "msdwlwrf", "lsrr", "crr"],
-            ["t2m", "u10", "v10", "sp", "d2m", "msdwswrf", "msdwlwrf", "lsrr", "crr"],
+            ["2t", "10u", "10v", "sp", "2d", "msdwswrf", "msdwlwrf", "lsrr", "crr","lssfr","csfr"],
+            ["t2m", "u10", "v10", "sp", "d2m", "msdwswrf", "msdwlwrf", "lsrr", "crr","lssfr","csfr"],
         ):
             ## Load data from all relevant years
             years = [
@@ -2241,6 +2270,25 @@ class experiment:
 
             elif fname == "lsrr":
                 ## This is handled by crr as both are added together to calculate total rain rate.
+                pass
+            elif fname == "csfr":
+                ## Calculate total rain rate from convective and total
+                tsfr = xr.Dataset(
+                    data_vars={"tsfr": rawdata["csfr"]["csfr"] + rawdata["lssfr"]["lssfr"]}
+                )
+
+                tsfr.tsfr.attrs = {
+                    "long_name": "Total Snowfall Rate",
+                    "units": "kg m**-2 s**-1",
+                }
+                add_version_to_ds(tsfr).to_netcdf(
+                    f"{self.mom_input_dir}/tsfr_ERA5.nc",
+                    unlimited_dims="time",
+                    encoding={"tsfr": {"dtype": "double"}},
+                )
+
+            elif fname == "lssfr":
+                ## This is handled by csfr as both are added together to get total snowfall rate
                 pass
             else:
                 rawdata[fname].to_netcdf(
