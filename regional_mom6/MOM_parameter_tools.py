@@ -155,7 +155,9 @@ def write_MOM_file(MOM_file_dict, directory):
                         )
                     else:
                         # In cases where the override dict has no comment, just say 'modified by regional-mom6'
-                        lines[jj] = f"#override {var} = {MOM_file_dict[var]['value']} ! Modified by regional-mom6. Was {original_MOM_file_dict[var]['value']}\n"
+                        lines[jj] = (
+                            f"#override {var} = {MOM_file_dict[var]['value']} ! Modified by regional-mom6. Was {original_MOM_file_dict[var]['value']}\n"
+                        )
 
                     print(
                         "Changed "
@@ -173,7 +175,7 @@ def write_MOM_file(MOM_file_dict, directory):
     for key in MOM_file_dict.keys():
         if key not in original_MOM_file_dict.keys():
             comment_txt = ""
-            if MOM_file_dict[key]['comment']:
+            if MOM_file_dict[key]["comment"]:
                 comment_txt = f"     ! {MOM_file_dict[key]['comment']}"
             if MOM_file_dict[key]["override"]:
                 lines.append(
@@ -181,9 +183,7 @@ def write_MOM_file(MOM_file_dict, directory):
                 )
                 changed = True
             else:
-                lines.append(
-                    f"{key} = {MOM_file_dict[key]['value']} {comment_txt}\n"
-                )
+                lines.append(f"{key} = {MOM_file_dict[key]['value']} {comment_txt}\n")
             print(
                 "Added",
                 key,
@@ -214,9 +214,10 @@ def write_MOM_file(MOM_file_dict, directory):
                 original_MOM_file_dict[key],
             )
     if changed:
-        lines.insert(len_lines_original,"! === Settings added with regional-mom6 below ===\n")
+        lines.insert(
+            len_lines_original, "! === Settings added with regional-mom6 below ===\n"
+        )
         lines.append("! === End settings added with regional-mom6.  ===\n")
-
 
     with open(Path(directory / MOM_file_dict["filename"]), "w") as f:
         f.writelines(lines)
