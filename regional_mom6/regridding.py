@@ -215,6 +215,7 @@ def create_regridder(
     locstream_out: bool = True,
     periodic: bool = False,
     reuse_weights: bool = False,
+    ignore_degenerate: bool = False,
 ) -> xe.Regridder:
     """
     Basic regridder for any forcing variables. This is essentially a wrapper for
@@ -241,6 +242,15 @@ def create_regridder(
         weights from a previous grid do not silently produce wrong results.
         Set to ``True`` only when you are certain the grid has not changed,
         e.g. when reusing a :class:`segment` regridder across multiple time steps.
+    ignore_degenerate : bool, optional
+        Skip degenerate (duplicate or collapsed) source cells instead of raising,
+        i.e. ESMF's ``ignore_degenerate``; default: ``False``. Some global source
+        datasets have degenerate cells near the poles -- GLORYS, for instance, at
+        its southernmost latitudes -- and ESMF aborts the whole regrid with
+        ``ESMC_FieldRegridStore failed with rc=506 (Degenerate Element Detected)``
+        when it meets one. Set to ``True`` to drop those cells and continue.
+        Left ``False`` by default so a genuinely malformed source grid still fails
+        loudly rather than being silently regridded from a subset of its cells.
 
     Returns
     -------
@@ -262,6 +272,7 @@ def create_regridder(
         filename=outfile,
         reuse_weights=reuse_weights,
         unmapped_to_nan=True,
+        ignore_degenerate=ignore_degenerate,
     )
 
     return regridder
