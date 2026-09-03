@@ -1819,7 +1819,7 @@ class experiment:
         MOM_override_dict = mpt.read_MOM_file_as_dict("MOM_override", self.mom_run_dir)
 
         MOM_override_dict["MINIMUM_DEPTH"]["value"] = float(self.minimum_depth)
-
+        MOM_override_dict["MAXIMUM_DEPTH"]["value"] = float(self.depth)
         # Define spatial dimensions
         nx = self.hgrid.nx.shape[0] // 2
         ny = self.hgrid.ny.shape[0] // 2
@@ -1971,7 +1971,7 @@ class experiment:
         self,
         ncpus=208,
         mask_land_cpus=True,
-        overwrite=True,
+        overwrite=False,
         branch="M_regional_template",
         era5=True,
     ):
