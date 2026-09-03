@@ -2285,6 +2285,7 @@ class segment:
         calendar="gregorian",
         fill_method=rgd.fill_missing_data,
         regridders=None,
+        ignore_degenerate=False,
     ):
         """
         Cut out and interpolate the velocities and tracers.
@@ -2304,6 +2305,11 @@ class segment:
                 multiple times for different time windows on the same grid (pass ``seg.regridders``
                 from a prior call). Default ``None`` — regridders are built and saved to
                 ``self.regridders``.
+            ignore_degenerate (bool): Passed through to regridder construction --
+                skip degenerate source cells instead of raising. Default ``False``.
+                Needed for source datasets with duplicate/collapsed cells near the
+                poles; see ``rgd.create_regridder``. Ignored when ``regridders`` is
+                supplied, since no regridder is built.
 
         """
         reprocessed_var_map = apply_arakawa_grid_mapping(
@@ -2333,6 +2339,7 @@ class segment:
                 Path(self.outfolder),
                 regridding_method,
                 self.orientation,
+                ignore_degenerate=ignore_degenerate,
             )
         self.regridders = regridders
 
@@ -2856,6 +2863,7 @@ def create_vt_regridders(
     outfolder: str,
     regridding_method: str,
     id: str = "",
+    ignore_degenerate: bool = False,
 ) -> dict[str, xe.Regridder]:
     """
     Create regridders for velocity and tracer variables based on the specified Arakawa grid.
@@ -2872,6 +2880,9 @@ def create_vt_regridders(
         outfolder: Path to the output folder where regridding weights are saved.
         regridding_method: The interpolation method (default: "bilinear").
         id: Optional string identifier appended to output weight filenames.
+        ignore_degenerate: Passed to ``rgd.create_regridder`` -- skip degenerate
+            source cells instead of raising (default: ``False``). See that
+            function for when this is needed.
 
     Returns:
         dict[str, xe.Regridder]: A dictionary containing the created regridders with keys:
@@ -2892,6 +2903,7 @@ def create_vt_regridders(
         coords,
         outfolder / f"weights/bilinear_tracer_weights_{id}.nc",
         method=regridding_method,
+        ignore_degenerate=ignore_degenerate,
     )
 
     if arakawa_grid == "B" or arakawa_grid == "C":
@@ -2905,6 +2917,7 @@ def create_vt_regridders(
             coords,
             outfolder / f"weights/bilinear_u_weights_{id}.nc",
             method=regridding_method,
+            ignore_degenerate=ignore_degenerate,
         )
     else:  # Arakawa A
         regridders["u"] = regridders["tracers"]
@@ -2920,6 +2933,7 @@ def create_vt_regridders(
             coords,
             outfolder / f"weights/bilinear_v_weights_{id}.nc",
             method=regridding_method,
+            ignore_degenerate=ignore_degenerate,
         )
     else:  # Arakawa A and B
         regridders["v"] = regridders["u"]
