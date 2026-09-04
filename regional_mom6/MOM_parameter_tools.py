@@ -133,17 +133,30 @@ def write_MOM_file(MOM_file_dict, directory):
                         str(original_MOM_file_dict[var]["value"]),
                         str(MOM_file_dict[var]["value"]),
                     )
-                    if original_MOM_file_dict[var]["comment"] != None:
+                    if (
+                        original_MOM_file_dict[var]["comment"] != None
+                        and MOM_file_dict[var]["comment"] != None
+                    ):
+                        # Case where the original had a comment and we want to replace it with a new comment
                         lines[jj] = lines[jj].replace(
                             original_MOM_file_dict[var]["comment"],
                             str(MOM_file_dict[var]["comment"]),
                         )
-                    else:
+                    elif (
+                        original_MOM_file_dict[var]["comment"] == None
+                        and MOM_file_dict[var]["comment"] != None
+                    ):
+                        # Case where the original had no comment and we add a new one
                         lines[jj] = (
                             lines[jj].replace("\n", "")
                             + " !"
                             + str(MOM_file_dict[var]["comment"])
                             + "\n"
+                        )
+                    else:
+                        # In cases where the override dict has no comment, just say 'modified by regional-mom6'
+                        lines[jj] = (
+                            f"#override {var} = {MOM_file_dict[var]['value']} ! Modified by regional-mom6. Was {original_MOM_file_dict[var]['value']}\n"
                         )
 
                     print(
@@ -157,17 +170,20 @@ def write_MOM_file(MOM_file_dict, directory):
                     )
 
     # Add new fields
-    lines.append("! === Added with regional-mom6 ===\n")
+    len_lines_original = len(lines)
+    changed = False
     for key in MOM_file_dict.keys():
         if key not in original_MOM_file_dict.keys():
+            comment_txt = ""
+            if MOM_file_dict[key]["comment"]:
+                comment_txt = f"     ! {MOM_file_dict[key]['comment']}"
             if MOM_file_dict[key]["override"]:
                 lines.append(
-                    f"#override {key} = {MOM_file_dict[key]['value']} !{MOM_file_dict[key]['comment']}\n"
+                    f"#override {key} = {MOM_file_dict[key]['value']} {comment_txt}\n"
                 )
+                changed = True
             else:
-                lines.append(
-                    f"{key} = {MOM_file_dict[key]['value']} !{MOM_file_dict[key]['comment']}\n"
-                )
+                lines.append(f"{key} = {MOM_file_dict[key]['value']} {comment_txt}\n")
             print(
                 "Added",
                 key,
@@ -197,6 +213,11 @@ def write_MOM_file(MOM_file_dict, directory):
                 "with value",
                 original_MOM_file_dict[key],
             )
+    if changed:
+        lines.insert(
+            len_lines_original, "! === Settings added with regional-mom6 below ===\n"
+        )
+        lines.append("! === End settings added with regional-mom6.  ===\n")
 
     with open(Path(directory / MOM_file_dict["filename"]), "w") as f:
         f.writelines(lines)
