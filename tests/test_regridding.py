@@ -27,7 +27,7 @@ def test_fill_missing_data(generate_silly_vt_dataset):
     ds = generate_silly_vt_dataset
     ds["temp"][0, 0, 6:10, 0] = np.nan
     ds.temp.attrs = {"units": "C"}
-    ds = rgd.fill_missing_data(ds, "silly_depth", fill="f")
+    ds = rgd.fill_missing_data(ds, "silly_depth")
     assert ds.temp.attrs == {"units": "C"}  # Assert that attributes are retained
     assert (
         ds["temp"][0, 0, 6:10, 0] == (ds["temp"][0, 0, 5, 0])

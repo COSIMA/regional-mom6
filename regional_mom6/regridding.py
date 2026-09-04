@@ -278,41 +278,27 @@ def create_regridder(
     return regridder
 
 
-def fill_missing_data(
-    ds: xr.Dataset, xdim: str = "locations", zdim: str = "z", fill: str = "b"
-) -> xr.Dataset:
+def fill_missing_data(ds: xr.Dataset, dim: str = "all"):
     """
-    Fill in missing values.
+    Fill data either across a single dimension or across all dimensions
 
+    Used for boundaries
     Arguments:
         ds (xr.Dataset): The dataset to be filled in
-        z_dim_name (str): The name of the ``z`` dimension
+        dim (str): The name of the dimension, or "all" to fill all dimensions
 
     Returns:
         xr.Dataset: The filled dataset
 
-    Code credit:
-
-    .. code-block:: bash
-
-        Author(s): GFDL, James Simkins, Rob Cermak, and contributors
-        Year: 2022
-        Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
-        Version: N/A
-        Type: Python Functions, Source Code
-        Web Address: https://github.com/jsimkins2/nwa25
     """
-    regridding_logger.debug("Filling in missing data horizontally, then vertically")
-    if fill == "f":
-        filled = ds.ffill(dim=xdim, limit=None)
-    elif fill == "b":
-        filled = ds.bfill(dim=xdim, limit=None)
-    if zdim is not None:
-        if type(zdim) != list:
-            zdim = [zdim]
-        for z in zdim:
-            filled = filled.ffill(dim=z, limit=None).fillna(0)
-    return filled
+    if dim == "all":
+        regridding_logger.debug("Filling in missing data horizontally, then vertically")
+        for d in ds.dims:
+            ds = ds.ffill(dim=d, limit=None).bfill(dim=d, limit=None)
+    else:
+        ds = ds.ffill(dim=dim, limit=None).bfill(dim=dim, limit=None)
+
+    return ds
 
 
 def add_or_update_time_dim(ds: xr.Dataset, times, z_dims=None) -> xr.Dataset:

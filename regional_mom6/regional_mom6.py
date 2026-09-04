@@ -2510,8 +2510,7 @@ class segment:
         # fill in NaNs
         segment_out = fill_method(
             segment_out,
-            xdim=f"{coords.attrs['parallel']}_{self.segment_name}",
-            zdim=reprocessed_var_map["depth_coord"],
+            dim="all",
         )
 
         # Overwrite the actual lat/lon values in the dimensions, replace with incrementing integers
@@ -2656,11 +2655,11 @@ class segment:
         # Fill missing data.
         # Need to do this first because complex would get converted to real
         redest = fill_method(
-            redest, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
+            redest, dim=f"{coords.attrs['parallel']}_{self.segment_name}"
         )
         redest = redest["hRe"]
         imdest = fill_method(
-            imdest, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
+            imdest, dim=f"{coords.attrs['parallel']}_{self.segment_name}"
         )
         imdest = imdest["hIm"]
 
@@ -2706,16 +2705,16 @@ class segment:
         # Fill missing data.
         # Need to do this first because complex would get converted to real
         uredest = fill_method(
-            uredest, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
+            uredest, dim=f"{coords.attrs['parallel']}_{self.segment_name}"
         )
         uimdest = fill_method(
-            uimdest, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
+            uimdest, dim=f"{coords.attrs['parallel']}_{self.segment_name}"
         )
         vredest = fill_method(
-            vredest, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
+            vredest, dim=f"{coords.attrs['parallel']}_{self.segment_name}"
         )
         vimdest = fill_method(
-            vimdest, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
+            vimdest, dim=f"{coords.attrs['parallel']}_{self.segment_name}"
         )
 
         # Convert to complex, remaining separate for u and v.
@@ -2761,7 +2760,7 @@ class segment:
 
         # Some things may have become missing during the transformation
         ds_ap = fill_method(
-            ds_ap, xdim=f"{coords.attrs['parallel']}_{self.segment_name}", zdim=None
+            ds_ap, dim=f"{coords.attrs['parallel']}_{self.segment_name}"
         )
 
         self.encode_tidal_files_and_output(ds_ap, "tu")
