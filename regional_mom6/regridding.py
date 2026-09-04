@@ -281,10 +281,12 @@ def fill_missing_data(ds: xr.Dataset, dim: str = "all"):
 
     """
     if dim == "all":
-        regridding_logger.debug("Filling in missing data horizontally, then vertically")
+        regridding_logger.debug("Filling in missing data along all dimensions")
         for d in ds.dims:
             ds = ds.ffill(dim=d, limit=None).bfill(dim=d, limit=None)
     else:
+        regridding_logger.debug(f"Filling in missing data along {dim}")
+
         ds = ds.ffill(dim=dim, limit=None).bfill(dim=dim, limit=None)
 
     return ds
