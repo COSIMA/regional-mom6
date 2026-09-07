@@ -1973,7 +1973,6 @@ class experiment:
         mask_land_cpus=True,
         overwrite=False,
         branch="M_regional_template",
-        era5=True,
     ):
         """
         Set up the run directory for an ACCESS-regional-ocean-model-3 experiment. This function copies existing configuration files (MOM_input,config.yaml etc.) from an ACCESS-NRI supported source to ensure that users have access to the latest executable and fixes.
@@ -1983,6 +1982,7 @@ class experiment:
             ncpus (Optional[int]): The number of PEs to use
             mask_land_cpus (Optional[bool]): If your domain has enough land in it that some processors would only have land to deal with, set to True. If a mostly water domain, set to False otherwise the automatic mask table throws a fatal (see issue: https://github.com/issues/created?issue=mom-ocean%7CMOM6%7C1686)
             overwrite (Optional[bool]): If true, reset the run directory. Set to False to attempt to attempt to modify the files in an exsiting run directory.
+            branch (Optional[str]): The branch of ACCESS-NRI's access-om3-configs to use as a template for the run. Default: M_regional_template
         """
         if overwrite:
 
@@ -2061,17 +2061,6 @@ class experiment:
             file[f"{i}_nml"]["ny_global"] = ny
             file.write(self.mom_run_dir / f"{i}_in", force=True)
 
-        #! The following code block is temporary, and will be removed / replaced when whichever of the following comes first:
-        #!      a) ACCESS-NRI's ERA5 forcing implementation is ready for use in regional models
-        #!      b) ACCESS-NRI's grid generation tools are available as an installable package that can be included in the rom3 environment
-        #!         and called in a normal way.
-        if era5:
-            cmd = f"python3 /g/data/vk83/apps/om3-scripts/mesh_generation/generate_mesh.py --grid-type=latlon --grid-filename={self.mom_input_dir}/10u_ERA5.nc --mesh-filename={self.mom_input_dir}/era5-ESMF-mesh.nc --wrap-lons=True"
-            print(
-                "ERA5 set to True - attempting to create an ESMF mesh for the surface forcing using"
-            )
-            print(cmd)
-            subprocess.run(cmd, shell=True)
         return
 
     def setup_fms_version(self, ncpus=100, surface_forcing=None, mask_land_cpus=True):
