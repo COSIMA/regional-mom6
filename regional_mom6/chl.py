@@ -15,11 +15,10 @@ def interpolate_and_fill_seawifs(
     topo: Topo,
     processed_seawifs_path: Path | str,
     output_path: Path | str = None,
+    calendar: str = "noleap",
 ):
     """
     Interpolate and fill SeaWiFS chlorophyll data to a model grid and save to NetCDF.
-
-    This function assumes a NO_LEAP calendar.
 
     This function takes gridded SeaWiFS chlorophyll data, interpolates it onto a
     super-sampled model grid, applies ocean masking, fills missing values, and writes
@@ -38,6 +37,9 @@ def interpolate_and_fill_seawifs(
     output_path : Path or str, optional
         Path to save the output NetCDF file. If not provided, it is created in the same
         directory as `processed_seawifs_path` using the grid name.
+    calendar : str, optional
+        Calendar the output time axis is built for, case-insensitive. Default is
+        "noleap". See `gen_chl_empty_dataset`.
 
     Returns
     -------
@@ -83,6 +85,7 @@ def interpolate_and_fill_seawifs(
         grid.tlon[int(grid.ny / 2), :].values,
         grid.tlat[:, int(grid.nx / 2)].values,
         fill_value,
+        calendar=calendar,
     )
     chlor_a = chla["CHL_A"]
 
@@ -154,11 +157,9 @@ def interpolate_and_fill_seawifs(
     return chla
 
 
-def gen_chl_empty_dataset(output_path, lon, lat, fill_value=-1.0e34, no_leap=True):
+def gen_chl_empty_dataset(output_path, lon, lat, fill_value=-1.0e34, calendar="noleap"):
     """
     Generate an empty NetCDF dataset for SeaWiFS chlorophyll climatology and save it to disk.
-
-    This function assumes a NO_LEAP calendar.
 
     This function creates a synthetic xarray dataset with a CHL_A variable (monthly mean chlorophyll)
     initialized entirely with fill values. The dataset uses the provided longitude and latitude
@@ -175,6 +176,11 @@ def gen_chl_empty_dataset(output_path, lon, lat, fill_value=-1.0e34, no_leap=Tru
     lat : array-like
         1D array of latitude values (in degrees north) defining the spatial Y-axis.
 
+    calendar : str, optional
+        Calendar the TIME axis is built for, case-insensitive. One of "noleap",
+        "no_leap", "365_day", "365_days", "gregorian" or "standard"; anything
+        else raises ``NotImplementedError``. Default is "noleap".
+
     Returns
     -------
     ds : xarray.Dataset
@@ -184,21 +190,42 @@ def gen_chl_empty_dataset(output_path, lon, lat, fill_value=-1.0e34, no_leap=Tru
     -----
     - The CHL_A variable is filled with the placeholder value -1e34.
     - The TIME dimension is fixed and marked as unlimited in the NetCDF file.
-    - TIME values represent the approximate midpoint of each month in a climatological year.
+    - TIME values are the midpoint of each month in a climatological year of the
+      requested calendar, so the axis and the calendar attribute agree.
     - This dataset structure mimics that of SeaWiFS chlorophyll climatology products and is intended
       as a template or placeholder.
     """
 
     # === Coordinates ===
 
-    if no_leap:
-        time = np.array(
-            [15.5, 45, 74.5, 105, 135.5, 166, 196.5, 227.5, 258, 288.5, 319, 349.5]
+    # Maps the calendar name the caller passes to the attribute to stamp on the
+    # file and the month lengths the axis spans. FMS's get_cal_time() rejects
+    # CF's "standard", so it is taken as an alias and written as "gregorian".
+    # gregorian shares noleap's month lengths because FMS maps this single
+    # climatological year onto year 0001 -- a common year -- and cycles it by
+    # calendar date, so leap days are handled model-side, not by this axis.
+    months_365 = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+    supported_calendars = {
+        "noleap": ("noleap", months_365),
+        "no_leap": ("noleap", months_365),
+        "365_day": ("365_day", months_365),
+        "365_days": ("365_days", months_365),
+        "gregorian": ("gregorian", months_365),
+        "standard": ("gregorian", months_365),
+    }
+
+    key = str(calendar).strip().lower()
+    if key not in supported_calendars:
+        raise NotImplementedError(
+            f"Calendar {calendar!r} is not supported for chlorophyll output. "
+            f"Supported calendars are: {', '.join(sorted(supported_calendars))}."
         )
-    else:
-        time = np.array(
-            [15.5, 45.5, 75.5, 106, 136.5, 167, 197.5, 228.5, 259, 289.5, 320, 350.5]
-        )
+    calendar_attr, month_lengths = supported_calendars[key]
+
+    # Midpoint of each month, in days since the start of the climatological year.
+    month_lengths = np.array(month_lengths, dtype=float)
+    month_starts = np.concatenate(([0.0], np.cumsum(month_lengths)[:-1]))
+    time = month_starts + month_lengths / 2.0
 
     # === Placeholder data for CHL_A (all fill values) ===
     fill_value = np.float32(-1.0e34)
@@ -230,7 +257,7 @@ def gen_chl_empty_dataset(output_path, lon, lat, fill_value=-1.0e34, no_leap=Tru
                 dims="TIME",
                 attrs={
                     "units": "days since 0001-01-01 00:00:00",
-                    "calendar": "NOLEAP",
+                    "calendar": calendar_attr,
                     "modulo": " ",
                     "axis": "T",
                     "cartesian_axis": "T",
