@@ -108,6 +108,7 @@ def create_regridder(
     locstream_out: bool = True,
     periodic: bool = False,
     reuse_weights: bool = False,
+    ignore_degenerate: bool = False,
 ) -> xe.Regridder:
     """
     Basic regridder for any forcing variables. This is essentially a wrapper for
@@ -134,6 +135,15 @@ def create_regridder(
         weights from a previous grid do not silently produce wrong results.
         Set to ``True`` only when you are certain the grid has not changed,
         e.g. when reusing a :class:`segment` regridder across multiple time steps.
+    ignore_degenerate : bool, optional
+        Skip degenerate (duplicate or collapsed) source cells instead of raising,
+        i.e. ESMF's ``ignore_degenerate``; default: ``False``. Some global source
+        datasets have degenerate cells near the poles -- GLORYS, for instance, at
+        its southernmost latitudes -- and ESMF aborts the whole regrid with
+        ``ESMC_FieldRegridStore failed with rc=506 (Degenerate Element Detected)``
+        when it meets one. Set to ``True`` to drop those cells and continue.
+        Left ``False`` by default so a genuinely malformed source grid still fails
+        loudly rather than being silently regridded from a subset of its cells.
 
     Returns
     -------
@@ -155,46 +165,35 @@ def create_regridder(
         filename=outfile,
         reuse_weights=reuse_weights,
         unmapped_to_nan=True,
+        ignore_degenerate=ignore_degenerate,
     )
 
     return regridder
 
 
-def fill_missing_data(
-    ds: xr.Dataset, xdim: str = "locations", zdim: str = "z", fill: str = "b"
-) -> xr.Dataset:
+def fill_missing_data(ds: xr.Dataset, dim: str = "all"):
     """
-    Fill in missing values.
+    Fill data either across a single dimension or across all dimensions
 
+    Used for boundaries
     Arguments:
         ds (xr.Dataset): The dataset to be filled in
-        z_dim_name (str): The name of the ``z`` dimension
+        dim (str): The name of the dimension, or "all" to fill all dimensions
 
     Returns:
         xr.Dataset: The filled dataset
 
-    Code credit:
-
-    .. code-block:: bash
-
-        Author(s): GFDL, James Simkins, Rob Cermak, and contributors
-        Year: 2022
-        Title: "NWA25: Northwest Atlantic 1/25th Degree MOM6 Simulation"
-        Version: N/A
-        Type: Python Functions, Source Code
-        Web Address: https://github.com/jsimkins2/nwa25
     """
-    regridding_logger.debug("Filling in missing data horizontally, then vertically")
-    if fill == "f":
-        filled = ds.ffill(dim=xdim, limit=None)
-    elif fill == "b":
-        filled = ds.bfill(dim=xdim, limit=None)
-    if zdim is not None:
-        if type(zdim) != list:
-            zdim = [zdim]
-        for z in zdim:
-            filled = filled.ffill(dim=z, limit=None).fillna(0)
-    return filled
+    if dim == "all":
+        regridding_logger.debug("Filling in missing data along all dimensions")
+        for d in ds.dims:
+            ds = ds.ffill(dim=d, limit=None).bfill(dim=d, limit=None)
+    else:
+        regridding_logger.debug(f"Filling in missing data along {dim}")
+
+        ds = ds.ffill(dim=dim, limit=None).bfill(dim=dim, limit=None)
+
+    return ds
 
 
 def add_or_update_time_dim(ds: xr.Dataset, times, z_dims=None) -> xr.Dataset:
@@ -484,6 +483,7 @@ def create_vt_regridders(
     outfolder: str,
     regridding_method: str,
     id: str = "",
+    ignore_degenerate: bool = False,
 ) -> dict[str, xe.Regridder]:
     """
     Create regridders for velocity and tracer variables based on the specified Arakawa grid.
@@ -500,6 +500,9 @@ def create_vt_regridders(
         outfolder: Path to the output folder where regridding weights are saved.
         regridding_method: The interpolation method (default: "bilinear").
         id: Optional string identifier appended to output weight filenames.
+        ignore_degenerate: Passed to ``rgd.create_regridder`` -- skip degenerate
+            source cells instead of raising (default: ``False``). See that
+            function for when this is needed.
 
     Returns:
         dict[str, xe.Regridder]: A dictionary containing the created regridders with keys:
@@ -520,6 +523,7 @@ def create_vt_regridders(
         coords,
         outfolder / f"weights/bilinear_tracer_weights_{id}.nc",
         method=regridding_method,
+        ignore_degenerate=ignore_degenerate,
     )
 
     if arakawa_grid == "B" or arakawa_grid == "C":
@@ -533,6 +537,7 @@ def create_vt_regridders(
             coords,
             outfolder / f"weights/bilinear_u_weights_{id}.nc",
             method=regridding_method,
+            ignore_degenerate=ignore_degenerate,
         )
     else:  # Arakawa A
         regridders["u"] = regridders["tracers"]
@@ -548,6 +553,7 @@ def create_vt_regridders(
             coords,
             outfolder / f"weights/bilinear_v_weights_{id}.nc",
             method=regridding_method,
+            ignore_degenerate=ignore_degenerate,
         )
     else:  # Arakawa A and B
         regridders["v"] = regridders["u"]

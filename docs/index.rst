@@ -20,17 +20,15 @@ stability issues or fiddling with bathymetry to deal with very narrow fjords or 
 Features
 --------
 
-- Automatic grid generation at chosen vertical and horizontal grid spacing *or* reads in existing custom grids provided by the user.
-- Handles rotation of the input files when the grid is rotated or curved relative to constant latitude & longitude lines.
-- Automatic removal of non-advective cells from the bathymetry that cause the model to crash.
-- Handles slicing across 'seams' in of the forcing input datasets (e.g., when the regional
+- Generates multiple types of horizontal and vertical grid utilising NCAR's [MOM6_forge](https://github.com/NCAR/mom6_forge/tree/280ab8f8321d4033d41e4b05f1645fe511cd552f)
+- Removes non-advective cells from the bathymetry that cause the model to crash.
+- Interpolates input data, which can be on any Arakawa grid at any resolution. No pre-processing of forcing datasets is generally required.
+- Converts ERA5 surface data to fields appropriate for MOM6 surface forcing
+- Handle slicing across 'seams' in of the forcing input datasets (e.g., when the regional
   configuration includes longitude 180 and the forcing longitude is defined in [-180, 180]).
-- Handles TPXO tidal forcing at the boundaries.
 - Handles metadata encoding.
 - Creates directory structure with the configuration files as expected by MOM6.
-- Handles interpolation and interpretation of input data. No pre-processing of forcing datasets
-  is required. (In some cases, slicing the forcing dataset before helps with hitting limitations
-  related to the machine's available memory.)
+- Produces MOM6 namelist files matching your experiment
 
 
 What you need to get started
@@ -40,8 +38,9 @@ What you need to get started
 2. a working MOM6 executable on a machine of your choice,
 3. a bathymetry file that at least covers your domain,
 4. 3D ocean forcing files *of any resolution* on your choice of A, B, or C Arakawa grid,
-5. surface forcing files (e.g., from ERA or JRA reanalysis), and
-6. `GFDL's FRE tools <https://github.com/NOAA-GFDL/FRE-NCtools>`_ downloaded and compiled on the machine you are using.
+5. surface forcing files (e.g., from ERA or JRA reanalysis)
+
+If you have access to Australia's National Computational infrastructure, then you only need `1.`!
 
 Browse through the `demos <demos.html>`_.
 
@@ -81,9 +80,10 @@ The bibtex entry for the paper is:
    :caption: Contents:
 
    installation
+   anatomy
+   code-structure
    demos
    mom6-file-structure-primer
-   regional-mom6-workflow
    angle_calculation
    api
    contributing/index

@@ -13,46 +13,37 @@
 
 [![status](https://joss.theoj.org/papers/d396435c09aae4c2f4b62cdbc1493c1e/status.svg)](https://joss.theoj.org/papers/d396435c09aae4c2f4b62cdbc1493c1e)
 
-Users just need to provide some information about where, when, and how big their domain is and also where raw input forcing files are. The package sorts out all the boring details and creates a set of MOM6-friendly input files along with setup directories ready to go!
-
-The idea behind this package is that it should let the user sidestep some of the tricky issues with getting the model to run in the first place. This removes some of the steep learning curve for people new to working with MOM6. Note that the resultant model configuration might still need some tweaking (e.g., fiddling with timestep to avoid CFL-related numerical stability issues or fiddling with bathymetry to deal with very narrow fjords or channels that may exist).
-
 
 ## Features
-
-- Automatic grid generation at chosen vertical and horizontal grid spacing.
-- Automatic removal of non-advective cells from the bathymetry that cause the model to crash.
+- Generates multiple types of horizontal and vertical grid utilising NCAR's [MOM6_forge](https://github.com/NCAR/mom6_forge/tree/280ab8f8321d4033d41e4b05f1645fe511cd552f)
+- Removes non-advective cells from the bathymetry that cause the model to crash.
+- Interpolates input data, which can be on any Arakawa grid at any resolution. No pre-processing of forcing datasets is generally required.
+- Converts ERA5 surface data to fields appropriate for MOM6 surface forcing
 - Handle slicing across 'seams' in of the forcing input datasets (e.g., when the regional
   configuration includes longitude 180 and the forcing longitude is defined in [-180, 180]).
 - Handles metadata encoding.
 - Creates directory structure with the configuration files as expected by MOM6.
-- Handles interpolation and interpretation of input data. No pre-processing of forcing datasets is required. (In some cases, slicing the forcing dataset before helps with hitting limitations related to the machine's available memory.)
+- Produces MOM6 namelist files matching your experiment
 
-## Limitations
+Regional-mom6 is designed to be machine agnostic as much as possible, meaning that as long as you have a working MOM6 executable on your computer, this package gets you most of the way towards running your MOM6 configuration. However, additional support is available for the two main institutions who use and maintain regional-mom6: [COSIMA](https://cosima.org.au/) and NCAR's [CROCODILE project](https://github.com/CROCODILE-CESM/). 
 
-- Only generates regional horizontal grids with uniform spacing in longitude and latitude.
-  However, users can provide their own non-uniform grid, or ideally
-  [open a pull request](https://github.com/COSIMA/regional-mom6/pulls) with a method that
-  generates other types of horizontal grids.
-- Only supports boundary segments that are parallel to either lines of constant longitude or
-  lines of constant latitude.
+Check out the [documentation](https://regional-mom6.readthedocs.io/en/latest/) and try the [demos](https://regional-mom6.readthedocs.io/en/latest/demos.html).
 
+## For COSIMA / Gadi users
+
+There's an [example notebook](https://github.com/COSIMA/regional-mom6/blob/main/demos/ACCESS-rOM3-demo.ipynb) that's designed specifically for Gadi users. This is the best place to start! Aside from the paths defined in this notebook which are gadi-specific, the other important part is right at the end: the [`.setup_rom3()`](https://github.com/COSIMA/regional-mom6/blob/1c48b714ac9ae55de9b3e92f0efb8aa37a0ec0cb/regional_mom6/regional_mom6.py#L1921) method will set up the [ACCESS-NRI supported](https://access-om3-configs.access-hive.org.au/latest/contributing/Overview/) version of MOM6 ready to run with the [Payu workflow manager](https://github.com/payu-org/payu)
+
+## For people using the Community Earth System Model Framework (CESM)
+
+CESM users should check out the [CrocoDash](https://github.com/CROCODILE-CESM/CrocoDash) package wraps regional-mom6 (among other things) to set up regional models within the CESM framework. 
+
+## For users outside Australia and the U.S
+
+This package can still be used to set up your model! The only catch is that you need to supply an executable built on your machine. We maintain a machine agnostic [demo](https://regional-mom6.readthedocs.io/en/latest/demos.html) on how to use regional-mom6 for everything short of _running_ the model.
 
 ## We want to hear from you
 
-If you have any suggestions please feel free to open an [issue](https://github.com/COSIMA/regional-mom6/issues) or start a [discussion](https://github.com/COSIMA/regional-mom6/discussions). We welcome any [new contributors](https://regional-mom6.readthedocs.io/en/latest/contributing/contributing.html) and we are very keen to help you out along the way!
-
-
-## What you need to get started:
-
-1. a cool idea for a new regional MOM6 domain,
-2. a working MOM6 executable on a machine of your choice,
-3. a bathymetry file that at least covers your domain,
-4. 3D ocean forcing files *of any resolution* on your choice of A, B, or C Arakawa grid,
-5. surface forcing files (e.g., from ERA or JRA reanalysis), and
-6. [GFDL's FRE tools](https://github.com/NOAA-GFDL/FRE-NCtools) be downloaded and compiled on the machine you are using.
-
-Check out the [documentation](https://regional-mom6.readthedocs.io/en/latest/) and browse through the [demos](https://regional-mom6.readthedocs.io/en/latest/demos.html).
+If you have any suggestions please feel free to open an [issue](https://github.com/COSIMA/regional-mom6/issues) or start a [discussion](https://github.com/COSIMA/regional-mom6/discussions). We welcome any [new contributors](https://regional-mom6.readthedocs.io/en/latest/contributing/contributing.html) and we are very keen to help you out along the way! 
 
 
 ## Installation
@@ -107,20 +98,6 @@ Alternatively, install the version that corresponds to a particular git commit u
 ```bash
 pip install git+https://github.com/COSIMA/regional-mom6.git@061b0ef80c7cbc04de0566df329c4ea472002f7e
 ```
-
-## MOM6 Configuration and Version Requirements
-
-The package and demos assume a coupled MOM6-SIS2 configuration, but also work for MOM6 ocean-only configuration after appropriate changes in the `input.nml` and `MOM_input` files.
-
-Additionally, regional configurations require that the MOM6 executable _must_ be compiled with **symmetric memory**.
-
-The current release of this package assumes the latest source code of all components needed to run MOM6 as of
-January 2024. A forked version of the [`setup-mom6-nci`](https://github.com/ashjbarnes/setup-mom6-nci) repository
-contains scripts for compiling MOM6 and, furthermore, its [`src`](https://github.com/ashjbarnes/setup-mom6-nci/tree/setup-mom6/src)
-directory lists the particular commits that were used to compile MOM6 and its submodules for this package.
-
-Note that the commits used for MOM6 submodules (e.g., Flexible Modelling System (FMS), coupler, SIS2) are _not_
-necessarily those used by the GFDL's [`MOM6_examples`](https://github.com/NOAA-GFDL/MOM6-examples) repository.
 
 
 ## Getting started

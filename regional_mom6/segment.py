@@ -728,6 +728,7 @@ class Segment:
         fill_method=rgd.fill_missing_data,
         regridders=None,
         repeat_year_forcing=False,
+        ignore_degenerate=False,
     ):
         """
         Cut out and interpolate the velocities and tracers onto this segment.
@@ -758,6 +759,11 @@ class Segment:
             repeat_year_forcing (Optional[bool]): When ``True`` the experiment runs
                 with repeat-year forcing. When ``False`` (default) inter-annual
                 forcing is used.
+            ignore_degenerate (bool): Passed through to regridder construction --
+                skip degenerate source cells instead of raising. Default ``False``.
+                Needed for source datasets with duplicate/collapsed cells near the
+                poles; see ``rgd.create_regridder``. Ignored when ``regridders`` is
+                supplied, since no regridder is built.
         """
         reprocessed_var_map = rgd.apply_arakawa_grid_mapping(
             var_mapping=varnames, arakawa_grid=arakawa_grid
@@ -784,6 +790,7 @@ class Segment:
                 outfolder,
                 regridding_method,
                 self.segment_name,
+                ignore_degenerate=ignore_degenerate,
             )
         self._regridders = regridders
 
