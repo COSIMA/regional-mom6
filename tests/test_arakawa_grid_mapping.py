@@ -1,5 +1,5 @@
 import pytest
-from regional_mom6.regional_mom6 import (
+from regional_mom6.regridding import (
     apply_arakawa_grid_mapping,
     identify_arakawa_grid,
 )
