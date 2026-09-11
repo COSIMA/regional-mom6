@@ -743,8 +743,8 @@ def test_regrid_velocity_tracers(toy_glorys_ds, tmp_path):
         np.abs(temp_vals[0, 0, 0, 0] - 23) < 0.01
     )  # bilinear at this point is nearly the average of the toy_glory_ds values (22 and 24 and 26 and 20)
     assert (
-        temp_vals[0, 0, 2, 0] == 0
-    )  # The bilinear regridding would be zero here because there isn't 4 points
+        np.abs(temp_vals[0, 0, 2, 0] - temp_vals[0, 0, 1, 0]) < 0.01
+    )  # The bilinear regridding at 2 from the edge would produce a NaN which is then filled by the value at 1
 
 
 def test_segment_standalone_no_hgrid(toy_glorys_ds, tmp_path):

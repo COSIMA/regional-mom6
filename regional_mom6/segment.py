@@ -959,8 +959,7 @@ class Segment:
         # fill in NaNs
         segment_out = fill_method(
             segment_out,
-            xdim=f"{self.parallel}_{self.segment_name}",
-            zdim=reprocessed_var_map["depth_coord"],
+            dim="all",
         )
 
         # Overwrite the actual lat/lon values in the dimensions, replace with incrementing integers
@@ -1100,13 +1099,9 @@ class Segment:
 
         # Fill missing data.
         # Need to do this first because complex would get converted to real
-        redest = fill_method(
-            redest, xdim=f"{self.parallel}_{self.segment_name}", zdim=None
-        )
+        redest = fill_method(redest, dim=f"{self.parallel}_{self.segment_name}")
         redest = redest["hRe"]
-        imdest = fill_method(
-            imdest, xdim=f"{self.parallel}_{self.segment_name}", zdim=None
-        )
+        imdest = fill_method(imdest, dim=f"{self.parallel}_{self.segment_name}")
         imdest = imdest["hIm"]
 
         # Convert complex
@@ -1148,18 +1143,10 @@ class Segment:
 
         # Fill missing data.
         # Need to do this first because complex would get converted to real
-        uredest = fill_method(
-            uredest, xdim=f"{self.parallel}_{self.segment_name}", zdim=None
-        )
-        uimdest = fill_method(
-            uimdest, xdim=f"{self.parallel}_{self.segment_name}", zdim=None
-        )
-        vredest = fill_method(
-            vredest, xdim=f"{self.parallel}_{self.segment_name}", zdim=None
-        )
-        vimdest = fill_method(
-            vimdest, xdim=f"{self.parallel}_{self.segment_name}", zdim=None
-        )
+        uredest = fill_method(uredest, dim=f"{self.parallel}_{self.segment_name}")
+        uimdest = fill_method(uimdest, dim=f"{self.parallel}_{self.segment_name}")
+        vredest = fill_method(vredest, dim=f"{self.parallel}_{self.segment_name}")
+        vimdest = fill_method(vimdest, dim=f"{self.parallel}_{self.segment_name}")
 
         # Convert to complex, remaining separate for u and v.
         ucplex = uredest + 1j * uimdest
@@ -1199,9 +1186,7 @@ class Segment:
         )
 
         # Some things may have become missing during the transformation
-        ds_ap = fill_method(
-            ds_ap, xdim=f"{self.parallel}_{self.segment_name}", zdim=None
-        )
+        ds_ap = fill_method(ds_ap, dim=f"{self.parallel}_{self.segment_name}")
 
         self.encode_tidal_files_and_output(ds_ap, "tu", outfolder)
 
