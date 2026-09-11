@@ -2021,7 +2021,7 @@ class experiment:
         ## Either way, we need to remove the settings previously added by rmom6 to the override file.
         ## These settings are bookended by comments
 
-        with open(self.mom_run_dir / "MOM_override","r") as file:
+        with open(self.mom_run_dir / "MOM_override", "r") as file:
             out = []
             # Once we hit first of the comments delineating rmom6 written settings,
             # we turn 'Keep' off to cut out this block.
@@ -2034,10 +2034,8 @@ class experiment:
                     out.append(line)
                 if "! === End settings added with regional-mom6.  ===" in line:
                     keep = True
-        with open(self.mom_run_dir / "MOM_override","w") as file:
+        with open(self.mom_run_dir / "MOM_override", "w") as file:
             file.writelines(out)
-
-
 
         # First, make the ESMF mesh file required for all NUOPC based runs, like rom3
         if self.m6f_bathymetry == None:
