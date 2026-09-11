@@ -1,6 +1,12 @@
+import importlib
+import shutil
+from pathlib import Path
+
 import numpy as np
 import pytest
 from regional_mom6 import experiment
+from regional_mom6 import MOM_parameter_tools as mpt
+from regional_mom6.segment import Segment
 import xarray as xr
 import xesmf as xe
 import dask
@@ -587,3 +593,95 @@ def test_recalculate_rotation_angle_is_noop_for_consistent_grid(tmp_path, grid, 
     after = expt.hgrid["angle_dx"].values
 
     np.testing.assert_allclose(before, after)
+
+
+def test_get_segment_reuses_cached_segment(tmp_path, monkeypatch):
+    """_get_segment should build a Segment once per orientation and reuse the
+    same object on subsequent calls -- this is what lets setup_ocean_state_boundaries
+    and setup_boundary_tides share one Segment per orientation instead of each
+    re-deriving it from the grid."""
+    expt = experiment.create_empty(
+        expt_name="cache_test",
+        mom_input_dir=tmp_path,
+        mom_run_dir=tmp_path,
+    )
+    expt.longitude_extent = (-5, 5)
+    expt.latitude_extent = (0, 10)
+    expt.hgrid_type = "even_spacing"
+    expt.resolution = 0.1
+    expt._make_hgrid()
+
+    call_count = {"n": 0}
+    real_cardinal = Segment.cardinal.__func__
+
+    def counting_cardinal(cls, *args, **kwargs):
+        call_count["n"] += 1
+        return real_cardinal(cls, *args, **kwargs)
+
+    monkeypatch.setattr(Segment, "cardinal", classmethod(counting_cardinal))
+
+    segment_first = expt._get_segment("east")
+    segment_second = expt._get_segment("east")
+
+    assert call_count["n"] == 1, "Segment.cardinal should only be called once"
+    assert segment_first is segment_second
+    assert expt.segments["east"] is segment_first
+
+    # A different orientation still builds its own Segment
+    segment_north = expt._get_segment("north")
+    assert call_count["n"] == 2
+    assert segment_north is not segment_first
+
+
+def test_setup_generic_writes_correct_obc_position_strings(tmp_path):
+    """setup_generic's OBC_SEGMENT_00N position strings should come from
+    Segment.mom6_obc_position_string, matching the values the old hardcoded
+    rect_MOM6_index_dir produced for the 4 cardinal boundaries."""
+    expt = experiment.create_empty(
+        expt_name="obc_test",
+        mom_input_dir=tmp_path / "inputdir",
+        mom_run_dir=tmp_path / "rundir",
+    )
+    expt.mom_input_dir.mkdir()
+    expt.mom_run_dir.mkdir()
+    expt.longitude_extent = (-5, 5)
+    expt.latitude_extent = (0, 10)
+    expt.date_range = ["2000-01-01 00:00:00", "2000-01-02 00:00:00"]
+    expt.hgrid_type = "even_spacing"
+    expt.resolution = 0.5
+    expt.number_vertical_layers = 5
+    expt.layer_thickness_ratio = 1
+    expt.depth = 1000
+    expt.minimum_depth = 4
+    expt.tidal_constituents = []
+    expt.boundaries = ["south", "north", "east", "west"]
+    expt._make_hgrid()
+    expt._make_vgrid()
+
+    module_path = Path(importlib.resources.files("regional_mom6"))
+    demos_dir = (
+        module_path / "demos"
+        if (module_path / "demos").exists()
+        else module_path.parent / "demos"
+    )
+    shutil.copytree(
+        demos_dir / "premade_run_directories" / "common_files",
+        expt.mom_run_dir,
+        dirs_exist_ok=True,
+    )
+
+    expt.setup_generic(mask_land_cpus=False)
+
+    MOM_override_dict = mpt.read_MOM_file_as_dict("MOM_override", expt.mom_run_dir)
+    expected_prefix = {
+        "south": '"J=0,I=0:N',
+        "north": '"J=N,I=N:0',
+        "east": '"I=N,J=0:N',
+        "west": '"I=0,J=N:0',
+    }
+    for seg in expt.boundaries:
+        ind_seg = expt.find_MOM6_rectangular_orientation(seg)
+        value = MOM_override_dict[f"OBC_SEGMENT_00{ind_seg}"]["value"]
+        assert value.startswith(
+            expected_prefix[seg]
+        ), f"{seg} position string {value!r} does not match legacy convention"
