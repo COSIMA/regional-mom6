@@ -11,6 +11,10 @@ import warnings
 import shutil
 import os
 import importlib.resources
+from importlib.metadata import version
+import urllib.request
+import tarfile
+import io
 import pandas as pd
 from pathlib import Path
 import json
@@ -42,6 +46,7 @@ __all__ = [
     "experiment",
     "segment",
     "get_glorys_data",
+    "add_version_to_ds",
     "Grid",
     "Topo",
     "VGrid",
@@ -133,6 +138,7 @@ def get_glorys_data(
     segment_name,
     download_path,
     modify_existing=True,
+    project=None,
 ):
     """
     Generates a bash script to download all of the required ocean forcing data.
@@ -144,6 +150,7 @@ def get_glorys_data(
         segment_range (str): name of the segment (without the ``.nc`` extension, e.g., ``east_unprocessed``)
         download_path (str): Location of where the script is saved
         modify_existing (bool): Whether to add to an existing script or start a new one
+        project (str or None): the NCI project the user belongs to. If none, pbs directives aren't added and plain bash script is written.
     Returns:
         file path
     """
@@ -154,21 +161,49 @@ def get_glorys_data(
     path = Path(download_path)
 
     if modify_existing:
-        file = open(Path(path / "get_glorys_data.sh"), "r")
+        file = open(Path(path / "get_glorys_data.pbs"), "r")
         lines = file.readlines()
         file.close()
 
+    elif project != None:
+        # Add pbs directives
+        lines = [
+            "#!/bin/bash\n",
+            "#PBS -N get_glorys_data\n",
+            f"#PBS -P {project}\n",
+            "#PBS -q copyq\n",
+            "#PBS -l ncpus=1\n",
+            "#PBS -l mem=4GB\n",
+            "#PBS -l walltime=10:00:00\n",
+            "#PBS -l wd\n",
+            f"#PBS -l storage=scratch/{project}+gdata/{project}+gdata/vk83\n",
+            "#PBS -o get_glorys_data.log\n",
+            "module use /g/data/vk83/modules\n",
+            "module load copernicusmarine/2.4.1\n",
+        ]
     else:
         lines = ["#!/bin/bash\n"]
 
-    file = open(Path(path / "get_glorys_data.sh"), "w")
+    file = open(Path(path / "get_glorys_data.pbs"), "w")
 
     lines.append(f"""
 copernicusmarine subset --dataset-id cmems_mod_glo_phy_my_0.083deg_P1D-m --variable so --variable thetao --variable uo --variable vo --variable zos --start-datetime {str(timerange[0]).replace(" ","T")} --end-datetime {str(timerange[1]).replace(" ","T")} --minimum-longitude {longitude_extent[0] - buffer} --maximum-longitude {longitude_extent[1] + buffer} --minimum-latitude {latitude_extent[0] - buffer} --maximum-latitude {latitude_extent[1] + buffer} --minimum-depth 0 --maximum-depth 6000 -o {str(path)} -f {segment_name}.nc\n
 """)
     file.writelines(lines)
     file.close()
-    return Path(path / "get_glorys_data.sh")
+    return Path(path / "get_glorys_data.pbs")
+
+
+def add_version_to_ds(ds):
+    """
+    Add the regional-mom6 version to a dataset so it's easy to keep track of how input files were produced
+    """
+    try:
+        from ._version import __version__
+    except ImportError:
+        __version__ = "unknown"
+    ds.attrs["rmom6_version"] = f"Made with regional-mom6 version {__version__}"
+    return ds
 
 
 class experiment:
@@ -298,7 +333,6 @@ class experiment:
         expt.latitude_extent = latitude_extent
         expt.longitude_extent = longitude_extent
         expt.ocean_mask = None
-        expt.layout = None
         expt.segments = {}
         expt.boundaries = boundaries
         expt.regridding_method = regridding_method
@@ -363,7 +397,6 @@ class experiment:
         self.vgrid_type = vgrid_type
         self.repeat_year_forcing = repeat_year_forcing
         self.ocean_mask = None
-        self.layout = None  # This should be a tuple. Leaving it as 'None' makes it easy to remind the user to provide a value later.
         self.minimum_depth = minimum_depth  # Minimum depth allowed in the bathymetry
         self.tidal_constituents = tidal_constituents
         self.regridding_method = regridding_method
@@ -389,6 +422,9 @@ class experiment:
                 float(self.hgrid.y.min()),
                 float(self.hgrid.y.max()),
             )
+            # Write this grid to file ready to be used by the model
+            self.m6f_hgrid.write_supergrid(self.mom_input_dir / "hgrid.nc")
+
         elif hgrid_type == "from_file":
             # `self.hgrid` lazily reads `mom_input_dir/hgrid.nc` the first time it's
             # accessed. A rotation-angle discrepancy here is only warned about (not
@@ -1119,8 +1155,7 @@ class experiment:
         )
 
         print("Saving outputs... ", end="")
-
-        vel_out.fillna(0).to_netcdf(
+        add_version_to_ds(vel_out).fillna(0).to_netcdf(
             self.mom_input_dir / "init_vel.nc",
             mode="w",
             encoding={
@@ -1133,12 +1168,12 @@ class experiment:
             var: {"_FillValue": -1e20, "missing_value": -1e20}
             for var in reprocessed_var_map["tracer_var_names"].keys()
         }
-        tracers_out.to_netcdf(
+        add_version_to_ds(tracers_out).to_netcdf(
             self.mom_input_dir / "init_tracers.nc",
             mode="w",
             encoding=encoding,
         )
-        eta_out.to_netcdf(
+        add_version_to_ds(eta_out).to_netcdf(
             self.mom_input_dir / "init_eta.nc",
             mode="w",
             encoding={
@@ -1172,7 +1207,7 @@ class experiment:
         )
         return
 
-    def get_glorys(self, raw_boundaries_path):
+    def get_glorys(self, raw_boundaries_path, project=None):
         """
         This is a wrapper that calls :func:`~get_glorys_data` once for each of the rectangular boundary segments
         and the initial condition. For more complex boundary shapes, call :func:`~get_glorys_data` directly for
@@ -1184,6 +1219,7 @@ class experiment:
             raw_boundaries_path (str): Path to the directory containing the raw boundary forcing files.
             boundaries (List[str]): List of cardinal directions for which to create boundary forcing files.
                 Default is ``["south", "north", "west", "east"]``.
+            project (str or None): NCI project of the user, or None to set up a machine agnostic file instead
         """
 
         # Initial Condition
@@ -1197,6 +1233,7 @@ class experiment:
             segment_name="ic_unprocessed",
             download_path=raw_boundaries_path,
             modify_existing=False,  # This is the first line, so start bash script anew
+            project=project,
         )
         if "east" in self.boundaries:
             get_glorys_data(
@@ -1256,15 +1293,14 @@ class experiment:
             )
 
         print(
-            f"The script `get_glorys_data.sh` has been generated at:\n  {raw_boundaries_path}.\n"
-            f"To download the data, run this script using `bash` in a terminal with internet access.\n\n"
-            f"Important instructions:\n"
-            f"1. You will need your Copernicus Marine username and password.\n"
-            f"   If you do not have an account, you can create one here: \n"
-            f"   https://data.marine.copernicus.eu/register\n"
-            f"2. You will be prompted to enter your Copernicus Marine credentials multiple times: once for each dataset.\n"
-            f"3. Depending on the dataset size, the download process may take significant time and resources.\n"
-            f"4. Thus, on certain systems, you may need to run this script as a batch job.\n"
+            f"The script `get_glorys_data.pbs` has been generated at:\n  {raw_boundaries_path}.\n"
+            "To download the data, qsub \n\n"
+            "Important instructions:\n"
+            "1. You will need your Copernicus Marine username and password.\n"
+            "   If you do not have an account, you can create one here: \n"
+            "   https://data.marine.copernicus.eu/register\n"
+            "2. Follow the instructions below to set up your account properly on gadi using `coperinucmarine login`. You may want to do this first on a login node before trying the pbs job. https://help.marine.copernicus.eu/en/articles/8185007-copernicus-marine-toolbox-credentials-configuration \n"
+            "3. Depending on the dataset size, the download process may take significant time and resources.\n"
         )
         return
 
@@ -1379,7 +1415,7 @@ class experiment:
                 if dz_var_name in ds:
                     ds_var[dz_var_name] = ds[dz_var_name]
             output_file = self.mom_input_dir / f"{var}_obc_segment.nc"
-            ds_var.to_netcdf(output_file, unlimited_dims="time")
+            add_version_to_ds(ds_var).to_netcdf(output_file, unlimited_dims="time")
             print("Saved BGC tracer {} to file {}".format(var, output_file))
 
     def setup_single_boundary(
@@ -1784,7 +1820,7 @@ class experiment:
         MOM_override_dict = mpt.read_MOM_file_as_dict("MOM_override", self.mom_run_dir)
 
         MOM_override_dict["MINIMUM_DEPTH"]["value"] = float(self.minimum_depth)
-
+        MOM_override_dict["MAXIMUM_DEPTH"]["value"] = float(self.depth)
         # Define spatial dimensions
         nx = self.hgrid.nx.shape[0] // 2
         ny = self.hgrid.ny.shape[0] // 2
@@ -1932,7 +1968,13 @@ class experiment:
 
         return
 
-    def setup_rOM3(self, ncpus=208, mask_land_cpus=True, overwrite=True):
+    def setup_rOM3(
+        self,
+        ncpus=208,
+        mask_land_cpus=True,
+        overwrite=False,
+        branch="M_regional_template",
+    ):
         """
         Set up the run directory for an ACCESS-regional-ocean-model-3 experiment. This function copies existing configuration files (MOM_input,config.yaml etc.) from an ACCESS-NRI supported source to ensure that users have access to the latest executable and fixes.
 
@@ -1941,32 +1983,73 @@ class experiment:
             ncpus (Optional[int]): The number of PEs to use
             mask_land_cpus (Optional[bool]): If your domain has enough land in it that some processors would only have land to deal with, set to True. If a mostly water domain, set to False otherwise the automatic mask table throws a fatal (see issue: https://github.com/issues/created?issue=mom-ocean%7CMOM6%7C1686)
             overwrite (Optional[bool]): If true, reset the run directory. Set to False to attempt to attempt to modify the files in an exsiting run directory.
+            branch (Optional[str]): The branch of ACCESS-NRI's access-om3-configs to use as a template for the run. Default: M_regional_template
         """
-        if os.path.exists(self.mom_run_dir) and overwrite:
-            shutil.rmtree(self.mom_run_dir)
+        if overwrite:
+
+            print(
+                f"Overwrite set to True. Run directory {self.mom_run_dir} to be emptied and replaced with"
+            )
+            print(f"a fresh template from OM3-configs branch {branch}")
+            if os.path.exists(self.mom_run_dir):
+                shutil.rmtree(self.mom_run_dir)
+
+            try:
+                url = "https://github.com/ACCESS-NRI/access-om3-configs"
+                command = f"git clone --branch {branch} --single-branch {url} {self.mom_run_dir} --depth 1"
+                print("Cloning with")
+                print(command)
+                subprocess.run(
+                    command,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                    shell=True,
+                )
+            except subprocess.CalledProcessError as e:
+                raise RuntimeError(f"git clone failed for {command}") from e
+
         else:
             print(
-                "Overwrite set to False. I'll attempt to modify existing files in the directory rather than re-populate it from scratch. \nIf there are issues, try re-run with overwrite=True, or make your intended changes manually."
+                "Overwrite set to False. I'll attempt to modify existing files in the directory rather than replacing them entirely."
+            )
+            print(
+                "If any files are missing the run directory, you can get them from the template directory at https://github.com/ACCESS-NRI/access-om3-configs/tree/M_regional_template"
             )
 
+        ## Either way, we need to remove the settings previously added by rmom6 to the override file.
+        ## These settings are bookended by comments
+
+        with open(self.mom_run_dir / "MOM_override", "r") as file:
+            out = []
+            # Once we hit first of the comments delineating rmom6 written settings,
+            # we turn 'Keep' off to cut out this block.
+            # We turn it on again once we hit the comment delineating the end of the block
+            keep = True
+            for line in file.readlines():
+                if "! === Settings added with regional-mom6 below ===" in line:
+                    keep = False
+                if keep:
+                    out.append(line)
+                if "! === End settings added with regional-mom6.  ===" in line:
+                    keep = True
+        with open(self.mom_run_dir / "MOM_override", "w") as file:
+            file.writelines(out)
+
         # First, make the ESMF mesh file required for all NUOPC based runs, like rom3
-        self.topo.write_esmf_mesh(self.mom_input_dir / "access-rom3-ESMFmesh.nc")
+        if self.m6f_bathymetry == None:
+            self.bathymetry  # Silly workaround to ensure that the m6f object is initialised in
+            # case we're just reading everything from disk rather than generating bathy
+        self.m6f_bathymetry.write_esmf_mesh(
+            self.mom_input_dir / "access-rom3-ESMFmesh.nc"
+        )
         # Now modify to make a mask free version
         maskmesh = xr.open_dataset(self.mom_input_dir / "access-rom3-ESMFmesh.nc")
         maskmesh.elementMask[:] = 1
-        maskmesh.to_netcdf(self.mom_input_dir / "access-rom3-nomask-ESMFmesh.nc")
-
-        #! PLACEHOLDER
-        #! need to implement something like:
-        #! payu clone stencil_name self.mom_run_dir.
-        #!
-        shutil.copytree(
-            "/g/data/ol01/ab8992/access-om3-configs",
-            self.mom_run_dir,
-            dirs_exist_ok=True,
+        add_version_to_ds(maskmesh).to_netcdf(
+            self.mom_input_dir / "access-rom3-nomask-ESMFmesh.nc"
         )
-        #!
-        #! END PLACEHOLDER
 
         # Run the generic setup that's required for all rmom6 runs
 
@@ -2123,8 +2206,32 @@ class experiment:
         ## Firstly just open all raw data
         rawdata = {}
         for fname, vname in zip(
-            ["2t", "10u", "10v", "sp", "2d", "msdwswrf", "msdwlwrf", "lsrr", "crr"],
-            ["t2m", "u10", "v10", "sp", "d2m", "msdwswrf", "msdwlwrf", "lsrr", "crr"],
+            [
+                "2t",
+                "10u",
+                "10v",
+                "sp",
+                "2d",
+                "msdwswrf",
+                "msdwlwrf",
+                "lsrr",
+                "crr",
+                "lssfr",
+                "csfr",
+            ],
+            [
+                "t2m",
+                "u10",
+                "v10",
+                "sp",
+                "d2m",
+                "msdwswrf",
+                "msdwlwrf",
+                "lsrr",
+                "crr",
+                "lssfr",
+                "csfr",
+            ],
         ):
             ## Load data from all relevant years
             years = [
@@ -2181,7 +2288,7 @@ class experiment:
                 q = xr.Dataset(data_vars={"q": humidity})
 
                 q.q.attrs = {"long_name": "Specific Humidity", "units": "kg/kg"}
-                q.to_netcdf(
+                add_version_to_ds(q).to_netcdf(
                     f"{self.mom_input_dir}/q_ERA5.nc",
                     unlimited_dims="time",
                     encoding={"q": {"dtype": "double"}},
@@ -2196,7 +2303,7 @@ class experiment:
                     "long_name": "Total Rain Rate",
                     "units": "kg m**-2 s**-1",
                 }
-                trr.to_netcdf(
+                add_version_to_ds(trr).to_netcdf(
                     f"{self.mom_input_dir}/trr_ERA5.nc",
                     unlimited_dims="time",
                     encoding={"trr": {"dtype": "double"}},
@@ -2204,6 +2311,27 @@ class experiment:
 
             elif fname == "lsrr":
                 ## This is handled by crr as both are added together to calculate total rain rate.
+                pass
+            elif fname == "csfr":
+                ## Calculate total rain rate from convective and total
+                tsfr = xr.Dataset(
+                    data_vars={
+                        "tsfr": rawdata["csfr"]["csfr"] + rawdata["lssfr"]["lssfr"]
+                    }
+                )
+
+                tsfr.tsfr.attrs = {
+                    "long_name": "Total Snowfall Rate",
+                    "units": "kg m**-2 s**-1",
+                }
+                add_version_to_ds(tsfr).to_netcdf(
+                    f"{self.mom_input_dir}/tsfr_ERA5.nc",
+                    unlimited_dims="time",
+                    encoding={"tsfr": {"dtype": "double"}},
+                )
+
+            elif fname == "lssfr":
+                ## This is handled by csfr as both are added together to get total snowfall rate
                 pass
             else:
                 rawdata[fname].to_netcdf(
@@ -2543,7 +2671,7 @@ class segment:
         # If repeat-year forcing, add modulo coordinate
         if self.repeat_year_forcing:
             segment_out["time"] = segment_out["time"].assign_attrs({"modulo": " "})
-        segment_out.load().to_netcdf(
+        add_version_to_ds(segment_out).load().to_netcdf(
             self.outfolder / f"forcing_obc_{self.segment_name}.nc",
             encoding=encoding_dict,
             unlimited_dims="time",
@@ -2846,7 +2974,7 @@ class segment:
         )
 
         ## Export Files ##
-        ds.to_netcdf(
+        add_version_to_ds(ds).to_netcdf(
             Path(self.outfolder / fname),
             engine="netcdf4",
             encoding=encoding,
