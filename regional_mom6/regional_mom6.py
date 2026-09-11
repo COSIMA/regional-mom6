@@ -333,7 +333,6 @@ class experiment:
         expt.latitude_extent = latitude_extent
         expt.longitude_extent = longitude_extent
         expt.ocean_mask = None
-        expt.layout = None
         expt.segments = {}
         expt.boundaries = boundaries
         expt.regridding_method = regridding_method
@@ -398,7 +397,6 @@ class experiment:
         self.vgrid_type = vgrid_type
         self.repeat_year_forcing = repeat_year_forcing
         self.ocean_mask = None
-        self.layout = None  # This should be a tuple. Leaving it as 'None' makes it easy to remind the user to provide a value later.
         self.minimum_depth = minimum_depth  # Minimum depth allowed in the bathymetry
         self.tidal_constituents = tidal_constituents
         self.regridding_method = regridding_method
@@ -2016,6 +2014,27 @@ class experiment:
             print(
                 "If any files are missing the run directory, you can get them from the template directory at https://github.com/ACCESS-NRI/access-om3-configs/tree/M_regional_template"
             )
+
+        ## Either way, we need to remove the settings previously added by rmom6 to the override file.
+        ## These settings are bookended by comments
+
+        with open(self.mom_run_dir / "MOM_override","r") as file:
+            out = []
+            # Once we hit first of the comments delineating rmom6 written settings,
+            # we turn 'Keep' off to cut out this block.
+            # We turn it on again once we hit the comment delineating the end of the block
+            keep = True
+            for line in file.readlines():
+                if "! === Settings added with regional-mom6 below ===" in line:
+                    keep = False
+                if keep:
+                    out.append(line)
+                if "! === End settings added with regional-mom6.  ===" in line:
+                    keep = True
+        with open(self.mom_run_dir / "MOM_override","w") as file:
+            file.writelines(out)
+
+
 
         # First, make the ESMF mesh file required for all NUOPC based runs, like rom3
         if self.m6f_bathymetry == None:
