@@ -422,6 +422,9 @@ class experiment:
                 float(self.hgrid.y.min()),
                 float(self.hgrid.y.max()),
             )
+            # Write this grid to file ready to be used by the model
+            self.m6f_hgrid.write_supergrid(self.mom_input_dir / "hgrid.nc")
+
         elif hgrid_type == "from_file":
             # `self.hgrid` lazily reads `mom_input_dir/hgrid.nc` the first time it's
             # accessed. A rotation-angle discrepancy here is only warned about (not
