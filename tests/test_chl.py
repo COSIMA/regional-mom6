@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 from mom6_forge.topo import Topo
+from regional_mom6.chl import *
 
 
 def _make_small_seawifs_ds():
@@ -152,3 +153,32 @@ def test_setup_chl(simple_experiment, small_seawifs_path):
     assert np.all(np.isfinite(chl_a.values))
     assert np.all(chl_a.values > 0.0)
     assert np.all(chl_a.values < 100.0)
+
+
+@pytest.mark.parametrize(
+    "calendar, expected_attr",
+    [
+        ("noleap", "noleap"),
+        ("NOLEAP", "noleap"),
+        ("365_day", "365_day"),
+        ("gregorian", "gregorian"),
+        ("standard", "gregorian"),  # CF's name for gregorian; FMS rejects "standard"
+    ],
+)
+def test_chl_empty_dataset_calendar(calendar, expected_attr):
+    """The calendar attribute is normalized to a name FMS accepts, and the TIME
+    axis is the month midpoints of that calendar's climatological year."""
+    ds = gen_chl_empty_dataset(None, [0.0, 1.0], [0.0, 1.0], calendar=calendar)
+
+    assert ds.TIME.attrs["calendar"] == expected_attr
+    assert ds.TIME.values == pytest.approx(
+        [15.5, 45, 74.5, 105, 135.5, 166, 196.5, 227.5, 258, 288.5, 319, 349.5]
+    )
+
+
+@pytest.mark.parametrize("calendar", ["all_leap", "366_day", "360_day", "julian"])
+def test_chl_empty_dataset_unsupported_calendar(calendar):
+    """Calendars we cannot yet build a matching TIME axis for are rejected rather
+    than silently given a 365-day axis."""
+    with pytest.raises(NotImplementedError, match="not supported"):
+        gen_chl_empty_dataset(None, [0.0, 1.0], [0.0, 1.0], calendar=calendar)
