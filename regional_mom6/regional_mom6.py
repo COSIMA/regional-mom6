@@ -1985,7 +1985,7 @@ class experiment:
     def setup_rOM3(
         self,
         ncpus=208,
-        coupler_ncpus = 16,
+        coupler_ncpus=16,
         mask_land_cpus=True,
         overwrite=False,
         branch="M_regional_template",
@@ -2071,8 +2071,8 @@ class experiment:
 
         self.setup_generic(ncpus=ncpus, mask_land_cpus=mask_land_cpus)
 
-        # We currently have 16 PEs assigned to coupler / drof / datm. 
-        # The user should adjust this for large domains but at least we can 
+        # We currently have 16 PEs assigned to coupler / drof / datm.
+        # The user should adjust this for large domains but at least we can
 
         nx = self.hgrid.nx.shape[0] // 2
         ny = self.hgrid.ny.shape[0] // 2
