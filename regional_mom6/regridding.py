@@ -237,21 +237,61 @@ def add_or_update_time_dim(ds: xr.Dataset, times, z_dims=None) -> xr.Dataset:
     return ds
 
 
-def generate_dz(ds: xr.Dataset, z_dim_name: str) -> xr.Dataset:
+def generate_dz_from_centers(ds: xr.Dataset, z_dim_name: str) -> xr.Dataset:
     """
-    Generate the vertical coordinate spacing.
+    Generate layer thicknesses from a coordinate of layer centers.
 
     Parameters:
-        ds (xr.Dataset): The dataset from which we extract the vertical coordinate.
-        z_dim_name (str): The name of the vertical coordinate.
+        ds (xr.Dataset): The dataset holding the vertical coordinate.
+        z_dim_name (str): Name of the coordinate, holding layer centers.
 
     Returns
-        (xr.Dataset): The vertical spacing variable.
+        (xr.Dataset): The layer thickness variable.
     """
-    dz = ds[z_dim_name].diff(z_dim_name)
-    dz.name = "dz"
-    dz = xr.concat([dz, dz[-1]], dim=z_dim_name)
-    return dz
+    z_l = np.asarray(ds[z_dim_name], dtype=float)  # layer centers, positive down
+    _check_increases_downward(z_l, z_dim_name)
+    if z_l[0] <= 0.0:
+        raise ValueError(
+            f"{z_dim_name} starts at {z_l[0]}, so it is not layer centers: a center "
+            "at the surface implies zero thickness. Use generate_dz_from_interfaces."
+        )
+
+    nz = z_l.size
+    z_i = np.zeros(nz + 1)  # interface depths, positive down
+    dz = np.empty(nz)
+    for k in range(nz):
+        dz[k] = 2.0 * (z_l[k] - z_i[k])
+        z_i[k + 1] = z_i[k] + dz[k]
+
+    if not (dz > 0).all():
+        raise ValueError(f"{z_dim_name} is not cell-centered.")
+
+    return xr.DataArray(
+        dz, dims=(z_dim_name,), coords={z_dim_name: ds[z_dim_name]}, name="dz"
+    )
+
+
+def generate_dz_from_interfaces(ds: xr.Dataset, z_dim_name: str) -> xr.Dataset:
+    """
+    Generate layer thicknesses from a coordinate of layer interfaces.
+
+    Parameters:
+        ds (xr.Dataset): The dataset holding the vertical coordinate.
+        z_dim_name (str): Name of the coordinate, holding layer interfaces.
+
+    Returns
+        (xr.Dataset): The layer thickness variable.
+    """
+    z_i = np.asarray(ds[z_dim_name], dtype=float)
+    _check_increases_downward(z_i, z_dim_name)
+    return xr.DataArray(
+        np.diff(z_i), dims=(z_dim_name,), coords={z_dim_name: ds[z_dim_name][:-1]}, name="dz"
+    )
+
+
+def _check_increases_downward(z, z_dim_name: str) -> None:
+    if not (np.diff(z) > 0).all():
+        raise ValueError(f"{z_dim_name} must increase monotonically with depth.")
 
 
 def add_secondary_dimension(
@@ -357,7 +397,7 @@ def generate_layer_thickness(
         The dataset with the layer thickness variable added
     """
     regridding_logger.debug("Generating layer thickness variable for {}".format(var))
-    dz = generate_dz(ds, old_vert_coord_name)
+    dz = generate_dz_from_centers(ds, old_vert_coord_name)
     ds[f"dz_{var}"] = (
         [
             "time",
