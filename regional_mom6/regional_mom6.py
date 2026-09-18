@@ -1985,6 +1985,7 @@ class experiment:
     def setup_rOM3(
         self,
         ncpus=208,
+        coupler_ncpus=16,
         mask_land_cpus=True,
         overwrite=False,
         branch="M_regional_template",
@@ -1994,7 +1995,8 @@ class experiment:
 
 
         Arguments:
-            ncpus (Optional[int]): The number of PEs to use
+            ncpus (Optional[int]): The total number of PEs to use
+            coupler_ncpus (Optional[int]): The number of PEs reserved for the coupler. This is taken from the total. It's domain dependent - should be increased for larger domains
             mask_land_cpus (Optional[bool]): If your domain has enough land in it that some processors would only have land to deal with, set to True. If a mostly water domain, set to False otherwise the automatic mask table throws a fatal (see issue: https://github.com/issues/created?issue=mom-ocean%7CMOM6%7C1686)
             overwrite (Optional[bool]): If true, reset the run directory. Set to False to attempt to attempt to modify the files in an exsiting run directory.
             branch (Optional[str]): The branch of ACCESS-NRI's access-om3-configs to use as a template for the run. Default: M_regional_template
@@ -2069,6 +2071,9 @@ class experiment:
 
         self.setup_generic(ncpus=ncpus, mask_land_cpus=mask_land_cpus)
 
+        # We currently have 16 PEs assigned to coupler / drof / datm.
+        # The user should adjust this for large domains but at least we can
+
         nx = self.hgrid.nx.shape[0] // 2
         ny = self.hgrid.ny.shape[0] // 2
         with open(f"{self.mom_run_dir}/nuopc.runconfig", "r") as file:
@@ -2078,10 +2083,22 @@ class experiment:
                     lines[i] = (
                         f"     start_ymd = {self.date_range[0].strftime('%Y%m%d')}\n"
                     )
-                if "ocn_nx" in lines[i]:
+                elif "ocn_nx" in lines[i]:
                     lines[i] = f"     ocn_nx = {nx}\n"
-                if "ocn_ny" in lines[i]:
+                elif "ocn_ny" in lines[i]:
                     lines[i] = f"     ocn_ny = {ny}\n"
+                ## All the following need to be set to the number of coupling PEs
+                elif "atm_ntasks" in lines[i]:
+                    lines[i] = f"     atm_ntasks = {coupler_ncpus}\n"
+                elif "cpl_ntasks" in lines[i]:
+                    lines[i] = f"     cpl_ntasks = {coupler_ncpus}\n"
+                elif "rof_ntasks" in lines[i]:
+                    lines[i] = f"     rof_ntasks = {coupler_ncpus}\n"
+                elif "ocn_rootpe" in lines[i]:
+                    lines[i] = f"     ocn_rootpe = {coupler_ncpus}\n"
+                elif "ocn_ntasks" in lines[i]:
+                    lines[i] = f"     ocn_ntasks = {ncpus - coupler_ncpus}\n"
+
         with open(f"{self.mom_run_dir}/nuopc.runconfig", "w") as file:
             file.writelines(lines)
 
