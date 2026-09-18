@@ -1213,7 +1213,7 @@ class experiment:
         )
 
         print("Saving outputs... ", end="")
-        add_version_to_ds(vel_out).fillna(0).to_netcdf(
+        add_version_to_ds(rgd.fill_missing_data(vel_out, "all")).to_netcdf(
             self.mom_input_dir / "init_vel.nc",
             mode="w",
             encoding={
@@ -1226,12 +1226,12 @@ class experiment:
             var: {"_FillValue": -1e20, "missing_value": -1e20}
             for var in reprocessed_var_map["tracer_var_names"].keys()
         }
-        add_version_to_ds(tracers_out).to_netcdf(
+        add_version_to_ds(rgd.fill_missing_data(tracers_out, "all")).to_netcdf(
             self.mom_input_dir / "init_tracers.nc",
             mode="w",
             encoding=encoding,
         )
-        add_version_to_ds(eta_out).to_netcdf(
+        add_version_to_ds(rgd.fill_missing_data(eta_out, "all")).to_netcdf(
             self.mom_input_dir / "init_eta.nc",
             mode="w",
             encoding={
