@@ -154,6 +154,31 @@ def test_generate_layer_thickness(generate_silly_vt_dataset):
     )  # Make sure the depth dimension was broadcasted correctly
 
 
+def test_thin_dz_to_depth():
+    dz = np.full(5, 100.0)
+    assert np.allclose(rgd.thin_dz_to_depth(dz, [250.0])[:, 0], [100, 100, 50, 0, 0])
+    # A floor below the source column extends the bottom layer to reach it.
+    assert np.allclose(rgd.thin_dz_to_depth(dz, [620.0])[:, 0], [100, 100, 100, 100, 220])
+    # Every wet column sums to its own depth; land keeps the full column.
+    depth = np.array([500.0, 250.0, 30.0, 620.0])
+    assert np.allclose(rgd.thin_dz_to_depth(dz, depth).sum(axis=0), depth)
+    for land in (0.0, -10.0, np.nan):
+        assert np.allclose(rgd.thin_dz_to_depth(dz, [land])[:, 0], dz)
+
+
+def test_generate_layer_thickness_with_depth(generate_silly_vt_dataset):
+    ds = generate_silly_vt_dataset.isel(silly_lon=[0])  # a segment is a line
+    ds["temp"] = ds["temp"].transpose("time", "silly_depth", "silly_lat", "silly_lon")
+    full = rgd.generate_dz_from_centers(ds, "silly_depth").values.sum()
+    depth = np.linspace(0.25 * full, full, ds.sizes["silly_lat"])
+    ds = rgd.generate_layer_thickness(
+        ds, "temp", "segment_002", "silly_depth", depth=depth
+    )
+    dz = ds["dz_temp"]
+    assert dz.dims == ("time", "nz_temp", "ny_segment_002", "nx_segment_002")
+    assert np.allclose(dz.isel(time=0).sum("nz_temp").values.ravel(), depth)
+
+
 def test_generate_encoding(generate_silly_vt_dataset):
     ds = generate_silly_vt_dataset
     encoding_dict = {}
