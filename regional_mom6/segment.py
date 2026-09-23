@@ -158,6 +158,8 @@ class Segment:
             re-adding the perpendicular axis during regridding.
         mask (Optional[xarray.DataArray]): 1-D ocean(1)/land(0) mask along the segment,
             same dims as ``lon``. ``None`` means no masking is applied.
+        depth (Optional[xarray.DataArray]): 1-D sea floor depth along the segment,
+            NaN over land. ``None`` writes the full source column at every point.
     """
 
     def __init__(
@@ -171,6 +173,7 @@ class Segment:
         perpendicular,
         axis_to_expand,
         mask=None,
+        depth=None,
         grid_index=None,
         axis=None,
         index=None,
@@ -184,6 +187,7 @@ class Segment:
         self.perpendicular = perpendicular
         self.axis_to_expand = axis_to_expand
         self.mask = mask
+        self.depth = depth
         self._grid_index = grid_index
         self._axis = axis
         self._index = index
@@ -310,7 +314,11 @@ class Segment:
                 "via mom6_forge's grid generation) before calling from_hgrid."
             )
             angle = xr.zeros_like(lon)
-        mask = topo.supergridmask.isel({axis: index}) if topo is not None else None
+        if topo is None:
+            mask = depth = None
+        else:
+            mask = topo.supergridmask.isel({axis: index})
+            depth = cls._supergrid_depth(topo, axis, index).where(mask > 0)
 
         grid_index = cls._compute_grid_index(
             hgrid,
@@ -328,6 +336,7 @@ class Segment:
             angle = angle.isel({parallel_axis: index_range})
             if mask is not None:
                 mask = mask.isel({parallel_axis: index_range})
+                depth = depth.isel({parallel_axis: index_range})
 
         parallel, perpendicular, axis_to_expand = (
             ("nx", "ny", 2) if axis == "nyp" else ("ny", "nx", 3)
@@ -338,6 +347,7 @@ class Segment:
         angle = angle.rename({parallel_axis: new_dim_name})
         if mask is not None:
             mask = mask.rename({parallel_axis: new_dim_name})
+            depth = depth.rename({parallel_axis: new_dim_name})
 
         return cls(
             lon=lon,
@@ -348,11 +358,43 @@ class Segment:
             perpendicular=perpendicular,
             axis_to_expand=axis_to_expand,
             mask=mask,
+            depth=depth,
             grid_index=grid_index,
             axis=axis,
             index=index,
             index_range=index_range,
         )
+
+    @staticmethod
+    def _supergrid_depth(topo, axis: str, index: int) -> xr.DataArray:
+        """
+        Sea floor depth along a supergrid line, laid out like ``supergridmask``.
+
+        T centers take their own cell's depth; the points between two cells take
+        the shallower of the pair, as MOM6 does for a face.
+        """
+        depth = np.asarray(topo.masked_depth)
+        ny, nx = depth.shape
+
+        def _adjacent(r, n):
+            if r % 2 == 1:
+                return [(r - 1) // 2]
+            return sorted({max(r // 2 - 1, 0), min(r // 2, n - 1)})
+
+        if axis == "nyp":
+            r = index if index >= 0 else (2 * ny + 1) + index
+            along = np.min(depth[_adjacent(r, ny), :], axis=0)
+            parallel_axis = "nxp"
+        else:
+            r = index if index >= 0 else (2 * nx + 1) + index
+            along = np.min(depth[:, _adjacent(r, nx)], axis=1)
+            parallel_axis = "nyp"
+
+        line = np.empty(2 * along.size + 1)
+        line[1::2] = along
+        line[2:-1:2] = np.minimum(along[:-1], along[1:])
+        line[0], line[-1] = along[0], along[-1]
+        return xr.DataArray(line, dims=[parallel_axis])
 
     @staticmethod
     def _check_land_capped_endpoints(
@@ -974,6 +1016,7 @@ class Segment:
                     v,
                     self.segment_name,
                     depth_coord,
+                    depth=self.depth,
                 )
 
         # Here, do a foolproof (hopefully) manual conversion from K -> C just in case

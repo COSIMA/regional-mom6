@@ -20,7 +20,7 @@ LOCAL_FILE_PATH = str(os.getenv("local_curvilinear_hgrid"))
 def toy_glorys_ds():
     lat = np.linspace(2, 4, 2)
     lon = np.linspace(2, 4, 2)
-    depth = np.linspace(0, 1, 2)
+    depth = np.array([0.25, 0.75])
     time = np.arange(1, dtype=float)
     s4 = (len(time), len(depth), len(lat), len(lon))
     s3 = (len(time), len(lat), len(lon))
@@ -129,7 +129,7 @@ def generate_silly_vt_dataset():
                     "silly_lon": np.linspace(
                         longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5
                     ),
-                    "silly_depth": np.linspace(0, 1000, 10),
+                    "silly_depth": np.linspace(50, 950, 10),
                     "time": np.linspace(0, 1000, 10),
                 },
             ),
@@ -156,7 +156,7 @@ def generate_silly_vt_dataset():
                     "silly_lon": np.linspace(
                         longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5
                     ),
-                    "silly_depth": np.linspace(0, 1000, 10),
+                    "silly_depth": np.linspace(50, 950, 10),
                     "time": np.linspace(0, 1000, 10),
                 },
             ),
@@ -170,7 +170,7 @@ def generate_silly_vt_dataset():
                     "silly_lon": np.linspace(
                         longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5
                     ),
-                    "silly_depth": np.linspace(0, 1000, 10),
+                    "silly_depth": np.linspace(50, 950, 10),
                     "time": np.linspace(0, 1000, 10),
                 },
             ),
@@ -184,7 +184,7 @@ def generate_silly_vt_dataset():
                     "silly_lon": np.linspace(
                         longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5
                     ),
-                    "silly_depth": np.linspace(0, 1000, 10),
+                    "silly_depth": np.linspace(50, 950, 10),
                     "time": np.linspace(0, 1000, 10),
                 },
             ),

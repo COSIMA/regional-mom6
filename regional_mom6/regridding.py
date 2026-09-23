@@ -237,21 +237,86 @@ def add_or_update_time_dim(ds: xr.Dataset, times, z_dims=None) -> xr.Dataset:
     return ds
 
 
-def generate_dz(ds: xr.Dataset, z_dim_name: str) -> xr.Dataset:
+def generate_dz_from_centers(ds: xr.Dataset, z_dim_name: str) -> xr.Dataset:
     """
-    Generate the vertical coordinate spacing.
+    Generate layer thicknesses from a coordinate of layer centers.
 
     Parameters:
-        ds (xr.Dataset): The dataset from which we extract the vertical coordinate.
-        z_dim_name (str): The name of the vertical coordinate.
+        ds (xr.Dataset): The dataset holding the vertical coordinate.
+        z_dim_name (str): Name of the coordinate, holding layer centers.
 
     Returns
-        (xr.Dataset): The vertical spacing variable.
+        (xr.Dataset): The layer thickness variable.
     """
-    dz = ds[z_dim_name].diff(z_dim_name)
-    dz.name = "dz"
-    dz = xr.concat([dz, dz[-1]], dim=z_dim_name)
-    return dz
+    z_l = np.asarray(ds[z_dim_name], dtype=float)  # layer centers, positive down
+    _check_increases_downward(z_l, z_dim_name)
+    if z_l[0] <= 0.0:
+        raise ValueError(
+            f"{z_dim_name} starts at {z_l[0]}, so it is not layer centers: a center "
+            "at the surface implies zero thickness. Use generate_dz_from_interfaces."
+        )
+
+    nz = z_l.size
+    z_i = np.zeros(nz + 1)  # interface depths, positive down
+    dz = np.empty(nz)
+    for k in range(nz):
+        dz[k] = 2.0 * (z_l[k] - z_i[k])
+        z_i[k + 1] = z_i[k] + dz[k]
+
+    if not (dz > 0).all():
+        raise ValueError(f"{z_dim_name} is not cell-centered.")
+
+    return xr.DataArray(
+        dz, dims=(z_dim_name,), coords={z_dim_name: ds[z_dim_name]}, name="dz"
+    )
+
+
+def generate_dz_from_interfaces(ds: xr.Dataset, z_dim_name: str) -> xr.Dataset:
+    """
+    Generate layer thicknesses from a coordinate of layer interfaces.
+
+    Parameters:
+        ds (xr.Dataset): The dataset holding the vertical coordinate.
+        z_dim_name (str): Name of the coordinate, holding layer interfaces.
+
+    Returns
+        (xr.Dataset): The layer thickness variable.
+    """
+    z_i = np.asarray(ds[z_dim_name], dtype=float)
+    _check_increases_downward(z_i, z_dim_name)
+    return xr.DataArray(
+        np.diff(z_i), dims=(z_dim_name,), coords={z_dim_name: ds[z_dim_name][:-1]}, name="dz"
+    )
+
+
+def _check_increases_downward(z, z_dim_name: str) -> None:
+    if not (np.diff(z) > 0).all():
+        raise ValueError(f"{z_dim_name} must increase monotonically with depth.")
+
+
+def thin_dz_to_depth(dz, depth):
+    """
+    Truncate a source layer-thickness column at the sea floor, per segment point.
+
+    MOM6 rescales the whole column by ``net_dz_int / net_dz_src`` when the totals
+    disagree, so a column reaching past the sea floor squeezes the profile into
+    the water that is there. Truncating keeps that factor at 1.
+
+    Parameters:
+        dz (array): Source layer thicknesses ``(nz,)``, positive down.
+        depth (array): Sea floor depth per point ``(npts,)``; land (non-positive
+            or non-finite) keeps the full column.
+
+    Returns
+        (np.ndarray): Thicknesses ``(nz, npts)``.
+    """
+    dz = np.asarray(dz, dtype=float)
+    depth = np.asarray(depth, dtype=float)
+    z_i = np.concatenate([[0.0], np.cumsum(dz)])
+    h = np.where(np.isfinite(depth) & (depth > 0.0), depth, z_i[-1])[np.newaxis, :]
+    out = np.minimum(z_i[1:, np.newaxis], h) - np.minimum(z_i[:-1, np.newaxis], h)
+    out[-1, :] += np.maximum(h[0, :] - z_i[-1], 0.0)  # floor below the source column
+    return out
 
 
 def add_secondary_dimension(
@@ -337,7 +402,7 @@ def vertical_coordinate_encoding(
 
 
 def generate_layer_thickness(
-    ds: xr.Dataset, var: str, segment_name: str, old_vert_coord_name: str
+    ds: xr.Dataset, var: str, segment_name: str, old_vert_coord_name: str, depth=None
 ) -> xr.Dataset:
     """
     Generate Layer Thickness Variable, needed for vars with vertical dimensions
@@ -351,13 +416,26 @@ def generate_layer_thickness(
         The segment name
     old_vert_coord_name : str
         The old vertical coordinate name
+    depth : array, optional
+        Sea floor depth along the segment; truncates each column there.
     Returns
     -------
     xr.Dataset
         The dataset with the layer thickness variable added
     """
     regridding_logger.debug("Generating layer thickness variable for {}".format(var))
-    dz = generate_dz(ds, old_vert_coord_name)
+    dz = generate_dz_from_centers(ds, old_vert_coord_name)
+    if depth is None:
+        regridding_logger.warning(
+            f"No depth for {var} on {segment_name}: writing the full source column."
+        )
+        src = dz.data[None, :, None, None]
+    else:
+        thinned = thin_dz_to_depth(dz.data, np.ravel(depth))  # (nz, npts)
+        ny, nx = ds[var].shape[2:]
+        if (ny, nx).count(1) != 1:
+            raise ValueError(f"{var} on {segment_name} is not a segment: {ny=}, {nx=}.")
+        src = thinned[None, :, None, :] if ny == 1 else thinned[None, :, :, None]
     ds[f"dz_{var}"] = (
         [
             "time",
@@ -366,7 +444,7 @@ def generate_layer_thickness(
             f"nx_{segment_name}",
         ],
         da.broadcast_to(
-            dz.data[None, :, None, None],
+            src,
             ds[var].shape,
             chunks=(
                 1,
