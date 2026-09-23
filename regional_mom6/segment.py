@@ -124,6 +124,23 @@ _OCEAN_SIDE_REVERSE = {
 _OCEAN_SIDE_MASKS_OWN_POSITION = frozenset({"south", "west"})
 
 
+def _decode_segment_times(time_var, calendar):
+    """Decode a segment's raw CF time values, or None if they carry no epoch."""
+
+    units = time_var.attrs.get("units")
+    if not units or "since" not in units:
+        warnings.warn(
+            f"Segment time coordinate has no CF epoch (units={units!r}); "
+            "indexing from zero instead, so one chunk of a longer window will "
+            "not line up with the others.",
+            UserWarning,
+        )
+        return None
+    return xr.coding.times.decode_cf_datetime(
+        np.asarray(time_var), units, time_var.attrs.get("calendar", calendar)
+    )
+
+
 class Segment:
     """
     The geometry of a single straight MOM6 OBC segment, plus the ability to
@@ -774,6 +791,14 @@ class Segment:
 
         rawseg = xr.open_mfdataset(infile, decode_times=False, engine="netcdf4")
 
+        # Decode before the regrid drops the CF attrs. Absolute time_units
+        # keep the raw times, so there is nothing to anchor.
+        src_times = None
+        if "since" not in time_units:
+            src_times = _decode_segment_times(
+                rawseg[reprocessed_var_map["time_var_name"]], calendar
+            )
+
         # Convert z coordinates to meters if pint-enabled
         if type(reprocessed_var_map["depth_coord"]) != list:
             dc_list = [reprocessed_var_map["depth_coord"]]
@@ -849,16 +874,28 @@ class Segment:
                     depth_coord = dc
 
         if "since" not in time_units:
-            times = xr.DataArray(
-                np.arange(
-                    0,  #! Indexing everything from start of experiment = simple but maybe counterintutive?
-                    segment_out[reprocessed_var_map["time_var_name"]].shape[
-                        0
-                    ],  ## Time is indexed from start date of window
-                    dtype=float,
-                ),
-                dims=["time"],
-            )
+            # Anchor on the startdate epoch. This was arange(0, ntimes), so
+            # every chunk of a window restarted at zero and the merged axis ran
+            # backwards. The first record is pulled back to a whole unit.
+            ntimes = segment_out[reprocessed_var_map["time_var_name"]].shape[0]
+            if src_times is None:
+                values = np.arange(ntimes, dtype=float)
+            else:
+                if len(src_times) != ntimes:
+                    raise ValueError(
+                        f"Regrid changed the time dimension "
+                        f"({len(src_times)} -> {ntimes}); cannot anchor this "
+                        f"segment on {startdate}."
+                    )
+                offsets, _, _ = xr.coding.times.encode_cf_datetime(
+                    src_times,
+                    f"{time_units} since {startdate}",
+                    calendar,
+                    dtype=np.float64,
+                )
+                offsets = np.asarray(offsets, dtype=float)
+                values = offsets - offsets[0] + np.floor(offsets[0] + 1e-9)
+            times = xr.DataArray(values, dims=["time"])
 
             # This to change the time coordinate.
             segment_out = rgd.add_or_update_time_dim(
