@@ -74,7 +74,9 @@ def test_generate_dz_from_centers_nonuniform_grid():
     """Thickness is not centre spacing; the two agree only on a uniform grid,
     which is why a uniform fixture cannot catch this. GLORYS levels are stretched."""
     levels = np.array([0.494025, 1.541375, 2.645669, 3.819495, 5.078224, 6.440614])
-    dz = rgd.generate_dz_from_centers(xr.Dataset(coords={"depth": levels}), "depth").values
+    dz = rgd.generate_dz_from_centers(
+        xr.Dataset(coords={"depth": levels}), "depth"
+    ).values
 
     assert np.cumsum(dz) - 0.5 * dz == pytest.approx(levels, rel=1e-10)  # centres exact
     assert dz[0] != pytest.approx(np.diff(levels)[0])  # differs from spacing
@@ -158,7 +160,9 @@ def test_thin_dz_to_depth():
     dz = np.full(5, 100.0)
     assert np.allclose(rgd.thin_dz_to_depth(dz, [250.0])[:, 0], [100, 100, 50, 0, 0])
     # A floor below the source column extends the bottom layer to reach it.
-    assert np.allclose(rgd.thin_dz_to_depth(dz, [620.0])[:, 0], [100, 100, 100, 100, 220])
+    assert np.allclose(
+        rgd.thin_dz_to_depth(dz, [620.0])[:, 0], [100, 100, 100, 100, 220]
+    )
     # Every wet column sums to its own depth; land keeps the full column.
     depth = np.array([500.0, 250.0, 30.0, 620.0])
     assert np.allclose(rgd.thin_dz_to_depth(dz, depth).sum(axis=0), depth)

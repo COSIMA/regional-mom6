@@ -285,7 +285,10 @@ def generate_dz_from_interfaces(ds: xr.Dataset, z_dim_name: str) -> xr.Dataset:
     z_i = np.asarray(ds[z_dim_name], dtype=float)
     _check_increases_downward(z_i, z_dim_name)
     return xr.DataArray(
-        np.diff(z_i), dims=(z_dim_name,), coords={z_dim_name: ds[z_dim_name][:-1]}, name="dz"
+        np.diff(z_i),
+        dims=(z_dim_name,),
+        coords={z_dim_name: ds[z_dim_name][:-1]},
+        name="dz",
     )
 
 
