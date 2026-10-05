@@ -690,7 +690,11 @@ def apply_arakawa_grid_mapping(var_mapping: dict, arakawa_grid: str = None) -> d
         validate_var_mapping(var_mapping, is_xhyh=False)
         arakawa_grid = identify_arakawa_grid(var_mapping)
         print("Arakawa {} grid detected in variable mapping".format(arakawa_grid))
-        return var_mapping
+        # Return a shallow copy so callers that mutate the result (e.g. the IC
+        # regrid narrowing ``depth_coord`` from the ``["z_t", "z_t_150m"]`` list
+        # to its first element) don't poison the caller's shared mapping and
+        # thereby a later OBC regrid of the ``z_t_150m`` MARBL tracers.
+        return dict(var_mapping)
     else:
         if arakawa_grid not in ("A", "B", "C"):
             raise ValueError("arakawa_grid must be one of: 'A', 'B', or 'C'")
