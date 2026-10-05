@@ -1202,7 +1202,7 @@ class experiment:
             vcoord_type == "thickness"
         ):  ## In this case construct the vertical profile by summing thickness
             tracers_out["zl"] = tracers_out["zl"].diff("zl")
-            dz = rgd.generate_dz(tracers_out, self.z)
+            dz = rgd.generate_dz_from_interfaces(tracers_out, self.z)
 
         # The extrapolate arg allows the initial condition to fill beyond the range of the input data.
         tracers_out = tracers_out.interp(
