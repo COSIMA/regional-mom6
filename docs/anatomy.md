@@ -19,7 +19,7 @@ Once the grids and data sources have been decided on, one then generates all of 
 | Name | Description | Horizontal Grid |
 |---|---|---|
 | hgrid | Horizontal grid file containing all h- and q-points | All h & q points |
-| vcoord | Vertical coordinate file of target depths | n/a |
+| vgrid | Vertical coordinate file of target depths | n/a |
 | bathymetry | Seafloor topography | xh, yh |
 | init_tracers | Initial condition for tracers. Must at least contain temperature and salinity. | xh, yh |
 | init_vels | Initial meridional (v) and zonal (u) velocities | u: xq, yh<br>v: xh, yq |

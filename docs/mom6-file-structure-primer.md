@@ -116,10 +116,10 @@ These files can be big, so it is usually helpful to store them somewhere without
   to follow lines of constant latitude or longitude. Users who create their own own custom horizontal and vertical
   grids can set `read_existing_grid` to `True` when creating an experiment.
 
-* `vcoord.nc`
+* `vgrid.nc`
   The values of the vertical coordinate. By default, regional-mom6 sets up a `z*` vertical coordinate; other
   coordinates may be provided after appropriate adjustments in the `MOM_input` file. Users who would like to
-  customise the vertical coordinate can initialise an {meth}`experiment <regional_mom6.regional_mom6.experiment>` object to begin with, then modify the `vcoord.nc`
+  customise the vertical coordinate can initialise an {meth}`experiment <regional_mom6.regional_mom6.experiment>` object to begin with, then modify the `vgrid.nc`
   file and save. Users can provide additional vertical coordinates (under different names) for diagnostic purposes.
   These additional vertical coordinates allow diagnostics to be remapped and output during the model run.
 

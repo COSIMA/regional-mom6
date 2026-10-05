@@ -114,7 +114,7 @@ def test_read_config(create_expt, tmp_path):
     ).all()
     assert os.path.exists(new_expt.mom_run_dir) & os.path.exists(new_expt.mom_input_dir)
     assert os.path.exists(new_expt.mom_input_dir / "hgrid.nc") & os.path.exists(
-        new_expt.mom_input_dir / "vcoord.nc"
+        new_expt.mom_input_dir / "vgrid.nc"
     )
 
 
