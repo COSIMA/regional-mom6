@@ -590,7 +590,9 @@ class experiment:
                     f"exists in {self.mom_input_dir} directory, or pass in a VGrid "
                     "object via `vgrid_type`."
                 )
-            self.m6f_vgrid = VGrid.from_file(vgrid_path)
+            self.m6f_vgrid = VGrid.from_file(
+                str(vgrid_path), variable_name="zi", variable_type="cell_interface"
+            )
             if len(self.m6f_vgrid.zi) > 2 and self.minimum_depth < self.m6f_vgrid.zi[2]:
                 print(
                     f"Warning: Minimum depth of {self.minimum_depth}m is less than the depth of the third interface ({self.m6f_vgrid.zi[2]}m)!\n"
