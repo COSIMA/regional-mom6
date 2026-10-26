@@ -748,7 +748,7 @@ class experiment:
         This only triggers if a normal method/property lookup fails. It's used for error handling
         and for calling boundary segments. Since these have different names, this fallback allows calling e.g., expt.forcing_obc_segment_001
 
-        Properties need to be handled separately, since if properties throw a useful error, python then calls __getattr__, suppressing the original error. 
+        Properties need to be handled separately, since if properties throw a useful error, python then calls __getattr__, suppressing the original error.
         """
         if "segment" in name:
             try:
@@ -763,7 +763,6 @@ class experiment:
                 )
                 return None
 
-
         # Check whether the culprit was a failing property
 
         cls_attr = getattr(type(self), name, None)
@@ -771,7 +770,7 @@ class experiment:
             # The culprit was a failing property. Call it directly here so that the useful error message is displayed. Otherwise fallback error message
             # below will be very unhelpful, telling user "banana not found. Available methods and attributes are: [apple, pear, banana] "
             return cls_attr.fget(self)
-        
+
         ## If we get here, attribute wasn't found AND it wasn't a failing property. Now fallback with helpful error message
 
         available_methods = [
