@@ -51,9 +51,12 @@ touch the U/V arithmetic yourself; T-point in, correct U/V face out.
     Fortran routines that parse these strings in ``MOM_open_boundary.F90``
     are literally named ``setup_v_point_obc`` (for ``"J="`` strings) and
     ``setup_u_point_obc`` (for ``"I="`` strings). The *parallel* range
-    (``I=lo:hi`` on a ``J=``-fixed segment, or vice versa) stays in plain
-    T-cell units, which is why it needs no special adjustment -- only the
-    fixed coordinate does (see point 3).
+    (``I=lo:hi`` on a ``J=``-fixed segment, or vice versa) counts cell
+    corners, so it opens T-cells ``lo`` to ``hi - 1``. MOM6 reads a segment's
+    file from its first corner: corner values sit at the even positions and
+    face values (tracers, normal velocity, SSH) at the odd ones. So an
+    ``index_range`` must start and end on a corner (an even supergrid index);
+    one that starts on a T-cell center puts every value half a cell off.
 
 3.  **Every U- or V-point line sits on the face between two T-cells, T-row/
     T-column ``k`` and ``k + 1``, and MOM6 forcibly masks one of those two
@@ -216,11 +219,10 @@ class Segment:
             segment_name (str): Name of the segment, e.g., ``'segment_001'``.
             index_range (slice, optional): Restrict the segment to part of the line
                 along the other (parallel) axis instead of its full length.
-                Default ``None`` (whole line). Must resolve to an *odd* number
-                of supergrid points (MOM6's BRUSHCUTTER_MODE requirement,
-                checked at construction) -- for T-cell indices ``lo``/``hi``,
-                use ``slice(2 * lo + 1, 2 * hi + 2)``, not
-                ``slice(2 * lo, 2 * hi + 2)``.
+                Default ``None`` (whole line). Must start and end on a cell
+                corner (an even supergrid index), since MOM6 reads the
+                segment's data from its first corner. To open T-cells ``lo``
+                to ``hi``, use ``slice(2 * lo, 2 * hi + 3)``.
             topo (mom6_forge.topo.Topo, optional): A ``Topo`` instance for the same
                 grid. If given, its ``supergridmask`` is sliced the same way to build
                 the segment's ocean/land mask. Default ``None`` (no masking).
@@ -263,24 +265,24 @@ class Segment:
             )
         mom6_index_reverse = valid_sides[ocean_side]
 
-        if topo is not None:
-            cls._check_land_capped_endpoints(
-                hgrid, axis, index, index_range, ocean_side, topo, segment_name
-            )
-
         parallel_axis = "nxp" if axis == "nyp" else "nyp"
         if index_range is not None:
             parallel_size = hgrid.sizes[parallel_axis]
             p_start = index_range.start if index_range.start is not None else 0
             p_stop = index_range.stop if index_range.stop is not None else parallel_size
-            if (p_stop - p_start) % 2 == 0:
+            if p_start % 2 or (p_stop - 1) % 2:
                 raise ValueError(
-                    f"index_range={index_range!r} for segment {segment_name!r} spans "
-                    f"{p_stop - p_start} supergrid points (even) -- MOM6's "
-                    "BRUSHCUTTER_MODE requires an odd number, aligned to T-cell "
-                    "centers rather than raw corners. For T-cell indices lo/hi, use "
-                    "slice(2 * lo + 1, 2 * hi + 2), not slice(2 * lo, 2 * hi + 2)."
+                    f"index_range={index_range!r} for segment {segment_name!r} must "
+                    "start and end on a cell corner (an even supergrid index). MOM6 "
+                    "reads a segment's data from its first corner, so a range that "
+                    "starts on a T-cell center puts every value half a cell off. To "
+                    "open T-cells lo to hi, use slice(2 * lo, 2 * hi + 3)."
                 )
+
+        if topo is not None:
+            cls._check_land_capped_endpoints(
+                hgrid, axis, index, index_range, ocean_side, topo, segment_name
+            )
 
         lon = hgrid["x"].isel({axis: index})
         lat = hgrid["y"].isel({axis: index})
@@ -380,22 +382,24 @@ class Segment:
             if index_range.stop is not None
             else hgrid.sizes[parallel_axis]
         )
+        # The corners at the segment's two ends. It opens T-cells lo to hi - 1,
+        # so the T-cells just past its ends are lo - 1 and hi.
         lo, hi = p_start // 2, (p_stop - 1) // 2
 
         if axis == "nyp":
             land_row = t_index + 1 if ocean_side == "south" else t_index - 1
             if not (0 <= land_row < ny):
                 return  # land side is outside the domain entirely
-            if lo <= 0 and hi >= nx - 1:
+            if lo <= 0 and hi >= nx:
                 return  # full-width line, not an interior segment
-            checks = [(land_row, lo - 1, "west"), (land_row, hi + 1, "east")]
+            checks = [(land_row, lo - 1, "west"), (land_row, hi, "east")]
         else:
             land_col = t_index + 1 if ocean_side == "west" else t_index - 1
             if not (0 <= land_col < nx):
                 return
-            if lo <= 0 and hi >= ny - 1:
+            if lo <= 0 and hi >= ny:
                 return
-            checks = [(lo - 1, land_col, "south"), (hi + 1, land_col, "north")]
+            checks = [(lo - 1, land_col, "south"), (hi, land_col, "north")]
 
         for row, col, side in checks:
             if 0 <= row < ny and 0 <= col < nx and depth[row, col] > 0:
@@ -640,18 +644,18 @@ class Segment:
             j0, i0 = grid.get_indices(fixed_lat, lon_range[0])
             _, i1 = grid.get_indices(fixed_lat, lon_range[1])
             index = 2 * j0 + 1
-            # T-center-aligned (odd-length) slice, not a raw corner-to-corner
-            # one -- see from_hgrid's index_range docs.
-            index_range = slice(2 * min(i0, i1) + 1, 2 * max(i0, i1) + 2)
+            # Corner to corner, opening every T-column from i0 to i1 -- see
+            # from_hgrid's index_range docs.
+            index_range = slice(2 * min(i0, i1), 2 * max(i0, i1) + 3)
         elif axis == "nxp":
             if fixed_lon is None or lat_range is None:
                 raise ValueError("axis='nxp' requires fixed_lon and lat_range")
             j0, i0 = grid.get_indices(lat_range[0], fixed_lon)
             j1, _ = grid.get_indices(lat_range[1], fixed_lon)
             index = 2 * i0 + 1
-            # T-center-aligned (odd-length) slice, not a raw corner-to-corner
-            # one -- see from_hgrid's index_range docs.
-            index_range = slice(2 * min(j0, j1) + 1, 2 * max(j0, j1) + 2)
+            # Corner to corner, opening every T-row from j0 to j1 -- see
+            # from_hgrid's index_range docs.
+            index_range = slice(2 * min(j0, j1), 2 * max(j0, j1) + 3)
         else:
             raise ValueError("axis must be one of: 'nyp', 'nxp'")
 
