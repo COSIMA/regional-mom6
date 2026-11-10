@@ -284,6 +284,54 @@ def test_partially_wet_edge_is_kept():
 
 
 # ---------------------------------------------------------------------------
+# find_interior_boundaries
+# ---------------------------------------------------------------------------
+
+
+def _two_basins_and_a_strait():
+    """A 10x10 domain cut by a land wall along T-row 6, open only through a
+    strait over T-columns 3-7 with a one-cell island in the middle. The
+    south basin (rows 0-5) is bigger than the north one (rows 7-9)."""
+    grid, topo = _flat_grid_and_topo("two_basins")
+    depth = topo.depth.values.copy()
+    depth[6, :3] = depth[6, 8:] = 0.0
+    depth[6, 5] = 0.0
+    topo.depth = depth
+    return grid, topo
+
+
+def test_find_interior_boundaries_finds_the_strait():
+    import matplotlib.pyplot as plt
+
+    grid, topo = _two_basins_and_a_strait()
+    hgrid = grid._supergrid.to_ds(name=grid.name, author="pytest")
+
+    found = Segment.find_interior_boundaries(topo)
+
+    # One line across the whole strait, island included, keeping the bigger basin.
+    assert found == {
+        "A": {
+            "axis": "nyp",
+            "index": 2 * 5 + 1,
+            "index_range": [2 * 3, 2 * 7 + 3],
+            "ocean_side": "south",
+        }
+    }
+    Segment.from_spec(hgrid, found["A"], "segment_001", topo=topo)
+    ax = Segment.plot_interior_boundaries(topo, found)
+    assert len(ax.lines) == 1
+    plt.close(ax.figure)
+
+
+def test_find_interior_boundaries_keeps_the_side_with_the_keep_point():
+    _, topo = _two_basins_and_a_strait()
+
+    found = Segment.find_interior_boundaries(topo, keep=(5.5, 8.5))
+
+    assert [spec["ocean_side"] for spec in found.values()] == ["north"]
+
+
+# ---------------------------------------------------------------------------
 # mom6_obc_position_string
 # ---------------------------------------------------------------------------
 

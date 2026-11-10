@@ -127,6 +127,138 @@ _OCEAN_SIDE_REVERSE = {
 _OCEAN_SIDE_MASKS_OWN_POSITION = frozenset({"south", "west"})
 
 
+# The helpers below find interior boundaries on a 2-D ocean mask ``w`` whose
+# rows run along the fixed axis: T-rows for a "nyp" segment, T-columns (the
+# transposed mask) for a "nxp" one. Face ``f`` is the face between rows ``f``
+# and ``f + 1``, and a segment across it keeps the "low" side (row ``f``,
+# south/west) or the "high" side (row ``f + 1``, north/east).
+
+# The (low, high) ocean_side names for each axis.
+_LOW_HIGH_SIDES = {"nyp": ("south", "north"), "nxp": ("west", "east")}
+
+
+def _open_face_runs(w):
+    """For each face, the column ranges ``(lo, hi)`` that are ocean on both sides."""
+    faces = np.zeros((w.shape[0] - 1, w.shape[1] + 2), dtype=np.int8)
+    faces[:, 1:-1] = w[:-1] & w[1:]
+    steps = np.diff(faces, axis=1)
+    return [
+        list(
+            zip(
+                np.flatnonzero(row == 1).tolist(),
+                (np.flatnonzero(row == -1) - 1).tolist(),
+            )
+        )
+        for row in steps
+    ]
+
+
+def _channel_chains(runs):
+    """Follow each channel across successive faces.
+
+    Runs on neighboring faces join a chain only when they overlap one to one,
+    so a chain stops where its channel splits or merges and every branch gets
+    its own chain. Each chain is a list of ``(face, lo, hi)``.
+    """
+    successor, has_predecessor = {}, set()
+    for f in range(len(runs) - 1):
+        a_runs, b_runs = runs[f], runs[f + 1]
+        pairs, i, j = [], 0, 0
+        while i < len(a_runs) and j < len(b_runs):
+            (a_lo, a_hi), (b_lo, b_hi) = a_runs[i], b_runs[j]
+            if a_lo <= b_hi and b_lo <= a_hi:
+                pairs.append((i, j))
+            if a_hi < b_hi:
+                i += 1
+            else:
+                j += 1
+        a_counts = np.bincount([i for i, _ in pairs], minlength=len(a_runs))
+        b_counts = np.bincount([j for _, j in pairs], minlength=len(b_runs))
+        for i, j in pairs:
+            if a_counts[i] == 1 and b_counts[j] == 1:
+                successor[(f, i)] = (f + 1, j)
+                has_predecessor.add((f + 1, j))
+
+    chains = []
+    for f, face_runs in enumerate(runs):
+        for i in range(len(face_runs)):
+            if (f, i) in has_predecessor:
+                continue
+            node, chain = (f, i), []
+            while node is not None:
+                chain.append((node[0], *runs[node[0]][node[1]]))
+                node = successor.get(node)
+            chains.append(chain)
+    return chains
+
+
+def _necks(chain):
+    """The necks of a channel: places where it narrows, then widens again.
+
+    A neck counts when the channel is wider on both sides by at least 2 cells
+    and an eighth of the neck's width, so a ragged coast doesn't make a string
+    of near-duplicates. Each neck is yielded as the crossings that
+    are narrower than both sides, narrowest first, since the narrowest one
+    may not pass the land-cap check where the coast runs diagonally.
+    """
+    from scipy.signal import find_peaks
+
+    widths = np.array([hi - lo + 1 for _, lo, hi in chain])
+    if widths.size < 3:
+        return
+    peaks, props = find_peaks(-widths, prominence=1)
+    for peak, prominence, left, right in zip(
+        peaks, props["prominences"], props["left_bases"], props["right_bases"]
+    ):
+        if prominence < max(2, widths[peak] / 8):
+            continue
+        shoulder = min(widths[left], widths[right])
+        crossings = [k for k in range(left + 1, right) if widths[k] < shoulder]
+        crossings.sort(key=lambda k: (widths[k], abs(k - peak)))
+        yield [chain[k] for k in crossings]
+
+
+def _land_row(face, keep_low):
+    """The row MOM6 turns to land for a segment across ``face``."""
+    return face + 1 if keep_low else face
+
+
+def _close_face(w, face, lo, hi, keep_low):
+    """Close ``face`` over columns ``lo``..``hi`` the way MOM6 closes an interior
+    segment: it turns the T-cells on the far side of the line to land.
+
+    Returns ``(labels, kept)`` -- the connected ocean regions afterwards and the
+    label of the side that is kept -- if that cuts the ocean in two, otherwise
+    ``None``.
+    """
+    from scipy import ndimage
+
+    n_rows, n_cols = w.shape
+    land_row = _land_row(face, keep_low)
+    data_row = face if keep_low else face + 1
+    beyond = 2 * land_row - data_row
+    if lo == 0 or hi == n_cols - 1 or not 0 <= beyond < n_rows:
+        return None  # runs into the domain edge
+    closed = w.copy()
+    closed[land_row, lo : hi + 1] = False
+    labels, _ = ndimage.label(closed)
+    kept = labels[data_row, lo]
+    cut_off = set(np.unique(labels[beyond, lo : hi + 1]).tolist()) - {0}
+    if not cut_off or kept in cut_off:
+        return None  # nothing beyond, or the ocean joins up around it
+    return labels, kept
+
+
+def _boundary_label(n):
+    """0 -> "A", 25 -> "Z", 26 -> "AA", ..."""
+    label = ""
+    n += 1
+    while n:
+        n, r = divmod(n - 1, 26)
+        label = chr(ord("A") + r) + label
+    return label
+
+
 class Segment:
     """
     The geometry of a single straight MOM6 OBC segment, plus the ability to
@@ -594,6 +726,182 @@ class Segment:
             for orientation, (axis, index) in _CARDINAL_AXES.items()
             if bool(mask.isel({axis: index}).any())
         ]
+
+    @classmethod
+    def find_interior_boundaries(cls, topo, keep=None) -> dict:
+        """
+        Find the straits and channel necks where an interior segment could cut
+        the ocean in two, labelled ``"A"``, ``"B"``, ... for picking from
+        :meth:`plot_interior_boundaries`.
+
+        Each one is a straight run of open faces at the narrowest point of a
+        channel, land-capped at both ends, that separates the ocean on one side
+        from the ocean on the other. Lines that only cut a bay's head, or that
+        the ocean flows around (e.g. coast to island), are left out.
+
+        MOM6 only closes the row of T-cells just past the line, so the ocean
+        beyond it stays in the bathymetry as an unforced, cut-off basin. Fill it
+        with land (e.g. with mom6_forge's topo editor) if you don't want it.
+
+        Arguments:
+            topo (mom6_forge.topo.Topo): The domain's bathymetry; its ``tmask``
+                says what is ocean.
+            keep (tuple[float, float], optional): A ``(lon, lat)`` point in the
+                ocean you want to model. Each boundary keeps the side this point
+                is on, and boundaries that don't separate it from anything are
+                left out. Default ``None`` keeps the larger side of each one.
+
+        Returns:
+            dict: ``{label: spec}``, labelled north to south, where each spec is a
+            :meth:`to_spec` dict. Build a segment with
+            ``Segment.from_spec(hgrid, spec, segment_name, topo=topo)``.
+        """
+        from scipy import ndimage
+
+        wet = np.asarray(topo.tmask).astype(bool)
+        has_depth = np.asarray(topo.depth) > 0
+        # Channels are followed coast to coast with islands filled in, so a
+        # strait with an island in it is still one crossing; the segment spans
+        # the island.
+        no_islands = ndimage.binary_fill_holes(wet)
+        keep_cell = None
+        if keep is not None:
+            keep_cell = tuple(topo._grid.get_indices(keep[1], keep[0]))
+
+        found = []  # (sort key, spec)
+        for axis, (low, high) in _LOW_HIGH_SIDES.items():
+            w = wet if axis == "nyp" else wet.T
+            capped = has_depth if axis == "nyp" else has_depth.T
+            filled = no_islands if axis == "nyp" else no_islands.T
+            cell = keep_cell if axis == "nyp" or keep_cell is None else keep_cell[::-1]
+            for chain in _channel_chains(_open_face_runs(filled)):
+                for stretch in _necks(chain):
+                    for face, lo, hi in stretch:
+                        # Trim island cells off the ends.
+                        open_faces = np.flatnonzero(
+                            w[face, lo : hi + 1] & w[face + 1, lo : hi + 1]
+                        )
+                        if open_faces.size == 0:
+                            continue
+                        lo, hi = lo + int(open_faces[0]), lo + int(open_faces[-1])
+                        keep_low = cls._side_to_keep(w, capped, face, lo, hi, cell)
+                        if keep_low is None:
+                            continue
+                        data_row = face if keep_low else face + 1
+                        middle = (lo + hi) / 2
+                        row, col = (
+                            (data_row, middle) if axis == "nyp" else (middle, data_row)
+                        )
+                        spec = {
+                            "axis": axis,
+                            "index": 2 * data_row + 1,
+                            "index_range": [2 * lo, 2 * hi + 3],
+                            "ocean_side": low if keep_low else high,
+                        }
+                        found.append(((-row, col), spec))
+                        break
+
+        found.sort(key=lambda item: item[0])
+        return {_boundary_label(n): spec for n, (_, spec) in enumerate(found)}
+
+    @staticmethod
+    def _side_to_keep(w, has_depth, face, lo, hi, keep_cell):
+        """Whether a cut keeps the low side (``True``) or the high side
+        (``False``), or ``None`` if it can't keep the side wanted: the one with
+        ``keep_cell`` in it, or else the larger one.
+
+        The wanted side is picked before the land-cap check, so a crossing
+        that can only be land-capped for the other side is passed over rather
+        than flipping which side is kept. ``has_depth`` is ``depth > 0``, as
+        in :meth:`_check_land_capped_endpoints`.
+        """
+        cuts = {}
+        for keep_low in (True, False):
+            closed = _close_face(w, face, lo, hi, keep_low)
+            if closed is not None:
+                cuts[keep_low] = closed
+        if keep_cell is not None:
+            wanted = [
+                k for k, (labels, kept) in cuts.items() if labels[keep_cell] == kept
+            ]
+        else:
+            wanted = sorted(
+                cuts, key=lambda k: np.count_nonzero(cuts[k][0] == cuts[k][1])
+            )[-1:]
+        for keep_low in wanted:
+            land_row = _land_row(face, keep_low)
+            if not (has_depth[land_row, lo - 1] or has_depth[land_row, hi + 1]):
+                return keep_low
+        return None
+
+    @staticmethod
+    def plot_interior_boundaries(topo, boundaries: dict, ax=None):
+        """
+        Draw the boundaries from :meth:`find_interior_boundaries` on the
+        domain's land mask, each with its letter on the side it keeps.
+
+        Arguments:
+            topo (mom6_forge.topo.Topo): The bathymetry the boundaries came from.
+            boundaries (dict): ``{label: spec}`` from :meth:`find_interior_boundaries`.
+            ax (matplotlib.axes.Axes, optional): Axes to draw on. Default ``None``
+                makes a new figure.
+
+        Returns:
+            matplotlib.axes.Axes
+        """
+        import matplotlib.pyplot as plt
+        from matplotlib.colors import ListedColormap
+
+        grid = topo._grid
+        qlon, qlat = np.asarray(grid.qlon), np.asarray(grid.qlat)
+        tlon, tlat = np.asarray(grid.tlon), np.asarray(grid.tlat)
+        if ax is None:
+            _, ax = plt.subplots(figsize=(8, 6), layout="constrained")
+
+        land, ocean, line_color, ink = "#d3d1c7", "#eef3f9", "#eb6834", "#0b0b0b"
+        ax.pcolormesh(
+            qlon,
+            qlat,
+            np.asarray(topo.tmask),
+            cmap=ListedColormap([land, ocean]),
+            vmin=0,
+            vmax=1,
+            shading="flat",
+        )
+        ax.set_aspect(1 / np.cos(np.deg2rad(np.nanmean(tlat))))
+        ax.set_xlabel("Longitude")
+        ax.set_ylabel("Latitude")
+        ax.set_title("Possible interior boundaries (letter on the side kept)")
+
+        to_pixels = ax.transData.transform
+        for label, spec in boundaries.items():
+            k = (spec["index"] - 1) // 2  # the kept T-row/column next to the line
+            lo, hi = spec["index_range"][0] // 2, (spec["index_range"][1] - 3) // 2
+            line = k + 1 if spec["ocean_side"] in ("south", "west") else k
+            if spec["axis"] == "nyp":
+                x, y = qlon[line, lo : hi + 2], qlat[line, lo : hi + 2]
+                kx, ky = tlon[k, lo : hi + 1], tlat[k, lo : hi + 1]
+            else:
+                x, y = qlon[lo : hi + 2, line], qlat[lo : hi + 2, line]
+                kx, ky = tlon[lo : hi + 1, k], tlat[lo : hi + 1, k]
+            ax.plot(x, y, color=line_color, lw=2.5, solid_capstyle="round")
+
+            middle = (x.mean(), y.mean())
+            toward = to_pixels((kx.mean(), ky.mean())) - to_pixels(middle)
+            toward = toward / (np.hypot(*toward) or 1.0)
+            ax.annotate(
+                label,
+                middle,
+                xytext=tuple(11 * toward),
+                textcoords="offset points",
+                ha="center",
+                va="center",
+                fontsize=9,
+                fontweight="bold",
+                color=ink,
+                bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=0.85),
+            )
+        return ax
 
     @classmethod
     def from_lonlat(
