@@ -13,6 +13,7 @@ masking comes straight from a mom6_forge.Topo.
 
 import shutil
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
@@ -284,7 +285,7 @@ def test_partially_wet_edge_is_kept():
 
 
 # ---------------------------------------------------------------------------
-# find_interior_boundaries
+# find_boundaries
 # ---------------------------------------------------------------------------
 
 
@@ -300,35 +301,34 @@ def _two_basins_and_a_strait():
     return grid, topo
 
 
-def test_find_interior_boundaries_finds_the_strait():
-    import matplotlib.pyplot as plt
-
+def test_find_boundaries_finds_the_open_edges_and_the_strait():
     grid, topo = _two_basins_and_a_strait()
     hgrid = grid._supergrid.to_ds(name=grid.name, author="pytest")
 
-    found = Segment.find_interior_boundaries(topo)
+    found = Segment.find_boundaries(topo)
 
+    assert list(found) == ["south", "north", "west", "east", "A"]
     # One line across the whole strait, island included, keeping the bigger basin.
-    assert found == {
-        "A": {
-            "axis": "nyp",
-            "index": 2 * 5 + 1,
-            "index_range": [2 * 3, 2 * 7 + 3],
-            "ocean_side": "south",
-        }
+    assert found["A"] == {
+        "axis": "nyp",
+        "index": 2 * 5 + 1,
+        "index_range": [2 * 3, 2 * 7 + 3],
+        "ocean_side": "south",
     }
-    Segment.from_spec(hgrid, found["A"], "segment_001", topo=topo)
-    ax = Segment.plot_interior_boundaries(topo, found)
-    assert len(ax.lines) == 1
+    for key, spec in found.items():
+        Segment.from_spec(hgrid, spec, f"segment_{key}", topo=topo)
+    ax = Segment.plot_boundaries(topo, found)
+    assert len(ax.lines) == len(found)
     plt.close(ax.figure)
 
 
-def test_find_interior_boundaries_keeps_the_side_with_the_keep_point():
+def test_find_boundaries_keeps_the_side_with_the_keep_point():
     _, topo = _two_basins_and_a_strait()
 
-    found = Segment.find_interior_boundaries(topo, keep=(5.5, 8.5))
+    found = Segment.find_boundaries(topo, keep=(5.5, 8.5))
 
-    assert [spec["ocean_side"] for spec in found.values()] == ["north"]
+    assert found["A"]["ocean_side"] == "north"
+    assert "B" not in found
 
 
 # ---------------------------------------------------------------------------

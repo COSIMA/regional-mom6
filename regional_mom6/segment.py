@@ -78,9 +78,13 @@ touch the U/V arithmetic yourself; T-point in, correct U/V face out.
 import warnings
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
+from matplotlib.colors import ListedColormap
+from scipy import ndimage
+from scipy.signal import find_peaks
 
 from mom6_forge.grid import Grid
 
@@ -201,8 +205,6 @@ def _necks(chain):
     are narrower than both sides, narrowest first, since the narrowest one
     may not pass the land-cap check where the coast runs diagonally.
     """
-    from scipy.signal import find_peaks
-
     widths = np.array([hi - lo + 1 for _, lo, hi in chain])
     if widths.size < 3:
         return
@@ -231,8 +233,6 @@ def _close_face(w, face, lo, hi, keep_low):
     label of the side that is kept -- if that cuts the ocean in two, otherwise
     ``None``.
     """
-    from scipy import ndimage
-
     n_rows, n_cols = w.shape
     land_row = _land_row(face, keep_low)
     data_row = face if keep_low else face + 1
@@ -247,6 +247,26 @@ def _close_face(w, face, lo, hi, keep_low):
     if not cut_off or kept in cut_off:
         return None  # nothing beyond, or the ocean joins up around it
     return labels, kept
+
+
+def _boundary_line(spec, qlon, qlat, tlon, tlat):
+    """For plotting a boundary spec: the corner points along its line, and the
+    T-cell centers on the side it keeps."""
+    if spec["axis"] == "nxp":  # a column; work on the transposed grid
+        qlon, qlat, tlon, tlat = qlon.T, qlat.T, tlon.T, tlat.T
+    if spec["index_range"] is None:  # a full outer edge
+        line = k = 0 if spec["index"] == 0 else -1
+        lo, hi = 0, tlon.shape[1] - 1
+    else:
+        k = (spec["index"] - 1) // 2  # the kept T-row next to the line
+        lo, hi = spec["index_range"][0] // 2, (spec["index_range"][1] - 3) // 2
+        line = k + 1 if spec["ocean_side"] in ("south", "west") else k
+    return (
+        qlon[line, lo : hi + 2],
+        qlat[line, lo : hi + 2],
+        tlon[k, lo : hi + 1],
+        tlat[k, lo : hi + 1],
+    )
 
 
 def _boundary_label(n):
@@ -713,8 +733,7 @@ class Segment:
         this is meant as a sensible default for callers building a segment
         list, e.g. CrocoDash's ``configure_forcings(boundaries=None, ...)``.
 
-        Doesn't apply to custom/interior boundaries -- those can't be
-        inferred from topo alone and must always be specified explicitly.
+        For interior boundaries as well, see :meth:`find_boundaries`.
 
         Arguments:
             topo (mom6_forge.topo.Topo): A ``Topo`` instance for the grid in
@@ -728,36 +747,54 @@ class Segment:
         ]
 
     @classmethod
-    def find_interior_boundaries(cls, topo, keep=None) -> dict:
+    def find_boundaries(cls, topo, keep=None) -> dict:
         """
-        Find the straits and channel necks where an interior segment could cut
-        the ocean in two, labelled ``"A"``, ``"B"``, ... for picking from
-        :meth:`plot_interior_boundaries`.
+        Find where this domain can have OBC segments: its open outer edges, and
+        the interior boundaries that could cut the ocean in two. Show them with
+        :meth:`plot_boundaries`, pick the ones you want, and build each with
+        ``Segment.from_spec(hgrid, spec, segment_name, topo=topo)``.
 
-        Each one is a straight run of open faces at the narrowest point of a
-        channel, land-capped at both ends, that separates the ocean on one side
-        from the ocean on the other. Lines that only cut a bay's head, or that
-        the ocean flows around (e.g. coast to island), are left out.
+        - **Outer edges** are the cardinal edges that touch ocean (as in
+          :meth:`detect_open_cardinal_boundaries`), keyed ``"south"``,
+          ``"north"``, ``"west"`` and ``"east"``.
+        - **Interior boundaries** are keyed ``"A"``, ``"B"``, ... from north to
+          south. Each is a straight run of open faces at the narrowest point of a
+          channel, land-capped at both ends, that separates the ocean on one side
+          from the ocean on the other. Lines that only cut a bay's head, or that
+          the ocean flows around (e.g. coast to island), are left out.
 
-        MOM6 only closes the row of T-cells just past the line, so the ocean
-        beyond it stays in the bathymetry as an unforced, cut-off basin. Fill it
-        with land (e.g. with mom6_forge's topo editor) if you don't want it.
+        MOM6 only closes the row of T-cells just past an interior line, so the
+        ocean beyond it stays in the bathymetry as an unforced, cut-off basin.
+        Fill it with land (e.g. with mom6_forge's topo editor) if you don't want
+        it, and leave out any outer edge that only touches it.
 
         Arguments:
             topo (mom6_forge.topo.Topo): The domain's bathymetry; its ``tmask``
                 says what is ocean.
             keep (tuple[float, float], optional): A ``(lon, lat)`` point in the
-                ocean you want to model. Each boundary keeps the side this point
-                is on, and boundaries that don't separate it from anything are
-                left out. Default ``None`` keeps the larger side of each one.
+                ocean you want to model. Each interior boundary keeps the side
+                this point is on, and ones that don't separate it from anything
+                are left out. Default ``None`` keeps the larger side of each one.
 
         Returns:
-            dict: ``{label: spec}``, labelled north to south, where each spec is a
-            :meth:`to_spec` dict. Build a segment with
-            ``Segment.from_spec(hgrid, spec, segment_name, topo=topo)``.
+            dict: ``{key: spec}``, outer edges first, where each spec is a
+            :meth:`to_spec` dict.
         """
-        from scipy import ndimage
+        boundaries = {
+            orientation: {
+                "axis": _CARDINAL_AXES[orientation][0],
+                "index": _CARDINAL_AXES[orientation][1],
+                "index_range": None,
+                "ocean_side": _CARDINAL_OCEAN_SIDE[orientation],
+            }
+            for orientation in cls.detect_open_cardinal_boundaries(topo)
+        }
+        boundaries.update(cls._find_interior_boundaries(topo, keep))
+        return boundaries
 
+    @classmethod
+    def _find_interior_boundaries(cls, topo, keep):
+        """The interior part of :meth:`find_boundaries`."""
         wet = np.asarray(topo.tmask).astype(bool)
         has_depth = np.asarray(topo.depth) > 0
         # Channels are followed coast to coast with islands filled in, so a
@@ -835,23 +872,20 @@ class Segment:
         return None
 
     @staticmethod
-    def plot_interior_boundaries(topo, boundaries: dict, ax=None):
+    def plot_boundaries(topo, boundaries: dict, ax=None):
         """
-        Draw the boundaries from :meth:`find_interior_boundaries` on the
-        domain's land mask, each with its letter on the side it keeps.
+        Draw the boundaries from :meth:`find_boundaries` on the domain's land
+        mask, each with its key on the side it keeps.
 
         Arguments:
             topo (mom6_forge.topo.Topo): The bathymetry the boundaries came from.
-            boundaries (dict): ``{label: spec}`` from :meth:`find_interior_boundaries`.
+            boundaries (dict): ``{key: spec}`` from :meth:`find_boundaries`.
             ax (matplotlib.axes.Axes, optional): Axes to draw on. Default ``None``
                 makes a new figure.
 
         Returns:
             matplotlib.axes.Axes
         """
-        import matplotlib.pyplot as plt
-        from matplotlib.colors import ListedColormap
-
         grid = topo._grid
         qlon, qlat = np.asarray(grid.qlon), np.asarray(grid.qlat)
         tlon, tlat = np.asarray(grid.tlon), np.asarray(grid.tlat)
@@ -871,20 +905,13 @@ class Segment:
         ax.set_aspect(1 / np.cos(np.deg2rad(np.nanmean(tlat))))
         ax.set_xlabel("Longitude")
         ax.set_ylabel("Latitude")
-        ax.set_title("Possible interior boundaries (letter on the side kept)")
+        ax.set_title("Possible boundaries (key on the side kept)")
 
         to_pixels = ax.transData.transform
         for label, spec in boundaries.items():
-            k = (spec["index"] - 1) // 2  # the kept T-row/column next to the line
-            lo, hi = spec["index_range"][0] // 2, (spec["index_range"][1] - 3) // 2
-            line = k + 1 if spec["ocean_side"] in ("south", "west") else k
-            if spec["axis"] == "nyp":
-                x, y = qlon[line, lo : hi + 2], qlat[line, lo : hi + 2]
-                kx, ky = tlon[k, lo : hi + 1], tlat[k, lo : hi + 1]
-            else:
-                x, y = qlon[lo : hi + 2, line], qlat[lo : hi + 2, line]
-                kx, ky = tlon[lo : hi + 1, k], tlat[lo : hi + 1, k]
-            ax.plot(x, y, color=line_color, lw=2.5, solid_capstyle="round")
+            x, y, kx, ky = _boundary_line(spec, qlon, qlat, tlon, tlat)
+            # Above the axes frame, so the outer edges show.
+            ax.plot(x, y, color=line_color, lw=2.5, clip_on=False, zorder=3)
 
             middle = (x.mean(), y.mean())
             toward = to_pixels((kx.mean(), ky.mean())) - to_pixels(middle)
