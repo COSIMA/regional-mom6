@@ -27,6 +27,7 @@ from pathlib import Path
 import dask.array as da
 import numpy as np
 import netCDF4
+import copy
 import logging
 from os.path import isfile
 
@@ -690,7 +691,9 @@ def apply_arakawa_grid_mapping(var_mapping: dict, arakawa_grid: str = None) -> d
         validate_var_mapping(var_mapping, is_xhyh=False)
         arakawa_grid = identify_arakawa_grid(var_mapping)
         print("Arakawa {} grid detected in variable mapping".format(arakawa_grid))
-        return var_mapping
+        # Deep copy so later per-call narrowing (e.g. depth_coord list -> str)
+        # doesn't bleed back into the caller's shared mapping.
+        return copy.deepcopy(var_mapping)
     else:
         if arakawa_grid not in ("A", "B", "C"):
             raise ValueError("arakawa_grid must be one of: 'A', 'B', or 'C'")
