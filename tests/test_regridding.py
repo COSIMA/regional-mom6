@@ -46,16 +46,40 @@ def test_add_or_update_time_dim(generate_silly_vt_dataset):
     assert ds["temp"].dims[0] == "time"  # Check time is first dim
 
 
-def test_generate_dz(generate_silly_vt_dataset):
+def test_generate_dz_from_centers(generate_silly_vt_dataset):
     ds = generate_silly_vt_dataset
 
-    dz = rgd.generate_dz(ds, "silly_depth")
+    dz = rgd.generate_dz_from_centers(ds, "silly_depth")
     assert ds.time.attrs == {"units": "days"}  # Assert that attributes are retained
-    z = np.linspace(0, 1000, 10)
-    dz_check = np.full(z.shape, z[1] - z[0])
-    assert (
-        (dz.values - dz_check) < 0.00001
-    ).all()  # Assert dz is generated correctly (some rounding leniency)
+    # silly_depth is the centers of ten uniform 100 m layers.
+    assert dz.values == pytest.approx(np.full(10, 100.0))
+
+
+def test_generate_dz_rejects_bad_coordinates():
+    """Interfaces give one fewer layer, and must not be read as centers."""
+    ds = xr.Dataset(coords={"depth": np.array([0.0, 5.0, 10.0, 15.0])})
+    assert rgd.generate_dz_from_interfaces(ds, "depth").values == pytest.approx(
+        [5.0, 5.0, 5.0]
+    )
+    with pytest.raises(ValueError, match="zero thickness"):
+        rgd.generate_dz_from_centers(ds, "depth")
+
+    unsorted = xr.Dataset(coords={"depth": np.array([10.0, 5.0, 20.0])})
+    for fn in (rgd.generate_dz_from_centers, rgd.generate_dz_from_interfaces):
+        with pytest.raises(ValueError, match="monotonically"):
+            fn(unsorted, "depth")
+
+
+def test_generate_dz_from_centers_nonuniform_grid():
+    """Thickness is not centre spacing; the two agree only on a uniform grid,
+    which is why a uniform fixture cannot catch this. GLORYS levels are stretched."""
+    levels = np.array([0.494025, 1.541375, 2.645669, 3.819495, 5.078224, 6.440614])
+    dz = rgd.generate_dz_from_centers(
+        xr.Dataset(coords={"depth": levels}), "depth"
+    ).values
+
+    assert np.cumsum(dz) - 0.5 * dz == pytest.approx(levels, rel=1e-10)  # centres exact
+    assert dz[0] != pytest.approx(np.diff(levels)[0])  # differs from spacing
 
 
 def test_add_secondary_dimension(get_curvilinear_hgrid, generate_silly_vt_dataset):
@@ -130,6 +154,33 @@ def test_generate_layer_thickness(generate_silly_vt_dataset):
     assert (
         ds["temp"]["silly_depth"].shape == ds["dz_temp"]["nz_temp"].shape
     )  # Make sure the depth dimension was broadcasted correctly
+
+
+def test_thin_dz_to_depth():
+    dz = np.full(5, 100.0)
+    assert np.allclose(rgd.thin_dz_to_depth(dz, [250.0])[:, 0], [100, 100, 50, 0, 0])
+    # A floor below the source column extends the bottom layer to reach it.
+    assert np.allclose(
+        rgd.thin_dz_to_depth(dz, [620.0])[:, 0], [100, 100, 100, 100, 220]
+    )
+    # Every wet column sums to its own depth; land keeps the full column.
+    depth = np.array([500.0, 250.0, 30.0, 620.0])
+    assert np.allclose(rgd.thin_dz_to_depth(dz, depth).sum(axis=0), depth)
+    for land in (0.0, -10.0, np.nan):
+        assert np.allclose(rgd.thin_dz_to_depth(dz, [land])[:, 0], dz)
+
+
+def test_generate_layer_thickness_with_depth(generate_silly_vt_dataset):
+    ds = generate_silly_vt_dataset.isel(silly_lon=[0])  # a segment is a line
+    ds["temp"] = ds["temp"].transpose("time", "silly_depth", "silly_lat", "silly_lon")
+    full = rgd.generate_dz_from_centers(ds, "silly_depth").values.sum()
+    depth = np.linspace(0.25 * full, full, ds.sizes["silly_lat"])
+    ds = rgd.generate_layer_thickness(
+        ds, "temp", "segment_002", "silly_depth", depth=depth
+    )
+    dz = ds["dz_temp"]
+    assert dz.dims == ("time", "nz_temp", "ny_segment_002", "nx_segment_002")
+    assert np.allclose(dz.isel(time=0).sum("nz_temp").values.ravel(), depth)
 
 
 def test_generate_encoding(generate_silly_vt_dataset):

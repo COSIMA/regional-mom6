@@ -945,3 +945,66 @@ def test_regrid_tides_regridders_manual_reuse(
         regridders=cached_regridders,
     )
     assert call_count["n"] == 3  # not rebuilt
+
+
+def test_regrid_velocity_tracers_chunks_share_one_epoch(toy_glorys_ds, tmp_path):
+    """Consecutive windows of one dataset must land on a common time axis.
+    regrid_velocity_tracers used to rewrite time as arange(0, ntimes), which is
+    only right when the data starts at startdate.
+    """
+    grid = Grid(
+        resolution=2,
+        xstart=2,
+        lenx=2,
+        ystart=2,
+        leny=2,
+        name="test",
+        type="rectilinear_cartesian",
+    )
+    hgrid = grid._supergrid.to_ds(name=grid.name, author="pytest")
+    outfolder = tmp_path / "inputdir"
+    outfolder.mkdir()
+
+    varnames = {
+        "xh": "lon",
+        "yh": "lat",
+        "time": "time",
+        "eta": "eta",
+        "zl": "depth",
+        "u": "u",
+        "v": "v",
+        "tracers": {"temp": "temp", "salt": "salt"},
+    }
+    startdate = "2003-01-01 00:00:00"
+
+    def regrid_window(day_offsets, seg_name):
+        """One chunk: the toy dataset stamped at the given days past startdate."""
+        ds = toy_glorys_ds.isel(time=[0] * len(day_offsets)).copy()
+        ds = ds.assign_coords(time=("time", np.asarray(day_offsets, dtype=float)))
+        ds["time"].attrs = {
+            "units": f"days since {startdate}",
+            "calendar": "gregorian",
+        }
+        infile = tmp_path / f"raw_{seg_name}.nc"
+        ds.to_netcdf(infile)
+        ds.close()
+        segment = Segment.cardinal(hgrid, "east", seg_name)
+        segment_out, _ = segment.regrid_velocity_tracers(
+            infile, varnames, outfolder, startdate, arakawa_grid="A"
+        )
+        return segment_out["time"].values
+
+    first = regrid_window([0.0, 1.0, 2.0], "segment_001")
+    second = regrid_window([3.0, 4.0, 5.0], "segment_002")
+
+    # The first chunk starts at startdate, so it is unchanged by the fix.
+    np.testing.assert_allclose(first, [0.0, 1.0, 2.0])
+    # The second must continue it rather than restart -- the actual regression.
+    np.testing.assert_allclose(second, [3.0, 4.0, 5.0])
+    assert (np.diff(np.concatenate([first, second])) > 0).all()
+
+    # Daily means stamped mid-interval keep their whole-day index
+    noon_first = regrid_window([0.5, 1.5, 2.5], "segment_003")
+    noon_second = regrid_window([3.5, 4.5, 5.5], "segment_004")
+    np.testing.assert_allclose(noon_first, [0.0, 1.0, 2.0])
+    np.testing.assert_allclose(noon_second, [3.0, 4.0, 5.0])

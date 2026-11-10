@@ -124,6 +124,23 @@ _OCEAN_SIDE_REVERSE = {
 _OCEAN_SIDE_MASKS_OWN_POSITION = frozenset({"south", "west"})
 
 
+def _decode_segment_times(time_var, calendar):
+    """Decode a segment's raw CF time values, or None if they carry no epoch."""
+
+    units = time_var.attrs.get("units")
+    if not units or "since" not in units:
+        warnings.warn(
+            f"Segment time coordinate has no CF epoch (units={units!r}); "
+            "indexing from zero instead, so one chunk of a longer window will "
+            "not line up with the others.",
+            UserWarning,
+        )
+        return None
+    return xr.coding.times.decode_cf_datetime(
+        np.asarray(time_var), units, time_var.attrs.get("calendar", calendar)
+    )
+
+
 class Segment:
     """
     The geometry of a single straight MOM6 OBC segment, plus the ability to
@@ -141,6 +158,8 @@ class Segment:
             re-adding the perpendicular axis during regridding.
         mask (Optional[xarray.DataArray]): 1-D ocean(1)/land(0) mask along the segment,
             same dims as ``lon``. ``None`` means no masking is applied.
+        depth (Optional[xarray.DataArray]): 1-D sea floor depth along the segment,
+            NaN over land. ``None`` writes the full source column at every point.
     """
 
     def __init__(
@@ -154,6 +173,7 @@ class Segment:
         perpendicular,
         axis_to_expand,
         mask=None,
+        depth=None,
         grid_index=None,
         axis=None,
         index=None,
@@ -167,6 +187,7 @@ class Segment:
         self.perpendicular = perpendicular
         self.axis_to_expand = axis_to_expand
         self.mask = mask
+        self.depth = depth
         self._grid_index = grid_index
         self._axis = axis
         self._index = index
@@ -293,7 +314,11 @@ class Segment:
                 "via mom6_forge's grid generation) before calling from_hgrid."
             )
             angle = xr.zeros_like(lon)
-        mask = topo.supergridmask.isel({axis: index}) if topo is not None else None
+        if topo is None:
+            mask = depth = None
+        else:
+            mask = topo.supergridmask.isel({axis: index})
+            depth = cls._supergrid_depth(topo, axis, index).where(mask > 0)
 
         grid_index = cls._compute_grid_index(
             hgrid,
@@ -311,6 +336,7 @@ class Segment:
             angle = angle.isel({parallel_axis: index_range})
             if mask is not None:
                 mask = mask.isel({parallel_axis: index_range})
+                depth = depth.isel({parallel_axis: index_range})
 
         parallel, perpendicular, axis_to_expand = (
             ("nx", "ny", 2) if axis == "nyp" else ("ny", "nx", 3)
@@ -321,6 +347,7 @@ class Segment:
         angle = angle.rename({parallel_axis: new_dim_name})
         if mask is not None:
             mask = mask.rename({parallel_axis: new_dim_name})
+            depth = depth.rename({parallel_axis: new_dim_name})
 
         return cls(
             lon=lon,
@@ -331,11 +358,43 @@ class Segment:
             perpendicular=perpendicular,
             axis_to_expand=axis_to_expand,
             mask=mask,
+            depth=depth,
             grid_index=grid_index,
             axis=axis,
             index=index,
             index_range=index_range,
         )
+
+    @staticmethod
+    def _supergrid_depth(topo, axis: str, index: int) -> xr.DataArray:
+        """
+        Sea floor depth along a supergrid line, laid out like ``supergridmask``.
+
+        T centers take their own cell's depth; the points between two cells take
+        the shallower of the pair, as MOM6 does for a face.
+        """
+        depth = np.asarray(topo.masked_depth)
+        ny, nx = depth.shape
+
+        def _adjacent(r, n):
+            if r % 2 == 1:
+                return [(r - 1) // 2]
+            return sorted({max(r // 2 - 1, 0), min(r // 2, n - 1)})
+
+        if axis == "nyp":
+            r = index if index >= 0 else (2 * ny + 1) + index
+            along = np.min(depth[_adjacent(r, ny), :], axis=0)
+            parallel_axis = "nxp"
+        else:
+            r = index if index >= 0 else (2 * nx + 1) + index
+            along = np.min(depth[:, _adjacent(r, nx)], axis=1)
+            parallel_axis = "nyp"
+
+        line = np.empty(2 * along.size + 1)
+        line[1::2] = along
+        line[2:-1:2] = np.minimum(along[:-1], along[1:])
+        line[0], line[-1] = along[0], along[-1]
+        return xr.DataArray(line, dims=[parallel_axis])
 
     @staticmethod
     def _check_land_capped_endpoints(
@@ -774,6 +833,14 @@ class Segment:
 
         rawseg = xr.open_mfdataset(infile, decode_times=False, engine="netcdf4")
 
+        # Decode before the regrid drops the CF attrs. Absolute time_units
+        # keep the raw times, so there is nothing to anchor.
+        src_times = None
+        if "since" not in time_units:
+            src_times = _decode_segment_times(
+                rawseg[reprocessed_var_map["time_var_name"]], calendar
+            )
+
         # Convert z coordinates to meters if pint-enabled
         if type(reprocessed_var_map["depth_coord"]) != list:
             dc_list = [reprocessed_var_map["depth_coord"]]
@@ -849,16 +916,28 @@ class Segment:
                     depth_coord = dc
 
         if "since" not in time_units:
-            times = xr.DataArray(
-                np.arange(
-                    0,  #! Indexing everything from start of experiment = simple but maybe counterintutive?
-                    segment_out[reprocessed_var_map["time_var_name"]].shape[
-                        0
-                    ],  ## Time is indexed from start date of window
-                    dtype=float,
-                ),
-                dims=["time"],
-            )
+            # Anchor on the startdate epoch. This was arange(0, ntimes), so
+            # every chunk of a window restarted at zero and the merged axis ran
+            # backwards. The first record is pulled back to a whole unit.
+            ntimes = segment_out[reprocessed_var_map["time_var_name"]].shape[0]
+            if src_times is None:
+                values = np.arange(ntimes, dtype=float)
+            else:
+                if len(src_times) != ntimes:
+                    raise ValueError(
+                        f"Regrid changed the time dimension "
+                        f"({len(src_times)} -> {ntimes}); cannot anchor this "
+                        f"segment on {startdate}."
+                    )
+                offsets, _, _ = xr.coding.times.encode_cf_datetime(
+                    src_times,
+                    f"{time_units} since {startdate}",
+                    calendar,
+                    dtype=np.float64,
+                )
+                offsets = np.asarray(offsets, dtype=float)
+                values = offsets - offsets[0] + np.floor(offsets[0] + 1e-9)
+            times = xr.DataArray(values, dims=["time"])
 
             # This to change the time coordinate.
             segment_out = rgd.add_or_update_time_dim(
@@ -937,6 +1016,7 @@ class Segment:
                     v,
                     self.segment_name,
                     depth_coord,
+                    depth=self.depth,
                 )
 
         # Here, do a foolproof (hopefully) manual conversion from K -> C just in case

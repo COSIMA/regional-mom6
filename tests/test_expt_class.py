@@ -332,7 +332,7 @@ def test_rectangular_boundaries(
                     "silly_lon": np.linspace(
                         longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5
                     ),
-                    "silly_depth": np.linspace(0, 1000, 10),
+                    "silly_depth": np.linspace(50, 950, 10),
                     "time": np.linspace(0, 1000, 10),
                 },
             ),
@@ -359,7 +359,7 @@ def test_rectangular_boundaries(
                     "silly_lon": np.linspace(
                         longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5
                     ),
-                    "silly_depth": np.linspace(0, 1000, 10),
+                    "silly_depth": np.linspace(50, 950, 10),
                     "time": np.linspace(0, 1000, 10),
                 },
             ),
@@ -373,7 +373,7 @@ def test_rectangular_boundaries(
                     "silly_lon": np.linspace(
                         longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5
                     ),
-                    "silly_depth": np.linspace(0, 1000, 10),
+                    "silly_depth": np.linspace(50, 950, 10),
                     "time": np.linspace(0, 1000, 10),
                 },
             ),
@@ -387,7 +387,7 @@ def test_rectangular_boundaries(
                     "silly_lon": np.linspace(
                         longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5
                     ),
-                    "silly_depth": np.linspace(0, 1000, 10),
+                    "silly_depth": np.linspace(50, 950, 10),
                     "time": np.linspace(0, 1000, 10),
                 },
             ),
@@ -401,7 +401,7 @@ def test_rectangular_boundaries(
                     "silly_lon": np.linspace(
                         longitude_extent[1] - 0.5, longitude_extent[1] + 0.5, 5
                     ),
-                    "silly_depth": np.linspace(0, 1000, 10),
+                    "silly_depth": np.linspace(50, 950, 10),
                     "time": np.linspace(0, 1000, 10),
                 },
             ),
