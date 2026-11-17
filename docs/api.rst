@@ -15,6 +15,14 @@ regional\_mom6.regional\_mom6 module
    :undoc-members:
    :show-inheritance:
 
+regional\_mom6.segment module
+-----------------------------
+
+.. automodule:: regional_mom6.segment
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 regional\_mom6.regridding module
 --------------------------------
 

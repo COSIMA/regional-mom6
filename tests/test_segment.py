@@ -86,8 +86,7 @@ def test_segment_from_hgrid_invalid_axis_raises(get_rectilinear_hgrid):
 
 def test_segment_from_hgrid_arbitrary_axis_index_range(get_rectilinear_hgrid):
     hgrid = get_rectilinear_hgrid
-    # Odd-length (T-center-aligned) slice -- BRUSHCUTTER_MODE requires this;
-    # from_hgrid rejects an even-length (corner-aligned) one.
+    # Corner to corner (supergrid 2..6), as MOM6 reads a segment.
     index_range = slice(2, 7)
     segment = Segment.from_hgrid(
         hgrid,
@@ -144,8 +143,9 @@ def test_from_lonlat_nyp_resolves_nearest_row_and_lon_range(get_rectilinear_hgri
         ocean_side="north",
     )
     assert np.allclose(segment.lat.values, 8.5, atol=0.05)
-    assert segment.lon.values.min() >= 278.95
-    assert segment.lon.values.max() <= 280.05
+    # Corner to corner: half a cell past the T-centers nearest each end.
+    assert segment.lon.values.min() >= 278.9 - 1e-9
+    assert segment.lon.values.max() <= 280.1 + 1e-9
 
     # Matches an equivalent from_hgrid call at the resolved supergrid index.
     equivalent = Segment.from_hgrid(
@@ -173,8 +173,44 @@ def test_from_lonlat_nxp_resolves_nearest_col_and_lat_range(get_rectilinear_hgri
         ocean_side="west",
     )
     assert np.allclose(segment.lon.values, 279.5, atol=0.05)
-    assert segment.lat.values.min() >= 7.95
-    assert segment.lat.values.max() <= 9.05
+    assert segment.lat.values.min() >= 7.9 - 1e-9
+    assert segment.lat.values.max() <= 9.1 + 1e-9
+
+
+def test_interior_segment_faces_are_the_cells_it_opens():
+    """MOM6 reads a segment's face values (tracers, normal velocity) from the odd
+    positions of its file, counted from the segment's first corner. Across a
+    channel, the segment must open every channel cell, and each face MOM6 reads
+    must be one of those cells' wet T-centers -- not a corner or land."""
+    grid = Grid(
+        resolution=1,
+        xstart=0,
+        lenx=10,
+        ystart=0,
+        leny=10,
+        name="channel",
+        type="rectilinear_cartesian",
+    )
+    topo = Topo(grid, min_depth=5.0, git=False)
+    topo.set_flat(100.0)
+    depth = topo.depth.values.copy()
+    depth[6:, :] = 0.0
+    depth[6:, 3:6] = 100.0  # a strait, T-columns 3-5, running north
+    topo.depth = depth
+    hgrid = grid._supergrid.to_ds(name=grid.name, author="pytest")
+
+    segment = Segment.from_lonlat(
+        hgrid,
+        axis="nyp",
+        fixed_lat=float(grid.tlat[8, 3]),
+        lon_range=(float(grid.tlon[8, 3]), float(grid.tlon[8, 5])),
+        segment_name="segment_001",
+        topo=topo,
+        ocean_side="south",
+    )
+    assert segment.mom6_obc_position_string() == "J=9,I=6:3"
+    assert np.allclose(segment.lon.values[1::2], grid.tlon.values[8, 3:6])
+    assert segment.mask.values[1::2].all()
 
 
 def test_from_lonlat_missing_required_args_raises(get_rectilinear_hgrid):
@@ -278,7 +314,7 @@ def test_mom6_obc_position_string_arbitrary_segment(get_rectilinear_hgrid):
     2x resolution relative to MOM6's own model grid -- instead of the 'N'
     sentinel, and reverse=True should flip the parallel index direction."""
     hgrid = get_rectilinear_hgrid
-    # Odd-length (T-center-aligned) slice -- BRUSHCUTTER_MODE requires this.
+    # Corner to corner (supergrid 2..8), as MOM6 reads a segment.
     segment = Segment.from_hgrid(
         hgrid,
         axis="nyp",
@@ -374,13 +410,12 @@ def _sketch_grid_and_topo():
       - Headland A: rows (t-index) 15-19, cols 2-13, notch at (15, 10).
       - Headland B: rows 0-4, cols 15-19, notch at (2, 17).
 
-    Headland A's west edge (col 2) reaches further west than the "interior
-    line just south of headland A" (segment_002) actually needs for its own
-    data -- that extra width exists purely so segment_002's west endpoint
-    (T-column 3) is land-capped: _check_land_capped_endpoints requires land
-    one column past that endpoint (col 2) on the row MOM6 force-masks (16,
-    one row north of segment_002's own row 15, which sits at the T-center
-    supergrid index 31 = 2 * 15 + 1).
+    Headland A reaches one column past both ends of the "interior line just
+    south of headland A" (segment_002, T-columns 3-12) -- that extra width
+    exists purely so segment_002 is land-capped: _check_land_capped_endpoints
+    requires land one column past each endpoint (cols 2 and 13) on the row
+    MOM6 force-masks (16, one row north of segment_002's own row 15, which
+    sits at the T-center supergrid index 31 = 2 * 15 + 1).
     """
     grid = Grid(
         resolution=1,
@@ -404,14 +439,14 @@ def _sketch_grid_and_topo():
 
 
 # (segment_name, kwargs for Segment.from_hgrid, or None to use Segment.cardinal)
-# Every index_range below is odd-length (T-center-aligned), per
-# BRUSHCUTTER_MODE -- from_hgrid rejects an even-length one outright.
+# Every index_range below runs corner to corner (even supergrid indices), as
+# MOM6 reads a segment -- from_hgrid rejects one that starts on a T-center.
 _SKETCH_SEGMENT_SPECS = {
     "segment_001": dict(
         axis="nyp", index=-1, index_range=slice(0, 15), ocean_side="north"
     ),  # north edge, west of headland A
     "segment_002": dict(
-        axis="nyp", index=31, index_range=slice(7, 40), ocean_side="south"
+        axis="nyp", index=31, index_range=slice(6, 27), ocean_side="south"
     ),  # interior line just south of headland A; overlaps segment_001
     "segment_003": dict(
         axis="nxp", index=-1, index_range=slice(10, 41), ocean_side="west"
@@ -551,14 +586,14 @@ def test_sketch_domain_position_strings_full_edge_vs_interior():
     assert segments["segment_007"].mom6_obc_position_string() == "I=0,J=N:0"
 
     # Interior line (axis="nyp", index=31 -- T-center for T-row 15,
-    # index_range=slice(7, 40), ocean_side="south"): fixed J = 31 // 2 = 15,
+    # index_range=slice(6, 27), ocean_side="south"): fixed J = 31 // 2 = 15,
     # but ocean_side="south" is exactly the case MOM6's
     # open_boundary_impose_land_mask force-masks to land at J *itself*
     # rather than a neighbor (confirmed against a real MOM6 run) -- Segment
     # compensates by reporting J=16 so MOM6 masks J=16 (the true north
     # neighbor) instead of the segment's own row, J=15.
-    # Parallel I = 7//2=3 .. (40-1)//2=19, reversed (ocean_side="south") -> 19:3.
-    assert segments["segment_002"].mom6_obc_position_string() == "J=16,I=19:3"
+    # Parallel I = 6//2=3 .. (27-1)//2=13, reversed (ocean_side="south") -> 13:3.
+    assert segments["segment_002"].mom6_obc_position_string() == "J=16,I=13:3"
     # Interior line adjacent to headland B (axis="nxp", index=31 -- T-center
     # for T-column 15, index_range=slice(0, 7)). fixed I = 31 // 2 = 15, but
     # ocean_side="west" is the mirror-image broken case (masks I itself) --
@@ -598,6 +633,7 @@ def test_interior_partial_segment_regrid_velocity_tracers(toy_glorys_ds, tmp_pat
     depth = topo.depth.values.copy()
     depth[0, 2] = 0.0  # mask one interior T-cell along the segment's line to land
     depth[1, 0] = 0.0  # land-cap the segment's west endpoint (row north of it)
+    depth[1, 3] = 0.0  # and its east endpoint
     topo.depth = depth
     hgrid = grid._supergrid.to_ds(name=grid.name, author="pytest")
 
