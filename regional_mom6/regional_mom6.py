@@ -1642,12 +1642,9 @@ class experiment:
         longitude_coordinate_name="lon",
         latitude_coordinate_name="lat",
         vertical_coordinate_name="elevation",  # This is to match GEBCO
-        fill_channels=True,
-        positive_down=False,
-        write_to_file=True,
         regridding_method=None,
-        depth_method="xesmf",
-        mask_method="dataset",
+        depth_method="stats",
+        mask_method="ocean_frac",
     ):
         """
         Cut out and interpolate the chosen bathymetry and then fill inland lakes.
@@ -1698,22 +1695,22 @@ class experiment:
             longitude_coordinate_name=longitude_coordinate_name,
             latitude_coordinate_name=latitude_coordinate_name,
             vertical_coordinate_name=vertical_coordinate_name,
-            regridding_method=regridding_method,
-            fill_channels=fill_channels,
-            is_input_positive_below_msl=positive_down,
-            write_to_file=write_to_file,
-            depth_method=depth_method,
             mask_method=mask_method,
+            depth_method=depth_method,
+            mask_hmin=0.0,
         )
+        # self.tidy_bathymetry()
         self.m6f_bathymetry.write_topo(self.mom_input_dir / "bathymetry.nc")
         return self.m6f_bathymetry.gen_topo_ds()
 
     def tidy_bathymetry(
         self,
-        fill_channels=False,
     ):
-        if fill_channels:
-            self.m6f_bathymetry.fill_inland_lakes_and_channels()
+        self.m6f_bathymetry.fill_inland_lakes_and_channels()
+        
+        # To retain the original bathymetry without overwriting it, move it
+        print("Inland lakes and channels have been filled in. The original, unfilled bathymetry file has been renamed to bathymetry_unfilled.nc")
+        shutil.mv(self.mom_input_dir / "bathymetry.nc", self.mom_input_dir / "bathymetry_unfilled.nc")
         self.m6f_bathymetry.write_topo(
             self.mom_input_dir / "bathymetry.nc",
         )
