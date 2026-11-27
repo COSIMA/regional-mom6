@@ -1695,22 +1695,23 @@ class experiment:
             longitude_coordinate_name=longitude_coordinate_name,
             latitude_coordinate_name=latitude_coordinate_name,
             vertical_coordinate_name=vertical_coordinate_name,
+            min_depth = self.minimum_depth,
             mask_method=mask_method,
             depth_method=depth_method,
             mask_hmin=0.0,
         )
-        # self.tidy_bathymetry()
         self.m6f_bathymetry.write_topo(self.mom_input_dir / "bathymetry.nc")
         return self.m6f_bathymetry.gen_topo_ds()
 
     def tidy_bathymetry(
         self,
+        fill_diagonal_channels = False
     ):
-        self.m6f_bathymetry.fill_inland_lakes_and_channels()
+        self.m6f_bathymetry.fill_inland_lakes_and_channels(fill_diagonal_channels)
         
         # To retain the original bathymetry without overwriting it, move it
         print("Inland lakes and channels have been filled in. The original, unfilled bathymetry file has been renamed to bathymetry_unfilled.nc")
-        shutil.mv(self.mom_input_dir / "bathymetry.nc", self.mom_input_dir / "bathymetry_unfilled.nc")
+        shutil.move(self.mom_input_dir / "bathymetry.nc", self.mom_input_dir / "bathymetry_unfilled.nc")
         self.m6f_bathymetry.write_topo(
             self.mom_input_dir / "bathymetry.nc",
         )
